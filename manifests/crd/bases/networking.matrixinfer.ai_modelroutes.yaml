@@ -1,0 +1,163 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.17.2
+  name: modelroutes.networking.matrixinfer.ai
+spec:
+  group: networking.matrixinfer.ai
+  names:
+    kind: ModelRoute
+    listKind: ModelRouteList
+    plural: modelroutes
+    singular: modelroute
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: ModelRoute is the Schema for the Modelroutes API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ModelRouteSpec defines the desired state of ModelRoute.
+            properties:
+              loraAdapters:
+                description: |-
+                  `model` in the LLM request could be lora adapter name,
+                  here is a list of Lora Adapter Names to match.
+                items:
+                  type: string
+                maxItems: 10
+                type: array
+              modelName:
+                description: |-
+                  `model` in the LLM request, it could be a base model name, lora adapter name or even
+                  a virtual model name. This field is used to match scenarios other than model adapter name and
+                  this field could be empty, but it and  `ModelAdapters` can't both be empty.
+                minLength: 3
+                type: string
+                x-kubernetes-validations:
+                - message: modelName is immutable
+                  rule: self == oldSelf
+              rateLimit:
+                description: Rate limit for `ModelName`
+                properties:
+                  tokensPerUnit:
+                    format: int32
+                    type: integer
+                  unit:
+                    enum:
+                    - second
+                    - minute
+                    - hour
+                    - day
+                    - month
+                    type: string
+                required:
+                - tokensPerUnit
+                - unit
+                type: object
+              rules:
+                description: |-
+                  An ordered list of route rules for LLM traffic. The first rule
+                  matching an incoming request will be used.
+                  If no rule is matched, a HTTP 404 status code MUST be returned.
+                items:
+                  properties:
+                    modelMatch:
+                      description: If no `modelMatch` is specified, it will be default
+                        route.
+                      properties:
+                        headers:
+                          additionalProperties:
+                            description: |-
+                              StringMatch defines the matching conditions for string fields.
+                              Only one of the fields may be set.
+                            properties:
+                              exact:
+                                type: string
+                              prefix:
+                                type: string
+                              regex:
+                                type: string
+                            type: object
+                          description: |-
+                            Header to match: prefix, exact, regex
+                            If unset, any header will be matched.
+                          type: object
+                        uri:
+                          description: |-
+                            URI to match: prefix, exact, regex
+                            If this field is not specified, a default prefix match on the "/" path is provided.
+                          properties:
+                            exact:
+                              type: string
+                            prefix:
+                              type: string
+                            regex:
+                              type: string
+                          type: object
+                      type: object
+                    name:
+                      description: Rule name
+                      minLength: 3
+                      type: string
+                    targetModels:
+                      items:
+                        description: LLM inference traffic target model
+                        properties:
+                          modelServerName:
+                            description: ModelServerName is used to specify the correlated
+                              modelServer within the same namespace.
+                            minLength: 3
+                            type: string
+                          weight:
+                            default: 100
+                            description: |-
+                              Weight is used to specify the percentage of traffic should be sent to the target model.
+                              The value should be in the range of [0, 100].
+                            format: int32
+                            maximum: 100
+                            minimum: 0
+                            type: integer
+                        required:
+                        - modelServerName
+                        type: object
+                      maxItems: 16
+                      type: array
+                  required:
+                  - targetModels
+                  type: object
+                maxItems: 16
+                type: array
+            required:
+            - rules
+            type: object
+          status:
+            description: ModelRouteStatus defines the observed state of ModelRoute.
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

@@ -1,0 +1,142 @@
+/*
+Copyright 2024.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package v1alpha1
+
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+// ModelRouteSpec defines the desired state of ModelRoute.
+type ModelRouteSpec struct {
+	// `model` in the LLM request, it could be a base model name, lora adapter name or even
+	// a virtual model name. This field is used to match scenarios other than model adapter name and
+	// this field could be empty, but it and  `ModelAdapters` can't both be empty.
+	//
+	// +kubebuilder:validation:MinLength=3
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="modelName is immutable"
+	ModelName string `json:"modelName,omitempty"`
+
+	// `model` in the LLM request could be lora adapter name,
+	// here is a list of Lora Adapter Names to match.
+	//
+	// +kubebuilder:validation:MaxItems=10
+	LoraAdapters []string `json:"loraAdapters,omitempty"`
+
+	// An ordered list of route rules for LLM traffic. The first rule
+	// matching an incoming request will be used.
+	// If no rule is matched, a HTTP 404 status code MUST be returned.
+	//
+	// +kubebuilder:validation:MaxItems=16
+	Rules []*Rule `json:"rules"`
+
+	// Rate limit for `ModelName`
+	// +optional
+	RateLimit *RateLimit `json:"rateLimit,omitempty"`
+}
+
+type Rule struct {
+	// Rule name
+	// +kubebuilder:validation:MinLength=3
+	Name string `json:"name,omitempty"`
+	// If no `modelMatch` is specified, it will be default route.
+	ModelMatch *ModelMatch `json:"modelMatch,omitempty"`
+	// +kubebuilder:validation:MaxItems=16
+	TargetModels []*TargetModel `json:"targetModels"`
+}
+
+// ModelMatch defines the predicate used to match LLM inference requests to a given
+// TargetModels. Multiple match conditions are ANDed together, i.e. the match will
+// evaluate to true only if all conditions are satisfied.
+type ModelMatch struct {
+	// Header to match: prefix, exact, regex
+	// If unset, any header will be matched.
+	// +optional
+	Headers map[string]*StringMatch `json:"headers,omitempty"`
+
+	// URI to match: prefix, exact, regex
+	// If this field is not specified, a default prefix match on the "/" path is provided.
+	// +optional
+	Uri *StringMatch `json:"uri,omitempty"`
+}
+
+// StringMatch defines the matching conditions for string fields.
+// Only one of the fields may be set.
+type StringMatch struct {
+	Exact  *string `json:"exact,omitempty"`
+	Prefix *string `json:"prefix,omitempty"`
+	Regex  *string `json:"regex,omitempty"`
+}
+
+// LLM inference traffic target model
+type TargetModel struct {
+	// ModelServerName is used to specify the correlated modelServer within the same namespace.
+	//
+	// +kubebuilder:validation:MinLength=3
+	// +kubebuilder:validation:required
+	ModelServerName string `json:"modelServerName"`
+	// Weight is used to specify the percentage of traffic should be sent to the target model.
+	// The value should be in the range of [0, 100].
+	//
+	// +optional
+	// +kubebuilder:default=100
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=100
+	Weight *uint32 `json:"weight,omitempty"`
+}
+
+type RateLimit struct {
+	TokensPerUnit uint32        `json:"tokensPerUnit"`
+	Unit          RateLimitUnit `json:"unit"`
+}
+
+// +kubebuilder:validation:Enum=second;minute;hour;day;month
+type RateLimitUnit string
+
+const (
+	Second RateLimitUnit = "second"
+	Minute RateLimitUnit = "minute"
+	Hour   RateLimitUnit = "hour"
+	Day    RateLimitUnit = "day"
+	Month  RateLimitUnit = "month"
+)
+
+// ModelRouteStatus defines the observed state of ModelRoute.
+type ModelRouteStatus struct {
+}
+
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:storageversion
+// +genclient
+//
+// ModelRoute is the Schema for the Modelroutes API.
+type ModelRoute struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   ModelRouteSpec   `json:"spec"`
+	Status ModelRouteStatus `json:"status,omitempty"`
+}
+
+// +kubebuilder:object:root=true
+
+// ModelRouteList contains a list of ModelRoute.
+type ModelRouteList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []ModelRoute `json:"items"`
+}
