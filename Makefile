@@ -112,7 +112,7 @@ build: manifests generate fmt vet ## Build ai-gateway binary.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
 # More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 .PHONY: docker-build
-docker-build: ## Build docker image with the ai-gateway.
+docker-build: generate## Build docker image with the ai-gateway.
 	$(CONTAINER_TOOL) build -t ${IMG} .
 
 .PHONY: docker-push
