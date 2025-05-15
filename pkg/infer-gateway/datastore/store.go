@@ -13,23 +13,29 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/backend/vllm"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/metrics"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
+)
+
+var (
+	log = logger.NewLogger("datastore")
 )
 
 // Store is an interface for storing and retrieving data
 type Store interface {
 	AddOrUpdateModelServer(name types.NamespacedName, modelServer *aiv1alpha1.ModelServer, pods []*corev1.Pod) error
 	DeleteModelServer(modelServer *aiv1alpha1.ModelServer) error
-	// Get the real model name served by the model server, nil means the model name in the user request will be used.
 	GetModelNameByModelServer(name types.NamespacedName) *string
-	GetPodsByModelServer(name types.NamespacedName) []*PodInfo
+	GetPodsByModelServer(name types.NamespacedName) []PodInfo
 
-	AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.ModelServer) error
+	AddOrUpdatePod(pod *corev1.Pod, modelServer []*aiv1alpha1.ModelServer) error
 	DeletePod(pod *corev1.Pod) error
 
 	// New methods for routing functionality
 	MatchModelServer(modelName string, request *http.Request) (types.NamespacedName, bool, error)
-	GetModelServerEndpoints(name types.NamespacedName) ([]*PodInfo, *string, error)
+	GetModelServerEndpoints(name types.NamespacedName) ([]PodInfo, *string, error)
 
 	// Model routing methods
 	AddOrUpdateModelRoute(mr *aiv1alpha1.ModelRoute) error
@@ -39,19 +45,20 @@ type Store interface {
 type modelServer struct {
 	mutex sync.RWMutex
 
-	// real model name served
 	model *string
-	pods  map[types.NamespacedName]*PodInfo
+	pods  map[types.NamespacedName]PodInfo
 }
 
 type PodInfo struct {
-	mu  sync.RWMutex
 	Pod *corev1.Pod
+
 	// TODO: add metrics here
-	GPUCacheUsage     float32                           // GPU KV-cache usage.
-	RequestWaitingNum int                               // Number of requests waiting to be processed.
-	Models            map[string]struct{}               // running model and lora adapaters.
-	modelServer       map[types.NamespacedName]struct{} // The modelservers this pod belongs to
+	TimeToFirstToken   float64
+	TimePerOutputToken float64
+	GPUCacheUsage      float64                           // GPU KV-cache usage.
+	RequestWaitingNum  float64                           // Number of requests waiting to be processed.
+	Models             map[string]struct{}               // running lora adapaters.
+	modelServer        map[types.NamespacedName]struct{} // The modelservers this pod belongs to
 }
 
 // modelRouteInfo stores the mapping between a ModelRoute resource and its associated models.
@@ -70,7 +77,7 @@ type store struct {
 	mutex sync.RWMutex
 
 	modelServer map[types.NamespacedName]*modelServer
-	pods        map[types.NamespacedName]*PodInfo
+	pods        map[types.NamespacedName]PodInfo
 
 	// Model routing fields
 	routeInfo  map[string]*modelRouteInfo
@@ -81,7 +88,7 @@ type store struct {
 func New() Store {
 	return &store{
 		modelServer: make(map[types.NamespacedName]*modelServer),
-		pods:        make(map[types.NamespacedName]*PodInfo),
+		pods:        make(map[types.NamespacedName]PodInfo),
 		routeInfo:   make(map[string]*modelRouteInfo),
 		routes:      make(map[string]*aiv1alpha1.ModelRoute),
 		loraRoutes:  make(map[string]*aiv1alpha1.ModelRoute),
@@ -94,16 +101,13 @@ func (s *store) AddOrUpdateModelServer(name types.NamespacedName, ms *aiv1alpha1
 
 	if _, ok := s.modelServer[name]; !ok {
 		s.modelServer[name] = &modelServer{
-			pods: make(map[types.NamespacedName]*PodInfo),
+			pods: make(map[types.NamespacedName]PodInfo),
 		}
 	}
 
-	s.modelServer[name].mutex.Lock()
-	defer s.modelServer[name].mutex.Unlock()
-
 	s.modelServer[name].model = ms.Spec.Model
 
-	podsMap := make(map[types.NamespacedName]*PodInfo)
+	podsMap := make(map[types.NamespacedName]PodInfo)
 	for _, pod := range pods {
 		podName := utils.GetNamespaceName(pod)
 		if podInfo, ok := s.pods[name]; ok {
@@ -113,7 +117,7 @@ func (s *store) AddOrUpdateModelServer(name types.NamespacedName, ms *aiv1alpha1
 			}
 			podsMap[podName] = podInfo
 		} else {
-			newPodInfo := &PodInfo{
+			newPodInfo := PodInfo{
 				Pod:    pod,
 				Models: make(map[string]struct{}),
 				modelServer: map[types.NamespacedName]struct{}{
@@ -123,7 +127,7 @@ func (s *store) AddOrUpdateModelServer(name types.NamespacedName, ms *aiv1alpha1
 			podsMap[podName] = newPodInfo
 			s.pods[podName] = newPodInfo
 		}
-		// TODO: use goroutine update new pod metrics
+		go s.updatePodMetrics(pod)
 	}
 
 	s.modelServer[name].pods = podsMap
@@ -151,7 +155,7 @@ func (s *store) GetModelNameByModelServer(name types.NamespacedName) *string {
 	return nil
 }
 
-func (s *store) GetPodsByModelServer(name types.NamespacedName) []*PodInfo {
+func (s *store) GetPodsByModelServer(name types.NamespacedName) []PodInfo {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
@@ -159,7 +163,7 @@ func (s *store) GetPodsByModelServer(name types.NamespacedName) []*PodInfo {
 		ms.mutex.RLock()
 		defer ms.mutex.RUnlock()
 
-		pods := []*PodInfo{}
+		pods := []PodInfo{}
 
 		for _, pod := range ms.pods {
 			pods = append(pods, pod)
@@ -176,7 +180,7 @@ func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.Model
 	defer s.mutex.Unlock()
 
 	podName := utils.GetNamespaceName(pod)
-	newPodInfo := &PodInfo{
+	newPodInfo := PodInfo{
 		Pod:         pod,
 		modelServer: make(map[types.NamespacedName]struct{}),
 	}
@@ -401,7 +405,7 @@ func selectFromWeightedSlice(weights []uint32) int {
 	return 0
 }
 
-func (s *store) GetModelServerEndpoints(name types.NamespacedName) ([]*PodInfo, *string, error) {
+func (s *store) GetModelServerEndpoints(name types.NamespacedName) ([]PodInfo, *string, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
@@ -409,7 +413,7 @@ func (s *store) GetModelServerEndpoints(name types.NamespacedName) ([]*PodInfo, 
 		ms.mutex.RLock()
 		defer ms.mutex.RUnlock()
 
-		pods := []*PodInfo{}
+		pods := []PodInfo{}
 		for _, pod := range ms.pods {
 			pods = append(pods, pod)
 		}
@@ -418,4 +422,48 @@ func (s *store) GetModelServerEndpoints(name types.NamespacedName) ([]*PodInfo, 
 	}
 
 	return nil, nil, fmt.Errorf("model server not found: %v", name)
+}
+
+func (s *store) updatePodMetrics(pod *corev1.Pod) {
+	podName := utils.GetNamespaceName(pod)
+
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	podInfo, exist := s.pods[podName]
+	if !exist {
+		log.Errorf("failed to get podInfo of pod %s/%s", pod.GetNamespace(), pod.GetName())
+		return
+	}
+
+	allMetrics, err := vllm.GetVllmPodMetrics(pod)
+	if err != nil {
+		log.Errorf("failed to get metrics of pod: %s/%s", pod.GetNamespace(), pod.GetName())
+		return
+	}
+
+	// TODO: Add more case handling for large model engines(e.g. sglang)
+	countMetricsInfo := metrics.GetCouterAndGaugePodMetrics(allMetrics, vllm.CounterAndGaugeMetrics)
+	histogramMetricsInfo := metrics.GetHistogramPodMetrics(allMetrics, vllm.HistogramMetrics)
+	metricsInfo := mapMerge(countMetricsInfo, histogramMetricsInfo)
+
+	for metricName, metricValue := range metricsInfo {
+		switch metricName {
+		case vllm.GPUCacheUsage:
+			podInfo.GPUCacheUsage = metricValue
+		case vllm.RequestWaitingNum:
+			podInfo.RequestWaitingNum = metricValue
+		case vllm.TTFT:
+			podInfo.TimeToFirstToken = metricValue
+		case vllm.TPOT:
+			podInfo.TimePerOutputToken = metricValue
+		}
+	}
+}
+
+func mapMerge(map1, map2 map[string]float64) map[string]float64 {
+	for k, v := range map2 {
+		map1[k] = v
+	}
+	return map1
 }

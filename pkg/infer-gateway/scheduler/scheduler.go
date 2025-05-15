@@ -6,5 +6,5 @@ import (
 )
 
 type Scheduler interface {
-	Schedule(req map[string]interface{}, pods []*datastore.PodInfo) (*datastore.PodInfo, error)
+	Schedule(req map[string]interface{}, pods []datastore.PodInfo) (datastore.PodInfo, error)
 }

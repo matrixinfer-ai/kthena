@@ -105,6 +105,6 @@ func (r *ModelServerController) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 // Find the corresponding endpoints and real model name by user provided model name
-func (r *ModelServerController) GetEndpoints(name types.NamespacedName) ([]*datastore.PodInfo, *string, error) {
+func (r *ModelServerController) GetEndpoints(name types.NamespacedName) ([]datastore.PodInfo, *string, error) {
 	return r.store.GetPodsByModelServer(name), r.store.GetModelNameByModelServer(name), nil
 }
