@@ -1,7 +1,13 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: matrixinfer-system
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: infer-gateway
+  namespace: matrixinfer-system
   labels:
     app: infer-gateway
 spec:
@@ -46,6 +52,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: infer-gateway
+  namespace: matrixinfer-system
   labels:
     app: infer-gateway
 spec:
@@ -55,4 +62,4 @@ spec:
   - port: 80
     targetPort: 8080
     name: http
-  type: ClusterIP
+  type: LoadBalancer
