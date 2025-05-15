@@ -23,6 +23,7 @@ import (
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 	v1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
+	workloadv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 )
 
 // GenericInformer is type of SharedIndexInformer which will locate and delegate to other
@@ -56,6 +57,10 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Networking().V1alpha1().ModelRoutes().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("modelservers"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Networking().V1alpha1().ModelServers().Informer()}, nil
+
+		// Group=workload.matrixinfer.ai, Version=v1alpha1
+	case workloadv1alpha1.SchemeGroupVersion.WithResource("modelinfers"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Workload().V1alpha1().ModelInfers().Informer()}, nil
 
 	}
 

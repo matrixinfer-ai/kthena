@@ -23,7 +23,9 @@ import (
 	testing "k8s.io/client-go/testing"
 	internal "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/internal"
 	networkingv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/networking/v1alpha1"
+	applyconfigurationworkloadv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/workload/v1alpha1"
 	v1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
+	workloadv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 )
 
 // ForKind returns an apply configuration type for the given GroupVersionKind, or nil if no
@@ -55,6 +57,30 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &networkingv1alpha1.TrafficPolicyApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("WorkloadSelector"):
 		return &networkingv1alpha1.WorkloadSelectorApplyConfiguration{}
+
+		// Group=workload.matrixinfer.ai, Version=v1alpha1
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("GangSchedule"):
+		return &applyconfigurationworkloadv1alpha1.GangScheduleApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("InferGroup"):
+		return &applyconfigurationworkloadv1alpha1.InferGroupApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("InferGroupSpec"):
+		return &applyconfigurationworkloadv1alpha1.InferGroupSpecApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelInfer"):
+		return &applyconfigurationworkloadv1alpha1.ModelInferApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelInferSpec"):
+		return &applyconfigurationworkloadv1alpha1.ModelInferSpecApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelInferStatus"):
+		return &applyconfigurationworkloadv1alpha1.ModelInferStatusApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("NetworkTopologySpec"):
+		return &applyconfigurationworkloadv1alpha1.NetworkTopologySpecApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("Role"):
+		return &applyconfigurationworkloadv1alpha1.RoleApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("RollingUpdateConfiguration"):
+		return &applyconfigurationworkloadv1alpha1.RollingUpdateConfigurationApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("RolloutStrategy"):
+		return &applyconfigurationworkloadv1alpha1.RolloutStrategyApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("TopologySpreadConstraint"):
+		return &applyconfigurationworkloadv1alpha1.TopologySpreadConstraintApplyConfiguration{}
 
 	}
 	return nil

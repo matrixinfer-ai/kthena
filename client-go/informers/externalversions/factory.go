@@ -29,6 +29,7 @@ import (
 	versioned "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
 	internalinterfaces "matrixinfer.ai/matrixinfer/client-go/informers/externalversions/internalinterfaces"
 	networking "matrixinfer.ai/matrixinfer/client-go/informers/externalversions/networking"
+	workload "matrixinfer.ai/matrixinfer/client-go/informers/externalversions/workload"
 )
 
 // SharedInformerOption defines the functional option type for SharedInformerFactory.
@@ -254,8 +255,13 @@ type SharedInformerFactory interface {
 	InformerFor(obj runtime.Object, newFunc internalinterfaces.NewInformerFunc) cache.SharedIndexInformer
 
 	Networking() networking.Interface
+	Workload() workload.Interface
 }
 
 func (f *sharedInformerFactory) Networking() networking.Interface {
 	return networking.New(f, f.namespace, f.tweakListOptions)
+}
+
+func (f *sharedInformerFactory) Workload() workload.Interface {
+	return workload.New(f, f.namespace, f.tweakListOptions)
 }
