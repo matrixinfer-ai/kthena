@@ -16,6 +16,6 @@ Please make sure you have read the FAQ and searched the issue list.
 
 **Environment**:
 
-- Matrix Infer version:
+- MatrixInfer version:
 - Kubernetes version:
 - Others:
