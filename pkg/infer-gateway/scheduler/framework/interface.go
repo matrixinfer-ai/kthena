@@ -6,7 +6,10 @@ import (
 
 // Context stores information which maybe useful in Filter or Score plugins.
 type Context struct {
-	Model string
+	Model  string
+	Prompt string
+
+	Hashes []uint64
 
 	TargetPod *datastore.PodInfo
 }

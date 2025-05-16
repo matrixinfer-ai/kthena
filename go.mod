@@ -4,7 +4,9 @@ go 1.24.0
 
 require (
 	github.com/agiledragon/gomonkey/v2 v2.13.0
+	github.com/cespare/xxhash v1.1.0
 	github.com/gin-gonic/gin v1.10.0
+	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/prometheus/client_model v0.6.2
 	github.com/prometheus/common v0.63.0
 	github.com/sirupsen/logrus v1.9.3

@@ -58,7 +58,8 @@ func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.P
 	}
 
 	ctx := &framework.Context{
-		Model: req["model"].(string),
+		Model:  req["model"].(string),
+		Prompt: req["prompt"].(string),
 	}
 
 	pods, err := s.RunFilterPlugins(pods, ctx)
