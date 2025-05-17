@@ -9,13 +9,15 @@ import (
 	"sync"
 	"time"
 
+	dto "github.com/prometheus/client_model/go"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/backend"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/backend/sglang"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/backend/vllm"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/metrics"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
@@ -53,10 +55,13 @@ type PodInfo struct {
 	Pod *corev1.Pod
 
 	// TODO: add metrics here
-	TimeToFirstToken   float64
-	TimePerOutputToken float64
-	GPUCacheUsage      float64                           // GPU KV-cache usage.
-	RequestWaitingNum  float64                           // Number of requests waiting to be processed.
+	GPUCacheUsage     float64 // GPU KV-cache usage.
+	RequestWaitingNum float64 // Number of requests waiting to be processed.
+	// for calculating the average value over the time interval, need to store the results of the last query
+	TimeToFirstToken   *dto.Histogram
+	TimePerOutputToken *dto.Histogram
+	TPOT               float64
+	TTFT               float64
 	Models             map[string]struct{}               // running lora adapaters.
 	modelServer        map[types.NamespacedName]struct{} // The modelservers this pod belongs to
 }
@@ -127,7 +132,7 @@ func (s *store) AddOrUpdateModelServer(name types.NamespacedName, ms *aiv1alpha1
 			podsMap[podName] = newPodInfo
 			s.pods[podName] = newPodInfo
 		}
-		go s.updatePodMetrics(pod)
+		s.updatePodMetrics(pod)
 	}
 
 	s.modelServer[name].pods = podsMap
@@ -436,34 +441,65 @@ func (s *store) updatePodMetrics(pod *corev1.Pod) {
 		return
 	}
 
-	allMetrics, err := vllm.GetVllmPodMetrics(pod)
-	if err != nil {
-		log.Errorf("failed to get metrics of pod: %s/%s", pod.GetNamespace(), pod.GetName())
-		return
-	}
+	countMetricsInfo, histogramMetricsInfo := backend.GetPodMetrics(pod)
 
-	// TODO: Add more case handling for large model engines(e.g. sglang)
-	countMetricsInfo := metrics.GetCouterAndGaugePodMetrics(allMetrics, vllm.CounterAndGaugeMetrics)
-	histogramMetricsInfo := metrics.GetHistogramPodMetrics(allMetrics, vllm.HistogramMetrics)
-	metricsInfo := mapMerge(countMetricsInfo, histogramMetricsInfo)
-
-	for metricName, metricValue := range metricsInfo {
-		switch metricName {
-		case vllm.GPUCacheUsage:
-			podInfo.GPUCacheUsage = metricValue
-		case vllm.RequestWaitingNum:
-			podInfo.RequestWaitingNum = metricValue
-		case vllm.TTFT:
-			podInfo.TimeToFirstToken = metricValue
-		case vllm.TPOT:
-			podInfo.TimePerOutputToken = metricValue
-		}
-	}
+	updatePodInfoCount(&podInfo, countMetricsInfo)
+	updatePodInfoHistogram(&podInfo, histogramMetricsInfo)
 }
 
-func mapMerge(map1, map2 map[string]float64) map[string]float64 {
-	for k, v := range map2 {
-		map1[k] = v
+func updatePodInfoCount(podInfo *PodInfo, countMap map[string]float64) *PodInfo {
+	for name, value := range countMap {
+		switch name {
+		case vllm.GPUCacheUsage:
+			podInfo.GPUCacheUsage = value
+		case vllm.RequestWaitingNum:
+			podInfo.RequestWaitingNum = value
+		case sglang.GPUCacheUsage:
+			podInfo.GPUCacheUsage = value
+		case sglang.RequestWaitingNum:
+			podInfo.RequestWaitingNum = value
+		}
 	}
-	return map1
+
+	return podInfo
+}
+
+func updatePodInfoHistogram(podInfo *PodInfo, histogram map[string]*dto.Histogram) *PodInfo {
+	lastTimeToFirstToken := podInfo.TimeToFirstToken
+	lastTimePerOutputToken := podInfo.TimePerOutputToken
+
+	for name, value := range histogram {
+		switch name {
+		case vllm.TPOT:
+			podInfo.TPOT = lastPeriodAvg(lastTimePerOutputToken, value)
+			podInfo.TimePerOutputToken = value
+		case vllm.TTFT:
+			podInfo.TTFT = lastPeriodAvg(lastTimeToFirstToken, value)
+			podInfo.TimeToFirstToken = value
+		case sglang.TPOT:
+			podInfo.TPOT = lastPeriodAvg(lastTimePerOutputToken, value)
+			podInfo.TimePerOutputToken = value
+		case sglang.TTFT:
+			podInfo.TTFT = lastPeriodAvg(lastTimeToFirstToken, value)
+			podInfo.TimeToFirstToken = value
+		}
+	}
+	return podInfo
+}
+
+func lastPeriodAvg(previous, current *dto.Histogram) float64 {
+	previousSum := previous.GetSampleSum()
+	previousCount := previous.GetSampleCount()
+
+	currentSum := current.GetSampleSum()
+	currentCount := current.GetSampleCount()
+
+	deltaSum := currentSum - previousSum
+	deltaCount := currentCount - previousCount
+
+	if deltaCount == 0 {
+		return 0
+	}
+
+	return deltaSum / float64(deltaCount)
 }

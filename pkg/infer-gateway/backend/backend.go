@@ -1,0 +1,58 @@
+package backend
+
+import (
+	"fmt"
+
+	dto "github.com/prometheus/client_model/go"
+	corev1 "k8s.io/api/core/v1"
+
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/backend/sglang"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/backend/vllm"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
+)
+
+var (
+	log = logger.NewLogger("datastore")
+)
+
+type MetricsProvider interface {
+	GetPodMetrics(pod *corev1.Pod) (map[string]*dto.MetricFamily, error)
+	GetCountMetricsInfo(allMetrics map[string]*dto.MetricFamily) map[string]float64
+	GetHistogramPodMetrics(allMetrics map[string]*dto.MetricFamily) map[string]*dto.Histogram
+}
+
+var engineRegistry = map[string]MetricsProvider{
+	"sglang": sglang.NewSglangEngine(),
+	"vllm":   vllm.NewVllmEnging(),
+}
+
+func GetPodMetrics(pod *corev1.Pod) (map[string]float64, map[string]*dto.Histogram) {
+	engine := GetBackend()
+	provider, err := getMetricsProvider(engine)
+	if err != nil {
+		log.Errorf("Failed to get inference engine: %v", err)
+		return nil, nil
+	}
+
+	allMetrics, err := provider.GetPodMetrics(pod)
+	if err != nil {
+		log.Errorf("failed to get metrics of pod: %s/%s", pod.GetNamespace(), pod.GetName())
+		return nil, nil
+	}
+
+	countMetricsInfo := provider.GetCountMetricsInfo(allMetrics)
+	histogramMetricsInfo := provider.GetHistogramPodMetrics(allMetrics)
+
+	return countMetricsInfo, histogramMetricsInfo
+}
+
+func GetBackend() string {
+	return "vllm"
+}
+
+func getMetricsProvider(engine string) (MetricsProvider, error) {
+	if provider, exists := engineRegistry[engine]; exists {
+		return provider, nil
+	}
+	return nil, fmt.Errorf("unsupported engine: %s", engine)
+}

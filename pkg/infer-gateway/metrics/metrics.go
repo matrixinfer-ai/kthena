@@ -28,40 +28,7 @@ func ParseMetricsURL(url string) (map[string]*dto.MetricFamily, error) {
 	return allMetrics, nil
 }
 
-func GetCouterAndGaugePodMetrics(allMetrics map[string]*dto.MetricFamily, counterAndGaugeMetrics []string) map[string]float64 {
-	wantMetrics := make(map[string]float64)
-	for _, metricName := range counterAndGaugeMetrics {
-		metricInfo, exist := allMetrics[metricName]
-		if !exist {
-			continue
-		}
-		for _, metric := range metricInfo.Metric {
-			metricValue := metric.GetCounter().GetValue()
-			wantMetrics[metricName] = metricValue
-		}
-	}
-
-	return wantMetrics
-}
-
-func GetHistogramPodMetrics(allMetrics map[string]*dto.MetricFamily, HistogramMetrics []string) map[string]float64 {
-	wantMetrics := make(map[string]float64)
-	for _, metricName := range HistogramMetrics {
-		metricInfo, exist := allMetrics[metricName]
-		if !exist {
-			continue
-		}
-		for _, metric := range metricInfo.Metric {
-			metricValue := metric.GetHistogram()
-			aveValue := aveHistogram(metricValue)
-			wantMetrics[metricName] = aveValue
-		}
-	}
-
-	return wantMetrics
-}
-
-func aveHistogram(metricValue *dto.Histogram) float64 {
+func AveHistogram(metricValue *dto.Histogram) float64 {
 	sum := metricValue.GetSampleSum()
 	count := metricValue.GetSampleCount()
 	return sum / float64(count)
