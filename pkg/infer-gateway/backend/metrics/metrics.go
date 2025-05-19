@@ -28,8 +28,19 @@ func ParseMetricsURL(url string) (map[string]*dto.MetricFamily, error) {
 	return allMetrics, nil
 }
 
-func AveHistogram(metricValue *dto.Histogram) float64 {
-	sum := metricValue.GetSampleSum()
-	count := metricValue.GetSampleCount()
-	return sum / float64(count)
+func LastPeriodAvg(previous, current *dto.Histogram) float64 {
+	previousSum := previous.GetSampleSum()
+	previousCount := previous.GetSampleCount()
+
+	currentSum := current.GetSampleSum()
+	currentCount := current.GetSampleCount()
+
+	deltaSum := currentSum - previousSum
+	deltaCount := currentCount - previousCount
+
+	if deltaCount == 0 {
+		return 0
+	}
+
+	return deltaSum / float64(deltaCount)
 }

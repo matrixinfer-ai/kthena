@@ -6,7 +6,8 @@ import (
 	dto "github.com/prometheus/client_model/go"
 	corev1 "k8s.io/api/core/v1"
 
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/metrics"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/backend/metrics"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
 var (
@@ -14,7 +15,9 @@ var (
 	RequestWaitingNum = "vllm:num_request_waiting"
 	TPOT              = "vllm:time_per_output_token_seconds"
 	TTFT              = "vllm:time_to_first_token_seconds"
+)
 
+var (
 	CounterAndGaugeMetrics = []string{
 		GPUCacheUsage,
 		RequestWaitingNum,
@@ -23,6 +26,13 @@ var (
 	HistogramMetrics = []string{
 		TPOT,
 		TTFT,
+	}
+
+	mapOfMetricsName = map[string]string{
+		GPUCacheUsage:     utils.GPUCacheUsage,
+		RequestWaitingNum: utils.RequestWaitingNum,
+		TPOT:              utils.TPOT,
+		TTFT:              utils.TTFT,
 	}
 )
 
@@ -58,15 +68,16 @@ func (engine *vllmEngine) GetCountMetricsInfo(allMetrics map[string]*dto.MetricF
 		}
 		for _, metric := range metricInfo.Metric {
 			metricValue := metric.GetCounter().GetValue()
-			wantMetrics[metricName] = metricValue
+			wantMetrics[mapOfMetricsName[metricName]] = metricValue
 		}
 	}
 
 	return wantMetrics
 }
 
-func (engine *vllmEngine) GetHistogramPodMetrics(allMetrics map[string]*dto.MetricFamily) map[string]*dto.Histogram {
-	wantMetrics := make(map[string]*dto.Histogram)
+func (engine *vllmEngine) GetHistogramPodMetrics(allMetrics map[string]*dto.MetricFamily, previousHistogram map[string]*dto.Histogram) (map[string]float64, map[string]*dto.Histogram) {
+	wantMetrics := make(map[string]float64)
+	histogramMetrics := make(map[string]*dto.Histogram)
 	for _, metricName := range HistogramMetrics {
 		metricInfo, exist := allMetrics[metricName]
 		if !exist {
@@ -74,9 +85,11 @@ func (engine *vllmEngine) GetHistogramPodMetrics(allMetrics map[string]*dto.Metr
 		}
 		for _, metric := range metricInfo.Metric {
 			metricValue := metric.GetHistogram()
-			wantMetrics[metricName] = metricValue
+			histogramMetrics[mapOfMetricsName[metricName]] = metricValue
+			previousMetric := previousHistogram[mapOfMetricsName[metricName]]
+			wantMetrics[mapOfMetricsName[metricName]] = metrics.LastPeriodAvg(previousMetric, metricValue)
 		}
 	}
 
-	return wantMetrics
+	return wantMetrics, histogramMetrics
 }

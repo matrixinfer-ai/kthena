@@ -12,13 +12,13 @@ import (
 )
 
 var (
-	log = logger.NewLogger("datastore")
+	log = logger.NewLogger("backend")
 )
 
 type MetricsProvider interface {
 	GetPodMetrics(pod *corev1.Pod) (map[string]*dto.MetricFamily, error)
 	GetCountMetricsInfo(allMetrics map[string]*dto.MetricFamily) map[string]float64
-	GetHistogramPodMetrics(allMetrics map[string]*dto.MetricFamily) map[string]*dto.Histogram
+	GetHistogramPodMetrics(allMetrics map[string]*dto.MetricFamily, previousHistogram map[string]*dto.Histogram) (map[string]float64, map[string]*dto.Histogram)
 }
 
 var engineRegistry = map[string]MetricsProvider{
@@ -26,9 +26,8 @@ var engineRegistry = map[string]MetricsProvider{
 	"vllm":   vllm.NewVllmEnging(),
 }
 
-func GetPodMetrics(pod *corev1.Pod) (map[string]float64, map[string]*dto.Histogram) {
-	engine := GetBackend()
-	provider, err := getMetricsProvider(engine)
+func GetPodMetrics(engine string, pod *corev1.Pod, previousHistogram map[string]*dto.Histogram) (map[string]float64, map[string]*dto.Histogram) {
+	provider, err := GetMetricsProvider(engine)
 	if err != nil {
 		log.Errorf("Failed to get inference engine: %v", err)
 		return nil, nil
@@ -41,16 +40,22 @@ func GetPodMetrics(pod *corev1.Pod) (map[string]float64, map[string]*dto.Histogr
 	}
 
 	countMetricsInfo := provider.GetCountMetricsInfo(allMetrics)
-	histogramMetricsInfo := provider.GetHistogramPodMetrics(allMetrics)
+	histogramMetricsInfo, histogramMetrics := provider.GetHistogramPodMetrics(allMetrics, previousHistogram)
 
-	return countMetricsInfo, histogramMetricsInfo
+	for name, value := range histogramMetricsInfo {
+		// Since the key in countMetricInfo must not be the same as the key in histogramMetricsInfo.
+		// You don't have to worry about overriding the value
+		countMetricsInfo[name] = value
+	}
+
+	return countMetricsInfo, histogramMetrics
 }
 
 func GetBackend() string {
 	return "vllm"
 }
 
-func getMetricsProvider(engine string) (MetricsProvider, error) {
+func GetMetricsProvider(engine string) (MetricsProvider, error) {
 	if provider, exists := engineRegistry[engine]; exists {
 		return provider, nil
 	}
