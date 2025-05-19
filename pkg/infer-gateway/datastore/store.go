@@ -23,16 +23,23 @@ import (
 
 var (
 	log = logger.NewLogger("datastore")
+
+	uppdateInterval = 1 * time.Second
 )
 
 // Store is an interface for storing and retrieving data
 type Store interface {
+	// Add modelServer and pods which are selected by modelServer.Spec.WorkloadSelector
 	AddOrUpdateModelServer(name types.NamespacedName, modelServer *aiv1alpha1.ModelServer, pods []*corev1.Pod) error
+	// Delete modelServer
 	DeleteModelServer(modelServer *aiv1alpha1.ModelServer) error
+	// Get modelServer name. This name is as same as modelServer.Spec.Model
 	GetModelNameByModelServer(name types.NamespacedName) *string
 	GetPodsByModelServer(name types.NamespacedName) []PodInfo
 
+	// Refresh Store and ModelServer when add a new pod or update a pod
 	AddOrUpdatePod(pod *corev1.Pod, modelServer []*aiv1alpha1.ModelServer) error
+	// Refresh Store and ModelServer when delete a pod
 	DeletePod(pod *corev1.Pod) error
 
 	// New methods for routing functionality
@@ -97,6 +104,21 @@ func New() Store {
 		routeInfo:   make(map[string]*modelRouteInfo),
 		routes:      make(map[string]*aiv1alpha1.ModelRoute),
 		loraRoutes:  make(map[string]*aiv1alpha1.ModelRoute),
+	}
+}
+
+func (s *store) Run(stop <-chan struct{}) {
+	for {
+		select {
+		case <-stop:
+			return
+		default:
+			for _, ms := range s.modelServer {
+				for _, podInfo := range ms.pods {
+					s.updatePodMetrics(podInfo.Pod)
+				}
+			}
+		}
 	}
 }
 
@@ -445,6 +467,10 @@ func (s *store) updatePodMetrics(pod *corev1.Pod) {
 
 	updatePodInfoCount(&podInfo, countMetricsInfo)
 	updatePodInfoHistogram(&podInfo, histogramMetricsInfo)
+
+	for ms := range podInfo.modelServer {
+		s.modelServer[ms].pods[podName] = podInfo
+	}
 }
 
 func updatePodInfoCount(podInfo *PodInfo, countMap map[string]float64) *PodInfo {
