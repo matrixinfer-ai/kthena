@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -85,14 +84,6 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 
 		req := c.Request
 
-		original := req.Host
-		log.Infof("host is %s, scheme is %s", original, req.URL.Scheme)
-		_, port, err := net.SplitHostPort(original)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, fmt.Sprintf("failed to split host and port from url host: %v", err))
-			return
-		}
-
 		body, err := json.Marshal(modelRequest)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, fmt.Sprintf("marshal http body failed: %v", err))
@@ -100,7 +91,8 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 		}
 
 		// step 1: change request URL to real server URL.
-		req.URL.Host = fmt.Sprintf("%s:%s", targetPod.Pod.Status.PodIP, port)
+		// TODO: the target port need to be defined within modelServer
+		req.URL.Host = fmt.Sprintf("%s:%d", targetPod.Pod.Status.PodIP, 8000)
 		req.URL.Scheme = "http"
 		req.Body = io.NopCloser(bytes.NewBuffer(body))
 		req.ContentLength = int64(len(body))
@@ -110,7 +102,7 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 		resp, err := transport.RoundTrip(req)
 		if err != nil {
 			log.Errorf("error: %v", err)
-			c.String(500, "error")
+			c.String(http.StatusInternalServerError, "error")
 			return
 		}
 
