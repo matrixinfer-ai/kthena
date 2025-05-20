@@ -40,11 +40,6 @@ func init() {
 }
 
 type Router struct {
-	// Define the fields of the Router struct here
-	modelRouteController  *controller.ModelRouteController
-	modelServerController *controller.ModelServerController
-	podController         *controller.PodController
-
 	scheduler scheduler.Scheduler
 	store     datastore.Store
 }
@@ -80,31 +75,27 @@ func (r *Router) Run(stop <-chan struct{}) {
 		os.Exit(1)
 	}
 
-	mrc := controller.NewModelRouteController(mgr)
-	if mrc.SetupWithManager(mgr); err != nil {
+	mrc := controller.NewModelRouteController(mgr, r.store)
+	if err := mrc.SetupWithManager(mgr); err != nil {
 		log.Errorf("Unable to start Model Route Controller: %v", err)
 		os.Exit(1)
 	}
-	r.modelRouteController = mrc
 
 	msc := controller.NewModelServerController(mgr, r.store)
 	if err := msc.SetupWithManager(mgr); err != nil {
 		log.Errorf("Unable to start Model Server Controller: %v", err)
 		os.Exit(1)
 	}
-	r.modelServerController = msc
 
 	pc := controller.NewPodController(mgr, r.store)
 	if err := pc.SetupWithManager(mgr); err != nil {
 		log.Errorf("Unable to start Pod Controller: %v", err)
 		os.Exit(1)
 	}
-	r.podController = pc
 
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		log.Errorf("Unable to start manager: %v", err)
 	}
-
 }
 
 type ModelRequest map[string]interface{}
@@ -131,8 +122,8 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 
 		log.Debugf("model name is %v", modelName)
 
-		// find the corresponding model server bt matching request and model name.
-		modelServerName, is_lora, err := r.modelRouteController.Match(modelName, c.Request)
+		// Use datastore to find the corresponding model server
+		modelServerName, is_lora, err := r.store.MatchModelServer(modelName, c.Request)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusNotFound, fmt.Sprintf("can't find corresponding model server: %v", err))
 			return
@@ -140,9 +131,8 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 
 		log.Debugf("modelServer is %v, is_lora: %v", modelServerName, is_lora)
 
-		// according to modelRequest.Model, route to different model
-		// call scheduler to select a model
-		pods, model, err := r.modelServerController.GetEndpoints(modelServerName)
+		// Get endpoints from datastore
+		pods, model, err := r.store.GetModelServerEndpoints(modelServerName)
 		if err != nil || len(pods) == 0 {
 			c.AbortWithStatusJSON(http.StatusNotFound, fmt.Sprintf("can't find target pods of model server: %v, err: %v", modelServerName, err))
 			return
