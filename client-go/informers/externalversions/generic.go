@@ -54,10 +54,18 @@ func (f *genericInformer) Lister() cache.GenericLister {
 // TODO extend this to unknown resources with a client pool
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
-	// Group=networking.matrixinfer.ai, Version=v1alpha1
-	case v1alpha1.SchemeGroupVersion.WithResource("modelroutes"):
+	// Group=model.matrixinfer.ai, Version=v1alpha1
+	case v1alpha1.SchemeGroupVersion.WithResource("autoscalingpolicies"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Model().V1alpha1().AutoscalingPolicies().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("loraadapters"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Model().V1alpha1().LoraAdapters().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("models"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Model().V1alpha1().Models().Informer()}, nil
+
+		// Group=networking.matrixinfer.ai, Version=v1alpha1
+	case networkingv1alpha1.SchemeGroupVersion.WithResource("modelroutes"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Networking().V1alpha1().ModelRoutes().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("modelservers"):
+	case networkingv1alpha1.SchemeGroupVersion.WithResource("modelservers"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Networking().V1alpha1().ModelServers().Informer()}, nil
 
 		// Group=registry.matrixinfer.ai, Version=v1alpha1
