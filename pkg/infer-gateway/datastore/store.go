@@ -218,7 +218,6 @@ func (s *store) GetPodsByModelServer(name types.NamespacedName) []*PodInfo {
 
 func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.ModelServer) error {
 	s.mutex.Lock()
-	defer s.mutex.Unlock()
 
 	podName := utils.GetNamespaceName(pod)
 	newPodInfo := PodInfo{
@@ -242,10 +241,17 @@ func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.Model
 
 	s.pods[podName] = newPodInfo
 	for _, modelServerName := range modelServerNames {
+		if s.modelServer[modelServerName] == nil {
+			s.modelServer[modelServerName] = &modelServer{
+				pods: make(map[types.NamespacedName]PodInfo),
+			}
+		}
 		s.modelServer[modelServerName].pods[podName] = newPodInfo
 	}
+	s.mutex.Unlock()
 
-	//TODO update metrics of new pod
+	s.updatePodMetrics(pod)
+
 	return nil
 }
 
@@ -466,7 +472,6 @@ func (s *store) GetModelServerEndpoints(name types.NamespacedName) ([]PodInfo, *
 
 func (s *store) updatePodMetrics(pod *corev1.Pod) {
 	podName := utils.GetNamespaceName(pod)
-
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -488,6 +493,7 @@ func (s *store) updatePodMetrics(pod *corev1.Pod) {
 	for ms := range podInfo.modelServer {
 		s.modelServer[ms].pods[podName] = podInfo
 	}
+	s.pods[podName] = podInfo
 }
 
 func getPreviousHistogram(podinfo PodInfo) map[string]*dto.Histogram {
@@ -521,7 +527,7 @@ func updateMetricsInfo(podinfo *PodInfo, metricsInfo map[string]float64) {
 		if updateFunc, exist := updateFuncs[name]; exist {
 			updateFunc(metricsInfo[name])
 		} else {
-			log.Debug("Unknow metric: %s", name)
+			log.Debugf("Unknow metric: %s", name)
 		}
 	}
 }
@@ -540,7 +546,7 @@ func updateHistogramMetrics(podinfo *PodInfo, histogramMetrics map[string]*dto.H
 		if updateFunc, exist := updateFuncs[name]; exist {
 			updateFunc(histogramMetrics[name])
 		} else {
-			log.Debug("Unknow histogram metric: %s", name)
+			log.Debugf("Unknow histogram metric: %s", name)
 		}
 	}
 }
