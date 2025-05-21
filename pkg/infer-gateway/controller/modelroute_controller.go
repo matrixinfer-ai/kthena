@@ -43,10 +43,6 @@ func NewModelRouteController(mgr ctrl.Manager, store datastore.Store) *ModelRout
 	}
 }
 
-// +kubebuilder:rbac:groups=ai.kmesh.net,resources=ModelRoutes,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=ai.kmesh.net,resources=ModelRoutes/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=ai.kmesh.net,resources=ModelRoutes/finalizers,verbs=update
-
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 // TODO(user): Modify the Reconcile function to compare the state specified by
@@ -73,7 +69,7 @@ func (m *ModelRouteController) Reconcile(ctx context.Context, req ctrl.Request) 
 	log.Infof("Get ModelRoute model: %s", mr.Spec.ModelName)
 
 	// Update route in datastore
-	if err := m.store.UpdateModelRoute(req.NamespacedName.String(), &mr); err != nil {
+	if err := m.store.AddOrUpdateModelRoute(&mr); err != nil {
 		log.Error(err, "failed to update ModelRouter")
 		return ctrl.Result{}, err
 	}

@@ -32,7 +32,7 @@ type Store interface {
 	GetModelServerEndpoints(name types.NamespacedName) ([]*PodInfo, *string, error)
 
 	// Model routing methods
-	UpdateModelRoute(namespacedName string, mr *aiv1alpha1.ModelRoute) error
+	AddOrUpdateModelRoute(mr *aiv1alpha1.ModelRoute) error
 	DeleteModelRoute(namespacedName string) error
 }
 
@@ -45,8 +45,7 @@ type modelServer struct {
 }
 
 type PodInfo struct {
-	mu sync.RWMutex
-
+	mu  sync.RWMutex
 	Pod *corev1.Pod
 	// TODO: add metrics here
 	GPUCacheUsage     float32                           // GPU KV-cache usage.
@@ -55,8 +54,15 @@ type PodInfo struct {
 	modelServer       map[types.NamespacedName]struct{} // The modelservers this pod belongs to
 }
 
+// modelRouteInfo stores the mapping between a ModelRoute resource and its associated models.
+// It maintains both the primary model and any LoRA adapters that are configured for this route.
 type modelRouteInfo struct {
+	// model is the primary model name that this route serves.
+	// If empty, it means this route only serves LoRA adapters.
 	model string
+
+	// loras is a list of LoRA adapter names that this route serves.
+	// These adapters can be used to modify the behavior of the primary model.
 	loras []string
 }
 
@@ -72,14 +78,14 @@ type store struct {
 	loraRoutes map[string]*aiv1alpha1.ModelRoute
 }
 
-func New() (Store, error) {
+func New() Store {
 	return &store{
 		modelServer: make(map[types.NamespacedName]*modelServer),
 		pods:        make(map[types.NamespacedName]*PodInfo),
 		routeInfo:   make(map[string]*modelRouteInfo),
 		routes:      make(map[string]*aiv1alpha1.ModelRoute),
 		loraRoutes:  make(map[string]*aiv1alpha1.ModelRoute),
-	}, nil
+	}
 }
 
 func (s *store) AddOrUpdateModelServer(name types.NamespacedName, ms *aiv1alpha1.ModelServer, pods []*corev1.Pod) error {
@@ -227,11 +233,11 @@ func (s *store) DeletePod(pod *corev1.Pod) error {
 }
 
 // Model routing methods
-func (s *store) UpdateModelRoute(namespacedName string, mr *aiv1alpha1.ModelRoute) error {
+func (s *store) AddOrUpdateModelRoute(mr *aiv1alpha1.ModelRoute) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	s.routeInfo[namespacedName] = &modelRouteInfo{
+	s.routeInfo[mr.Namespace+"/"+mr.Name] = &modelRouteInfo{
 		model: mr.Spec.ModelName,
 		loras: mr.Spec.LoraAdapters,
 	}
