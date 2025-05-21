@@ -46,6 +46,7 @@ type Store interface {
 	DeleteModelServer(modelServer *aiv1alpha1.ModelServer) error
 	// Get modelServer name. This name is as same as modelServer.Spec.Model
 	GetModelNameByModelServer(name types.NamespacedName) *string
+	GetPortByModelServer(name types.NamespacedName) *aiv1alpha1.Port
 	GetPodsByModelServer(name types.NamespacedName) []*PodInfo
 
 	// Refresh Store and ModelServer when add a new pod or update a pod
@@ -66,7 +67,9 @@ type modelServer struct {
 	mutex sync.RWMutex
 
 	model *string
-	pods  map[types.NamespacedName]*PodInfo
+	port  *aiv1alpha1.Port
+
+	pods map[types.NamespacedName]*PodInfo
 }
 
 type PodInfo struct {
@@ -148,6 +151,7 @@ func (s *store) AddOrUpdateModelServer(name types.NamespacedName, ms *aiv1alpha1
 	}
 
 	s.modelServer[name].model = ms.Spec.Model
+	s.modelServer[name].port = ms.Spec.Port
 
 	podsMap := make(map[types.NamespacedName]*PodInfo)
 	for _, pod := range pods {
@@ -194,6 +198,13 @@ func (s *store) GetModelNameByModelServer(name types.NamespacedName) *string {
 	}
 
 	return nil
+}
+
+func (s *store) GetPortByModelServer(name types.NamespacedName) *aiv1alpha1.Port {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	return s.modelServer[name].port
 }
 
 func (s *store) GetPodsByModelServer(name types.NamespacedName) []*PodInfo {

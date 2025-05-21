@@ -52,6 +52,29 @@ spec:
                   Otherwise, the `model` in LLM inference request will not be mutated.
                 maxLength: 256
                 type: string
+              port:
+                description: The port of the model server.
+                properties:
+                  number:
+                    description: A valid non-negative integer port number.
+                    format: int32
+                    type: integer
+                    x-kubernetes-validations:
+                    - message: port must be between 1-65535
+                      rule: 0 < self && self <= 65535
+                  protocol:
+                    default: HTTP
+                    description: |-
+                      The protocol of the model server.
+                      MUST be one of HTTP|HTTPS
+                    enum:
+                    - HTTP
+                    - HTTPS
+                    type: string
+                required:
+                - number
+                - protocol
+                type: object
               trafficPolicy:
                 description: Traffic Policy for accessing the model server instance.
                 properties:
@@ -87,6 +110,7 @@ spec:
                 type: object
             required:
             - inferenceEngine
+            - port
             - workloadSelector
             type: object
           status:

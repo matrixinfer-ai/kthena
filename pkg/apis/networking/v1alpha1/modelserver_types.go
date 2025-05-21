@@ -20,6 +20,20 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:storageversion
+// +genclient
+//
+// ModelServer is the Schema for the modelservers API.
+type ModelServer struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   ModelServerSpec   `json:"spec,omitempty"`
+	Status ModelServerStatus `json:"status,omitempty"`
+}
+
 // ModelServerSpec defines the desired state of ModelServer.
 type ModelServerSpec struct {
 	// The real model that the modelServers are running.
@@ -28,6 +42,9 @@ type ModelServerSpec struct {
 	// +optional
 	// +kubebuilder:validation:MaxLength=256
 	Model *string `json:"model,omitempty"`
+	// The port of the model server.
+	// +kube:validation:Required
+	Port *Port `json:"port"`
 	// The inference framework used to manage the model.
 	// +kube:validation:Required
 	InferenceFramework InferenceFramework `json:"inferenceEngine"`
@@ -39,6 +56,17 @@ type ModelServerSpec struct {
 	// Traffic Policy for accessing the model server instance.
 	// +optional
 	TrafficPolicy *TrafficPolicy `json:"trafficPolicy,omitempty"`
+}
+
+type Port struct {
+	// A valid non-negative integer port number.
+	// +kubebuilder:validation:XValidation:message="port must be between 1-65535",rule="0 < self && self <= 65535"
+	Number int32 `json:"number"`
+	// The protocol of the model server.
+	// MUST be one of HTTP|HTTPS
+	// +kubebuilder:validation:Enum=HTTP;HTTPS
+	// +kubebuilder:default=HTTP
+	Protocol string `json:"protocol"`
 }
 
 // InferenceFramework defines the inference framework used by the modelServer to manage the LLM.
@@ -83,20 +111,6 @@ type Retry struct {
 type ModelServerStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-}
-
-// +kubebuilder:object:root=true
-// +kubebuilder:subresource:status
-// +kubebuilder:storageversion
-// +genclient
-//
-// ModelServer is the Schema for the modelservers API.
-type ModelServer struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
-
-	Spec   ModelServerSpec   `json:"spec,omitempty"`
-	Status ModelServerStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

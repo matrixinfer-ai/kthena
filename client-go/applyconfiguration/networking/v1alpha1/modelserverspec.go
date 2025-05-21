@@ -25,6 +25,7 @@ import (
 // with apply.
 type ModelServerSpecApplyConfiguration struct {
 	Model              *string                                `json:"model,omitempty"`
+	Port               *PortApplyConfiguration                `json:"port,omitempty"`
 	InferenceFramework *networkingv1alpha1.InferenceFramework `json:"inferenceEngine,omitempty"`
 	WorkloadSelector   *WorkloadSelectorApplyConfiguration    `json:"workloadSelector,omitempty"`
 	TrafficPolicy      *TrafficPolicyApplyConfiguration       `json:"trafficPolicy,omitempty"`
@@ -41,6 +42,14 @@ func ModelServerSpec() *ModelServerSpecApplyConfiguration {
 // If called multiple times, the Model field is set to the value of the last call.
 func (b *ModelServerSpecApplyConfiguration) WithModel(value string) *ModelServerSpecApplyConfiguration {
 	b.Model = &value
+	return b
+}
+
+// WithPort sets the Port field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the Port field is set to the value of the last call.
+func (b *ModelServerSpecApplyConfiguration) WithPort(value *PortApplyConfiguration) *ModelServerSpecApplyConfiguration {
+	b.Port = value
 	return b
 }
 
