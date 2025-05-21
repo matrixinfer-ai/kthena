@@ -22,9 +22,11 @@ import (
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	testing "k8s.io/client-go/testing"
 	internal "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/internal"
-	networkingv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/networking/v1alpha1"
+	modelv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/model/v1alpha1"
+	applyconfigurationnetworkingv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/networking/v1alpha1"
 	applyconfigurationworkloadv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/workload/v1alpha1"
-	v1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
+	v1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/model/v1alpha1"
+	networkingv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	workloadv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 )
 
@@ -32,31 +34,61 @@ import (
 // apply configuration type exists for the given GroupVersionKind.
 func ForKind(kind schema.GroupVersionKind) interface{} {
 	switch kind {
-	// Group=networking.matrixinfer.ai, Version=v1alpha1
-	case v1alpha1.SchemeGroupVersion.WithKind("ModelMatch"):
-		return &networkingv1alpha1.ModelMatchApplyConfiguration{}
-	case v1alpha1.SchemeGroupVersion.WithKind("ModelRoute"):
-		return &networkingv1alpha1.ModelRouteApplyConfiguration{}
-	case v1alpha1.SchemeGroupVersion.WithKind("ModelRouteSpec"):
-		return &networkingv1alpha1.ModelRouteSpecApplyConfiguration{}
-	case v1alpha1.SchemeGroupVersion.WithKind("ModelServer"):
-		return &networkingv1alpha1.ModelServerApplyConfiguration{}
-	case v1alpha1.SchemeGroupVersion.WithKind("ModelServerSpec"):
-		return &networkingv1alpha1.ModelServerSpecApplyConfiguration{}
-	case v1alpha1.SchemeGroupVersion.WithKind("RateLimit"):
-		return &networkingv1alpha1.RateLimitApplyConfiguration{}
-	case v1alpha1.SchemeGroupVersion.WithKind("Retry"):
-		return &networkingv1alpha1.RetryApplyConfiguration{}
-	case v1alpha1.SchemeGroupVersion.WithKind("Rule"):
-		return &networkingv1alpha1.RuleApplyConfiguration{}
-	case v1alpha1.SchemeGroupVersion.WithKind("StringMatch"):
-		return &networkingv1alpha1.StringMatchApplyConfiguration{}
-	case v1alpha1.SchemeGroupVersion.WithKind("TargetModel"):
-		return &networkingv1alpha1.TargetModelApplyConfiguration{}
-	case v1alpha1.SchemeGroupVersion.WithKind("TrafficPolicy"):
-		return &networkingv1alpha1.TrafficPolicyApplyConfiguration{}
-	case v1alpha1.SchemeGroupVersion.WithKind("WorkloadSelector"):
-		return &networkingv1alpha1.WorkloadSelectorApplyConfiguration{}
+	// Group=model.matrixinfer.ai, Version=v1alpha1
+	case v1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicy"):
+		return &modelv1alpha1.AutoscalingPolicyApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyBehavior"):
+		return &modelv1alpha1.AutoscalingPolicyBehaviorApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyMetric"):
+		return &modelv1alpha1.AutoscalingPolicyMetricApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyPanicPolicy"):
+		return &modelv1alpha1.AutoscalingPolicyPanicPolicyApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicySpec"):
+		return &modelv1alpha1.AutoscalingPolicySpecApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyStablePolicy"):
+		return &modelv1alpha1.AutoscalingPolicyStablePolicyApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("LoraAdapter"):
+		return &modelv1alpha1.LoraAdapterApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("LoraAdapterSpec"):
+		return &modelv1alpha1.LoraAdapterSpecApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("Model"):
+		return &modelv1alpha1.ModelApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("ModelBackend"):
+		return &modelv1alpha1.ModelBackendApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("ModelBackendStatus"):
+		return &modelv1alpha1.ModelBackendStatusApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("ModelSpec"):
+		return &modelv1alpha1.ModelSpecApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("ModelStatus"):
+		return &modelv1alpha1.ModelStatusApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("ModelWorker"):
+		return &modelv1alpha1.ModelWorkerApplyConfiguration{}
+
+		// Group=networking.matrixinfer.ai, Version=v1alpha1
+	case networkingv1alpha1.SchemeGroupVersion.WithKind("ModelMatch"):
+		return &applyconfigurationnetworkingv1alpha1.ModelMatchApplyConfiguration{}
+	case networkingv1alpha1.SchemeGroupVersion.WithKind("ModelRoute"):
+		return &applyconfigurationnetworkingv1alpha1.ModelRouteApplyConfiguration{}
+	case networkingv1alpha1.SchemeGroupVersion.WithKind("ModelRouteSpec"):
+		return &applyconfigurationnetworkingv1alpha1.ModelRouteSpecApplyConfiguration{}
+	case networkingv1alpha1.SchemeGroupVersion.WithKind("ModelServer"):
+		return &applyconfigurationnetworkingv1alpha1.ModelServerApplyConfiguration{}
+	case networkingv1alpha1.SchemeGroupVersion.WithKind("ModelServerSpec"):
+		return &applyconfigurationnetworkingv1alpha1.ModelServerSpecApplyConfiguration{}
+	case networkingv1alpha1.SchemeGroupVersion.WithKind("RateLimit"):
+		return &applyconfigurationnetworkingv1alpha1.RateLimitApplyConfiguration{}
+	case networkingv1alpha1.SchemeGroupVersion.WithKind("Retry"):
+		return &applyconfigurationnetworkingv1alpha1.RetryApplyConfiguration{}
+	case networkingv1alpha1.SchemeGroupVersion.WithKind("Rule"):
+		return &applyconfigurationnetworkingv1alpha1.RuleApplyConfiguration{}
+	case networkingv1alpha1.SchemeGroupVersion.WithKind("StringMatch"):
+		return &applyconfigurationnetworkingv1alpha1.StringMatchApplyConfiguration{}
+	case networkingv1alpha1.SchemeGroupVersion.WithKind("TargetModel"):
+		return &applyconfigurationnetworkingv1alpha1.TargetModelApplyConfiguration{}
+	case networkingv1alpha1.SchemeGroupVersion.WithKind("TrafficPolicy"):
+		return &applyconfigurationnetworkingv1alpha1.TrafficPolicyApplyConfiguration{}
+	case networkingv1alpha1.SchemeGroupVersion.WithKind("WorkloadSelector"):
+		return &applyconfigurationnetworkingv1alpha1.WorkloadSelectorApplyConfiguration{}
 
 		// Group=workload.matrixinfer.ai, Version=v1alpha1
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("GangSchedule"):

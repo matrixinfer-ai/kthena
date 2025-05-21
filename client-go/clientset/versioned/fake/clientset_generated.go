@@ -26,6 +26,8 @@ import (
 	"k8s.io/client-go/testing"
 	applyconfiguration "matrixinfer.ai/matrixinfer/client-go/applyconfiguration"
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
+	modelv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/model/v1alpha1"
+	fakemodelv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/model/v1alpha1/fake"
 	networkingv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/networking/v1alpha1"
 	fakenetworkingv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/networking/v1alpha1/fake"
 	workloadv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/workload/v1alpha1"
@@ -125,6 +127,11 @@ var (
 	_ clientset.Interface = &Clientset{}
 	_ testing.FakeClient  = &Clientset{}
 )
+
+// ModelV1alpha1 retrieves the ModelV1alpha1Client
+func (c *Clientset) ModelV1alpha1() modelv1alpha1.ModelV1alpha1Interface {
+	return &fakemodelv1alpha1.FakeModelV1alpha1{Fake: &c.Fake}
+}
 
 // NetworkingV1alpha1 retrieves the NetworkingV1alpha1Client
 func (c *Clientset) NetworkingV1alpha1() networkingv1alpha1.NetworkingV1alpha1Interface {
