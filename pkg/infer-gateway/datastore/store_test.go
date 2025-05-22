@@ -199,10 +199,7 @@ func TestStoreUpdatePodMetrics(t *testing.T) {
 	assert.Equal(t, s.pods[name].TimePerOutputToken.SampleCount, &count2)
 	assert.Equal(t, s.pods[name].TimeToFirstToken.SampleSum, &sum2)
 	assert.Equal(t, s.pods[name].TimeToFirstToken.SampleCount, &count2)
-	assert.Equal(t, s.modelServer[modelName].pods[name].GPUCacheUsage, float64(0.8))
-	assert.Equal(t, s.modelServer[modelName].pods[name].RequestWaitingNum, float64(15))
-	assert.Equal(t, s.modelServer[modelName].pods[name].TPOT, float64(120))
-	assert.Equal(t, s.modelServer[modelName].pods[name].TTFT, float64(210))
+	assert.Equal(t, s.modelServer[modelName].pods[name], s.pods[name])
 }
 
 func TestStoreAddOrUpdatePod(t *testing.T) {

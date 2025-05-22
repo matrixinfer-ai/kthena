@@ -42,7 +42,7 @@ type vllmEngine struct {
 	MetricPort uint32
 }
 
-func NewVllmEnging() *vllmEngine {
+func NewVllmEngine() *vllmEngine {
 	// TODO: Get MetricsPort from vllm configuration
 	return &vllmEngine{
 		MetricPort: 8000,
@@ -87,7 +87,13 @@ func (engine *vllmEngine) GetHistogramPodMetrics(allMetrics map[string]*dto.Metr
 			metricValue := metric.GetHistogram()
 			histogramMetrics[mapOfMetricsName[metricName]] = metricValue
 			previousMetric := previousHistogram[mapOfMetricsName[metricName]]
-			wantMetrics[mapOfMetricsName[metricName]] = metrics.LastPeriodAvg(previousMetric, metricValue)
+			if previousMetric == nil {
+				currentSum := metricValue.GetSampleSum()
+				currentCount := metricValue.GetSampleCount()
+				wantMetrics[mapOfMetricsName[metricName]] = currentSum / float64(currentCount)
+			} else {
+				wantMetrics[mapOfMetricsName[metricName]] = metrics.LastPeriodAvg(previousMetric, metricValue)
+			}
 		}
 	}
 

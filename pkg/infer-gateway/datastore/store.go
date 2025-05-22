@@ -516,9 +516,15 @@ func updateMetricsInfo(podinfo *PodInfo, metricsInfo map[string]float64) {
 			podinfo.RequestWaitingNum = f
 		},
 		utils.TPOT: func(f float64) {
+			if f == float64(0.0) {
+				return
+			}
 			podinfo.TPOT = f
 		},
 		utils.TTFT: func(f float64) {
+			if f == float64(0.0) {
+				return
+			}
 			podinfo.TTFT = f
 		},
 	}

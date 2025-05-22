@@ -23,7 +23,7 @@ type MetricsProvider interface {
 
 var engineRegistry = map[string]MetricsProvider{
 	"sglang": sglang.NewSglangEngine(),
-	"vllm":   vllm.NewVllmEnging(),
+	"vllm":   vllm.NewVllmEngine(),
 }
 
 func GetPodMetrics(engine string, pod *corev1.Pod, previousHistogram map[string]*dto.Histogram) (map[string]float64, map[string]*dto.Histogram) {

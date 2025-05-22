@@ -87,7 +87,13 @@ func (engine *sglangEngine) GetHistogramPodMetrics(allMetrics map[string]*dto.Me
 			metricValue := metric.GetHistogram()
 			histogramMetrics[mapOfMetricsName[metricName]] = metricValue
 			previousMetric := previousHistogram[mapOfMetricsName[metricName]]
-			wantMetrics[mapOfMetricsName[metricName]] = metrics.LastPeriodAvg(previousMetric, metricValue)
+			if previousMetric == nil {
+				currentSum := metricValue.GetSampleSum()
+				currentCount := metricValue.GetSampleCount()
+				wantMetrics[mapOfMetricsName[metricName]] = currentSum / float64(currentCount)
+			} else {
+				wantMetrics[mapOfMetricsName[metricName]] = metrics.LastPeriodAvg(previousMetric, metricValue)
+			}
 		}
 	}
 
