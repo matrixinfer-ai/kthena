@@ -51,10 +51,6 @@ func GetPodMetrics(engine string, pod *corev1.Pod, previousHistogram map[string]
 	return countMetricsInfo, histogramMetrics
 }
 
-func GetBackend() string {
-	return "vllm"
-}
-
 func GetMetricsProvider(engine string) (MetricsProvider, error) {
 	if provider, exists := engineRegistry[engine]; exists {
 		return provider, nil

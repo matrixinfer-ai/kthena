@@ -159,7 +159,7 @@ func (s *store) AddOrUpdateModelServer(name types.NamespacedName, ms *aiv1alpha1
 		} else {
 			newPodInfo := PodInfo{
 				Pod:         pod,
-				backend:     backend.GetBackend(),
+				backend:     string(ms.Spec.InferenceFramework),
 				Models:      make(map[string]struct{}),
 				modelServer: sets.New[types.NamespacedName](name),
 			}
@@ -482,7 +482,8 @@ func (s *store) updatePodMetrics(pod *corev1.Pod) {
 	}
 
 	if podInfo.backend == "" {
-		podInfo.backend = backend.GetBackend()
+		log.Error("failed to find backend in pod")
+		return
 	}
 
 	previousHistogram := getPreviousHistogram(podInfo)
