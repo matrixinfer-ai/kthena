@@ -55,7 +55,7 @@ type Store interface {
 
 	// New methods for routing functionality
 	MatchModelServer(modelName string, request *http.Request) (types.NamespacedName, bool, error)
-	GetModelServerEndpoints(name types.NamespacedName) ([]PodInfo, *string, error)
+	GetModelServerEndpoints(name types.NamespacedName) ([]*PodInfo, *string, error)
 
 	// Model routing methods
 	AddOrUpdateModelRoute(mr *aiv1alpha1.ModelRoute) error
@@ -66,10 +66,12 @@ type modelServer struct {
 	mutex sync.RWMutex
 
 	model *string
-	pods  map[types.NamespacedName]PodInfo
+	pods  map[types.NamespacedName]*PodInfo
 }
 
 type PodInfo struct {
+	mutex sync.RWMutex
+
 	Pod *corev1.Pod
 	// Name of AI inference engine
 	backend string
@@ -101,7 +103,7 @@ type store struct {
 	mutex sync.RWMutex
 
 	modelServer map[types.NamespacedName]*modelServer
-	pods        map[types.NamespacedName]PodInfo
+	pods        map[types.NamespacedName]*PodInfo
 
 	// Model routing fields
 	routeInfo  map[string]*modelRouteInfo
@@ -112,7 +114,7 @@ type store struct {
 func New() Store {
 	return &store{
 		modelServer: make(map[types.NamespacedName]*modelServer),
-		pods:        make(map[types.NamespacedName]PodInfo),
+		pods:        make(map[types.NamespacedName]*PodInfo),
 		routeInfo:   make(map[string]*modelRouteInfo),
 		routes:      make(map[string]*aiv1alpha1.ModelRoute),
 		loraRoutes:  make(map[string]*aiv1alpha1.ModelRoute),
@@ -141,13 +143,13 @@ func (s *store) AddOrUpdateModelServer(name types.NamespacedName, ms *aiv1alpha1
 
 	if _, ok := s.modelServer[name]; !ok {
 		s.modelServer[name] = &modelServer{
-			pods: make(map[types.NamespacedName]PodInfo),
+			pods: make(map[types.NamespacedName]*PodInfo),
 		}
 	}
 
 	s.modelServer[name].model = ms.Spec.Model
 
-	podsMap := make(map[types.NamespacedName]PodInfo)
+	podsMap := make(map[types.NamespacedName]*PodInfo)
 	for _, pod := range pods {
 		podName := utils.GetNamespaceName(pod)
 		if podInfo, ok := s.pods[name]; ok {
@@ -157,7 +159,7 @@ func (s *store) AddOrUpdateModelServer(name types.NamespacedName, ms *aiv1alpha1
 			}
 			podsMap[podName] = podInfo
 		} else {
-			newPodInfo := PodInfo{
+			newPodInfo := &PodInfo{
 				Pod:         pod,
 				backend:     string(ms.Spec.InferenceFramework),
 				Models:      make(map[string]struct{}),
@@ -166,7 +168,7 @@ func (s *store) AddOrUpdateModelServer(name types.NamespacedName, ms *aiv1alpha1
 			podsMap[podName] = newPodInfo
 			s.pods[podName] = newPodInfo
 		}
-		s.updatePodMetrics(pod)
+		go s.updatePodMetrics(pod)
 	}
 
 	s.modelServer[name].pods = podsMap
@@ -210,7 +212,7 @@ func (s *store) GetPodsByModelServer(name types.NamespacedName) []*PodInfo {
 
 	for key := range ms.pods {
 		pod := ms.pods[key]
-		pods = append(pods, &pod)
+		pods = append(pods, pod)
 	}
 
 	return pods
@@ -220,7 +222,7 @@ func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.Model
 	s.mutex.Lock()
 
 	podName := utils.GetNamespaceName(pod)
-	newPodInfo := PodInfo{
+	newPodInfo := &PodInfo{
 		Pod:         pod,
 		modelServer: sets.Set[types.NamespacedName]{},
 	}
@@ -243,7 +245,7 @@ func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.Model
 	for _, modelServerName := range modelServerNames {
 		if s.modelServer[modelServerName] == nil {
 			s.modelServer[modelServerName] = &modelServer{
-				pods: make(map[types.NamespacedName]PodInfo),
+				pods: make(map[types.NamespacedName]*PodInfo),
 			}
 		}
 		s.modelServer[modelServerName].pods[podName] = newPodInfo
@@ -451,7 +453,7 @@ func selectFromWeightedSlice(weights []uint32) int {
 	return 0
 }
 
-func (s *store) GetModelServerEndpoints(name types.NamespacedName) ([]PodInfo, *string, error) {
+func (s *store) GetModelServerEndpoints(name types.NamespacedName) ([]*PodInfo, *string, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
@@ -459,7 +461,7 @@ func (s *store) GetModelServerEndpoints(name types.NamespacedName) ([]PodInfo, *
 		ms.mutex.RLock()
 		defer ms.mutex.RUnlock()
 
-		pods := []PodInfo{}
+		pods := []*PodInfo{}
 		for _, pod := range ms.pods {
 			pods = append(pods, pod)
 		}
@@ -488,16 +490,15 @@ func (s *store) updatePodMetrics(pod *corev1.Pod) {
 
 	previousHistogram := getPreviousHistogram(podInfo)
 	metricsInfo, histogramMetrics := backend.GetPodMetrics(podInfo.backend, pod, previousHistogram)
-	updateMetricsInfo(&podInfo, metricsInfo)
-	updateHistogramMetrics(&podInfo, histogramMetrics)
+	updateMetricsInfo(podInfo, metricsInfo)
+	updateHistogramMetrics(podInfo, histogramMetrics)
 
 	for ms := range podInfo.modelServer {
 		s.modelServer[ms].pods[podName] = podInfo
 	}
-	s.pods[podName] = podInfo
 }
 
-func getPreviousHistogram(podinfo PodInfo) map[string]*dto.Histogram {
+func getPreviousHistogram(podinfo *PodInfo) map[string]*dto.Histogram {
 	previousHistogram := make(map[string]*dto.Histogram)
 	if podinfo.TimePerOutputToken != nil {
 		previousHistogram[utils.TPOT] = podinfo.TimePerOutputToken

@@ -70,7 +70,7 @@ func TestGetPreviousHistogram(t *testing.T) {
 	count1 := uint64(2)
 
 	type args struct {
-		podinfo PodInfo
+		podinfo *PodInfo
 	}
 	tests := []struct {
 		name string
@@ -80,7 +80,7 @@ func TestGetPreviousHistogram(t *testing.T) {
 		{
 			name: "get previous histogram",
 			args: args{
-				podinfo: PodInfo{
+				podinfo: &PodInfo{
 					TimePerOutputToken: &dto.Histogram{
 						SampleSum:   &sum1,
 						SampleCount: &count1,
@@ -117,6 +117,7 @@ func TestStoreUpdatePodMetrics(t *testing.T) {
 	sum2 := float64(2)
 	count2 := uint64(2)
 	podinfo := PodInfo{
+		backend: "vllm",
 		TimePerOutputToken: &dto.Histogram{
 			SampleSum:   &sum1,
 			SampleCount: &count1,
@@ -135,22 +136,22 @@ func TestStoreUpdatePodMetrics(t *testing.T) {
 		}),
 	}
 	s := &store{
-		pods: map[types.NamespacedName]PodInfo{
+		pods: map[types.NamespacedName]*PodInfo{
 			types.NamespacedName{
 				Namespace: "default",
 				Name:      "pod1",
-			}: podinfo,
+			}: &podinfo,
 		},
 		modelServer: map[types.NamespacedName]*modelServer{
 			types.NamespacedName{
 				Namespace: "default",
 				Name:      "model1",
 			}: {
-				pods: map[types.NamespacedName]PodInfo{
+				pods: map[types.NamespacedName]*PodInfo{
 					types.NamespacedName{
 						Namespace: "default",
 						Name:      "pod1",
-					}: podinfo,
+					}: &podinfo,
 				},
 			},
 		},
@@ -264,7 +265,7 @@ func TestStoreAddOrUpdatePod(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &store{
 				modelServer: make(map[types.NamespacedName]*modelServer),
-				pods:        make(map[types.NamespacedName]PodInfo),
+				pods:        make(map[types.NamespacedName]*PodInfo),
 			}
 			err := s.AddOrUpdatePod(tt.args.pod, tt.args.modelServers)
 			assert.NoError(t, err)
