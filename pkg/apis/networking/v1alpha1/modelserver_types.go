@@ -28,39 +28,63 @@ type ModelServerSpec struct {
 	// +optional
 	// +kubebuilder:validation:MaxLength=256
 	Model *string `json:"model,omitempty"`
-	// The inference framework used to manage the model.
-	// +kube:validation:Required
-	InferenceFramework InferenceFramework `json:"inferenceEngine"`
+	// The inference engine used to serve the model.
+	// +kubebuilder:validation:Required
+	InferenceEngine InferenceEngine `json:"inferenceEngine"`
 	// WorkloadSelector is used to match the model servring instances.
 	// Currently they must be pods within the same namespace as modelServer object.
 	//
-	// +kube:validation:Required
+	// +kubebuilder:validation:Required
 	WorkloadSelector *WorkloadSelector `json:"workloadSelector"`
+
+	// WorkloadPort defines the port and protocol configuration for the model server.
+	WorkloadPort WorkloadPort `json:"workloadPort,omitempty"`
+
 	// Traffic Policy for accessing the model server instance.
 	// +optional
 	TrafficPolicy *TrafficPolicy `json:"trafficPolicy,omitempty"`
 }
 
-// InferenceFramework defines the inference framework used by the modelServer to manage the LLM.
+// InferenceEngine defines the inference framework used by the modelServer to serve LLM requests.
 //
 // +kubebuilder:validation:Enum=vLLM;sgLang
-type InferenceFramework string
+type InferenceEngine string
 
 const (
 	// https://github.com/vllm-project/vllm
-	VLLM InferenceFramework = "vLLM"
+	VLLM InferenceEngine = "vLLM"
 	// https://github.com/sgl-project/sglang
-	SGLang InferenceFramework = "SGLang"
+	SGLang InferenceEngine = "SGLang"
 )
 
+// WorkloadSelector is used to match the model serving instances.
+// Currently they must be pods within the same namespace as modelServer object.
 type WorkloadSelector struct {
+	// The labels to match the model serving instances.
+	// +kube:validation:Required
 	MatchLabels map[string]string `json:"matchLabels,omitempty"`
+}
+
+// WorkloadPort defines the port and protocol configuration for the model server.
+type WorkloadPort struct {
+	// The port of the model server. The number must be between 1 and 65535.
+	//
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	Port int32 `json:"port"`
+
+	// The protocol of the model server. Supported values are "http" and "https".
+	// +optional
+	// +kubebuilder:default="http"
+	// +kubebuilder:validation:Enum=http;https
+	Protocol string `json:"protocol,omitempty"`
 }
 
 type TrafficPolicy struct {
 	// The request timeout for the inference request.
 	// By default, there is no timeout.
-	// +optional
+	// +kubebuilder:required
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 	// The retry policy for the inference request.
 	// +optional
