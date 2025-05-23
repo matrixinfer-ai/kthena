@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/router"
 )
@@ -14,7 +15,7 @@ import (
 var log = logger.NewLogger("")
 
 // Starts router
-func startRouter(stop <-chan struct{}) {
+func startRouter(stop <-chan struct{}, store datastore.Store) {
 	// Your application logic here
 	engine := gin.Default()
 	// TODO: add middle ware
@@ -29,8 +30,7 @@ func startRouter(stop <-chan struct{}) {
 		})
 	})
 
-	r := router.NewRouter()
-	go r.Run(stop)
+	r := router.NewRouter(store)
 
 	// vllm use /v1 prefix, not sure other frameworks
 	engine.Any("/v1/:path", r.HandlerFunc())
