@@ -3,6 +3,12 @@ kind: Namespace
 metadata:
   name: matrixinfer-system
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: infer-gateway
+  namespace: matrixinfer-system
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:

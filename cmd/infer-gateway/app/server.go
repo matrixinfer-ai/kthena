@@ -1,5 +1,10 @@
 package app
 
+import (
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/controller"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
+)
+
 type Server struct {
 }
 
@@ -8,8 +13,14 @@ func NewServer() *Server {
 }
 
 func (s *Server) Run(stop <-chan struct{}) {
-	// Your application logic here
+	// create store
+	store := datastore.New()
+
+	// start controller
+	if err := controller.StartControllers(store); err != nil {
+		log.Fatal("Unable to start controllers")
+	}
 
 	// start router
-	startRouter(stop)
+	startRouter(stop, store)
 }
