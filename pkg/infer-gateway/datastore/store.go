@@ -9,22 +9,48 @@ import (
 	"sync"
 	"time"
 
+	dto "github.com/prometheus/client_model/go"
+	"istio.io/istio/pkg/util/sets"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/backend"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
+)
+
+var (
+	log = logger.NewLogger("datastore")
+
+	metricsName = []string{
+		utils.GPUCacheUsage,
+		utils.RequestWaitingNum,
+		utils.TPOT,
+		utils.TTFT,
+	}
+
+	histogramMetricsName = []string{
+		utils.TPOT,
+		utils.TTFT,
+	}
+
+	uppdateInterval = 1 * time.Second
 )
 
 // Store is an interface for storing and retrieving data
 type Store interface {
+	// Add modelServer and pods which are selected by modelServer.Spec.WorkloadSelector
 	AddOrUpdateModelServer(name types.NamespacedName, modelServer *aiv1alpha1.ModelServer, pods []*corev1.Pod) error
+	// Delete modelServer
 	DeleteModelServer(modelServer *aiv1alpha1.ModelServer) error
-	// Get the real model name served by the model server, nil means the model name in the user request will be used.
+	// Get modelServer name. This name is as same as modelServer.Spec.Model
 	GetModelNameByModelServer(name types.NamespacedName) *string
 	GetPodsByModelServer(name types.NamespacedName) []*PodInfo
 
-	AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.ModelServer) error
+	// Refresh Store and ModelServer when add a new pod or update a pod
+	AddOrUpdatePod(pod *corev1.Pod, modelServer []*aiv1alpha1.ModelServer) error
+	// Refresh Store and ModelServer when delete a pod
 	DeletePod(pod *corev1.Pod) error
 
 	// New methods for routing functionality
@@ -39,19 +65,26 @@ type Store interface {
 type modelServer struct {
 	mutex sync.RWMutex
 
-	// real model name served
 	model *string
 	pods  map[types.NamespacedName]*PodInfo
 }
 
 type PodInfo struct {
-	mu  sync.RWMutex
+	mutex sync.RWMutex
+
 	Pod *corev1.Pod
+	// Name of AI inference engine
+	backend string
 	// TODO: add metrics here
-	GPUCacheUsage     float32                           // GPU KV-cache usage.
-	RequestWaitingNum int                               // Number of requests waiting to be processed.
-	Models            map[string]struct{}               // running model and lora adapaters.
-	modelServer       map[types.NamespacedName]struct{} // The modelservers this pod belongs to
+	GPUCacheUsage     float64 // GPU KV-cache usage.
+	RequestWaitingNum float64 // Number of requests waiting to be processed.
+	// for calculating the average value over the time interval, need to store the results of the last query
+	TimeToFirstToken   *dto.Histogram
+	TimePerOutputToken *dto.Histogram
+	TPOT               float64
+	TTFT               float64
+	Models             map[string]struct{}            // running lora adapaters.
+	modelServer        sets.Set[types.NamespacedName] // The modelservers this pod belongs to
 }
 
 // modelRouteInfo stores the mapping between a ModelRoute resource and its associated models.
@@ -88,6 +121,22 @@ func New() Store {
 	}
 }
 
+func (s *store) Run(stop <-chan struct{}) {
+	for {
+		select {
+		case <-stop:
+			return
+		default:
+			for _, ms := range s.modelServer {
+				for _, podInfo := range ms.pods {
+					s.updatePodMetrics(podInfo.Pod)
+					time.Sleep(uppdateInterval)
+				}
+			}
+		}
+	}
+}
+
 func (s *store) AddOrUpdateModelServer(name types.NamespacedName, ms *aiv1alpha1.ModelServer, pods []*corev1.Pod) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -98,9 +147,6 @@ func (s *store) AddOrUpdateModelServer(name types.NamespacedName, ms *aiv1alpha1
 		}
 	}
 
-	s.modelServer[name].mutex.Lock()
-	defer s.modelServer[name].mutex.Unlock()
-
 	s.modelServer[name].model = ms.Spec.Model
 
 	podsMap := make(map[types.NamespacedName]*PodInfo)
@@ -108,22 +154,21 @@ func (s *store) AddOrUpdateModelServer(name types.NamespacedName, ms *aiv1alpha1
 		podName := utils.GetNamespaceName(pod)
 		if podInfo, ok := s.pods[name]; ok {
 			// If the pod was not belong to modelserver.
-			if _, exist := podInfo.modelServer[name]; !exist {
-				podInfo.modelServer[name] = struct{}{}
+			if exist := podInfo.modelServer.Contains(name); !exist {
+				podInfo.modelServer.Insert(name)
 			}
 			podsMap[podName] = podInfo
 		} else {
 			newPodInfo := &PodInfo{
-				Pod:    pod,
-				Models: make(map[string]struct{}),
-				modelServer: map[types.NamespacedName]struct{}{
-					name: struct{}{},
-				},
+				Pod:         pod,
+				backend:     string(ms.Spec.InferenceFramework),
+				Models:      make(map[string]struct{}),
+				modelServer: sets.New[types.NamespacedName](name),
 			}
 			podsMap[podName] = newPodInfo
 			s.pods[podName] = newPodInfo
 		}
-		// TODO: use goroutine update new pod metrics
+		go s.updatePodMetrics(pod)
 	}
 
 	s.modelServer[name].pods = podsMap
@@ -153,39 +198,40 @@ func (s *store) GetModelNameByModelServer(name types.NamespacedName) *string {
 
 func (s *store) GetPodsByModelServer(name types.NamespacedName) []*PodInfo {
 	s.mutex.RLock()
-	defer s.mutex.RUnlock()
+	ms, ok := s.modelServer[name]
+	s.mutex.RUnlock()
 
-	if ms, ok := s.modelServer[name]; ok {
-		ms.mutex.RLock()
-		defer ms.mutex.RUnlock()
-
-		pods := []*PodInfo{}
-
-		for _, pod := range ms.pods {
-			pods = append(pods, pod)
-		}
-
-		return pods
+	if !ok {
+		return nil
 	}
 
-	return nil
+	ms.mutex.RLock()
+	defer ms.mutex.RUnlock()
+
+	pods := []*PodInfo{}
+
+	for key := range ms.pods {
+		pod := ms.pods[key]
+		pods = append(pods, pod)
+	}
+
+	return pods
 }
 
 func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.ModelServer) error {
 	s.mutex.Lock()
-	defer s.mutex.Unlock()
 
 	podName := utils.GetNamespaceName(pod)
 	newPodInfo := &PodInfo{
 		Pod:         pod,
-		modelServer: make(map[types.NamespacedName]struct{}),
+		modelServer: sets.Set[types.NamespacedName]{},
 	}
 
 	modelServerNames := []types.NamespacedName{}
 	for _, modelServer := range modelServers {
 		modelServerName := utils.GetNamespaceName(modelServer)
 		modelServerNames = append(modelServerNames, modelServerName)
-		newPodInfo.modelServer[modelServerName] = struct{}{}
+		newPodInfo.modelServer.Insert(modelServerName)
 	}
 
 	// if already have podinfo, need to delete old pod in modelserver
@@ -197,21 +243,27 @@ func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.Model
 
 	s.pods[podName] = newPodInfo
 	for _, modelServerName := range modelServerNames {
+		if s.modelServer[modelServerName] == nil {
+			s.modelServer[modelServerName] = &modelServer{
+				pods: make(map[types.NamespacedName]*PodInfo),
+			}
+		}
 		s.modelServer[modelServerName].pods[podName] = newPodInfo
 	}
+	s.mutex.Unlock()
 
-	//TODO update metrics of new pod
+	s.updatePodMetrics(pod)
+
 	return nil
 }
 
 func (s *store) PodHandlerWhenDeleteModelServer(modelServerName types.NamespacedName) error {
 	pods := s.modelServer[modelServerName].pods
 	for podName := range pods {
-		podInfo := s.pods[podName]
 		s.mutex.Lock()
-		delete(podInfo.modelServer, modelServerName)
+		s.pods[podName].modelServer.Delete(modelServerName)
 		// if modelServer is nil, pod will delete
-		if len(podInfo.modelServer) == 0 {
+		if s.pods[podName].modelServer.Len() == 0 {
 			delete(s.pods, podName)
 		}
 		s.mutex.Unlock()
@@ -418,4 +470,91 @@ func (s *store) GetModelServerEndpoints(name types.NamespacedName) ([]*PodInfo, 
 	}
 
 	return nil, nil, fmt.Errorf("model server not found: %v", name)
+}
+
+func (s *store) updatePodMetrics(pod *corev1.Pod) {
+	podName := utils.GetNamespaceName(pod)
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	podInfo, exist := s.pods[podName]
+	if !exist {
+		log.Errorf("failed to get podInfo of pod %s/%s", pod.GetNamespace(), pod.GetName())
+		return
+	}
+
+	if podInfo.backend == "" {
+		log.Error("failed to find backend in pod")
+		return
+	}
+
+	previousHistogram := getPreviousHistogram(podInfo)
+	metricsInfo, histogramMetrics := backend.GetPodMetrics(podInfo.backend, pod, previousHistogram)
+	updateMetricsInfo(podInfo, metricsInfo)
+	updateHistogramMetrics(podInfo, histogramMetrics)
+
+	for ms := range podInfo.modelServer {
+		s.modelServer[ms].pods[podName] = podInfo
+	}
+}
+
+func getPreviousHistogram(podinfo *PodInfo) map[string]*dto.Histogram {
+	previousHistogram := make(map[string]*dto.Histogram)
+	if podinfo.TimePerOutputToken != nil {
+		previousHistogram[utils.TPOT] = podinfo.TimePerOutputToken
+	}
+	if podinfo.TimeToFirstToken != nil {
+		previousHistogram[utils.TTFT] = podinfo.TimeToFirstToken
+	}
+	return previousHistogram
+}
+
+func updateMetricsInfo(podinfo *PodInfo, metricsInfo map[string]float64) {
+	updateFuncs := map[string]func(float64){
+		utils.GPUCacheUsage: func(f float64) {
+			podinfo.GPUCacheUsage = f
+		},
+		utils.RequestWaitingNum: func(f float64) {
+			podinfo.RequestWaitingNum = f
+		},
+		utils.TPOT: func(f float64) {
+			if f == float64(0.0) {
+				return
+			}
+			podinfo.TPOT = f
+		},
+		utils.TTFT: func(f float64) {
+			if f == float64(0.0) {
+				return
+			}
+			podinfo.TTFT = f
+		},
+	}
+
+	for _, name := range metricsName {
+		if updateFunc, exist := updateFuncs[name]; exist {
+			updateFunc(metricsInfo[name])
+		} else {
+			log.Debugf("Unknow metric: %s", name)
+		}
+	}
+}
+
+func updateHistogramMetrics(podinfo *PodInfo, histogramMetrics map[string]*dto.Histogram) {
+	updateFuncs := map[string]func(*dto.Histogram){
+		utils.TPOT: func(h *dto.Histogram) {
+			podinfo.TimePerOutputToken = h
+		},
+		utils.TTFT: func(h *dto.Histogram) {
+			podinfo.TimeToFirstToken = h
+		},
+	}
+
+	for _, name := range histogramMetricsName {
+		if updateFunc, exist := updateFuncs[name]; exist {
+			updateFunc(histogramMetrics[name])
+		} else {
+			log.Debugf("Unknow histogram metric: %s", name)
+		}
+	}
 }
