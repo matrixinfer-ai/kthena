@@ -23,25 +23,25 @@ import (
 	v1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/model/v1alpha1"
 )
 
-type FakeModelV1alpha1 struct {
+type FakeRegistryV1alpha1 struct {
 	*testing.Fake
 }
 
-func (c *FakeModelV1alpha1) AutoscalingPolicies(namespace string) v1alpha1.AutoscalingPolicyInterface {
+func (c *FakeRegistryV1alpha1) AutoscalingPolicies(namespace string) v1alpha1.AutoscalingPolicyInterface {
 	return newFakeAutoscalingPolicies(c, namespace)
 }
 
-func (c *FakeModelV1alpha1) LoraAdapters(namespace string) v1alpha1.LoraAdapterInterface {
+func (c *FakeRegistryV1alpha1) LoraAdapters(namespace string) v1alpha1.LoraAdapterInterface {
 	return newFakeLoraAdapters(c, namespace)
 }
 
-func (c *FakeModelV1alpha1) Models(namespace string) v1alpha1.ModelInterface {
+func (c *FakeRegistryV1alpha1) Models(namespace string) v1alpha1.ModelInterface {
 	return newFakeModels(c, namespace)
 }
 
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
-func (c *FakeModelV1alpha1) RESTClient() rest.Interface {
+func (c *FakeRegistryV1alpha1) RESTClient() rest.Interface {
 	var ret *rest.RESTClient
 	return ret
 }

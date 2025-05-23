@@ -23,7 +23,7 @@ import (
 )
 
 // GroupName specifies the group name used to register the objects.
-const GroupName = "model.matrixinfer.ai"
+const GroupName = "registry.matrixinfer.ai"
 
 // GroupVersion specifies the group and the version used to register the objects.
 var GroupVersion = v1.GroupVersion{Group: GroupName, Version: "v1alpha1"}

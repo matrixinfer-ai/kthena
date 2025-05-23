@@ -40,7 +40,7 @@ func AutoscalingPolicy(name, namespace string) *AutoscalingPolicyApplyConfigurat
 	b.WithName(name)
 	b.WithNamespace(namespace)
 	b.WithKind("AutoscalingPolicy")
-	b.WithAPIVersion("model.matrixinfer.ai/v1alpha1")
+	b.WithAPIVersion("registry.matrixinfer.ai/v1alpha1")
 	return b
 }
 

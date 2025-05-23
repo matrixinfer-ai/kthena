@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.17.2
-  name: models.model.matrixinfer.ai
+  name: models.registry.matrixinfer.ai
 spec:
-  group: model.matrixinfer.ai
+  group: registry.matrixinfer.ai
   names:
     kind: Model
     listKind: ModelList
