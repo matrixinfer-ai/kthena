@@ -27,10 +27,10 @@ import (
 // fakeLoraAdapters implements LoraAdapterInterface
 type fakeLoraAdapters struct {
 	*gentype.FakeClientWithListAndApply[*v1alpha1.LoraAdapter, *v1alpha1.LoraAdapterList, *modelv1alpha1.LoraAdapterApplyConfiguration]
-	Fake *FakeModelV1alpha1
+	Fake *FakeRegistryV1alpha1
 }
 
-func newFakeLoraAdapters(fake *FakeModelV1alpha1, namespace string) typedmodelv1alpha1.LoraAdapterInterface {
+func newFakeLoraAdapters(fake *FakeRegistryV1alpha1, namespace string) typedmodelv1alpha1.LoraAdapterInterface {
 	return &fakeLoraAdapters{
 		gentype.NewFakeClientWithListAndApply[*v1alpha1.LoraAdapter, *v1alpha1.LoraAdapterList, *modelv1alpha1.LoraAdapterApplyConfiguration](
 			fake.Fake,

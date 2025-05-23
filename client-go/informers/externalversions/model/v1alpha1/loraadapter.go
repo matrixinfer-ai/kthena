@@ -61,25 +61,25 @@ func NewFilteredLoraAdapterInformer(client versioned.Interface, namespace string
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.ModelV1alpha1().LoraAdapters(namespace).List(context.Background(), options)
+				return client.RegistryV1alpha1().LoraAdapters(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.ModelV1alpha1().LoraAdapters(namespace).Watch(context.Background(), options)
+				return client.RegistryV1alpha1().LoraAdapters(namespace).Watch(context.Background(), options)
 			},
 			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.ModelV1alpha1().LoraAdapters(namespace).List(ctx, options)
+				return client.RegistryV1alpha1().LoraAdapters(namespace).List(ctx, options)
 			},
 			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.ModelV1alpha1().LoraAdapters(namespace).Watch(ctx, options)
+				return client.RegistryV1alpha1().LoraAdapters(namespace).Watch(ctx, options)
 			},
 		},
 		&apismodelv1alpha1.LoraAdapter{},

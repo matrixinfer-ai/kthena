@@ -59,7 +59,7 @@ type autoscalingPolicies struct {
 }
 
 // newAutoscalingPolicies returns a AutoscalingPolicies
-func newAutoscalingPolicies(c *ModelV1alpha1Client, namespace string) *autoscalingPolicies {
+func newAutoscalingPolicies(c *RegistryV1alpha1Client, namespace string) *autoscalingPolicies {
 	return &autoscalingPolicies{
 		gentype.NewClientWithListAndApply[*modelv1alpha1.AutoscalingPolicy, *modelv1alpha1.AutoscalingPolicyList, *applyconfigurationmodelv1alpha1.AutoscalingPolicyApplyConfiguration](
 			"autoscalingpolicies",

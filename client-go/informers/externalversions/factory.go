@@ -255,12 +255,12 @@ type SharedInformerFactory interface {
 	// client.
 	InformerFor(obj runtime.Object, newFunc internalinterfaces.NewInformerFunc) cache.SharedIndexInformer
 
-	Model() model.Interface
+	Registry() model.Interface
 	Networking() networking.Interface
 	Workload() workload.Interface
 }
 
-func (f *sharedInformerFactory) Model() model.Interface {
+func (f *sharedInformerFactory) Registry() model.Interface {
 	return model.New(f, f.namespace, f.tweakListOptions)
 }
 

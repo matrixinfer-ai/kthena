@@ -59,7 +59,7 @@ type models struct {
 }
 
 // newModels returns a Models
-func newModels(c *ModelV1alpha1Client, namespace string) *models {
+func newModels(c *RegistryV1alpha1Client, namespace string) *models {
 	return &models{
 		gentype.NewClientWithListAndApply[*modelv1alpha1.Model, *modelv1alpha1.ModelList, *applyconfigurationmodelv1alpha1.ModelApplyConfiguration](
 			"models",

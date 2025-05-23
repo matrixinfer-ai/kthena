@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.17.2
-  name: loraadapters.model.matrixinfer.ai
+  name: loraadapters.registry.matrixinfer.ai
 spec:
-  group: model.matrixinfer.ai
+  group: registry.matrixinfer.ai
   names:
     kind: LoraAdapter
     listKind: LoraAdapterList

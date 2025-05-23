@@ -27,10 +27,10 @@ import (
 // fakeAutoscalingPolicies implements AutoscalingPolicyInterface
 type fakeAutoscalingPolicies struct {
 	*gentype.FakeClientWithListAndApply[*v1alpha1.AutoscalingPolicy, *v1alpha1.AutoscalingPolicyList, *modelv1alpha1.AutoscalingPolicyApplyConfiguration]
-	Fake *FakeModelV1alpha1
+	Fake *FakeRegistryV1alpha1
 }
 
-func newFakeAutoscalingPolicies(fake *FakeModelV1alpha1, namespace string) typedmodelv1alpha1.AutoscalingPolicyInterface {
+func newFakeAutoscalingPolicies(fake *FakeRegistryV1alpha1, namespace string) typedmodelv1alpha1.AutoscalingPolicyInterface {
 	return &fakeAutoscalingPolicies{
 		gentype.NewFakeClientWithListAndApply[*v1alpha1.AutoscalingPolicy, *v1alpha1.AutoscalingPolicyList, *modelv1alpha1.AutoscalingPolicyApplyConfiguration](
 			fake.Fake,
