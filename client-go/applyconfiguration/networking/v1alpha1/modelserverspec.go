@@ -24,10 +24,11 @@ import (
 // ModelServerSpecApplyConfiguration represents a declarative configuration of the ModelServerSpec type for use
 // with apply.
 type ModelServerSpecApplyConfiguration struct {
-	Model              *string                                `json:"model,omitempty"`
-	InferenceFramework *networkingv1alpha1.InferenceFramework `json:"inferenceEngine,omitempty"`
-	WorkloadSelector   *WorkloadSelectorApplyConfiguration    `json:"workloadSelector,omitempty"`
-	TrafficPolicy      *TrafficPolicyApplyConfiguration       `json:"trafficPolicy,omitempty"`
+	Model            *string                             `json:"model,omitempty"`
+	InferenceEngine  *networkingv1alpha1.InferenceEngine `json:"inferenceEngine,omitempty"`
+	WorkloadSelector *WorkloadSelectorApplyConfiguration `json:"workloadSelector,omitempty"`
+	WorkloadPort     *WorkloadPortApplyConfiguration     `json:"workloadPort,omitempty"`
+	TrafficPolicy    *TrafficPolicyApplyConfiguration    `json:"trafficPolicy,omitempty"`
 }
 
 // ModelServerSpecApplyConfiguration constructs a declarative configuration of the ModelServerSpec type for use with
@@ -44,11 +45,11 @@ func (b *ModelServerSpecApplyConfiguration) WithModel(value string) *ModelServer
 	return b
 }
 
-// WithInferenceFramework sets the InferenceFramework field in the declarative configuration to the given value
+// WithInferenceEngine sets the InferenceEngine field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the InferenceFramework field is set to the value of the last call.
-func (b *ModelServerSpecApplyConfiguration) WithInferenceFramework(value networkingv1alpha1.InferenceFramework) *ModelServerSpecApplyConfiguration {
-	b.InferenceFramework = &value
+// If called multiple times, the InferenceEngine field is set to the value of the last call.
+func (b *ModelServerSpecApplyConfiguration) WithInferenceEngine(value networkingv1alpha1.InferenceEngine) *ModelServerSpecApplyConfiguration {
+	b.InferenceEngine = &value
 	return b
 }
 
@@ -57,6 +58,14 @@ func (b *ModelServerSpecApplyConfiguration) WithInferenceFramework(value network
 // If called multiple times, the WorkloadSelector field is set to the value of the last call.
 func (b *ModelServerSpecApplyConfiguration) WithWorkloadSelector(value *WorkloadSelectorApplyConfiguration) *ModelServerSpecApplyConfiguration {
 	b.WorkloadSelector = value
+	return b
+}
+
+// WithWorkloadPort sets the WorkloadPort field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the WorkloadPort field is set to the value of the last call.
+func (b *ModelServerSpecApplyConfiguration) WithWorkloadPort(value *WorkloadPortApplyConfiguration) *ModelServerSpecApplyConfiguration {
+	b.WorkloadPort = value
 	return b
 }
 
