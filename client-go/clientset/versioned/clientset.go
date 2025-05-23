@@ -25,7 +25,7 @@ import (
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
-	modelv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/model/v1alpha1"
+	registryv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/model/v1alpha1"
 	networkingv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/networking/v1alpha1"
 	registryv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/registry/v1alpha1"
 	workloadv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/workload/v1alpha1"
@@ -33,7 +33,7 @@ import (
 
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
-	ModelV1alpha1() modelv1alpha1.ModelV1alpha1Interface
+	RegistryV1alpha1() registryv1alpha1.RegistryV1alpha1Interface
 	NetworkingV1alpha1() networkingv1alpha1.NetworkingV1alpha1Interface
 	RegistryV1alpha1() registryv1alpha1.RegistryV1alpha1Interface
 	WorkloadV1alpha1() workloadv1alpha1.WorkloadV1alpha1Interface
@@ -42,15 +42,15 @@ type Interface interface {
 // Clientset contains the clients for groups.
 type Clientset struct {
 	*discovery.DiscoveryClient
-	modelV1alpha1      *modelv1alpha1.ModelV1alpha1Client
+	registryV1alpha1   *registryv1alpha1.RegistryV1alpha1Client
 	networkingV1alpha1 *networkingv1alpha1.NetworkingV1alpha1Client
 	registryV1alpha1   *registryv1alpha1.RegistryV1alpha1Client
 	workloadV1alpha1   *workloadv1alpha1.WorkloadV1alpha1Client
 }
 
-// ModelV1alpha1 retrieves the ModelV1alpha1Client
-func (c *Clientset) ModelV1alpha1() modelv1alpha1.ModelV1alpha1Interface {
-	return c.modelV1alpha1
+// RegistryV1alpha1 retrieves the RegistryV1alpha1Client
+func (c *Clientset) RegistryV1alpha1() registryv1alpha1.RegistryV1alpha1Interface {
+	return c.registryV1alpha1
 }
 
 // NetworkingV1alpha1 retrieves the NetworkingV1alpha1Client
@@ -112,7 +112,7 @@ func NewForConfigAndClient(c *rest.Config, httpClient *http.Client) (*Clientset,
 
 	var cs Clientset
 	var err error
-	cs.modelV1alpha1, err = modelv1alpha1.NewForConfigAndClient(&configShallowCopy, httpClient)
+	cs.registryV1alpha1, err = registryv1alpha1.NewForConfigAndClient(&configShallowCopy, httpClient)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +149,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 // New creates a new Clientset for the given RESTClient.
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
-	cs.modelV1alpha1 = modelv1alpha1.New(c)
+	cs.registryV1alpha1 = registryv1alpha1.New(c)
 	cs.networkingV1alpha1 = networkingv1alpha1.New(c)
 	cs.registryV1alpha1 = registryv1alpha1.New(c)
 	cs.workloadV1alpha1 = workloadv1alpha1.New(c)

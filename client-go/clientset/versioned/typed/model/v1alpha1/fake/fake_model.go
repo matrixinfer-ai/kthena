@@ -27,10 +27,10 @@ import (
 // fakeModels implements ModelInterface
 type fakeModels struct {
 	*gentype.FakeClientWithListAndApply[*v1alpha1.Model, *v1alpha1.ModelList, *modelv1alpha1.ModelApplyConfiguration]
-	Fake *FakeModelV1alpha1
+	Fake *FakeRegistryV1alpha1
 }
 
-func newFakeModels(fake *FakeModelV1alpha1, namespace string) typedmodelv1alpha1.ModelInterface {
+func newFakeModels(fake *FakeRegistryV1alpha1, namespace string) typedmodelv1alpha1.ModelInterface {
 	return &fakeModels{
 		gentype.NewFakeClientWithListAndApply[*v1alpha1.Model, *v1alpha1.ModelList, *modelv1alpha1.ModelApplyConfiguration](
 			fake.Fake,

@@ -40,7 +40,7 @@ func LoraAdapter(name, namespace string) *LoraAdapterApplyConfiguration {
 	b.WithName(name)
 	b.WithNamespace(namespace)
 	b.WithKind("LoraAdapter")
-	b.WithAPIVersion("model.matrixinfer.ai/v1alpha1")
+	b.WithAPIVersion("registry.matrixinfer.ai/v1alpha1")
 	return b
 }
 

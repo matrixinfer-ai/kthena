@@ -27,8 +27,8 @@ import (
 	"k8s.io/client-go/testing"
 	applyconfiguration "matrixinfer.ai/matrixinfer/client-go/applyconfiguration"
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
-	modelv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/model/v1alpha1"
-	fakemodelv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/model/v1alpha1/fake"
+	registryv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/model/v1alpha1"
+	fakeregistryv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/model/v1alpha1/fake"
 	networkingv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/networking/v1alpha1"
 	fakenetworkingv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/networking/v1alpha1/fake"
 	registryv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/registry/v1alpha1"
@@ -131,9 +131,9 @@ var (
 	_ testing.FakeClient  = &Clientset{}
 )
 
-// ModelV1alpha1 retrieves the ModelV1alpha1Client
-func (c *Clientset) ModelV1alpha1() modelv1alpha1.ModelV1alpha1Interface {
-	return &fakemodelv1alpha1.FakeModelV1alpha1{Fake: &c.Fake}
+// RegistryV1alpha1 retrieves the RegistryV1alpha1Client
+func (c *Clientset) RegistryV1alpha1() registryv1alpha1.RegistryV1alpha1Interface {
+	return &fakeregistryv1alpha1.FakeRegistryV1alpha1{Fake: &c.Fake}
 }
 
 // NetworkingV1alpha1 retrieves the NetworkingV1alpha1Client

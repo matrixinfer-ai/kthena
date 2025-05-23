@@ -59,7 +59,7 @@ type loraAdapters struct {
 }
 
 // newLoraAdapters returns a LoraAdapters
-func newLoraAdapters(c *ModelV1alpha1Client, namespace string) *loraAdapters {
+func newLoraAdapters(c *RegistryV1alpha1Client, namespace string) *loraAdapters {
 	return &loraAdapters{
 		gentype.NewClientWithListAndApply[*modelv1alpha1.LoraAdapter, *modelv1alpha1.LoraAdapterList, *applyconfigurationmodelv1alpha1.LoraAdapterApplyConfiguration](
 			"loraadapters",

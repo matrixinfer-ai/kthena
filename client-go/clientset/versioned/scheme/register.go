@@ -24,7 +24,7 @@ import (
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	serializer "k8s.io/apimachinery/pkg/runtime/serializer"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	modelv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/model/v1alpha1"
+	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/model/v1alpha1"
 	networkingv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	workloadv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
@@ -34,7 +34,7 @@ var Scheme = runtime.NewScheme()
 var Codecs = serializer.NewCodecFactory(Scheme)
 var ParameterCodec = runtime.NewParameterCodec(Scheme)
 var localSchemeBuilder = runtime.SchemeBuilder{
-	modelv1alpha1.AddToScheme,
+	registryv1alpha1.AddToScheme,
 	networkingv1alpha1.AddToScheme,
 	registryv1alpha1.AddToScheme,
 	workloadv1alpha1.AddToScheme,

@@ -16,5 +16,5 @@ limitations under the License.
 
 // +k8s:openai-gen=true
 // +kubebuilder:object:generate=true
-// +groupName=model.matrixinfer.ai
+// +groupName=registry.matrixinfer.ai
 package v1alpha1
