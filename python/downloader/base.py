@@ -57,8 +57,10 @@ def get_downloader(url: str, credentials: dict) -> ModelDownloader:
         if url.startswith("s3://"):
             from s3 import S3Downloader
             return S3Downloader(
+                model_uri=url,
                 access_key=credentials.get("access_key"),
                 secret_key=credentials.get("secret_key"),
+                s3_endpoint=credentials.get("s3_endpoint"),
             )
         else:
             from huggingface import HuggingFaceDownloader
