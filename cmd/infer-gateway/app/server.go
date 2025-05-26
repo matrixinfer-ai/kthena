@@ -16,10 +16,12 @@ func (s *Server) Run(stop <-chan struct{}) {
 	// create store
 	store := datastore.New()
 
-	// start controller
-	if err := controller.StartControllers(store); err != nil {
-		log.Fatal("Unable to start controllers")
-	}
+	go func() {
+		// start controller
+		if err := controller.StartControllers(store); err != nil {
+			log.Fatal("Unable to start controllers")
+		}
+	}()
 
 	// start router
 	startRouter(stop, store)
