@@ -7,28 +7,28 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
 )
 
-var _ framework.ScorePlugin = &LeastLatencyUsage{}
+var _ framework.ScorePlugin = &LeastLatency{}
 // MaxScore is the highest possible score a pod can receive
 const MaxScore = 100.0
-// Alpha is weight to balance TTFT and  TPOT
-const Alpha = 0.5
+//  is weight to balance TTFT and  TPOT
+const TTFTTOPTWeightFactor = 0.5
 const LeastLatencyPluginName = "least latency"
 
-type LeastLatencyUsage struct {
+type LeastLatency struct {
 	name        string
 }
 
-func NewLeastLatencyUsage() *LeastLatencyUsage {
-	return &LeastLatencyUsage{
+func NewLeastLatency() *LeastLatency {
+	return &LeastLatency{
 		name:        LeastLatencyPluginName,
 	}
 }
 
-func (l *LeastLatencyUsage) Name() string {
+func (l *LeastLatency) Name() string {
 	return l.name
 }
 // Score calculates a score for each pod based on their inference latency:
-func (l *LeastLatencyUsage) Score(pods []*datastore.PodInfo, ctx *framework.Context) map[*datastore.PodInfo]int {
+func (l *LeastLatency) Score(pods []*datastore.PodInfo, ctx *framework.Context) map[*datastore.PodInfo]int {
 	// Stores the computed score for each pod
 	scoreResults := make(map[*datastore.PodInfo]int)
 	// Handle edge case: empty pod list
@@ -52,7 +52,7 @@ func (l *LeastLatencyUsage) Score(pods []*datastore.PodInfo, ctx *framework.Cont
 		if maxTPOT > minTPOT {
 			scoreTPOT = MaxScore * (maxTPOT - info.TPOT) / (maxTPOT - minTPOT)
 		}
-		scoreResults[info] = int(scoreTTFT * Alpha + scoreTPOT * (1 - Alpha))
+		scoreResults[info] = int(scoreTTFT * TTFTTOPTWeightFactor + scoreTPOT * (1 - TTFTTOPTWeightFactor))
 	}
 
 	return scoreResults
