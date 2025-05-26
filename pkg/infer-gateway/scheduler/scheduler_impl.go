@@ -49,7 +49,6 @@ func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.P
 
 	ctx := &framework.Context{
 		Model: req["model"].(string),
-		MaxToken:   getInt(req, "max_tokens", 200), 
 	}
 
 	pods, err := s.RunFilterPlugins(pods, ctx)
