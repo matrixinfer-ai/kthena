@@ -30,14 +30,14 @@ func (l *LeastRequest) Name() string {
 
 func (l *LeastRequest) Filter(pods []*datastore.PodInfo, ctx *framework.Context) []*datastore.PodInfo {
 	return slices.FilterInPlace(pods, func(info *datastore.PodInfo) bool {
-		return info.RequestWaitingNum < l.maxWaitingRequest
+		return info.RequestWaitingNum < float64(l.maxWaitingRequest)
 	})
 }
 
 func (l *LeastRequest) Score(pods []*datastore.PodInfo, ctx *framework.Context) map[*datastore.PodInfo]int {
 	scoreResults := make(map[*datastore.PodInfo]int)
 	for _, info := range pods {
-		score := (l.maxWaitingRequest - info.RequestWaitingNum) * 100 / l.maxWaitingRequest
+		score := int((float64(l.maxWaitingRequest) - info.RequestWaitingNum) * 100 / float64(l.maxWaitingRequest))
 		scoreResults[info] = score
 	}
 	return scoreResults
