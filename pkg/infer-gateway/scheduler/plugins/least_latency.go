@@ -9,7 +9,9 @@ import (
 
 var _ framework.ScorePlugin = &LeastLatencyUsage{}
 // MaxScore is the highest possible score a pod can receive
-const MaxScore = 100
+const MaxScore = 100.0
+// Alpha is weight to balance TTFT and  TPOT
+const Alpha = 0.5
 const LeastLatencyPluginName = "least latency"
 
 type LeastLatencyUsage struct {
@@ -36,28 +38,53 @@ func (l *LeastLatencyUsage) Score(pods []*datastore.PodInfo, ctx *framework.Cont
 	// 1. First pass: Determine the minimum and maximum latency values
 	// Initialize with extreme values to ensure any valid latency updates them
 	// ctx.MaxToken is the max token that the model is allowed to generate in its response. 
-	var maxTotalLatency = 0.0
-	var minTotalLatency = math.MaxFloat64
-	for _, info := range pods {
-		sum := info.TTFT + info.TPOT * float64(ctx.MaxToken)
-		if maxTotalLatency < sum {
-			maxTotalLatency = sum
-		}
-		if minTotalLatency > sum {
-			minTotalLatency = sum
-		}
-	}
+	// Calculate min/max values for TTFT and TPOT in calculateMinMaxMetrics
+	minTTFT, maxTTFT, minTPOT, maxTPOT := calculateMinMaxMetrics(pods)
 	// 2. Second pass: Compute scores using linear normalization
 	// Note: If all pods have identical latency (max == min), all pods get MaxScore
 	for _, info := range pods {
-		sum := info.TTFT + info.TPOT * float64(ctx.MaxToken)
-		score := MaxScore
+		scoreTTFT := MaxScore
+		scoreTPOT := MaxScore
 		// Only compute normalized score if there's variance in latency values
-		if maxTotalLatency > minTotalLatency {
-			score = int(MaxScore * (maxTotalLatency - sum) / (maxTotalLatency - minTotalLatency))
+		if maxTTFT > minTTFT {
+			scoreTTFT = MaxScore * (maxTTFT - info.TTFT) / (maxTTFT - minTTFT)
 		}
-		scoreResults[info] = score
+		if maxTPOT > minTPOT {
+			scoreTPOT = MaxScore * (maxTPOT - info.TPOT) / (maxTPOT - minTPOT)
+		}
+		scoreResults[info] = int(scoreTTFT * Alpha + scoreTPOT * (1 - Alpha))
 	}
 
 	return scoreResults
+}
+func calculateMinMaxMetrics(pods []*datastore.PodInfo) (minTTFT, maxTTFT, minTPOT, maxTPOT float64) {
+	minTTFT = math.MaxFloat64
+	maxTTFT = 0.0
+	minTPOT = math.MaxFloat64
+	maxTPOT = 0.0
+	
+	for _, info := range pods {
+		// Skip pods with invalid values
+		if info.TTFT < 0 || info.TPOT < 0 {
+			continue
+		}
+		
+		// Update TTFT min/max
+		if info.TTFT < minTTFT {
+			minTTFT = info.TTFT
+		}
+		if info.TTFT > maxTTFT {
+			maxTTFT = info.TTFT
+		}
+		
+		// Update TPOT min/max
+		if info.TPOT < minTPOT {
+			minTPOT = info.TPOT
+		}
+		if info.TPOT > maxTPOT {
+			maxTPOT = info.TPOT
+		}
+	}
+	
+	return minTTFT, maxTTFT, minTPOT, maxTPOT
 }
