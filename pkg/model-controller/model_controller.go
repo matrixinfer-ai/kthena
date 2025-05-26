@@ -22,9 +22,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	registryv1 "matrixinfer.ai/matrixinfer/pkg/apis/model/v1alpha1"
+)
+
+const (
+	ModelFinalizer = "matrixinfer.ai/matrixinfer/finalizer"
 )
 
 // ModelReconciler reconciles a Model object
@@ -47,10 +52,32 @@ type ModelReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.20.4/pkg/reconcile
 func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = logf.FromContext(ctx)
+	log := logf.FromContext(ctx)
+	log.Info("Start to process model")
 
-	// TODO(user): your logic here
+	model := &registryv1.Model{}
+	if err := r.Get(ctx, req.NamespacedName, model); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
 
+	if model.ObjectMeta.DeletionTimestamp.IsZero() {
+		if !controllerutil.ContainsFinalizer(model, ModelFinalizer) {
+			controllerutil.AddFinalizer(model, ModelFinalizer)
+			if err := r.Update(ctx, model); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+	} else {
+		if controllerutil.ContainsFinalizer(model, ModelFinalizer) {
+			// TODO: Add logic before delete model
+			controllerutil.RemoveFinalizer(model, ModelFinalizer)
+			if err := r.Update(ctx, model); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+		return ctrl.Result{}, nil
+	}
+	// TODO: Add logic to process model
 	return ctrl.Result{}, nil
 }
 
