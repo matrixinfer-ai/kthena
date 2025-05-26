@@ -35,7 +35,7 @@ func NewScheduler(store datastore.Store) Scheduler {
 				weight: 1,
 			},
 			{
-				plugin: plugins.NewLeastLatencyUsage(),
+				plugin: plugins.NewLeastLatency(),
 				weight: 1,
 			},
 		},
