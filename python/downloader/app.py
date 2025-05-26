@@ -42,7 +42,6 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "-s", "--source",
         type=str,
-        nargs="+",
         required=True,
         help="Source paths (e.g., HF repo IDs or S3 URIs)"
     )
@@ -77,7 +76,7 @@ def main():
         args = parse_arguments()
         credentials = load_credentials(args.credentials)
         download_model(
-            sources=args.source,
+            source=args.source,
             output_dir=args.output_dir,
             model_name=args.model_name,
             credentials=credentials

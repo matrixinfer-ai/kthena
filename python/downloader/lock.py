@@ -1,3 +1,5 @@
+# lock.py
+
 import fcntl
 import os
 import threading
@@ -14,30 +16,36 @@ class LockManager:
         self.lock_acquired = False
         self.renew_interval = 300
         self.stop_renew_event = threading.Event()
+        self._lock_file = None
 
     def try_acquire(self) -> bool:
         try:
             lock_dir = os.path.dirname(self.lock_path)
             os.makedirs(lock_dir, exist_ok=True)
-            with open(self.lock_path, "w") as f:
-                fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                f.write(str(os.getpid()))
-                self.lock_acquired = True
-                return True
-        except (IOError, BlockingIOError):
-            return False
+            self._lock_file = open(self.lock_path, "w")
+            fcntl.flock(self._lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            self._lock_file.write(str(os.getpid()))
+            self._lock_file.flush()
+            self.lock_acquired = True
+            return True
         except Exception as e:
             logger.error(f"Error acquiring lock: {e}")
+            if self._lock_file:
+                self._lock_file.close()
             return False
 
     def release(self):
-        if self.lock_acquired:
+        if self.lock_acquired and self._lock_file:
             try:
+                fcntl.flock(self._lock_file, fcntl.LOCK_UN)
+                self._lock_file.close()
                 if os.path.exists(self.lock_path):
                     os.remove(self.lock_path)
-                self.lock_acquired = False
             except Exception as e:
-                logger.error(f"Error releasing lock: {e}")
+                logger.error(f"Release error: {e}")
+            finally:
+                self.lock_acquired = False
+                self._lock_file = None
 
     def renew(self, interval: int = 300):
         while not self.stop_renew_event.is_set():
