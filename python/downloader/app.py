@@ -25,6 +25,7 @@ def load_credentials(credentials_str: str = None) -> dict:
         "hf_revision": os.getenv("HF_REVISION"),
         "access_key": os.getenv("ACCESS_KEY"),
         "secret_key": os.getenv("SECRET_KEY"),
+        "region_name": os.getenv("REGION_NAME"),
     }
     for key, value in env_credentials.items():
         if value:
@@ -63,7 +64,7 @@ def parse_arguments() -> argparse.Namespace:
         default=None,
         help="JSON-formatted string containing authentication credentials "
              "(e.g., '{\"hf_token\": \"YOUR_HF_TOKEN\", \"access_key\": \"YOUR_ACCESS_KEY\", "
-             "\"secret_key\": \"YOUR_SECRET_KEY\"}')"
+             "\"secret_key\": \"YOUR_SECRET_KEY\", \"region_name\": \"YOUR_REGION_NAME\"}')"
     )
     args = parser.parse_args()
     args.output_dir = str(Path(args.output_dir).expanduser().resolve())

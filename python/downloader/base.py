@@ -1,8 +1,9 @@
 import os
 import threading
 from abc import ABC, abstractmethod
+from typing import Optional
 
-from lock import LockManager
+from lock import LockManager, LockError
 from logger import setup_logger
 
 logger = setup_logger()
@@ -10,16 +11,11 @@ logger = setup_logger()
 
 class ModelDownloader(ABC):
     def __init__(self):
-        self.lock_manager = None
-        self.renew_thread = None
-        self.stop_renew = threading.Event()
+        self.lock_manager: Optional[LockManager] = None
+        self.stop_event = threading.Event()
 
     @abstractmethod
     def download(self, output_dir: str):
-        """
-        Abstract method to be implemented by subclasses.
-        This method should define the actual download logic.
-        """
         pass
 
     def download_model(self, output_dir: str, model_name: str):
@@ -28,26 +24,30 @@ class ModelDownloader(ABC):
         lock_path = os.path.join(output_dir, f".{model_name}.lock")
         self.lock_manager = LockManager(lock_path, timeout=600)
         while True:
-            if self.lock_manager.try_acquire():
-                try:
-                    self.stop_renew.clear()
-                    self.renew_thread = threading.Thread(
-                        target=self.lock_manager.renew,
-                        args=(300,),
-                        daemon=True
-                    )
-                    self.renew_thread.start()
-                    logger.info(f"Acquired lock successfully. Starting download for model '{model_name}'")
-                    self.download(output_dir)
-                    break
-                finally:
-                    self.lock_manager.stop_renew()
-                    if self.renew_thread and self.renew_thread.is_alive():
-                        self.renew_thread.join(timeout=3)
+            try:
+                if self.lock_manager.try_acquire():
+                    try:
+                        logger.info(f"Acquired lock successfully. Starting download for model '{model_name}'")
+                        self.download(output_dir)
+                        break
+                    except Exception as e:
+                        logger.error(f"Error during model download: {e}")
+                        raise
+                    finally:
+                        self.lock_manager.release()
+                else:
+                    logger.info("Failed to acquire lock. Waiting for the lock to be released.")
+                    self.stop_event.wait(timeout=60)
+            except LockError as e:
+                logger.error(f"Lock error: {e}")
+                if self.lock_manager:
                     self.lock_manager.release()
-            else:
-                logger.info("Failed to acquire lock. Waiting for the lock to be released.")
-                self.stop_renew.wait(timeout=60)
+                raise
+            except Exception as e:
+                logger.error(f"Unexpected error in download_model: {e}")
+                if self.lock_manager:
+                    self.lock_manager.release()
+                raise
 
 
 def get_downloader(url: str, credentials: dict) -> ModelDownloader:
@@ -58,7 +58,7 @@ def get_downloader(url: str, credentials: dict) -> ModelDownloader:
                 model_uri=url,
                 access_key=credentials.get("access_key"),
                 secret_key=credentials.get("secret_key"),
-                s3_endpoint=credentials.get("s3_endpoint"),
+                region_name=credentials.get("region_name"),
             )
         elif url.startswith("pvc://"):
             from pvc import PVCDownloader
@@ -72,5 +72,5 @@ def get_downloader(url: str, credentials: dict) -> ModelDownloader:
                 hf_revision=credentials.get("hf_revision"),
             )
     except ImportError as e:
-        logger.error(f"Failed to initialize downloader: {str(e)}")
-        raise RuntimeError(f"Failed to initialize downloader: {str(e)}")
+        logger.error(f"Failed to initialize downloader: {e}")
+        raise RuntimeError(f"Failed to initialize downloader: {e}")
