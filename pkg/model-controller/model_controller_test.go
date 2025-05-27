@@ -27,7 +27,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	registryv1 "matrixinfer.ai/matrixinfer/pkg/apis/model/v1alpha1"
+	registryv1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
 
 var _ = Describe("Model Controller", func() {

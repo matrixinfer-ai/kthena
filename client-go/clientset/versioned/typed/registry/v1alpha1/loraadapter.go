@@ -24,9 +24,9 @@ import (
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	gentype "k8s.io/client-go/gentype"
-	applyconfigurationmodelv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/model/v1alpha1"
+	applyconfigurationregistryv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/registry/v1alpha1"
 	scheme "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/scheme"
-	modelv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/model/v1alpha1"
+	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
 
 // LoraAdaptersGetter has a method to return a LoraAdapterInterface.
@@ -37,37 +37,37 @@ type LoraAdaptersGetter interface {
 
 // LoraAdapterInterface has methods to work with LoraAdapter resources.
 type LoraAdapterInterface interface {
-	Create(ctx context.Context, loraAdapter *modelv1alpha1.LoraAdapter, opts v1.CreateOptions) (*modelv1alpha1.LoraAdapter, error)
-	Update(ctx context.Context, loraAdapter *modelv1alpha1.LoraAdapter, opts v1.UpdateOptions) (*modelv1alpha1.LoraAdapter, error)
+	Create(ctx context.Context, loraAdapter *registryv1alpha1.LoraAdapter, opts v1.CreateOptions) (*registryv1alpha1.LoraAdapter, error)
+	Update(ctx context.Context, loraAdapter *registryv1alpha1.LoraAdapter, opts v1.UpdateOptions) (*registryv1alpha1.LoraAdapter, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, loraAdapter *modelv1alpha1.LoraAdapter, opts v1.UpdateOptions) (*modelv1alpha1.LoraAdapter, error)
+	UpdateStatus(ctx context.Context, loraAdapter *registryv1alpha1.LoraAdapter, opts v1.UpdateOptions) (*registryv1alpha1.LoraAdapter, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*modelv1alpha1.LoraAdapter, error)
-	List(ctx context.Context, opts v1.ListOptions) (*modelv1alpha1.LoraAdapterList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*registryv1alpha1.LoraAdapter, error)
+	List(ctx context.Context, opts v1.ListOptions) (*registryv1alpha1.LoraAdapterList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *modelv1alpha1.LoraAdapter, err error)
-	Apply(ctx context.Context, loraAdapter *applyconfigurationmodelv1alpha1.LoraAdapterApplyConfiguration, opts v1.ApplyOptions) (result *modelv1alpha1.LoraAdapter, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *registryv1alpha1.LoraAdapter, err error)
+	Apply(ctx context.Context, loraAdapter *applyconfigurationregistryv1alpha1.LoraAdapterApplyConfiguration, opts v1.ApplyOptions) (result *registryv1alpha1.LoraAdapter, err error)
 	// Add a +genclient:noStatus comment above the type to avoid generating ApplyStatus().
-	ApplyStatus(ctx context.Context, loraAdapter *applyconfigurationmodelv1alpha1.LoraAdapterApplyConfiguration, opts v1.ApplyOptions) (result *modelv1alpha1.LoraAdapter, err error)
+	ApplyStatus(ctx context.Context, loraAdapter *applyconfigurationregistryv1alpha1.LoraAdapterApplyConfiguration, opts v1.ApplyOptions) (result *registryv1alpha1.LoraAdapter, err error)
 	LoraAdapterExpansion
 }
 
 // loraAdapters implements LoraAdapterInterface
 type loraAdapters struct {
-	*gentype.ClientWithListAndApply[*modelv1alpha1.LoraAdapter, *modelv1alpha1.LoraAdapterList, *applyconfigurationmodelv1alpha1.LoraAdapterApplyConfiguration]
+	*gentype.ClientWithListAndApply[*registryv1alpha1.LoraAdapter, *registryv1alpha1.LoraAdapterList, *applyconfigurationregistryv1alpha1.LoraAdapterApplyConfiguration]
 }
 
 // newLoraAdapters returns a LoraAdapters
 func newLoraAdapters(c *RegistryV1alpha1Client, namespace string) *loraAdapters {
 	return &loraAdapters{
-		gentype.NewClientWithListAndApply[*modelv1alpha1.LoraAdapter, *modelv1alpha1.LoraAdapterList, *applyconfigurationmodelv1alpha1.LoraAdapterApplyConfiguration](
+		gentype.NewClientWithListAndApply[*registryv1alpha1.LoraAdapter, *registryv1alpha1.LoraAdapterList, *applyconfigurationregistryv1alpha1.LoraAdapterApplyConfiguration](
 			"loraadapters",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *modelv1alpha1.LoraAdapter { return &modelv1alpha1.LoraAdapter{} },
-			func() *modelv1alpha1.LoraAdapterList { return &modelv1alpha1.LoraAdapterList{} },
+			func() *registryv1alpha1.LoraAdapter { return &registryv1alpha1.LoraAdapter{} },
+			func() *registryv1alpha1.LoraAdapterList { return &registryv1alpha1.LoraAdapterList{} },
 		),
 	}
 }
