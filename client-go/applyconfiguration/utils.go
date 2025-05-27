@@ -55,6 +55,8 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &networkingv1alpha1.TargetModelApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("TrafficPolicy"):
 		return &networkingv1alpha1.TrafficPolicyApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("WorkloadPort"):
+		return &networkingv1alpha1.WorkloadPortApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("WorkloadSelector"):
 		return &networkingv1alpha1.WorkloadSelectorApplyConfiguration{}
 

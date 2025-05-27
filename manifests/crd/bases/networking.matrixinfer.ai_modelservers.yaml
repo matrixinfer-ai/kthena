@@ -40,7 +40,7 @@ spec:
             description: ModelServerSpec defines the desired state of ModelServer.
             properties:
               inferenceEngine:
-                description: The inference framework used to manage the model.
+                description: The inference engine used to serve the model.
                 enum:
                 - vLLM
                 - sgLang
@@ -75,6 +75,28 @@ spec:
                       By default, there is no timeout.
                     type: string
                 type: object
+              workloadPort:
+                description: WorkloadPort defines the port and protocol configuration
+                  for the model server.
+                properties:
+                  port:
+                    description: The port of the model server. The number must be
+                      between 1 and 65535.
+                    format: int32
+                    maximum: 65535
+                    minimum: 1
+                    type: integer
+                  protocol:
+                    default: http
+                    description: The protocol of the model server. Supported values
+                      are "http" and "https".
+                    enum:
+                    - http
+                    - https
+                    type: string
+                required:
+                - port
+                type: object
               workloadSelector:
                 description: |-
                   WorkloadSelector is used to match the model servring instances.
@@ -83,6 +105,7 @@ spec:
                   matchLabels:
                     additionalProperties:
                       type: string
+                    description: The labels to match the model serving instances.
                     type: object
                 type: object
             required:
