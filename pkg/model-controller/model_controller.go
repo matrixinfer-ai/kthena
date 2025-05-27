@@ -18,12 +18,15 @@ package controller
 
 import (
 	"context"
-
+	"encoding/json"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2"
+	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	registryv1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
@@ -52,8 +55,7 @@ type ModelReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.20.4/pkg/reconcile
 func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := logf.FromContext(ctx)
-	log.Info("Start to process model")
+	klog.Info("Start to process model")
 
 	model := &registryv1.Model{}
 	if err := r.Get(ctx, req.NamespacedName, model); err != nil {
@@ -77,8 +79,94 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		}
 		return ctrl.Result{}, nil
 	}
-	// TODO: Add logic to process model
+	modelInfers := make([]*workload.ModelInfer, len(model.Spec.Backends))
+	_, err := r.convertModelToModelInfer(model, modelInfers)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	for _, modelInfer := range modelInfers {
+		// modelInfer is owned by model. ModelInfer will be deleted when the model is deleted
+		if err := controllerutil.SetControllerReference(model, modelInfer, r.Scheme); err != nil {
+			klog.Error(err, "Failed to set controller reference")
+			return ctrl.Result{}, err
+		}
+		if err := r.Create(ctx, modelInfer); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
 	return ctrl.Result{}, nil
+}
+
+func (r *ModelReconciler) convertModelToModelInfer(model *registryv1.Model, infers []*workload.ModelInfer) (ctrl.Result, error) {
+	for _, backend := range model.Spec.Backends {
+		roles := make([]workload.Role, len(backend.Workers))
+		for _, worker := range backend.Workers {
+			args, err := convertJSONToStringSlice(backend.Config.Raw)
+			if err != nil {
+				klog.Error(err)
+				return ctrl.Result{}, err
+			}
+			roles = append(roles, workload.Role{
+				Name:            string(worker.Type),
+				Replicas:        &worker.Replicas,
+				NetworkTopology: nil,
+				EntryTemplate: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						InitContainers: []corev1.Container{
+							{
+								Name:  "init-container",
+								Image: "matrixinfer/runtime",
+							},
+						},
+						Containers: []corev1.Container{
+							{
+								Name:  "vllm-leader",
+								Image: worker.Image,
+								Args:  args,
+							},
+						},
+						Resources: &worker.Resources,
+					},
+				},
+				WorkerReplicas: func() *int32 { result := worker.Pods - 1; return &result }(),
+				WorkerTemplate: nil,
+			})
+		}
+		infers = append(infers, &workload.ModelInfer{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      backend.Name,
+				Namespace: model.Namespace,
+			},
+			Spec: workload.ModelInferSpec{
+				Replicas:      &backend.MinReplicas,
+				SchedulerName: "volcano", // TODO: how to get scheduler name?
+				Template: workload.InferGroup{
+					Spec: workload.InferGroupSpec{
+						RestartGracePeriodSeconds: nil,
+						NetworkTopology:           nil,
+						GangSchedule:              workload.GangSchedule{},
+						Roles:                     roles,
+					},
+				},
+				RolloutStrategy: workload.RolloutStrategy{
+					Type:                       workload.InferGroupRollingUpdate,
+					RollingUpdateConfiguration: nil,
+				},
+				RecoveryPolicy:            workload.InferGroupRestart, // TODO: judge by backend type
+				TopologySpreadConstraints: nil,
+			},
+		})
+	}
+	return ctrl.Result{}, nil
+}
+
+func convertJSONToStringSlice(src []byte) ([]string, error) {
+	var strSlice []string
+	err := json.Unmarshal(src, &strSlice)
+	if err != nil {
+		return nil, err
+	}
+	return strSlice, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
