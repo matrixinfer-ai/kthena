@@ -8,11 +8,13 @@ from logger import setup_logger
 
 logger = setup_logger()
 
+
 def _parse_bucket_from_model_url(url:str) -> Tuple[str, str]:
     result = urlparse(url, scheme="s3")
     bucket_name = result.netloc
     bucket_path = result.path.lstrip("/")
     return bucket_name, bucket_path
+
 
 class S3Downloader(ModelDownloader):
     def __init__(self, model_uri: str, access_key: str = None, secret_key: str = None, s3_endpoint: str = None):
@@ -32,9 +34,9 @@ class S3Downloader(ModelDownloader):
         try:
             client = boto3.client(
                 's3',
-                aws_access_key_id = self.access_key,
-                aws_secret_access_key = self.secret_key,
-                endpoint_url = self.endpoint
+                aws_access_key_id=self.access_key,
+                aws_secret_access_key=self.secret_key,
+                endpoint_url=self.endpoint
             )
 
             paginator = client.get_paginator('list_objects_v2')
@@ -43,7 +45,7 @@ class S3Downloader(ModelDownloader):
                     continue
                 for obj in page['Contents']:
                     key = obj['Key']
-                    if not os.path.basename(key): #如果obj是个空目录，则跳过
+                    if not os.path.basename(key):
                         continue
                     if output_dir:
                         output_path = os.path.join(output_dir, os.path.relpath(key, bucket_path))
