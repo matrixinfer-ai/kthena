@@ -34,6 +34,10 @@ func NewScheduler(store datastore.Store) Scheduler {
 				plugin: plugins.NewGPUCacheUsage(),
 				weight: 1,
 			},
+			{
+				plugin: plugins.NewLeastLatency(),
+				weight: 1,
+			},
 		},
 	}
 }
