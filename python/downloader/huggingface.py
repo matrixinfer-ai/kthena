@@ -28,7 +28,6 @@ class HuggingFaceDownloader(ModelDownloader):
                 local_dir=output_dir,
                 force_download=self.force_download
             )
-            logger.info(f"Successfully downloaded model '{self.model_uri}' to '{output_dir}'.")
         except Exception as e:
             logger.error(f"Error downloading model '{self.model_uri}': {e}")
             raise

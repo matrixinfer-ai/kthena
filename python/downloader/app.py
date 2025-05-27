@@ -81,8 +81,6 @@ def main():
             model_name=args.model_name,
             credentials=credentials
         )
-        logger.info("Model download completed successfully.")
-
     except Exception as e:
         logger.error(f"An error occurred: {e}")
         exit(1)
