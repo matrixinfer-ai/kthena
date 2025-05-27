@@ -58,7 +58,7 @@ def get_downloader(url: str, credentials: dict) -> ModelDownloader:
                 model_uri=url,
                 access_key=credentials.get("access_key"),
                 secret_key=credentials.get("secret_key"),
-                s3_endpoint=credentials.get("s3_endpoint"),
+                region_name=credentials.get("region_name"),
             )
         elif url.startswith("pvc://"):
             from pvc import PVCDownloader

@@ -9,7 +9,7 @@ from logger import setup_logger
 logger = setup_logger()
 
 
-def _parse_bucket_from_model_url(url:str) -> Tuple[str, str]:
+def _parse_bucket_from_model_url(url: str) -> Tuple[str, str]:
     result = urlparse(url, scheme="s3")
     bucket_name = result.netloc
     bucket_path = result.path.lstrip("/")
@@ -17,12 +17,12 @@ def _parse_bucket_from_model_url(url:str) -> Tuple[str, str]:
 
 
 class S3Downloader(ModelDownloader):
-    def __init__(self, model_uri: str, access_key: str = None, secret_key: str = None, s3_endpoint: str = None):
+    def __init__(self, model_uri: str, access_key: str = None, secret_key: str = None, region_name: str = None):
         super().__init__()
         self.access_key = access_key
         self.secret_key = secret_key
         self.model_uri = model_uri
-        self.endpoint = s3_endpoint
+        self.region_name = region_name
 
     def download(self, output_dir: str):
         logger.info("Downloading model from S3")
@@ -36,7 +36,7 @@ class S3Downloader(ModelDownloader):
                 's3',
                 aws_access_key_id=self.access_key,
                 aws_secret_access_key=self.secret_key,
-                endpoint_url=self.endpoint
+                region_name=self.region_name
             )
 
             paginator = client.get_paginator('list_objects_v2')
