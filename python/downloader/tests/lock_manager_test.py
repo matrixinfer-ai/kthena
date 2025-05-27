@@ -28,6 +28,7 @@ class TestLockManager(unittest.TestCase):
         self.assertTrue(lock_manager.try_acquire(), "Failed to acquire lock")
         renew_thread = threading.Thread(target=lock_manager.renew, args=(1,), daemon=True)
         renew_thread.start()
+        time.sleep(2)
         self.assertTrue(os.path.exists(self.lock_path), "Lock file should exist during renewal")
         lock_manager.stop_renew()
         renew_thread.join(timeout=2)
@@ -54,7 +55,7 @@ class TestLockManager(unittest.TestCase):
         lock_manager.try_acquire()
         with patch("os.remove", side_effect=OSError("Mocked error")):
             lock_manager.release()
-            mock_logger_error.assert_called_once_with("Release error: Mocked error")
+            mock_logger_error.assert_called_once_with("Error releasing lock: Mocked error")
 
     def test_lock_manager_renew_lock_file_missing(self):
         lock_manager = LockManager(self.lock_path)
