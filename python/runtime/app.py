@@ -8,7 +8,8 @@ from prometheus_client.parser import text_string_to_metric_families
 from os import TIMEOUT, TARGET_SERVICE_URL
 import uvicorn
 from contextlib import asynccontextmanager
-from python.runtime.metric import MetricStandard
+
+from python.runtime.standard import MetricStandard
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
