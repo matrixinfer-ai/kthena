@@ -10,7 +10,6 @@ import (
 var _ framework.ScorePlugin = &LeastLatency{}
 // MaxScore is the highest possible score a pod can receive
 const MaxScore = 100.0
-//  is weight to balance TTFT and  TPOT
 const TTFTTOPTWeightFactor = 0.5
 const LeastLatencyPluginName = "least latency"
 
