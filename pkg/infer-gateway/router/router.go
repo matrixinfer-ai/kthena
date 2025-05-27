@@ -65,7 +65,7 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 		log.Debugf("modelServer is %v, is_lora: %v", modelServerName, is_lora)
 
 		// Get endpoints from datastore
-		pods, model, err := r.store.GetModelServerEndpoints(modelServerName)
+		pods, model, port, err := r.store.GetModelServerEndpoints(modelServerName)
 		if err != nil || len(pods) == 0 {
 			c.AbortWithStatusJSON(http.StatusNotFound, fmt.Sprintf("can't find target pods of model server: %v, err: %v", modelServerName, err))
 			return
@@ -91,8 +91,7 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 		}
 
 		// step 1: change request URL to real server URL.
-		// TODO: the target port need to be defined within modelServer
-		req.URL.Host = fmt.Sprintf("%s:%d", targetPod.Pod.Status.PodIP, 8000)
+		req.URL.Host = fmt.Sprintf("%s:%d", targetPod.Pod.Status.PodIP, port)
 		req.URL.Scheme = "http"
 		req.Body = io.NopCloser(bytes.NewBuffer(body))
 		req.ContentLength = int64(len(body))
