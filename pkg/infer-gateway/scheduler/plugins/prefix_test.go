@@ -61,8 +61,8 @@ func TestHashPrompt(t *testing.T) {
 			maxBlocks: 3,
 			expectedHashes: []uint64{
 				xxhash.Sum64([]byte("0A very lon")),
-				xxhash.Sum64([]byte(fmt.Sprintf("%dg prompt te", xxhash.Sum64([]byte("0A very lon"))))),
-				xxhash.Sum64([]byte(fmt.Sprintf("%dst test te", xxhash.Sum64([]byte(fmt.Sprintf("%dg prompt te", xxhash.Sum64([]byte("0A very lon")))))))),
+				xxhash.Sum64([]byte(fmt.Sprintf("%dg prompt t", xxhash.Sum64([]byte("0A very lon"))))),
+				xxhash.Sum64([]byte(fmt.Sprintf("%dest test t", xxhash.Sum64([]byte(fmt.Sprintf("%dg prompt t", xxhash.Sum64([]byte("0A very lon")))))))),
 			},
 		},
 	}
@@ -82,7 +82,7 @@ func TestHashPrompt(t *testing.T) {
 	}
 }
 
-func TestPrefixCacheStore(t *testing.T) {
+func TestModelPrefixStore(t *testing.T) {
 	tests := []struct {
 		name         string
 		maxHashes    int
