@@ -22,8 +22,8 @@ import (
 
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
-	modelv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/model/v1alpha1"
 	v1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
+	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	workloadv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 )
 
@@ -60,11 +60,11 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Networking().V1alpha1().ModelServers().Informer()}, nil
 
 		// Group=registry.matrixinfer.ai, Version=v1alpha1
-	case modelv1alpha1.SchemeGroupVersion.WithResource("autoscalingpolicies"):
+	case registryv1alpha1.SchemeGroupVersion.WithResource("autoscalingpolicies"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Registry().V1alpha1().AutoscalingPolicies().Informer()}, nil
-	case modelv1alpha1.SchemeGroupVersion.WithResource("loraadapters"):
+	case registryv1alpha1.SchemeGroupVersion.WithResource("loraadapters"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Registry().V1alpha1().LoraAdapters().Informer()}, nil
-	case modelv1alpha1.SchemeGroupVersion.WithResource("models"):
+	case registryv1alpha1.SchemeGroupVersion.WithResource("models"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Registry().V1alpha1().Models().Informer()}, nil
 
 		// Group=workload.matrixinfer.ai, Version=v1alpha1

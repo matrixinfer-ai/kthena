@@ -21,7 +21,7 @@ import (
 	labels "k8s.io/apimachinery/pkg/labels"
 	listers "k8s.io/client-go/listers"
 	cache "k8s.io/client-go/tools/cache"
-	modelv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/model/v1alpha1"
+	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
 
 // AutoscalingPolicyLister helps list AutoscalingPolicies.
@@ -29,7 +29,7 @@ import (
 type AutoscalingPolicyLister interface {
 	// List lists all AutoscalingPolicies in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*modelv1alpha1.AutoscalingPolicy, err error)
+	List(selector labels.Selector) (ret []*registryv1alpha1.AutoscalingPolicy, err error)
 	// AutoscalingPolicies returns an object that can list and get AutoscalingPolicies.
 	AutoscalingPolicies(namespace string) AutoscalingPolicyNamespaceLister
 	AutoscalingPolicyListerExpansion
@@ -37,17 +37,17 @@ type AutoscalingPolicyLister interface {
 
 // autoscalingPolicyLister implements the AutoscalingPolicyLister interface.
 type autoscalingPolicyLister struct {
-	listers.ResourceIndexer[*modelv1alpha1.AutoscalingPolicy]
+	listers.ResourceIndexer[*registryv1alpha1.AutoscalingPolicy]
 }
 
 // NewAutoscalingPolicyLister returns a new AutoscalingPolicyLister.
 func NewAutoscalingPolicyLister(indexer cache.Indexer) AutoscalingPolicyLister {
-	return &autoscalingPolicyLister{listers.New[*modelv1alpha1.AutoscalingPolicy](indexer, modelv1alpha1.Resource("autoscalingpolicy"))}
+	return &autoscalingPolicyLister{listers.New[*registryv1alpha1.AutoscalingPolicy](indexer, registryv1alpha1.Resource("autoscalingpolicy"))}
 }
 
 // AutoscalingPolicies returns an object that can list and get AutoscalingPolicies.
 func (s *autoscalingPolicyLister) AutoscalingPolicies(namespace string) AutoscalingPolicyNamespaceLister {
-	return autoscalingPolicyNamespaceLister{listers.NewNamespaced[*modelv1alpha1.AutoscalingPolicy](s.ResourceIndexer, namespace)}
+	return autoscalingPolicyNamespaceLister{listers.NewNamespaced[*registryv1alpha1.AutoscalingPolicy](s.ResourceIndexer, namespace)}
 }
 
 // AutoscalingPolicyNamespaceLister helps list and get AutoscalingPolicies.
@@ -55,15 +55,15 @@ func (s *autoscalingPolicyLister) AutoscalingPolicies(namespace string) Autoscal
 type AutoscalingPolicyNamespaceLister interface {
 	// List lists all AutoscalingPolicies in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*modelv1alpha1.AutoscalingPolicy, err error)
+	List(selector labels.Selector) (ret []*registryv1alpha1.AutoscalingPolicy, err error)
 	// Get retrieves the AutoscalingPolicy from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*modelv1alpha1.AutoscalingPolicy, error)
+	Get(name string) (*registryv1alpha1.AutoscalingPolicy, error)
 	AutoscalingPolicyNamespaceListerExpansion
 }
 
 // autoscalingPolicyNamespaceLister implements the AutoscalingPolicyNamespaceLister
 // interface.
 type autoscalingPolicyNamespaceLister struct {
-	listers.ResourceIndexer[*modelv1alpha1.AutoscalingPolicy]
+	listers.ResourceIndexer[*registryv1alpha1.AutoscalingPolicy]
 }

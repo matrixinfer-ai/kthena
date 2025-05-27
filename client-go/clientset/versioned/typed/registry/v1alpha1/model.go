@@ -24,9 +24,9 @@ import (
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	gentype "k8s.io/client-go/gentype"
-	applyconfigurationmodelv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/model/v1alpha1"
+	applyconfigurationregistryv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/registry/v1alpha1"
 	scheme "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/scheme"
-	modelv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/model/v1alpha1"
+	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
 
 // ModelsGetter has a method to return a ModelInterface.
@@ -37,37 +37,37 @@ type ModelsGetter interface {
 
 // ModelInterface has methods to work with Model resources.
 type ModelInterface interface {
-	Create(ctx context.Context, model *modelv1alpha1.Model, opts v1.CreateOptions) (*modelv1alpha1.Model, error)
-	Update(ctx context.Context, model *modelv1alpha1.Model, opts v1.UpdateOptions) (*modelv1alpha1.Model, error)
+	Create(ctx context.Context, model *registryv1alpha1.Model, opts v1.CreateOptions) (*registryv1alpha1.Model, error)
+	Update(ctx context.Context, model *registryv1alpha1.Model, opts v1.UpdateOptions) (*registryv1alpha1.Model, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, model *modelv1alpha1.Model, opts v1.UpdateOptions) (*modelv1alpha1.Model, error)
+	UpdateStatus(ctx context.Context, model *registryv1alpha1.Model, opts v1.UpdateOptions) (*registryv1alpha1.Model, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*modelv1alpha1.Model, error)
-	List(ctx context.Context, opts v1.ListOptions) (*modelv1alpha1.ModelList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*registryv1alpha1.Model, error)
+	List(ctx context.Context, opts v1.ListOptions) (*registryv1alpha1.ModelList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *modelv1alpha1.Model, err error)
-	Apply(ctx context.Context, model *applyconfigurationmodelv1alpha1.ModelApplyConfiguration, opts v1.ApplyOptions) (result *modelv1alpha1.Model, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *registryv1alpha1.Model, err error)
+	Apply(ctx context.Context, model *applyconfigurationregistryv1alpha1.ModelApplyConfiguration, opts v1.ApplyOptions) (result *registryv1alpha1.Model, err error)
 	// Add a +genclient:noStatus comment above the type to avoid generating ApplyStatus().
-	ApplyStatus(ctx context.Context, model *applyconfigurationmodelv1alpha1.ModelApplyConfiguration, opts v1.ApplyOptions) (result *modelv1alpha1.Model, err error)
+	ApplyStatus(ctx context.Context, model *applyconfigurationregistryv1alpha1.ModelApplyConfiguration, opts v1.ApplyOptions) (result *registryv1alpha1.Model, err error)
 	ModelExpansion
 }
 
 // models implements ModelInterface
 type models struct {
-	*gentype.ClientWithListAndApply[*modelv1alpha1.Model, *modelv1alpha1.ModelList, *applyconfigurationmodelv1alpha1.ModelApplyConfiguration]
+	*gentype.ClientWithListAndApply[*registryv1alpha1.Model, *registryv1alpha1.ModelList, *applyconfigurationregistryv1alpha1.ModelApplyConfiguration]
 }
 
 // newModels returns a Models
 func newModels(c *RegistryV1alpha1Client, namespace string) *models {
 	return &models{
-		gentype.NewClientWithListAndApply[*modelv1alpha1.Model, *modelv1alpha1.ModelList, *applyconfigurationmodelv1alpha1.ModelApplyConfiguration](
+		gentype.NewClientWithListAndApply[*registryv1alpha1.Model, *registryv1alpha1.ModelList, *applyconfigurationregistryv1alpha1.ModelApplyConfiguration](
 			"models",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *modelv1alpha1.Model { return &modelv1alpha1.Model{} },
-			func() *modelv1alpha1.ModelList { return &modelv1alpha1.ModelList{} },
+			func() *registryv1alpha1.Model { return &registryv1alpha1.Model{} },
+			func() *registryv1alpha1.ModelList { return &registryv1alpha1.ModelList{} },
 		),
 	}
 }

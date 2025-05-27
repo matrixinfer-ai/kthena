@@ -19,20 +19,20 @@ package fake
 
 import (
 	gentype "k8s.io/client-go/gentype"
-	modelv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/model/v1alpha1"
-	typedmodelv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/model/v1alpha1"
-	v1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/model/v1alpha1"
+	registryv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/registry/v1alpha1"
+	typedregistryv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/registry/v1alpha1"
+	v1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
 
 // fakeAutoscalingPolicies implements AutoscalingPolicyInterface
 type fakeAutoscalingPolicies struct {
-	*gentype.FakeClientWithListAndApply[*v1alpha1.AutoscalingPolicy, *v1alpha1.AutoscalingPolicyList, *modelv1alpha1.AutoscalingPolicyApplyConfiguration]
+	*gentype.FakeClientWithListAndApply[*v1alpha1.AutoscalingPolicy, *v1alpha1.AutoscalingPolicyList, *registryv1alpha1.AutoscalingPolicyApplyConfiguration]
 	Fake *FakeRegistryV1alpha1
 }
 
-func newFakeAutoscalingPolicies(fake *FakeRegistryV1alpha1, namespace string) typedmodelv1alpha1.AutoscalingPolicyInterface {
+func newFakeAutoscalingPolicies(fake *FakeRegistryV1alpha1, namespace string) typedregistryv1alpha1.AutoscalingPolicyInterface {
 	return &fakeAutoscalingPolicies{
-		gentype.NewFakeClientWithListAndApply[*v1alpha1.AutoscalingPolicy, *v1alpha1.AutoscalingPolicyList, *modelv1alpha1.AutoscalingPolicyApplyConfiguration](
+		gentype.NewFakeClientWithListAndApply[*v1alpha1.AutoscalingPolicy, *v1alpha1.AutoscalingPolicyList, *registryv1alpha1.AutoscalingPolicyApplyConfiguration](
 			fake.Fake,
 			namespace,
 			v1alpha1.SchemeGroupVersion.WithResource("autoscalingpolicies"),

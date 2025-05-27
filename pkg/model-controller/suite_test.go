@@ -32,7 +32,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	registryv1 "matrixinfer.ai/matrixinfer/pkg/apis/model/v1alpha1"
+	registryv1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
 

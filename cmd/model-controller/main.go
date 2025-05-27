@@ -37,7 +37,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	registryv1 "matrixinfer.ai/matrixinfer/pkg/apis/model/v1alpha1"
+	registryv1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller"
 	// +kubebuilder:scaffold:imports
 )

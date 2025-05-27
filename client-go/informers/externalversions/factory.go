@@ -28,8 +28,8 @@ import (
 	cache "k8s.io/client-go/tools/cache"
 	versioned "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
 	internalinterfaces "matrixinfer.ai/matrixinfer/client-go/informers/externalversions/internalinterfaces"
-	model "matrixinfer.ai/matrixinfer/client-go/informers/externalversions/model"
 	networking "matrixinfer.ai/matrixinfer/client-go/informers/externalversions/networking"
+	registry "matrixinfer.ai/matrixinfer/client-go/informers/externalversions/registry"
 	workload "matrixinfer.ai/matrixinfer/client-go/informers/externalversions/workload"
 )
 
@@ -255,17 +255,17 @@ type SharedInformerFactory interface {
 	// client.
 	InformerFor(obj runtime.Object, newFunc internalinterfaces.NewInformerFunc) cache.SharedIndexInformer
 
-	Registry() model.Interface
 	Networking() networking.Interface
+	Registry() registry.Interface
 	Workload() workload.Interface
-}
-
-func (f *sharedInformerFactory) Registry() model.Interface {
-	return model.New(f, f.namespace, f.tweakListOptions)
 }
 
 func (f *sharedInformerFactory) Networking() networking.Interface {
 	return networking.New(f, f.namespace, f.tweakListOptions)
+}
+
+func (f *sharedInformerFactory) Registry() registry.Interface {
+	return registry.New(f, f.namespace, f.tweakListOptions)
 }
 
 func (f *sharedInformerFactory) Workload() workload.Interface {

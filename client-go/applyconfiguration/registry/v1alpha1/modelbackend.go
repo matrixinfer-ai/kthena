@@ -21,23 +21,23 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	modelv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/model/v1alpha1"
+	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
 
 // ModelBackendApplyConfiguration represents a declarative configuration of the ModelBackend type for use
 // with apply.
 type ModelBackendApplyConfiguration struct {
-	Name                   *string                         `json:"name,omitempty"`
-	Type                   *modelv1alpha1.ModelBackendType `json:"type,omitempty"`
-	Config                 *v1.JSON                        `json:"config,omitempty"`
-	ModelURI               *string                         `json:"modelURI,omitempty"`
-	MinReplicas            *int32                          `json:"minReplicas,omitempty"`
-	MaxReplicas            *int32                          `json:"maxReplicas,omitempty"`
-	Cost                   *int64                          `json:"cost,omitempty"`
-	ScaleToZeroGracePeriod *metav1.Duration                `json:"scaleToZeroGracePeriod,omitempty"`
-	Workers                []ModelWorkerApplyConfiguration `json:"workers,omitempty"`
-	LoraAdapterRefs        []corev1.LocalObjectReference   `json:"loraAdapterRefs,omitempty"`
-	AutoscalingPolicyRef   *corev1.LocalObjectReference    `json:"autoscalingPolicyRef,omitempty"`
+	Name                   *string                            `json:"name,omitempty"`
+	Type                   *registryv1alpha1.ModelBackendType `json:"type,omitempty"`
+	Config                 *v1.JSON                           `json:"config,omitempty"`
+	ModelURI               *string                            `json:"modelURI,omitempty"`
+	MinReplicas            *int32                             `json:"minReplicas,omitempty"`
+	MaxReplicas            *int32                             `json:"maxReplicas,omitempty"`
+	Cost                   *int64                             `json:"cost,omitempty"`
+	ScaleToZeroGracePeriod *metav1.Duration                   `json:"scaleToZeroGracePeriod,omitempty"`
+	Workers                []ModelWorkerApplyConfiguration    `json:"workers,omitempty"`
+	LoraAdapterRefs        []corev1.LocalObjectReference      `json:"loraAdapterRefs,omitempty"`
+	AutoscalingPolicyRef   *corev1.LocalObjectReference       `json:"autoscalingPolicyRef,omitempty"`
 }
 
 // ModelBackendApplyConfiguration constructs a declarative configuration of the ModelBackend type for use with
@@ -57,7 +57,7 @@ func (b *ModelBackendApplyConfiguration) WithName(value string) *ModelBackendApp
 // WithType sets the Type field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Type field is set to the value of the last call.
-func (b *ModelBackendApplyConfiguration) WithType(value modelv1alpha1.ModelBackendType) *ModelBackendApplyConfiguration {
+func (b *ModelBackendApplyConfiguration) WithType(value registryv1alpha1.ModelBackendType) *ModelBackendApplyConfiguration {
 	b.Type = &value
 	return b
 }

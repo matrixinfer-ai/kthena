@@ -21,7 +21,7 @@ import (
 	labels "k8s.io/apimachinery/pkg/labels"
 	listers "k8s.io/client-go/listers"
 	cache "k8s.io/client-go/tools/cache"
-	modelv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/model/v1alpha1"
+	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
 
 // ModelLister helps list Models.
@@ -29,7 +29,7 @@ import (
 type ModelLister interface {
 	// List lists all Models in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*modelv1alpha1.Model, err error)
+	List(selector labels.Selector) (ret []*registryv1alpha1.Model, err error)
 	// Models returns an object that can list and get Models.
 	Models(namespace string) ModelNamespaceLister
 	ModelListerExpansion
@@ -37,17 +37,17 @@ type ModelLister interface {
 
 // modelLister implements the ModelLister interface.
 type modelLister struct {
-	listers.ResourceIndexer[*modelv1alpha1.Model]
+	listers.ResourceIndexer[*registryv1alpha1.Model]
 }
 
 // NewModelLister returns a new ModelLister.
 func NewModelLister(indexer cache.Indexer) ModelLister {
-	return &modelLister{listers.New[*modelv1alpha1.Model](indexer, modelv1alpha1.Resource("model"))}
+	return &modelLister{listers.New[*registryv1alpha1.Model](indexer, registryv1alpha1.Resource("model"))}
 }
 
 // Models returns an object that can list and get Models.
 func (s *modelLister) Models(namespace string) ModelNamespaceLister {
-	return modelNamespaceLister{listers.NewNamespaced[*modelv1alpha1.Model](s.ResourceIndexer, namespace)}
+	return modelNamespaceLister{listers.NewNamespaced[*registryv1alpha1.Model](s.ResourceIndexer, namespace)}
 }
 
 // ModelNamespaceLister helps list and get Models.
@@ -55,15 +55,15 @@ func (s *modelLister) Models(namespace string) ModelNamespaceLister {
 type ModelNamespaceLister interface {
 	// List lists all Models in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*modelv1alpha1.Model, err error)
+	List(selector labels.Selector) (ret []*registryv1alpha1.Model, err error)
 	// Get retrieves the Model from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*modelv1alpha1.Model, error)
+	Get(name string) (*registryv1alpha1.Model, error)
 	ModelNamespaceListerExpansion
 }
 
 // modelNamespaceLister implements the ModelNamespaceLister
 // interface.
 type modelNamespaceLister struct {
-	listers.ResourceIndexer[*modelv1alpha1.Model]
+	listers.ResourceIndexer[*registryv1alpha1.Model]
 }

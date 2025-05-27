@@ -27,15 +27,15 @@ import (
 	cache "k8s.io/client-go/tools/cache"
 	versioned "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
 	internalinterfaces "matrixinfer.ai/matrixinfer/client-go/informers/externalversions/internalinterfaces"
-	modelv1alpha1 "matrixinfer.ai/matrixinfer/client-go/listers/model/v1alpha1"
-	apismodelv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/model/v1alpha1"
+	registryv1alpha1 "matrixinfer.ai/matrixinfer/client-go/listers/registry/v1alpha1"
+	apisregistryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
 
 // LoraAdapterInformer provides access to a shared informer and lister for
 // LoraAdapters.
 type LoraAdapterInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() modelv1alpha1.LoraAdapterLister
+	Lister() registryv1alpha1.LoraAdapterLister
 }
 
 type loraAdapterInformer struct {
@@ -82,7 +82,7 @@ func NewFilteredLoraAdapterInformer(client versioned.Interface, namespace string
 				return client.RegistryV1alpha1().LoraAdapters(namespace).Watch(ctx, options)
 			},
 		},
-		&apismodelv1alpha1.LoraAdapter{},
+		&apisregistryv1alpha1.LoraAdapter{},
 		resyncPeriod,
 		indexers,
 	)
@@ -93,9 +93,9 @@ func (f *loraAdapterInformer) defaultInformer(client versioned.Interface, resync
 }
 
 func (f *loraAdapterInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apismodelv1alpha1.LoraAdapter{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisregistryv1alpha1.LoraAdapter{}, f.defaultInformer)
 }
 
-func (f *loraAdapterInformer) Lister() modelv1alpha1.LoraAdapterLister {
-	return modelv1alpha1.NewLoraAdapterLister(f.Informer().GetIndexer())
+func (f *loraAdapterInformer) Lister() registryv1alpha1.LoraAdapterLister {
+	return registryv1alpha1.NewLoraAdapterLister(f.Informer().GetIndexer())
 }

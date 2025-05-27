@@ -21,7 +21,7 @@ import (
 	labels "k8s.io/apimachinery/pkg/labels"
 	listers "k8s.io/client-go/listers"
 	cache "k8s.io/client-go/tools/cache"
-	modelv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/model/v1alpha1"
+	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
 
 // LoraAdapterLister helps list LoraAdapters.
@@ -29,7 +29,7 @@ import (
 type LoraAdapterLister interface {
 	// List lists all LoraAdapters in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*modelv1alpha1.LoraAdapter, err error)
+	List(selector labels.Selector) (ret []*registryv1alpha1.LoraAdapter, err error)
 	// LoraAdapters returns an object that can list and get LoraAdapters.
 	LoraAdapters(namespace string) LoraAdapterNamespaceLister
 	LoraAdapterListerExpansion
@@ -37,17 +37,17 @@ type LoraAdapterLister interface {
 
 // loraAdapterLister implements the LoraAdapterLister interface.
 type loraAdapterLister struct {
-	listers.ResourceIndexer[*modelv1alpha1.LoraAdapter]
+	listers.ResourceIndexer[*registryv1alpha1.LoraAdapter]
 }
 
 // NewLoraAdapterLister returns a new LoraAdapterLister.
 func NewLoraAdapterLister(indexer cache.Indexer) LoraAdapterLister {
-	return &loraAdapterLister{listers.New[*modelv1alpha1.LoraAdapter](indexer, modelv1alpha1.Resource("loraadapter"))}
+	return &loraAdapterLister{listers.New[*registryv1alpha1.LoraAdapter](indexer, registryv1alpha1.Resource("loraadapter"))}
 }
 
 // LoraAdapters returns an object that can list and get LoraAdapters.
 func (s *loraAdapterLister) LoraAdapters(namespace string) LoraAdapterNamespaceLister {
-	return loraAdapterNamespaceLister{listers.NewNamespaced[*modelv1alpha1.LoraAdapter](s.ResourceIndexer, namespace)}
+	return loraAdapterNamespaceLister{listers.NewNamespaced[*registryv1alpha1.LoraAdapter](s.ResourceIndexer, namespace)}
 }
 
 // LoraAdapterNamespaceLister helps list and get LoraAdapters.
@@ -55,15 +55,15 @@ func (s *loraAdapterLister) LoraAdapters(namespace string) LoraAdapterNamespaceL
 type LoraAdapterNamespaceLister interface {
 	// List lists all LoraAdapters in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*modelv1alpha1.LoraAdapter, err error)
+	List(selector labels.Selector) (ret []*registryv1alpha1.LoraAdapter, err error)
 	// Get retrieves the LoraAdapter from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*modelv1alpha1.LoraAdapter, error)
+	Get(name string) (*registryv1alpha1.LoraAdapter, error)
 	LoraAdapterNamespaceListerExpansion
 }
 
 // loraAdapterNamespaceLister implements the LoraAdapterNamespaceLister
 // interface.
 type loraAdapterNamespaceLister struct {
-	listers.ResourceIndexer[*modelv1alpha1.LoraAdapter]
+	listers.ResourceIndexer[*registryv1alpha1.LoraAdapter]
 }

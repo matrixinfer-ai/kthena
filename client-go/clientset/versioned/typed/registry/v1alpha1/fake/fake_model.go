@@ -19,20 +19,20 @@ package fake
 
 import (
 	gentype "k8s.io/client-go/gentype"
-	modelv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/model/v1alpha1"
-	typedmodelv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/model/v1alpha1"
-	v1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/model/v1alpha1"
+	registryv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/registry/v1alpha1"
+	typedregistryv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/registry/v1alpha1"
+	v1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
 
 // fakeModels implements ModelInterface
 type fakeModels struct {
-	*gentype.FakeClientWithListAndApply[*v1alpha1.Model, *v1alpha1.ModelList, *modelv1alpha1.ModelApplyConfiguration]
+	*gentype.FakeClientWithListAndApply[*v1alpha1.Model, *v1alpha1.ModelList, *registryv1alpha1.ModelApplyConfiguration]
 	Fake *FakeRegistryV1alpha1
 }
 
-func newFakeModels(fake *FakeRegistryV1alpha1, namespace string) typedmodelv1alpha1.ModelInterface {
+func newFakeModels(fake *FakeRegistryV1alpha1, namespace string) typedregistryv1alpha1.ModelInterface {
 	return &fakeModels{
-		gentype.NewFakeClientWithListAndApply[*v1alpha1.Model, *v1alpha1.ModelList, *modelv1alpha1.ModelApplyConfiguration](
+		gentype.NewFakeClientWithListAndApply[*v1alpha1.Model, *v1alpha1.ModelList, *registryv1alpha1.ModelApplyConfiguration](
 			fake.Fake,
 			namespace,
 			v1alpha1.SchemeGroupVersion.WithResource("models"),

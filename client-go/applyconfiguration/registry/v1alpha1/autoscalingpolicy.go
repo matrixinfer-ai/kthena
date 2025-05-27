@@ -21,7 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	v1 "k8s.io/client-go/applyconfigurations/meta/v1"
-	modelv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/model/v1alpha1"
+	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
 
 // AutoscalingPolicyApplyConfiguration represents a declarative configuration of the AutoscalingPolicy type for use
@@ -29,8 +29,8 @@ import (
 type AutoscalingPolicyApplyConfiguration struct {
 	v1.TypeMetaApplyConfiguration    `json:",inline"`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
-	Spec                             *AutoscalingPolicySpecApplyConfiguration `json:"spec,omitempty"`
-	Status                           *modelv1alpha1.AutoscalingPolicyStatus   `json:"status,omitempty"`
+	Spec                             *AutoscalingPolicySpecApplyConfiguration  `json:"spec,omitempty"`
+	Status                           *registryv1alpha1.AutoscalingPolicyStatus `json:"status,omitempty"`
 }
 
 // AutoscalingPolicy constructs a declarative configuration of the AutoscalingPolicy type for use with
@@ -213,7 +213,7 @@ func (b *AutoscalingPolicyApplyConfiguration) WithSpec(value *AutoscalingPolicyS
 // WithStatus sets the Status field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Status field is set to the value of the last call.
-func (b *AutoscalingPolicyApplyConfiguration) WithStatus(value modelv1alpha1.AutoscalingPolicyStatus) *AutoscalingPolicyApplyConfiguration {
+func (b *AutoscalingPolicyApplyConfiguration) WithStatus(value registryv1alpha1.AutoscalingPolicyStatus) *AutoscalingPolicyApplyConfiguration {
 	b.Status = &value
 	return b
 }

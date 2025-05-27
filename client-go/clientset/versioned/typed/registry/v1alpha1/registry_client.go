@@ -22,7 +22,7 @@ import (
 
 	rest "k8s.io/client-go/rest"
 	scheme "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/scheme"
-	modelv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/model/v1alpha1"
+	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
 
 type RegistryV1alpha1Interface interface {
@@ -90,7 +90,7 @@ func New(c rest.Interface) *RegistryV1alpha1Client {
 }
 
 func setConfigDefaults(config *rest.Config) {
-	gv := modelv1alpha1.SchemeGroupVersion
+	gv := registryv1alpha1.SchemeGroupVersion
 	config.GroupVersion = &gv
 	config.APIPath = "/apis"
 	config.NegotiatedSerializer = rest.CodecFactoryForGeneratedClient(scheme.Scheme, scheme.Codecs).WithoutConversion()

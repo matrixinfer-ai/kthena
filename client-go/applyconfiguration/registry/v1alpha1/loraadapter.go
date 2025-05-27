@@ -21,7 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	v1 "k8s.io/client-go/applyconfigurations/meta/v1"
-	modelv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/model/v1alpha1"
+	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
 
 // LoraAdapterApplyConfiguration represents a declarative configuration of the LoraAdapter type for use
@@ -29,8 +29,8 @@ import (
 type LoraAdapterApplyConfiguration struct {
 	v1.TypeMetaApplyConfiguration    `json:",inline"`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
-	Spec                             *LoraAdapterSpecApplyConfiguration `json:"spec,omitempty"`
-	Status                           *modelv1alpha1.LoraAdapterStatus   `json:"status,omitempty"`
+	Spec                             *LoraAdapterSpecApplyConfiguration  `json:"spec,omitempty"`
+	Status                           *registryv1alpha1.LoraAdapterStatus `json:"status,omitempty"`
 }
 
 // LoraAdapter constructs a declarative configuration of the LoraAdapter type for use with
@@ -213,7 +213,7 @@ func (b *LoraAdapterApplyConfiguration) WithSpec(value *LoraAdapterSpecApplyConf
 // WithStatus sets the Status field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Status field is set to the value of the last call.
-func (b *LoraAdapterApplyConfiguration) WithStatus(value modelv1alpha1.LoraAdapterStatus) *LoraAdapterApplyConfiguration {
+func (b *LoraAdapterApplyConfiguration) WithStatus(value registryv1alpha1.LoraAdapterStatus) *LoraAdapterApplyConfiguration {
 	b.Status = &value
 	return b
 }

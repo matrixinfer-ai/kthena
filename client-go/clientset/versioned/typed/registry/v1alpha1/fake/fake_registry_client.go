@@ -20,7 +20,7 @@ package fake
 import (
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
-	v1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/model/v1alpha1"
+	v1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/registry/v1alpha1"
 )
 
 type FakeRegistryV1alpha1 struct {

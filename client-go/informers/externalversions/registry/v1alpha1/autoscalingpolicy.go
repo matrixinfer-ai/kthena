@@ -27,75 +27,75 @@ import (
 	cache "k8s.io/client-go/tools/cache"
 	versioned "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
 	internalinterfaces "matrixinfer.ai/matrixinfer/client-go/informers/externalversions/internalinterfaces"
-	modelv1alpha1 "matrixinfer.ai/matrixinfer/client-go/listers/model/v1alpha1"
-	apismodelv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/model/v1alpha1"
+	registryv1alpha1 "matrixinfer.ai/matrixinfer/client-go/listers/registry/v1alpha1"
+	apisregistryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
 
-// ModelInformer provides access to a shared informer and lister for
-// Models.
-type ModelInformer interface {
+// AutoscalingPolicyInformer provides access to a shared informer and lister for
+// AutoscalingPolicies.
+type AutoscalingPolicyInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() modelv1alpha1.ModelLister
+	Lister() registryv1alpha1.AutoscalingPolicyLister
 }
 
-type modelInformer struct {
+type autoscalingPolicyInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 	namespace        string
 }
 
-// NewModelInformer constructs a new informer for Model type.
+// NewAutoscalingPolicyInformer constructs a new informer for AutoscalingPolicy type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewModelInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredModelInformer(client, namespace, resyncPeriod, indexers, nil)
+func NewAutoscalingPolicyInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredAutoscalingPolicyInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
-// NewFilteredModelInformer constructs a new informer for Model type.
+// NewFilteredAutoscalingPolicyInformer constructs a new informer for AutoscalingPolicy type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredModelInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredAutoscalingPolicyInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.RegistryV1alpha1().Models(namespace).List(context.Background(), options)
+				return client.RegistryV1alpha1().AutoscalingPolicies(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.RegistryV1alpha1().Models(namespace).Watch(context.Background(), options)
+				return client.RegistryV1alpha1().AutoscalingPolicies(namespace).Watch(context.Background(), options)
 			},
 			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.RegistryV1alpha1().Models(namespace).List(ctx, options)
+				return client.RegistryV1alpha1().AutoscalingPolicies(namespace).List(ctx, options)
 			},
 			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.RegistryV1alpha1().Models(namespace).Watch(ctx, options)
+				return client.RegistryV1alpha1().AutoscalingPolicies(namespace).Watch(ctx, options)
 			},
 		},
-		&apismodelv1alpha1.Model{},
+		&apisregistryv1alpha1.AutoscalingPolicy{},
 		resyncPeriod,
 		indexers,
 	)
 }
 
-func (f *modelInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredModelInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+func (f *autoscalingPolicyInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredAutoscalingPolicyInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
-func (f *modelInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apismodelv1alpha1.Model{}, f.defaultInformer)
+func (f *autoscalingPolicyInformer) Informer() cache.SharedIndexInformer {
+	return f.factory.InformerFor(&apisregistryv1alpha1.AutoscalingPolicy{}, f.defaultInformer)
 }
 
-func (f *modelInformer) Lister() modelv1alpha1.ModelLister {
-	return modelv1alpha1.NewModelLister(f.Informer().GetIndexer())
+func (f *autoscalingPolicyInformer) Lister() registryv1alpha1.AutoscalingPolicyLister {
+	return registryv1alpha1.NewAutoscalingPolicyLister(f.Informer().GetIndexer())
 }

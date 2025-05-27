@@ -22,11 +22,11 @@ import (
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	testing "k8s.io/client-go/testing"
 	internal "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/internal"
-	applyconfigurationmodelv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/model/v1alpha1"
 	networkingv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/networking/v1alpha1"
+	applyconfigurationregistryv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/registry/v1alpha1"
 	applyconfigurationworkloadv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/workload/v1alpha1"
-	modelv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/model/v1alpha1"
 	v1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
+	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	workloadv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 )
 
@@ -61,34 +61,34 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &networkingv1alpha1.WorkloadSelectorApplyConfiguration{}
 
 		// Group=registry.matrixinfer.ai, Version=v1alpha1
-	case modelv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicy"):
-		return &applyconfigurationmodelv1alpha1.AutoscalingPolicyApplyConfiguration{}
-	case modelv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyBehavior"):
-		return &applyconfigurationmodelv1alpha1.AutoscalingPolicyBehaviorApplyConfiguration{}
-	case modelv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyMetric"):
-		return &applyconfigurationmodelv1alpha1.AutoscalingPolicyMetricApplyConfiguration{}
-	case modelv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyPanicPolicy"):
-		return &applyconfigurationmodelv1alpha1.AutoscalingPolicyPanicPolicyApplyConfiguration{}
-	case modelv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicySpec"):
-		return &applyconfigurationmodelv1alpha1.AutoscalingPolicySpecApplyConfiguration{}
-	case modelv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyStablePolicy"):
-		return &applyconfigurationmodelv1alpha1.AutoscalingPolicyStablePolicyApplyConfiguration{}
-	case modelv1alpha1.SchemeGroupVersion.WithKind("LoraAdapter"):
-		return &applyconfigurationmodelv1alpha1.LoraAdapterApplyConfiguration{}
-	case modelv1alpha1.SchemeGroupVersion.WithKind("LoraAdapterSpec"):
-		return &applyconfigurationmodelv1alpha1.LoraAdapterSpecApplyConfiguration{}
-	case modelv1alpha1.SchemeGroupVersion.WithKind("Model"):
-		return &applyconfigurationmodelv1alpha1.ModelApplyConfiguration{}
-	case modelv1alpha1.SchemeGroupVersion.WithKind("ModelBackend"):
-		return &applyconfigurationmodelv1alpha1.ModelBackendApplyConfiguration{}
-	case modelv1alpha1.SchemeGroupVersion.WithKind("ModelBackendStatus"):
-		return &applyconfigurationmodelv1alpha1.ModelBackendStatusApplyConfiguration{}
-	case modelv1alpha1.SchemeGroupVersion.WithKind("ModelSpec"):
-		return &applyconfigurationmodelv1alpha1.ModelSpecApplyConfiguration{}
-	case modelv1alpha1.SchemeGroupVersion.WithKind("ModelStatus"):
-		return &applyconfigurationmodelv1alpha1.ModelStatusApplyConfiguration{}
-	case modelv1alpha1.SchemeGroupVersion.WithKind("ModelWorker"):
-		return &applyconfigurationmodelv1alpha1.ModelWorkerApplyConfiguration{}
+	case registryv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicy"):
+		return &applyconfigurationregistryv1alpha1.AutoscalingPolicyApplyConfiguration{}
+	case registryv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyBehavior"):
+		return &applyconfigurationregistryv1alpha1.AutoscalingPolicyBehaviorApplyConfiguration{}
+	case registryv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyMetric"):
+		return &applyconfigurationregistryv1alpha1.AutoscalingPolicyMetricApplyConfiguration{}
+	case registryv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyPanicPolicy"):
+		return &applyconfigurationregistryv1alpha1.AutoscalingPolicyPanicPolicyApplyConfiguration{}
+	case registryv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicySpec"):
+		return &applyconfigurationregistryv1alpha1.AutoscalingPolicySpecApplyConfiguration{}
+	case registryv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyStablePolicy"):
+		return &applyconfigurationregistryv1alpha1.AutoscalingPolicyStablePolicyApplyConfiguration{}
+	case registryv1alpha1.SchemeGroupVersion.WithKind("LoraAdapter"):
+		return &applyconfigurationregistryv1alpha1.LoraAdapterApplyConfiguration{}
+	case registryv1alpha1.SchemeGroupVersion.WithKind("LoraAdapterSpec"):
+		return &applyconfigurationregistryv1alpha1.LoraAdapterSpecApplyConfiguration{}
+	case registryv1alpha1.SchemeGroupVersion.WithKind("Model"):
+		return &applyconfigurationregistryv1alpha1.ModelApplyConfiguration{}
+	case registryv1alpha1.SchemeGroupVersion.WithKind("ModelBackend"):
+		return &applyconfigurationregistryv1alpha1.ModelBackendApplyConfiguration{}
+	case registryv1alpha1.SchemeGroupVersion.WithKind("ModelBackendStatus"):
+		return &applyconfigurationregistryv1alpha1.ModelBackendStatusApplyConfiguration{}
+	case registryv1alpha1.SchemeGroupVersion.WithKind("ModelSpec"):
+		return &applyconfigurationregistryv1alpha1.ModelSpecApplyConfiguration{}
+	case registryv1alpha1.SchemeGroupVersion.WithKind("ModelStatus"):
+		return &applyconfigurationregistryv1alpha1.ModelStatusApplyConfiguration{}
+	case registryv1alpha1.SchemeGroupVersion.WithKind("ModelWorker"):
+		return &applyconfigurationregistryv1alpha1.ModelWorkerApplyConfiguration{}
 
 		// Group=workload.matrixinfer.ai, Version=v1alpha1
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("GangSchedule"):

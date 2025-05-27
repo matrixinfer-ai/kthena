@@ -24,9 +24,9 @@ import (
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	gentype "k8s.io/client-go/gentype"
-	applyconfigurationmodelv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/model/v1alpha1"
+	applyconfigurationregistryv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/registry/v1alpha1"
 	scheme "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/scheme"
-	modelv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/model/v1alpha1"
+	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
 
 // AutoscalingPoliciesGetter has a method to return a AutoscalingPolicyInterface.
@@ -37,37 +37,37 @@ type AutoscalingPoliciesGetter interface {
 
 // AutoscalingPolicyInterface has methods to work with AutoscalingPolicy resources.
 type AutoscalingPolicyInterface interface {
-	Create(ctx context.Context, autoscalingPolicy *modelv1alpha1.AutoscalingPolicy, opts v1.CreateOptions) (*modelv1alpha1.AutoscalingPolicy, error)
-	Update(ctx context.Context, autoscalingPolicy *modelv1alpha1.AutoscalingPolicy, opts v1.UpdateOptions) (*modelv1alpha1.AutoscalingPolicy, error)
+	Create(ctx context.Context, autoscalingPolicy *registryv1alpha1.AutoscalingPolicy, opts v1.CreateOptions) (*registryv1alpha1.AutoscalingPolicy, error)
+	Update(ctx context.Context, autoscalingPolicy *registryv1alpha1.AutoscalingPolicy, opts v1.UpdateOptions) (*registryv1alpha1.AutoscalingPolicy, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, autoscalingPolicy *modelv1alpha1.AutoscalingPolicy, opts v1.UpdateOptions) (*modelv1alpha1.AutoscalingPolicy, error)
+	UpdateStatus(ctx context.Context, autoscalingPolicy *registryv1alpha1.AutoscalingPolicy, opts v1.UpdateOptions) (*registryv1alpha1.AutoscalingPolicy, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*modelv1alpha1.AutoscalingPolicy, error)
-	List(ctx context.Context, opts v1.ListOptions) (*modelv1alpha1.AutoscalingPolicyList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*registryv1alpha1.AutoscalingPolicy, error)
+	List(ctx context.Context, opts v1.ListOptions) (*registryv1alpha1.AutoscalingPolicyList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *modelv1alpha1.AutoscalingPolicy, err error)
-	Apply(ctx context.Context, autoscalingPolicy *applyconfigurationmodelv1alpha1.AutoscalingPolicyApplyConfiguration, opts v1.ApplyOptions) (result *modelv1alpha1.AutoscalingPolicy, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *registryv1alpha1.AutoscalingPolicy, err error)
+	Apply(ctx context.Context, autoscalingPolicy *applyconfigurationregistryv1alpha1.AutoscalingPolicyApplyConfiguration, opts v1.ApplyOptions) (result *registryv1alpha1.AutoscalingPolicy, err error)
 	// Add a +genclient:noStatus comment above the type to avoid generating ApplyStatus().
-	ApplyStatus(ctx context.Context, autoscalingPolicy *applyconfigurationmodelv1alpha1.AutoscalingPolicyApplyConfiguration, opts v1.ApplyOptions) (result *modelv1alpha1.AutoscalingPolicy, err error)
+	ApplyStatus(ctx context.Context, autoscalingPolicy *applyconfigurationregistryv1alpha1.AutoscalingPolicyApplyConfiguration, opts v1.ApplyOptions) (result *registryv1alpha1.AutoscalingPolicy, err error)
 	AutoscalingPolicyExpansion
 }
 
 // autoscalingPolicies implements AutoscalingPolicyInterface
 type autoscalingPolicies struct {
-	*gentype.ClientWithListAndApply[*modelv1alpha1.AutoscalingPolicy, *modelv1alpha1.AutoscalingPolicyList, *applyconfigurationmodelv1alpha1.AutoscalingPolicyApplyConfiguration]
+	*gentype.ClientWithListAndApply[*registryv1alpha1.AutoscalingPolicy, *registryv1alpha1.AutoscalingPolicyList, *applyconfigurationregistryv1alpha1.AutoscalingPolicyApplyConfiguration]
 }
 
 // newAutoscalingPolicies returns a AutoscalingPolicies
 func newAutoscalingPolicies(c *RegistryV1alpha1Client, namespace string) *autoscalingPolicies {
 	return &autoscalingPolicies{
-		gentype.NewClientWithListAndApply[*modelv1alpha1.AutoscalingPolicy, *modelv1alpha1.AutoscalingPolicyList, *applyconfigurationmodelv1alpha1.AutoscalingPolicyApplyConfiguration](
+		gentype.NewClientWithListAndApply[*registryv1alpha1.AutoscalingPolicy, *registryv1alpha1.AutoscalingPolicyList, *applyconfigurationregistryv1alpha1.AutoscalingPolicyApplyConfiguration](
 			"autoscalingpolicies",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *modelv1alpha1.AutoscalingPolicy { return &modelv1alpha1.AutoscalingPolicy{} },
-			func() *modelv1alpha1.AutoscalingPolicyList { return &modelv1alpha1.AutoscalingPolicyList{} },
+			func() *registryv1alpha1.AutoscalingPolicy { return &registryv1alpha1.AutoscalingPolicy{} },
+			func() *registryv1alpha1.AutoscalingPolicyList { return &registryv1alpha1.AutoscalingPolicyList{} },
 		),
 	}
 }
