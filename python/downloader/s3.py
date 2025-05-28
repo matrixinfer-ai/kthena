@@ -1,4 +1,5 @@
 import boto3
+from botocore.exceptions import ClientError
 import os.path
 from typing import Tuple
 from urllib.parse import urlparse
@@ -22,38 +23,32 @@ class S3Downloader(ModelDownloader):
         self.access_key = access_key
         self.secret_key = secret_key
         self.model_uri = model_uri
-        self.region_name = region_name
+        self.client = boto3.client(
+                's3',
+                aws_access_key_id=access_key,
+                aws_secret_access_key=secret_key,
+                region_name=region_name
+            )
 
     def download(self, output_dir: str):
         logger.info("Downloading model from S3")
         if not self.access_key or not self.secret_key:
             logger.error("Missing S3 credentials. Please provide 'access_key' and 'secret_key'.")
             return
-        # download file
+
         bucket_name, bucket_path = _parse_bucket_from_model_url(self.model_uri)
         try:
-            client = boto3.client(
-                's3',
-                aws_access_key_id=self.access_key,
-                aws_secret_access_key=self.secret_key,
-                region_name=self.region_name
-            )
-
-            paginator = client.get_paginator('list_objects_v2')
-            for page in paginator.paginate(Bucket=bucket_name, Prefix=bucket_path):
-                if 'Contents' not in page:
-                    continue
-                for obj in page['Contents']:
-                    key = obj['Key']
-                    if not os.path.basename(key):
-                        continue
-                    if output_dir:
-                        output_path = os.path.join(output_dir, os.path.relpath(key, bucket_path))
-                    else:
-                        output_path = os.path.relpath(key, bucket_path)
-
-                    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-                    client.download_file(bucket_name, key, output_path)
+            list_response = self.client.list_objects_v2(Bucket=bucket_name, Prefix=bucket_path)
+            obj_list = list_response.get('Contents', [])
+            if not obj_list:
+                logger.error("no found object in bucket")
+            for obj in obj_list:
+                key = obj['Key']
+                key_path = os.path.basename(key)
+                output_path = os.path.join(output_dir, os.path.relpath(key_path, bucket_path))
+                os.makedirs(os.path.dirname(output_path), exist_ok=True)
+                self.client.download_file(bucket_name, key, output_path)
             logger.info(f"Successfully downloaded model '{self.model_uri}' to '{output_dir}'.")
-        except Exception as e:
-            logger.error(f"Error downloading model '{self.model_uri}': {e}")
+        except ClientError as e:
+            error_code = e.response["Error"]["Code"]
+            logger.error(f"Error downloading model '{self.model_uri}': {error_code}")
