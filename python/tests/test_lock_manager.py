@@ -1,10 +1,10 @@
 import os
 import time
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from lock import LockManager, LockError
-from tests.test_utils import create_temp_dir, cleanup_temp_dir
+from test_utils import create_temp_dir, cleanup_temp_dir
 
 
 class TestLockManager(unittest.TestCase):
