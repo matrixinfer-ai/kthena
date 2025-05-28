@@ -74,6 +74,7 @@ def get_downloader(url: str, credentials: dict) -> ModelDownloader:
         elif url.startswith("obs://"):
             from obs import OBSDownloader
             return OBSDownloader(
+                model_uri=url,
                 access_key=credentials.get("access_key"),
                 secret_key=credentials.get("secret_key"),
                 obs_endpoint=credentials.get("obs_endpoint"),
