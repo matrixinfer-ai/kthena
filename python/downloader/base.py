@@ -2,11 +2,19 @@ import os
 import threading
 from abc import ABC, abstractmethod
 from typing import Optional
+from typing import Tuple
+from urllib.parse import urlparse
 
 from lock import LockManager, LockError
 from logger import setup_logger
 
 logger = setup_logger()
+
+def parse_bucket_from_model_url(url: str, scheme: str) -> Tuple[str, str]:
+    result = urlparse(url, scheme=scheme)
+    bucket_name = result.netloc
+    bucket_path = result.path.lstrip("/")
+    return bucket_name, bucket_path
 
 
 class ModelDownloader(ABC):
@@ -63,6 +71,13 @@ def get_downloader(url: str, credentials: dict) -> ModelDownloader:
         elif url.startswith("pvc://"):
             from pvc import PVCDownloader
             return PVCDownloader()
+        elif url.startswith("obs://"):
+            from obs import OBSDownloader
+            return OBSDownloader(
+                access_key=credentials.get("access_key"),
+                secret_key=credentials.get("secret_key"),
+                obs_endpoint=credentials.get("obs_endpoint"),
+            )
         else:
             from huggingface import HuggingFaceDownloader
             return HuggingFaceDownloader(

@@ -1,20 +1,11 @@
 import boto3
 from botocore.exceptions import ClientError
 import os.path
-from typing import Tuple
-from urllib.parse import urlparse
 
-from base import ModelDownloader
+from base import ModelDownloader, parse_bucket_from_model_url
 from logger import setup_logger
 
 logger = setup_logger()
-
-
-def _parse_bucket_from_model_url(url: str) -> Tuple[str, str]:
-    result = urlparse(url, scheme="s3")
-    bucket_name = result.netloc
-    bucket_path = result.path.lstrip("/")
-    return bucket_name, bucket_path
 
 
 class S3Downloader(ModelDownloader):
@@ -36,7 +27,7 @@ class S3Downloader(ModelDownloader):
             logger.error("Missing S3 credentials. Please provide 'access_key' and 'secret_key'.")
             return
 
-        bucket_name, bucket_path = _parse_bucket_from_model_url(self.model_uri)
+        bucket_name, bucket_path = parse_bucket_from_model_url(self.model_uri, "s3")
         try:
             list_response = self.client.list_objects_v2(Bucket=bucket_name, Prefix=bucket_path)
             obj_list = list_response.get('Contents', [])
@@ -53,3 +44,4 @@ class S3Downloader(ModelDownloader):
         except ClientError as e:
             error_code = e.response["Error"]["Code"]
             logger.error(f"Error downloading model '{self.model_uri}': {error_code}")
+            raise

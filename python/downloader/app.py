@@ -26,6 +26,7 @@ def load_credentials(credentials_str: str = None) -> dict:
         "access_key": os.getenv("ACCESS_KEY"),
         "secret_key": os.getenv("SECRET_KEY"),
         "region_name": os.getenv("REGION_NAME"),
+        "obs_endpoint": os.getenv("OBS_ENDPOINT"),
     }
     for key, value in env_credentials.items():
         if value:
