@@ -44,8 +44,9 @@ class S3Downloader(ModelDownloader):
                 logger.error("no found object in bucket")
             for obj in obj_list:
                 key = obj['Key']
-                key_path = os.path.basename(key)
-                output_path = os.path.join(output_dir, os.path.relpath(key_path, bucket_path))
+                if key.endswitch("/"):
+                    continue
+                output_path = os.path.join(output_dir, os.path.relpath(key, bucket_path))
                 os.makedirs(os.path.dirname(output_path), exist_ok=True)
                 self.client.download_file(bucket_name, key, output_path)
             logger.info(f"Successfully downloaded model '{self.model_uri}' to '{output_dir}'.")
