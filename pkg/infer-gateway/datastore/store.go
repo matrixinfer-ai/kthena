@@ -55,7 +55,7 @@ type Store interface {
 
 	// New methods for routing functionality
 	MatchModelServer(modelName string, request *http.Request) (types.NamespacedName, bool, error)
-	GetModelServerEndpoints(name types.NamespacedName) ([]*PodInfo, *string, error)
+	GetModelServerEndpoints(name types.NamespacedName) ([]*PodInfo, *string, int32, error)
 
 	// Model routing methods
 	AddOrUpdateModelRoute(mr *aiv1alpha1.ModelRoute) error
@@ -65,8 +65,9 @@ type Store interface {
 type modelServer struct {
 	mutex sync.RWMutex
 
-	model *string
-	pods  map[types.NamespacedName]*PodInfo
+	model      *string
+	pods       map[types.NamespacedName]*PodInfo
+	targetPort aiv1alpha1.WorkloadPort
 }
 
 type PodInfo struct {
@@ -143,35 +144,28 @@ func (s *store) AddOrUpdateModelServer(name types.NamespacedName, ms *aiv1alpha1
 
 	if _, ok := s.modelServer[name]; !ok {
 		s.modelServer[name] = &modelServer{
-			pods: make(map[types.NamespacedName]*PodInfo),
+			model:      ms.Spec.Model,
+			pods:       make(map[types.NamespacedName]*PodInfo),
+			targetPort: ms.Spec.WorkloadPort,
 		}
+	} else {
+		s.modelServer[name].mutex.Lock()
+		s.modelServer[name].model = ms.Spec.Model
+		s.modelServer[name].targetPort = ms.Spec.WorkloadPort
+		s.modelServer[name].mutex.Unlock()
 	}
 
-	s.modelServer[name].model = ms.Spec.Model
-
-	podsMap := make(map[types.NamespacedName]*PodInfo)
 	for _, pod := range pods {
 		podName := utils.GetNamespaceName(pod)
-		if podInfo, ok := s.pods[name]; ok {
-			// If the pod was not belong to modelserver.
-			if exist := podInfo.modelServer.Contains(name); !exist {
-				podInfo.modelServer.Insert(name)
-			}
-			podsMap[podName] = podInfo
-		} else {
-			newPodInfo := &PodInfo{
+		if _, ok := s.pods[podName]; !ok {
+			s.pods[podName] = &PodInfo{
 				Pod:         pod,
-				backend:     string(ms.Spec.InferenceFramework),
 				Models:      make(map[string]struct{}),
 				modelServer: sets.New[types.NamespacedName](name),
 			}
-			podsMap[podName] = newPodInfo
-			s.pods[podName] = newPodInfo
 		}
-		go s.updatePodMetrics(pod)
+		s.modelServer[name].pods[podName] = s.pods[podName]
 	}
-
-	s.modelServer[name].pods = podsMap
 
 	return nil
 }
@@ -453,7 +447,7 @@ func selectFromWeightedSlice(weights []uint32) int {
 	return 0
 }
 
-func (s *store) GetModelServerEndpoints(name types.NamespacedName) ([]*PodInfo, *string, error) {
+func (s *store) GetModelServerEndpoints(name types.NamespacedName) ([]*PodInfo, *string, int32, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
@@ -466,10 +460,10 @@ func (s *store) GetModelServerEndpoints(name types.NamespacedName) ([]*PodInfo, 
 			pods = append(pods, pod)
 		}
 
-		return pods, ms.model, nil
+		return pods, ms.model, ms.targetPort.Port, nil
 	}
 
-	return nil, nil, fmt.Errorf("model server not found: %v", name)
+	return nil, nil, 0, fmt.Errorf("model server not found: %v", name)
 }
 
 func (s *store) updatePodMetrics(pod *corev1.Pod) {
