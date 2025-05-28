@@ -44,7 +44,7 @@ class S3Downloader(ModelDownloader):
                 logger.error("no found object in bucket")
             for obj in obj_list:
                 key = obj['Key']
-                if key.endswitch("/"):
+                if key.endswith("/"):
                     continue
                 output_path = os.path.join(output_dir, os.path.relpath(key, bucket_path))
                 os.makedirs(os.path.dirname(output_path), exist_ok=True)
