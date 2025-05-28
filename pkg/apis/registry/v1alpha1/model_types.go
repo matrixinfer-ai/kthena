@@ -157,7 +157,7 @@ type ModelBackendStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
 // +genclient
-//
+
 // Model is the Schema for the models API.
 type Model struct {
 	metav1.TypeMeta   `json:",inline"`
