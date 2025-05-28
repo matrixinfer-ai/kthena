@@ -1,0 +1,34 @@
+name: Matrixinfer CI Workflow
+
+on:
+  pull_request:
+    paths-ignore:
+      - '**.md'
+      - '**.svg'
+      - '**.png'
+  merge_group: # enable merge queue
+  workflow_call:
+    secrets:
+      CODECOV_TOKEN:
+        required: true
+
+jobs:
+
+  build:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        go-version: [ '1.23' ]
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup Go
+      uses: actions/setup-go@v4.0.0
+      with:
+        go-version: ${{ matrix.go-version }}
+    
+    - name: Build matrixinfer
+      shell: bash
+      run: |
+        make build
