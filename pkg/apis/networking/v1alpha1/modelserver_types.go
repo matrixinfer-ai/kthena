@@ -47,7 +47,7 @@ type ModelServerSpec struct {
 
 // InferenceEngine defines the inference framework used by the modelServer to serve LLM requests.
 //
-// +kubebuilder:validation:Enum=vLLM;sgLang
+// +kubebuilder:validation:Enum=vLLM;SGLang
 type InferenceEngine string
 
 const (

@@ -24,6 +24,10 @@ type scorePlugin struct {
 func NewScheduler(store datastore.Store) Scheduler {
 	return &SchedulerImpl{
 		store: store,
+		filterPlugins: []framework.FilterPlugin{
+			plugins.NewLoraAffinity(),
+			plugins.NewLeastRequest(),
+		},
 		scorePlugins: []*scorePlugin{
 			// TODO: set the weight of each plugin properly.
 			{
