@@ -72,7 +72,7 @@ def get_downloader(url: str, credentials: dict) -> ModelDownloader:
             from pvc import PVCDownloader
             return PVCDownloader()
         elif url.startswith("obs://"):
-            from obs import OBSDownloader
+            from objectstorage import OBSDownloader
             return OBSDownloader(
                 model_uri=url,
                 access_key=credentials.get("access_key"),
