@@ -36,15 +36,15 @@ func (p *PodController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	if err := p.Get(ctx, name, pod); err != nil {
 		if apierrors.IsNotFound(err) {
 			log.Infof("Delete pod: %v", name.String())
-			p.store.DeletePod(pod)
+			p.store.DeletePod(name)
 			return ctrl.Result{}, client.IgnoreNotFound(err)
 		}
-		log.Errorf("Unable to get pod %s: %v", name, err)
+		log.Errorf("Unable to get pod %s: %v", name.Namespace+"/"+name.Name, err)
 	}
 
 	if !isPodReady(pod) {
-		log.Error("Pod remove or not added")
-		p.store.DeletePod(pod)
+		p.store.DeletePod(name)
+		return ctrl.Result{}, nil
 	}
 
 	ModelServers := &aiv1alpha1.ModelServerList{}
