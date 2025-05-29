@@ -58,10 +58,10 @@ import (
 	"fmt"
 
 	"github.com/cespare/xxhash"
-	"k8s.io/apimachinery/pkg/types"
 
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/cache"
 )
 
 const PrefixCachePluginName = "prefix-cache"
@@ -78,130 +78,7 @@ type PrefixCache struct {
 
 	blockSizeToHash  int
 	maxBlocksToMatch int
-	store            *ModelPrefixStore
-}
-
-type ModelPrefixStore struct {
-	// Three-level map: model -> hash -> pod namespaced name -> pod
-	entries map[string]map[uint64]map[types.NamespacedName]*datastore.PodInfo
-	lru     Cache[uint64, string]
-	topK    int // Each match returns at most topK pods.
-}
-
-type matchResult struct {
-	pod *datastore.PodInfo
-	// The number of matching blocks.
-	matchLen int
-}
-
-func (p *PrefixCache) newStore(capacity, topK int) *ModelPrefixStore {
-	store := &ModelPrefixStore{
-		entries: make(map[string]map[uint64]map[types.NamespacedName]*datastore.PodInfo),
-		topK:    topK,
-	}
-
-	// Create LRU cache with OnEvicted callback to clean up entries
-	cache, _ := NewLRUCache[uint64, string](capacity, func(key uint64, value string) {
-		hash := key
-		model := value
-
-		// Remove pod from the model->hash entry
-		if hashMap, exists := store.entries[model]; exists {
-			delete(hashMap, hash)
-			// If no more hashes for this model, remove the model entry
-			if len(hashMap) == 0 {
-				delete(store.entries, model)
-			}
-		}
-	})
-
-	store.lru = cache
-	return store
-}
-
-// findTopMatches finds the topK pods with the longest matching prefixes for given model and hashes
-func (s *ModelPrefixStore) findTopMatches(model string, hashes []uint64, pods []*datastore.PodInfo) []matchResult {
-	matches := make([]matchResult, 0, s.topK)
-
-	// Only check entries for the requested model
-	modelEntries, exists := s.entries[model]
-	if !exists {
-		return matches
-	}
-
-	// Track processed pods to avoid duplicates
-	processedPods := make(map[*datastore.PodInfo]bool)
-
-	// Start matching from the end of hashes
-	// This works because each hash depends on the previous hash in hashPrompt
-	for i := len(hashes) - 1; i >= 0; i-- {
-		hash := hashes[i]
-		// Check if this hash exists in cache
-		if !s.lru.Contains(hash) {
-			continue
-		}
-		if podMap, exists := modelEntries[hash]; exists {
-			for _, pod := range podMap {
-				// Skip if pod is not in the candidate set or already processed
-				if processedPods[pod] {
-					continue
-				}
-				processedPods[pod] = true
-
-				// If we found a match at position i, we know all previous hashes must match
-				// because each hash depends on the previous one in hashPrompt
-				matchLen := i + 1
-
-				matches = append(matches, matchResult{
-					pod:      pod,
-					matchLen: matchLen,
-				})
-
-				// Return if we have enough matches
-				if len(matches) >= s.topK {
-					return matches
-				}
-			}
-		}
-	}
-
-	return matches
-}
-
-// add adds new hash->pod mappings to cache, using LRU for eviction
-func (s *ModelPrefixStore) add(model string, hashes []uint64, pod *datastore.PodInfo) {
-	nsName := types.NamespacedName{
-		Namespace: pod.Pod.Namespace,
-		Name:      pod.Pod.Name,
-	}
-
-	// Initialize model map if it doesn't exist
-	if _, exists := s.entries[model]; !exists {
-		s.entries[model] = make(map[uint64]map[types.NamespacedName]*datastore.PodInfo)
-	}
-
-	// Add pod to each hash's pod map from start to end
-	// This ensures that when LRU eviction happens, we keep the most important (last) hashes
-	for i := 0; i < len(hashes); i++ {
-		hash := hashes[i]
-		if _, exists := s.entries[model][hash]; !exists {
-			s.entries[model][hash] = make(map[types.NamespacedName]*datastore.PodInfo)
-		}
-		s.entries[model][hash][nsName] = pod
-
-		// Add to LRU with hash as key and model as value
-		s.lru.Add(hash, model)
-	}
-}
-
-// Helper function to check if a pod exists in a map
-func hasPod(podMap map[types.NamespacedName]*datastore.PodInfo, pod *datastore.PodInfo) bool {
-	nsName := types.NamespacedName{
-		Namespace: pod.Pod.Namespace,
-		Name:      pod.Pod.Name,
-	}
-	_, exists := podMap[nsName]
-	return exists
+	store            *cache.ModelPrefixStore
 }
 
 func NewPrefixCache() *PrefixCache {
@@ -213,7 +90,7 @@ func NewPrefixCache() *PrefixCache {
 		maxBlocksToMatch: MaxBlocksToMatch,
 	}
 	// Initialize store with default values
-	p.store = p.newStore(1000, 5) // TODO: make these configurable
+	p.store = cache.NewModelPrefixStore(100, 1000, 5) // TODO: make these configurable
 	return p
 }
 
@@ -239,14 +116,14 @@ func (p *PrefixCache) Score(pods []*datastore.PodInfo, ctx *framework.Context) m
 	ctx.Hashes = hashes
 
 	// Find pods with matching prefixes
-	matches := p.store.findTopMatches(ctx.Model, hashes, pods)
+	matches := p.store.FindTopMatches(ctx.Model, hashes, pods)
 
 	// Calculate scores based on prefix match length
 	totalHashes := len(hashes)
 	for _, match := range matches {
 		// Score is the ratio of matching hashes to total hashes, scaled to 0-100
-		score := int((float64(match.matchLen) / float64(totalHashes)) * 100)
-		scoreResults[match.pod] = score
+		score := int((float64(match.MatchLen) / float64(totalHashes)) * 100)
+		scoreResults[match.Pod] = score
 	}
 
 	return scoreResults
@@ -255,7 +132,7 @@ func (p *PrefixCache) Score(pods []*datastore.PodInfo, ctx *framework.Context) m
 func (p *PrefixCache) PostSchedule(ctx *framework.Context) {
 	if ctx.TargetPod != nil && len(ctx.Hashes) > 0 {
 		// Add the selected pod and its hashes to the cache
-		p.store.add(ctx.Model, ctx.Hashes, ctx.TargetPod)
+		p.store.Add(ctx.Model, ctx.Hashes, ctx.TargetPod)
 	}
 }
 
