@@ -4,7 +4,7 @@ from prometheus_client import Metric
 from python.runtime.metric import MetricOperator, RenameMetric
 
 
-STANDARD_RULES: Dict[str, MetricOperator] = {
+STANDARD_RULES: Dict[str, list[MetricOperator]] = {
     "vllm": [
         RenameMetric(
             "vllm:generation_tokens_total",
@@ -48,16 +48,21 @@ STANDARD_RULES: Dict[str, MetricOperator] = {
 
 class MetricStandard:
     def __init__(self, engine: str):
-        if engine.lower not in STANDARD_RULES:
-            raise ValueError(f"Unsupported engine: {engine}")
+        self.metric_operators_dict = self._build_operators_dict(engine)
 
-        self.metric_operators_dict = {
-            op.register(): op for op in STANDARD_RULES[engine.lower]
+    @staticmethod
+    def _build_operators_dict(engine: str) -> dict:
+        normalized_engine = engine.lower()
+        if normalized_engine not in STANDARD_RULES:
+            raise ValueError(f"Unsupported engine : {engine}")
+        return {
+            operator.register_name(): operator
+            for operator in STANDARD_RULES[normalized_engine]
         }
 
     def process(self, origin_metric: Metric) -> Optional[Metric]:
         if (
-            len(self.metric_operators) == 0
+            len(self.metric_operators_dict) == 0
             or origin_metric.name not in self.metric_operators_dict
         ):
             return None

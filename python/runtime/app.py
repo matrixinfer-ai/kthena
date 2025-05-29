@@ -3,12 +3,13 @@ import argparse
 from fastapi import FastAPI, APIRouter, Request
 from fastapi.responses import Response
 import httpx
-from prometheus_client import generate_latest, CollectorRegistry
-from prometheus_client.parser import text_string_to_metric_families
-from os import TIMEOUT, TARGET_SERVICE_URL
+from starlette.responses import JSONResponse
+
+from env import TIMEOUT, TARGET_SERVICE_URL
 import uvicorn
 from contextlib import asynccontextmanager
 
+from python.runtime.collect import process_metrics
 from python.runtime.standard import MetricStandard
 
 logger = logging.getLogger(__name__)
@@ -22,33 +23,31 @@ async def lifespan(app: FastAPI):
             max_keepalive_connections=200,
             keepalive_expiry=60,
         ),
-        timeout=httpx.Timeout(connect=10.0),
+        timeout=httpx.Timeout(TIMEOUT),
     )
     yield
     await app.state.client.aclose()
     return
 
 
+@router.get("/health")
+async def get_health():
+    return JSONResponse(content={"status": "ok"}, status_code=200)
+
+
 @router.get("/metrics")
 async def metrics(request: Request):
     state = request.app.state
-    response = await state.client.get(TARGET_SERVICE_URL + "/metrics")
-    response_content = await _process_metrics(response.text, state.metric_standard)
+    print(f"/metrics {TARGET_SERVICE_URL + state.engine_metrics_url}")
+    response = await state.client.get(TARGET_SERVICE_URL + state.engine_metrics_url)
+    response_content = await process_metrics(response.text, state.metric_standard)
     return Response(content=response_content, media_type="text/plain")
 
 
-async def _process_metrics(origin_metric_text, standard: MetricStandard) -> bytes:
-    registry = CollectorRegistry()
-    for origin_metric in text_string_to_metric_families(origin_metric_text):
-        registry.register(origin_metric)
-        processed_metrics = standard.process(origin_metric)
-        registry.register(processed_metrics)
-    return generate_latest(registry)
-
-
-async def application(args: argparse.Namespace) -> FastAPI:
+def application(args: argparse.Namespace) -> FastAPI:
     app = FastAPI(lifespan=lifespan)
     app.state.metric_standard = MetricStandard(args.engine)
+    app.state.engine_metrics_url = args.url
     app.include_router(router)
     return app
 
@@ -78,6 +77,13 @@ def main():
         type=int,
         default=8000,
         help="Port number",
+    )
+    parser.add_argument(
+        "-u",
+        "--url",
+        type=str,
+        default="/metrics",
+        help="Metrics url",
     )
     args = parser.parse_args()
     app = application(args)
