@@ -18,9 +18,10 @@ package controller
 
 import (
 	"context"
-	"encoding/json"
+	"github.com/google/uuid"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
@@ -32,7 +33,9 @@ import (
 )
 
 const (
-	ModelFinalizer = "matrixinfer.ai/matrixinfer/finalizer"
+	ModelFinalizer = "matrixinfer.ai/finalizer"
+	// Reason for condition
+	ModelInitsReason = "ModelInits"
 )
 
 // ModelReconciler reconciles a Model object
@@ -55,12 +58,11 @@ type ModelReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.20.4/pkg/reconcile
 func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	klog.Info("Start to process model")
-
 	model := &registryv1.Model{}
 	if err := r.Get(ctx, req.NamespacedName, model); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
+	klog.InfoS("Start to process model", "namespace", req.Namespace, "model status", model.Status)
 
 	if model.ObjectMeta.DeletionTimestamp.IsZero() {
 		if !controllerutil.ContainsFinalizer(model, ModelFinalizer) {
@@ -79,34 +81,47 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		}
 		return ctrl.Result{}, nil
 	}
-	modelInfers := make([]*workload.ModelInfer, len(model.Spec.Backends))
-	_, err := r.convertModelToModelInfer(model, modelInfers)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	for _, modelInfer := range modelInfers {
-		// modelInfer is owned by model. ModelInfer will be deleted when the model is deleted
-		if err := controllerutil.SetControllerReference(model, modelInfer, r.Scheme); err != nil {
-			klog.Error(err, "Failed to set controller reference")
+	// When model condition is null, create model infer according to model.
+	if model.Status.Conditions == nil || len(model.Status.Conditions) == 0 {
+		klog.Info("model status condition is null, create model infer")
+		modelInfers := make([]*workload.ModelInfer, len(model.Spec.Backends))
+		err := r.convertModelToModelInfer(model, modelInfers)
+		if err != nil {
 			return ctrl.Result{}, err
 		}
-		if err := r.Create(ctx, modelInfer); err != nil {
+		for _, modelInfer := range modelInfers {
+			// modelInfer is owned by model. ModelInfer will be deleted when the model is deleted
+			if err := controllerutil.SetControllerReference(model, modelInfer, r.Scheme); err != nil {
+				klog.Error(err, "Failed to set controller reference")
+				return ctrl.Result{}, err
+			}
+			if err := r.Create(ctx, modelInfer); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+		meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1.ModelStatusConditionTypeInitialized),
+			metav1.ConditionUnknown, ModelInitsReason, "Model inits"))
+		if err := r.Status().Update(ctx, model); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
 	return ctrl.Result{}, nil
 }
 
-func (r *ModelReconciler) convertModelToModelInfer(model *registryv1.Model, infers []*workload.ModelInfer) (ctrl.Result, error) {
-	for _, backend := range model.Spec.Backends {
+func newCondition(conditionType string, status metav1.ConditionStatus, reason string, message string) metav1.Condition {
+	return metav1.Condition{
+		Type:    conditionType,
+		Status:  status,
+		Reason:  reason,
+		Message: message,
+	}
+}
+
+func (r *ModelReconciler) convertModelToModelInfer(model *registryv1.Model, infers []*workload.ModelInfer) error {
+	for i, backend := range model.Spec.Backends {
 		roles := make([]workload.Role, len(backend.Workers))
-		for _, worker := range backend.Workers {
-			args, err := convertJSONToStringSlice(backend.Config.Raw)
-			if err != nil {
-				klog.Error(err)
-				return ctrl.Result{}, err
-			}
-			roles = append(roles, workload.Role{
+		for j, worker := range backend.Workers {
+			roles[j] = workload.Role{
 				Name:            string(worker.Type),
 				Replicas:        &worker.Replicas,
 				NetworkTopology: nil,
@@ -122,7 +137,7 @@ func (r *ModelReconciler) convertModelToModelInfer(model *registryv1.Model, infe
 							{
 								Name:  "vllm-leader",
 								Image: worker.Image,
-								Args:  args,
+								Args:  nil, // TODO: Get args from config
 							},
 						},
 						Resources: &worker.Resources,
@@ -130,11 +145,11 @@ func (r *ModelReconciler) convertModelToModelInfer(model *registryv1.Model, infe
 				},
 				WorkerReplicas: func() *int32 { result := worker.Pods - 1; return &result }(),
 				WorkerTemplate: nil,
-			})
+			}
 		}
-		infers = append(infers, &workload.ModelInfer{
-			ObjectMeta: v1.ObjectMeta{
-				Name:      backend.Name,
+		infers[i] = &workload.ModelInfer{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      model.Name + uuid.New().String(), // TODO: Can't use backend name as CR name due to k8s specification, use uuid for now.
 				Namespace: model.Namespace,
 			},
 			Spec: workload.ModelInferSpec{
@@ -155,18 +170,9 @@ func (r *ModelReconciler) convertModelToModelInfer(model *registryv1.Model, infe
 				RecoveryPolicy:            workload.InferGroupRestart, // TODO: judge by backend type
 				TopologySpreadConstraints: nil,
 			},
-		})
+		}
 	}
-	return ctrl.Result{}, nil
-}
-
-func convertJSONToStringSlice(src []byte) ([]string, error) {
-	var strSlice []string
-	err := json.Unmarshal(src, &strSlice)
-	if err != nil {
-		return nil, err
-	}
-	return strSlice, nil
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
