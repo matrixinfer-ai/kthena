@@ -19,6 +19,7 @@ package main
 import (
 	"crypto/tls"
 	"flag"
+	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 	"os"
 	"path/filepath"
 
@@ -51,6 +52,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(registryv1.AddToScheme(scheme))
+	utilruntime.Must(workload.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 

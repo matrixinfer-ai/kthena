@@ -143,6 +143,13 @@ type ModelStatus struct {
 	BackendStatuses []ModelBackendStatus `json:"backendStatuses,omitempty"`
 }
 
+type ModelStatusConditionType string
+
+const (
+	ModelStatusConditionTypeInitialized ModelStatusConditionType = "Initialized"
+	ModelStatusConditionTypeReady       ModelStatusConditionType = "Ready"
+)
+
 // ModelBackendStatus defines the status of a model backend.
 type ModelBackendStatus struct {
 	// Name is the name of the backend.
