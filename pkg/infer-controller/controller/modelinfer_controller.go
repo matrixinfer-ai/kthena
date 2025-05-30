@@ -72,10 +72,11 @@ func NewModelInferController(kubeclientset kubernetes.Interface, modelInferClien
 func (mic *ModelInferController) addMI(obj interface{}) {
 	mi := obj.(*workloadv1alpha1.ModelInfer)
 	klog.V(4).Info("Adding", "modelinfer", klog.KObj(mi))
-	err := mic.store.AddModelInfer(types.NamespacedName{
+	var inferGroupList []string
+	err := mic.store.SetInferGroupForModelInfer(types.NamespacedName{
 		Namespace: mi.Namespace,
 		Name:      mi.Name,
-	})
+	}, &inferGroupList)
 	if err != nil {
 		klog.Errorf("add model infer to store failed: %v", err)
 		return
