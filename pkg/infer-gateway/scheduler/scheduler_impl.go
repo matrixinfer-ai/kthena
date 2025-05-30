@@ -24,7 +24,7 @@ type scorePlugin struct {
 }
 
 func NewScheduler(store datastore.Store) Scheduler {
-	prefixCache := plugins.NewPrefixCache()
+	prefixCache := plugins.NewPrefixCache(store)
 	return &SchedulerImpl{
 		store: store,
 		scorePlugins: []*scorePlugin{

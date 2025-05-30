@@ -85,7 +85,7 @@ type PrefixCache struct {
 	store            *cache.ModelPrefixStore
 }
 
-func NewPrefixCache() *PrefixCache {
+func NewPrefixCache(store datastore.Store) *PrefixCache {
 	p := &PrefixCache{
 		name: PrefixCachePluginName,
 
@@ -93,7 +93,7 @@ func NewPrefixCache() *PrefixCache {
 		maxBlocksToMatch: MaxBlocksToMatch,
 	}
 	// Initialize store with default values
-	p.store = cache.NewModelPrefixStore(100, MaxHashCacheSize, 5) // TODO: make these configurable
+	p.store = cache.NewModelPrefixStore(store, MaxHashCacheSize, 5) // TODO: make these configurable
 	return p
 }
 

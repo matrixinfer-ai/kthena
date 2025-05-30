@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"reflect"
 	"regexp"
 	"strings"
 	"sync"
@@ -38,6 +39,25 @@ var (
 	uppdateInterval = 1 * time.Second
 )
 
+// EventType represents different types of events that can trigger callbacks
+type EventType string
+
+const (
+	// EventPodDeleted is triggered when a pod is deleted
+	EventPodDeleted EventType = "PodDeleted"
+	// Add more event types here as needed
+)
+
+// EventData contains information about the event that triggered the callback
+type EventData struct {
+	EventType EventType
+	Pod       *PodInfo
+	// Add more fields as needed for other event types
+}
+
+// CallbackFunc is the type of function that can be registered as a callback
+type CallbackFunc func(data EventData)
+
 // Store is an interface for storing and retrieving data
 type Store interface {
 	// Add modelServer and pods which are selected by modelServer.Spec.WorkloadSelector
@@ -60,6 +80,10 @@ type Store interface {
 	// Model routing methods
 	AddOrUpdateModelRoute(mr *aiv1alpha1.ModelRoute) error
 	DeleteModelRoute(namespacedName string) error
+
+	// New methods for callback management
+	RegisterCallback(eventType EventType, callback CallbackFunc)
+	UnregisterCallback(eventType EventType, callback CallbackFunc)
 }
 
 type modelServer struct {
@@ -110,6 +134,9 @@ type store struct {
 	routeInfo  map[string]*modelRouteInfo
 	routes     map[string]*aiv1alpha1.ModelRoute
 	loraRoutes map[string]*aiv1alpha1.ModelRoute
+
+	// New fields for callback management
+	callbacks map[EventType][]CallbackFunc
 }
 
 func New() Store {
@@ -119,6 +146,7 @@ func New() Store {
 		routeInfo:   make(map[string]*modelRouteInfo),
 		routes:      make(map[string]*aiv1alpha1.ModelRoute),
 		loraRoutes:  make(map[string]*aiv1alpha1.ModelRoute),
+		callbacks:   make(map[EventType][]CallbackFunc),
 	}
 }
 
@@ -274,6 +302,12 @@ func (s *store) DeletePod(podName types.NamespacedName) error {
 	}
 	delete(s.pods, podName)
 	s.mutex.Unlock()
+
+	s.triggerCallbacks(EventPodDeleted, EventData{
+		EventType: EventPodDeleted,
+		Pod:       s.pods[podName],
+	})
+
 	return nil
 }
 
@@ -548,6 +582,44 @@ func updateHistogramMetrics(podinfo *PodInfo, histogramMetrics map[string]*dto.H
 			updateFunc(histogramMetrics[name])
 		} else {
 			log.Debugf("Unknow histogram metric: %s", name)
+		}
+	}
+}
+
+// RegisterCallback registers a callback function for a specific event type
+func (s *store) RegisterCallback(eventType EventType, callback CallbackFunc) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if _, exists := s.callbacks[eventType]; !exists {
+		s.callbacks[eventType] = make([]CallbackFunc, 0)
+	}
+	s.callbacks[eventType] = append(s.callbacks[eventType], callback)
+}
+
+// UnregisterCallback removes a callback function for a specific event type
+func (s *store) UnregisterCallback(eventType EventType, callback CallbackFunc) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if callbacks, exists := s.callbacks[eventType]; exists {
+		for i, cb := range callbacks {
+			if reflect.ValueOf(cb).Pointer() == reflect.ValueOf(callback).Pointer() {
+				s.callbacks[eventType] = append(callbacks[:i], callbacks[i+1:]...)
+				break
+			}
+		}
+	}
+}
+
+// triggerCallbacks executes all registered callbacks for a specific event type
+func (s *store) triggerCallbacks(eventType EventType, data EventData) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	if callbacks, exists := s.callbacks[eventType]; exists {
+		for _, callback := range callbacks {
+			callback(data)
 		}
 	}
 }

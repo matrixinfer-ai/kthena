@@ -14,9 +14,10 @@ type ModelPrefixStore struct {
 	// Three-level map: model -> hash -> pod namespaced name -> pod
 	entries map[string]map[uint64]map[types.NamespacedName]*datastore.PodInfo
 
-	podLRU       Cache[types.NamespacedName, Cache[uint64, string]] // LRU cache for pods, each pod has its own hash LRU
-	topK         int                                                // Each match returns at most topK pods.
-	hashCapacity int                                                // Capacity for each pod's hash LRU
+	// Changed from LRU to map
+	podHashes    map[types.NamespacedName]Cache[uint64, string] // Map of pod to its hash LRU
+	topK         int                                            // Each match returns at most topK pods.
+	hashCapacity int                                            // Capacity for each pod's hash LRU
 }
 
 // MatchResult represents a matching pod and its match length
@@ -26,23 +27,40 @@ type MatchResult struct {
 }
 
 // NewModelPrefixStore creates a new ModelPrefixStore with the specified capacity and topK
-func NewModelPrefixStore(podCapacity, hashCapacity, topK int) *ModelPrefixStore {
-	store := &ModelPrefixStore{
+func NewModelPrefixStore(store datastore.Store, hashCapacity, topK int) *ModelPrefixStore {
+	s := &ModelPrefixStore{
 		entries:      make(map[string]map[uint64]map[types.NamespacedName]*datastore.PodInfo),
+		podHashes:    make(map[types.NamespacedName]Cache[uint64, string]),
 		topK:         topK,
 		hashCapacity: hashCapacity,
 	}
 
-	// Create LRU cache for pods with OnEvicted callback to clean up entries
-	podCache, _ := NewLRUCache[types.NamespacedName, Cache[uint64, string]](podCapacity, func(key lru.Key, value interface{}) {
-		hashLRU := value.(Cache[uint64, string])
+	// Register callback for pod deletion
+	store.RegisterCallback(datastore.EventPodDeleted, s.onPodDeleted)
 
-		// clear lru cache, all the heshes will be removed from entries.
+	return s
+}
+
+// onPodDeleted is called when a pod is deleted
+func (s *ModelPrefixStore) onPodDeleted(data datastore.EventData) {
+	if data.EventType != datastore.EventPodDeleted {
+		return
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	nsName := types.NamespacedName{
+		Namespace: data.Pod.Pod.Namespace,
+		Name:      data.Pod.Pod.Name,
+	}
+
+	// Remove pod's hash LRU
+	if hashLRU, exists := s.podHashes[nsName]; exists {
 		hashLRU.Clear()
-	})
+		delete(s.podHashes, nsName)
+	}
 
-	store.podLRU = podCache
-	return store
 }
 
 // FindTopMatches finds the topK pods with the longest matching prefixes for given model and hashes
@@ -104,7 +122,7 @@ func (s *ModelPrefixStore) Add(model string, hashes []uint64, pod *datastore.Pod
 
 	// Get or create hash LRU for this pod
 	var hashLRU Cache[uint64, string]
-	if existingLRU, exists := s.podLRU.Get(nsName); exists {
+	if existingLRU, exists := s.podHashes[nsName]; exists {
 		hashLRU = existingLRU
 	} else {
 		// Create new hash LRU for this pod
@@ -131,7 +149,7 @@ func (s *ModelPrefixStore) Add(model string, hashes []uint64, pod *datastore.Pod
 			}
 		}) // Using hashCapacity for hash LRU
 		hashLRU = newHashLRU
-		s.podLRU.Add(nsName, hashLRU)
+		s.podHashes[nsName] = hashLRU
 	}
 
 	// Initialize model map if it doesn't exist
@@ -140,7 +158,8 @@ func (s *ModelPrefixStore) Add(model string, hashes []uint64, pod *datastore.Pod
 	}
 
 	// Add pod to each hash's pod map
-	// Add hashes from the end to the beginning to avoid the situation where a long prefix can be matched but a shorter prefix cannot.
+	// Add hashes from the end to the beginning to avoid
+	// the situation where a long prefix can be matched but a shorter prefix cannot.
 	for i := len(hashes) - 1; i >= 0; i-- {
 		hash := hashes[i]
 		if _, exists := s.entries[model][hash]; !exists {

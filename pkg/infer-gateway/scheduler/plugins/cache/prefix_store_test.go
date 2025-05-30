@@ -8,12 +8,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore/testutil"
 )
 
 func TestModelPrefixStore(t *testing.T) {
 	tests := []struct {
 		name         string
-		maxPods      int
 		maxHashes    int
 		topK         int
 		model        string
@@ -25,7 +25,6 @@ func TestModelPrefixStore(t *testing.T) {
 	}{
 		{
 			name:      "Empty cache returns no matches",
-			maxPods:   100,
 			maxHashes: 100,
 			topK:      3,
 			model:     "test-model",
@@ -38,7 +37,6 @@ func TestModelPrefixStore(t *testing.T) {
 		},
 		{
 			name:      "Single pod exact match",
-			maxPods:   100,
 			maxHashes: 100,
 			topK:      3,
 			model:     "test-model",
@@ -52,7 +50,6 @@ func TestModelPrefixStore(t *testing.T) {
 		},
 		{
 			name:      "Multiple pods with different match lengths",
-			maxPods:   100,
 			maxHashes: 100,
 			topK:      3,
 			model:     "test-model",
@@ -72,7 +69,6 @@ func TestModelPrefixStore(t *testing.T) {
 		},
 		{
 			name:      "LRU eviction",
-			maxPods:   100,
 			maxHashes: 2, // Only allow 2 hashes
 			topK:      3,
 			model:     "test-model",
@@ -88,7 +84,8 @@ func TestModelPrefixStore(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			store := NewModelPrefixStore(tt.maxPods, tt.maxHashes, tt.topK)
+			mockStore := testutil.NewMockStore()
+			store := NewModelPrefixStore(mockStore, tt.maxHashes, tt.topK)
 
 			// Add pods to cache
 			for i, pod := range tt.pods {
