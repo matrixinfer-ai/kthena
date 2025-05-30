@@ -28,14 +28,15 @@ class OBSDownloader(ModelDownloader):
         try:
             resp = self.client.listObjects(bucket_name, prefix=bucket_path)
             if resp.status > 300:
-                logger.error(f"list object resp errorCode:{resp.errorCode},errorMessage: {resp.errorMessage}")
+                logger.error(f"list status:{resp.status},code:{resp.errorCode},message: {resp.errorMessage}")
                 return
             for content in resp.body.contents:
                 if not content.key.endswith('/'):
                     output_path = os.path.join(output_dir, os.path.relpath(content.key, bucket_path))
                     get_resp = self.client.getObject(bucket_name, content.key, downloadPath=output_path)
                     if get_resp.status > 300:
-                        logger.error(f"list object resp errorCode:{resp.errorCode},errorMessage: {resp.errorMessage}")
+                        logger.error(f"get status:{resp.status},code:{resp.errorCode},message: {resp.errorMessage}")
+            logger.info(f"Successfully downloaded model '{self.model_uri}' to '{output_dir}'.")
         except Exception as e:
             logger.error(f"Error downloading model '{self.model_uri}': {e}")
             raise
