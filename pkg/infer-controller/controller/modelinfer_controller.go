@@ -22,7 +22,7 @@ import (
 	listerv1alpha1 "matrixinfer.ai/matrixinfer/client-go/listers/workload/v1alpha1"
 	workloadv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-controller/datastore"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
+	"matrixinfer.ai/matrixinfer/pkg/infer-controller/utils"
 )
 
 const (
@@ -30,7 +30,7 @@ const (
 )
 
 type ModelInferController struct {
-	kubeclientset    kubernetes.Interface
+	kubeClientSet    kubernetes.Interface
 	modelInferClient clientset.Interface
 
 	syncHandler         func(ctx context.Context, miKey string) error
@@ -56,7 +56,7 @@ func NewModelInferController(kubeClientSet kubernetes.Interface, modelInferClien
 	}
 
 	mic := &ModelInferController{
-		kubeclientset:       kubeClientSet,
+		kubeClientSet:       kubeClientSet,
 		modelInferClient:    modelInferClient,
 		podsLister:          podsInformer.Lister(),
 		podsInformer:        podsInformer.Informer(),
@@ -104,14 +104,7 @@ func (mic *ModelInferController) addMI(obj interface{}) {
 		return
 	}
 	klog.V(4).Info("Adding", "modelinfer", klog.KObj(mi))
-	err := mic.store.UpdateInferGroupForModelInfer(types.NamespacedName{
-		Namespace: mi.Namespace,
-		Name:      mi.Name,
-	}, nil)
-	if err != nil {
-		klog.Errorf("add model infer to store failed: %v", err)
-		return
-	}
+	mic.store.InitInferGroupForModelInfer(utils.GetNamespaceName(mi))
 	mic.enqueueMI(mi)
 }
 
@@ -141,10 +134,7 @@ func (mic *ModelInferController) deleteMI(obj interface{}) {
 		return
 	}
 
-	_, inferGroupList, err := mic.store.GetInferGroupByModelInfer(types.NamespacedName{
-		Namespace: mi.Namespace,
-		Name:      mi.Name,
-	})
+	inferGroupList, err := mic.store.GetInferGroupByModelInfer(utils.GetNamespaceName(mi))
 	if err != nil {
 		klog.Errorf("get infer group by model infer failed: %v", err)
 		return
@@ -228,7 +218,22 @@ func (mic *ModelInferController) processNextWorkItem(ctx context.Context) bool {
 }
 
 func (mic *ModelInferController) syncModelInfer(ctx context.Context, key string) error {
-	// todo add modelinfer handle logic
+	// TODO: add modelinfer rolling upgrade logic
+	klog.V(4).Info("Started syncing ModelInfer")
+	namespace, name, err := cache.SplitMetaNamespaceKey(key)
+	if err != nil {
+		return fmt.Errorf("invalid resource key: %s", err)
+	}
+	mi, err := mic.modelInfersLister.ModelInfers(namespace).Get(name)
+	if err != nil {
+		klog.Errorf("Error getting ModelInfer: %v", err)
+		return err
+	}
+	err = mic.manageReplicas(ctx, mi)
+	if err != nil {
+		return fmt.Errorf("cannot manage inferGroup replicas: %v", err)
+	}
+	//TODO: Add rolling upgrade function
 	return nil
 }
 
@@ -247,6 +252,72 @@ func (mic *ModelInferController) Run() {
 func (mic *ModelInferController) UpdateStatus() {
 }
 
+func (mic *ModelInferController) manageReplicas(ctx context.Context, mi *workloadv1alpha1.ModelInfer) error {
+	inferGroupList, err := mic.store.GetInferGroupByModelInfer(utils.GetNamespaceName(mi))
+	if err != nil {
+		return fmt.Errorf("cannot get inferGroup from map: %v", err)
+	}
+	exceptedCount := int(*mi.Spec.Replicas)
+	curReplicas := len(inferGroupList)
+	if curReplicas == exceptedCount {
+		klog.V(4).Info("The number of replicas is consistent, no need to scale up or down")
+		return nil
+	}
+	// slice that will contain all InferGroups as excepted
+	replicas := make([]*datastore.InferGroup, exceptedCount)
+	// slice that will contain all InferGroups Out of except or fails to parse ordinal
+	condemned := make([]datastore.InferGroup, 0)
+	// First we partition inferGroups into two lists valid replicas and condemned inferGroups
+	for _, group := range inferGroupList {
+		_, inferGroupOrdinal := utils.GetParentNameAndOrdinal(group.Name)
+		if inferGroupOrdinal >= 0 && inferGroupOrdinal < exceptedCount {
+			copyInferGroup := group
+			replicas[inferGroupOrdinal] = &copyInferGroup
+		} else {
+			// Whether the inferGroup sequence number fails to parse or out of except, a rebuild should be performed
+			condemned = append(condemned, group)
+		}
+	}
+	for idx := 0; idx < exceptedCount; idx++ {
+		if replicas[idx] == nil {
+			// Insert new InferGroup to global storage
+			err = mic.store.AddInferGroupForModelInfer(utils.GetNamespaceName(mi), idx)
+			if err != nil {
+				return fmt.Errorf("store infer group failed: %v", err)
+			}
+			// Initialize runningPod storage for inferGroup
+			mic.store.InitRunningPodForInferGroup(types.NamespacedName{
+				Namespace: mi.Namespace,
+				Name:      utils.GenerateInferGroupName(mi.Name, idx),
+			})
+			// Create pods for inferGroup
+			err = mic.CreatePodsForInferGroup(ctx, mi, idx)
+			if err != nil {
+				return fmt.Errorf("create infer group failed: %v", err)
+			}
+		}
+	}
+	for _, group := range condemned {
+		mic.DeleteInferGroup(mi, group.Name)
+	}
+	return nil
+}
+
+func (mic *ModelInferController) CreatePodsForInferGroup(ctx context.Context, mi *workloadv1alpha1.ModelInfer, groupIndex int) error {
+	// traverse each role in inferGroup to create entry-worker pod group.
+	roleList := mi.Spec.Template.Spec.Roles
+	for _, role := range roleList {
+		// there will be multiple replicas in a role, such as xPyD type
+		for roleIndex := range int(*mi.Spec.Replicas) {
+			err := mic.CreatePodByRole(ctx, role, mi, roleIndex, groupIndex)
+			if err != nil {
+				return fmt.Errorf("create role pod failed: %v, role name: %s, role index: %d", err, role.Name, roleIndex)
+			}
+		}
+	}
+	return nil
+}
+
 func (mic *ModelInferController) DeleteInferGroup(mi *workloadv1alpha1.ModelInfer, groupname string) {
 	miNamedName := utils.GetNamespaceName(mi)
 	inferGroupStatus := mic.store.GetInferGroupStatus(miNamedName, groupname)
@@ -262,7 +333,7 @@ func (mic *ModelInferController) DeleteInferGroup(mi *workloadv1alpha1.ModelInfe
 			return
 		}
 		// Delete all pods in inferGroup
-		err = mic.kubeclientset.CoreV1().Pods(miNamedName.Namespace).DeleteCollection(
+		err = mic.kubeClientSet.CoreV1().Pods(miNamedName.Namespace).DeleteCollection(
 			context.TODO(),
 			metav1.DeleteOptions{},
 			metav1.ListOptions{
@@ -288,4 +359,9 @@ func (mic *ModelInferController) DeleteInferGroup(mi *workloadv1alpha1.ModelInfe
 		mic.enqueueMI(mi)
 		return
 	}
+}
+
+func (mic *ModelInferController) CreatePodByRole(ctx context.Context, role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, roleIndex, groupIndex int) error {
+	// TODO: Add Pod creation function
+	return nil
 }
