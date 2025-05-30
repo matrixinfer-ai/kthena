@@ -67,8 +67,12 @@ import (
 const PrefixCachePluginName = "prefix-cache"
 
 const (
-	BlockSizeToHash  = 64
+	// Default token block size of vLLM is 16, and a good guess of average characters per token is 4.
+	// So we use 64 as the default block size.
+	BlockSizeToHash = 64
+	// TODO: make these parameters configurable.
 	MaxBlocksToMatch = 128
+	MaxHashCacheSize = 50000
 )
 
 var _ framework.ScorePlugin = &PrefixCache{}
@@ -85,12 +89,11 @@ func NewPrefixCache() *PrefixCache {
 	p := &PrefixCache{
 		name: PrefixCachePluginName,
 
-		// TODO: make these parameters configurable.
 		blockSizeToHash:  BlockSizeToHash,
 		maxBlocksToMatch: MaxBlocksToMatch,
 	}
 	// Initialize store with default values
-	p.store = cache.NewModelPrefixStore(100, 1000, 5) // TODO: make these configurable
+	p.store = cache.NewModelPrefixStore(100, MaxHashCacheSize, 5) // TODO: make these configurable
 	return p
 }
 
@@ -143,7 +146,8 @@ func (p *PrefixCache) hashPrompt(model string, prompt string) []uint64 {
 	}
 
 	// Initialize first block hash
-	var prevHash uint64 = 0
+	// Use model name as the first hash to avoid hash collision
+	var prevHash uint64 = xxhash.Sum64([]byte(model))
 	blockStart := 0
 
 	// Process blocks up to maxBlocksToMatch or until we run out of prompt

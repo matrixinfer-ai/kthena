@@ -140,7 +140,8 @@ func (s *ModelPrefixStore) Add(model string, hashes []uint64, pod *datastore.Pod
 	}
 
 	// Add pod to each hash's pod map
-	for i := 0; i < len(hashes); i++ {
+	// Add hashes from the end to the beginning to avoid the situation where a long prefix can be matched but a shorter prefix cannot.
+	for i := len(hashes) - 1; i >= 0; i-- {
 		hash := hashes[i]
 		if _, exists := s.entries[model][hash]; !exists {
 			s.entries[model][hash] = make(map[types.NamespacedName]*datastore.PodInfo)

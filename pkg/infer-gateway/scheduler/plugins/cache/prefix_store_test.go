@@ -82,7 +82,7 @@ func TestModelPrefixStore(t *testing.T) {
 			addHashes:    [][]uint64{{1, 2, 3}}, // Add 3 hashes, one should be evicted
 			queryHashes:  []uint64{1, 2, 3},
 			expectedPods: []string{"ns1/pod1"},
-			expectedLens: []int{3},
+			expectedLens: []int{2},
 		},
 	}
 

@@ -33,7 +33,7 @@ func TestHashPrompt(t *testing.T) {
 			blockSize: 64,
 			maxBlocks: 128,
 			expectedHashes: []uint64{
-				xxhash.Sum64([]byte("0Hello World")),
+				xxhash.Sum64([]byte(fmt.Sprintf("%dHello World", xxhash.Sum64([]byte("test-model"))))),
 			},
 		},
 		{
@@ -43,10 +43,10 @@ func TestHashPrompt(t *testing.T) {
 			blockSize: 20,
 			maxBlocks: 128,
 			expectedHashes: []uint64{
-				xxhash.Sum64([]byte("0This is a longer pro")),
-				xxhash.Sum64([]byte(fmt.Sprintf("%dmpt that should span", xxhash.Sum64([]byte("0This is a longer pro"))))),
-				xxhash.Sum64([]byte(fmt.Sprintf("%d multiple blocks bas", xxhash.Sum64([]byte(fmt.Sprintf("%dmpt that should span", xxhash.Sum64([]byte("0This is a longer pro")))))))),
-				xxhash.Sum64([]byte(fmt.Sprintf("%ded on the block size", xxhash.Sum64([]byte(fmt.Sprintf("%d multiple blocks bas", xxhash.Sum64([]byte(fmt.Sprintf("%dmpt that should span", xxhash.Sum64([]byte("0This is a longer pro"))))))))))),
+				xxhash.Sum64([]byte(fmt.Sprintf("%dThis is a longer pro", xxhash.Sum64([]byte("test-model"))))),
+				xxhash.Sum64([]byte(fmt.Sprintf("%dmpt that should span", xxhash.Sum64([]byte(fmt.Sprintf("%dThis is a longer pro", xxhash.Sum64([]byte("test-model")))))))),
+				xxhash.Sum64([]byte(fmt.Sprintf("%d multiple blocks bas", xxhash.Sum64([]byte(fmt.Sprintf("%dmpt that should span", xxhash.Sum64([]byte(fmt.Sprintf("%dThis is a longer pro", xxhash.Sum64([]byte("test-model"))))))))))),
+				xxhash.Sum64([]byte(fmt.Sprintf("%ded on the block size", xxhash.Sum64([]byte(fmt.Sprintf("%d multiple blocks bas", xxhash.Sum64([]byte(fmt.Sprintf("%dmpt that should span", xxhash.Sum64([]byte(fmt.Sprintf("%dThis is a longer pro", xxhash.Sum64([]byte("test-model")))))))))))))),
 			},
 		},
 		{
@@ -56,9 +56,9 @@ func TestHashPrompt(t *testing.T) {
 			blockSize: 10,
 			maxBlocks: 3,
 			expectedHashes: []uint64{
-				xxhash.Sum64([]byte("0A very lon")),
-				xxhash.Sum64([]byte(fmt.Sprintf("%dg prompt t", xxhash.Sum64([]byte("0A very lon"))))),
-				xxhash.Sum64([]byte(fmt.Sprintf("%dest test t", xxhash.Sum64([]byte(fmt.Sprintf("%dg prompt t", xxhash.Sum64([]byte("0A very lon")))))))),
+				xxhash.Sum64([]byte(fmt.Sprintf("%dA very lon", xxhash.Sum64([]byte("test-model"))))),
+				xxhash.Sum64([]byte(fmt.Sprintf("%dg prompt t", xxhash.Sum64([]byte(fmt.Sprintf("%dA very lon", xxhash.Sum64([]byte("test-model")))))))),
+				xxhash.Sum64([]byte(fmt.Sprintf("%dest test t", xxhash.Sum64([]byte(fmt.Sprintf("%dg prompt t", xxhash.Sum64([]byte(fmt.Sprintf("%dA very lon", xxhash.Sum64([]byte("test-model"))))))))))),
 			},
 		},
 	}
