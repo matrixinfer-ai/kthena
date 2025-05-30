@@ -2,11 +2,15 @@ name: Matrixinfer CI Workflow
 
 on:
   pull_request:
+    branches:
+      - main
     paths-ignore:
       - '**.md'
       - '**.svg'
       - '**.png'
-  merge_group: # enable merge queue
+  push:
+    branches:
+      - main
 
 jobs:
 
