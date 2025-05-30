@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+
 	"reflect"
 
 	"k8s.io/apimachinery/pkg/types"
@@ -33,15 +34,20 @@ type ModelInferController struct {
 	store     datastore.Store
 }
 
-func NewModelInferController(kubeclientset kubernetes.Interface, modelInferClient clientset.Interface, store datastore.Store) *ModelInferController {
+func NewModelInferController(kubeClientSet kubernetes.Interface, modelInferClient clientset.Interface) *ModelInferController {
 
-	kubeInformerFactory := informers.NewSharedInformerFactory(kubeclientset, 0)
+	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClientSet, 0)
 	podsInformer := kubeInformerFactory.Core().V1().Pods()
 	modelInferInformerFactory := informersv1alpha1.NewSharedInformerFactory(modelInferClient, 0)
 	modelInferInformer := modelInferInformerFactory.Workload().V1alpha1().ModelInfers()
 
+	store, err := datastore.New()
+	if err != nil {
+		klog.Fatal("Unable to create data store")
+	}
+
 	mic := &ModelInferController{
-		kubeclientset:       kubeclientset,
+		kubeclientset:       kubeClientSet,
 		modelInferClient:    modelInferClient,
 		podsLister:          podsInformer.Informer().GetIndexer(),
 		podsInformer:        podsInformer.Informer(),
@@ -70,13 +76,16 @@ func NewModelInferController(kubeclientset kubernetes.Interface, modelInferClien
 }
 
 func (mic *ModelInferController) addMI(obj interface{}) {
-	mi := obj.(*workloadv1alpha1.ModelInfer)
+	mi, ok := obj.(*workloadv1alpha1.ModelInfer)
+	if !ok {
+		klog.Error("failed to parse ModelInfer type when addMI")
+		return
+	}
 	klog.V(4).Info("Adding", "modelinfer", klog.KObj(mi))
-	var inferGroupList []string
-	err := mic.store.SetInferGroupForModelInfer(types.NamespacedName{
+	err := mic.store.UpdateInferGroupForModelInfer(types.NamespacedName{
 		Namespace: mi.Namespace,
 		Name:      mi.Name,
-	}, &inferGroupList)
+	}, nil)
 	if err != nil {
 		klog.Errorf("add model infer to store failed: %v", err)
 		return
@@ -85,8 +94,16 @@ func (mic *ModelInferController) addMI(obj interface{}) {
 }
 
 func (mic *ModelInferController) updateMI(old, cur interface{}) {
-	curMI := cur.(*workloadv1alpha1.ModelInfer)
-	oldMI := old.(*workloadv1alpha1.ModelInfer)
+	curMI, ok := cur.(*workloadv1alpha1.ModelInfer)
+	if !ok {
+		klog.Error("failed to parse ModelInfer type when updateMI")
+		return
+	}
+	oldMI, ok := old.(*workloadv1alpha1.ModelInfer)
+	if !ok {
+		klog.Error("failed to parse ModelInfer type when updateMI")
+		return
+	}
 	if *(oldMI.Spec.Replicas) != *(curMI.Spec.Replicas) || !reflect.DeepEqual(oldMI.Spec.Template, curMI.Spec.Template) {
 		// Reconciling is only triggered if modelinfer.replicas changes or infergroup.spec changes
 		klog.V(4).Info("Updating", "modelinfer", klog.KObj(curMI))
@@ -96,7 +113,11 @@ func (mic *ModelInferController) updateMI(old, cur interface{}) {
 
 func (mic *ModelInferController) deleteMI(obj interface{}) {
 
-	mi := obj.(*workloadv1alpha1.ModelInfer)
+	mi, ok := obj.(*workloadv1alpha1.ModelInfer)
+	if !ok {
+		klog.Error("failed to parse ModelInfer type when deleteMI")
+		return
+	}
 
 	_, inferGroupList, err := mic.store.GetInferGroupByModelInfer(types.NamespacedName{
 		Namespace: mi.Namespace,
@@ -106,8 +127,8 @@ func (mic *ModelInferController) deleteMI(obj interface{}) {
 		klog.Errorf("get infer group by model infer failed: %v", err)
 		return
 	}
-	for _, group := range *inferGroupList {
-		mic.DeleteInferGroup(mi, group)
+	for _, group := range inferGroupList {
+		mic.DeleteInferGroup(mi, group.Name)
 	}
 	err = mic.store.DeleteModelInfer(types.NamespacedName{
 		Namespace: mi.Namespace,

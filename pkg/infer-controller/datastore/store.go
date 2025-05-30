@@ -8,64 +8,68 @@ import (
 
 // Store is an interface for storing and retrieving data
 type Store interface {
-	GetInferGroupByModelInfer(name types.NamespacedName) (int, *[]string, error)
-	GetRunningPodByInferGroup(name types.NamespacedName) (int, *[]string, error)
-	GetInferGroupStatus(name types.NamespacedName) string
-	DeleteModelInfer(name types.NamespacedName) error
-	DeleteInferGroup(name types.NamespacedName) error
-	SetInferGroupForModelInfer(name types.NamespacedName, inferGroupList *[]string) error
-	SetRunningPodForInferGroup(name types.NamespacedName, runningPodList *[]string) error
-	SetInferGroupStatus(name types.NamespacedName, inferGroupStatus string) error
+	GetInferGroupByModelInfer(modelInferName types.NamespacedName) (int, []InferGroup, error)
+	GetRunningPodByInferGroup(inferGroupName types.NamespacedName) (int, []string, error)
+	GetInferGroupStatus(modelInferName types.NamespacedName, inferGroupName string) string
+	DeleteModelInfer(modelInferName types.NamespacedName) error
+	DeleteInferGroupOfRunningPodMap(inferGroupName types.NamespacedName) error
+	UpdateInferGroupForModelInfer(modelInferName types.NamespacedName, inferGroupList []InferGroup) error
+	UpdateRunningPodForInferGroup(inferGroupName types.NamespacedName, runningPodList []string) error
+	UpdateInferGroupStatus(modelInferName types.NamespacedName, inferGroupName, Status string) error
 }
 
 type store struct {
 	mutex sync.RWMutex
 
-	inferGroup             map[types.NamespacedName]*[]string
-	runningPodOfInferGroup map[types.NamespacedName]*[]string
-	inferGroupStatus       map[types.NamespacedName]string
+	inferGroup             map[types.NamespacedName][]InferGroup
+	runningPodOfInferGroup map[types.NamespacedName][]string
+}
+
+type InferGroup struct {
+	Name      string
+	Namespace string
+	Status    string
 }
 
 func New() (Store, error) {
 	return &store{
-		inferGroup:             make(map[types.NamespacedName]*[]string),
-		runningPodOfInferGroup: make(map[types.NamespacedName]*[]string),
-		inferGroupStatus:       make(map[types.NamespacedName]string),
+		inferGroup:             make(map[types.NamespacedName][]InferGroup),
+		runningPodOfInferGroup: make(map[types.NamespacedName][]string),
 	}, nil
 }
 
-func (s *store) GetInferGroupByModelInfer(name types.NamespacedName) (int, *[]string, error) {
-	// todo Returns the number of infergroups, the list of infergroup names, and errors for a modelinfer
+func (s *store) GetInferGroupByModelInfer(modelInferName types.NamespacedName) (int, []InferGroup, error) {
+	// todo Returns the number of infergroups, the list of infergroup, and errors for a modelinfer
 	return 0, nil, nil
 }
 
-func (s *store) GetRunningPodByInferGroup(name types.NamespacedName) (int, *[]string, error) {
+func (s *store) GetRunningPodByInferGroup(inferGroupName types.NamespacedName) (int, []string, error) {
 	// todo Returns the number of running pods, the list of running pod names, and errors for an infergroup
 	return 0, nil, nil
 }
 
-func (s *store) GetInferGroupStatus(name types.NamespacedName) string {
+func (s *store) GetInferGroupStatus(modelInferName types.NamespacedName, inferGroupName string) string {
 	return ""
 }
 
-func (s *store) DeleteModelInfer(name types.NamespacedName) error {
+func (s *store) DeleteModelInfer(modelInferName types.NamespacedName) error {
 	// delete modelInfer in inferGroup map
 	return nil
 }
 
-func (s *store) DeleteInferGroup(name types.NamespacedName) error {
-	// delete inferGroup in runningPodOfInferGroup and inferGroupStatus map
+func (s *store) DeleteInferGroupOfRunningPodMap(inferGroupName types.NamespacedName) error {
+	// delete inferGroup in runningPodOfInferGroup
 	return nil
 }
 
-func (s *store) SetInferGroupForModelInfer(name types.NamespacedName, inferGroupList *[]string) error {
+func (s *store) UpdateInferGroupForModelInfer(modelInferName types.NamespacedName, inferGroupList []InferGroup) error {
 	return nil
 }
 
-func (s *store) SetRunningPodForInferGroup(name types.NamespacedName, runningPodList *[]string) error {
+func (s *store) UpdateRunningPodForInferGroup(inferGroupName types.NamespacedName, runningPodList []string) error {
 	return nil
 }
 
-func (s *store) SetInferGroupStatus(name types.NamespacedName, inferGroupStatus string) error {
+func (s *store) UpdateInferGroupStatus(modelInferName types.NamespacedName, inferGroupName, Status string) error {
 	return nil
 }

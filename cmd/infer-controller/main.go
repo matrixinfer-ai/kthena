@@ -12,7 +12,6 @@ import (
 
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
 	"matrixinfer.ai/matrixinfer/pkg/infer-controller/controller"
-	"matrixinfer.ai/matrixinfer/pkg/infer-controller/datastore"
 )
 
 func main() {
@@ -40,14 +39,8 @@ func main() {
 		klog.Fatalf("failed to create ModelInfer client: %v", err)
 	}
 
-	store, err := datastore.New()
-	if err != nil {
-		klog.Error("Unable to create data store")
-		os.Exit(1)
-	}
-
 	// create ModelInfer controller
-	mic := controller.NewModelInferController(kubeClient, modelInferClient, store)
+	mic := controller.NewModelInferController(kubeClient, modelInferClient)
 
 	// Start controller
 	go mic.Run()
