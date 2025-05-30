@@ -3,9 +3,9 @@ package controller
 import (
 	"context"
 	"fmt"
-
 	"reflect"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/informers"
@@ -18,6 +18,11 @@ import (
 	informersv1alpha1 "matrixinfer.ai/matrixinfer/client-go/informers/externalversions"
 	workloadv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-controller/datastore"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
+)
+
+const (
+	podOfInferGroupLabel = "modelinfer/infergroupname"
 )
 
 type ModelInferController struct {
@@ -194,4 +199,45 @@ func (mic *ModelInferController) UpdateStatus() {
 }
 
 func (mic *ModelInferController) DeleteInferGroup(mi *workloadv1alpha1.ModelInfer, groupname string) {
+	miNamedName := utils.GetNamespaceName(mi)
+	inferGroupStatus := mic.store.GetInferGroupStatus(miNamedName, groupname)
+	if inferGroupStatus == datastore.InferGroupNotFound {
+		return
+	}
+
+	if inferGroupStatus != datastore.InferGroupDeleting {
+		err := mic.store.UpdateInferGroupStatus(miNamedName, groupname, datastore.InferGroupDeleting)
+		if err != nil {
+			klog.Errorf("failed to set inferGroup %s/%s status: %v", miNamedName.Namespace+"/"+mi.Name, groupname, err)
+		}
+	}
+
+	// Delete all pods in inferGroup
+	label := fmt.Sprintf("%s=%s", podOfInferGroupLabel, groupname)
+	err := mic.kubeclientset.CoreV1().Pods(miNamedName.Namespace).DeleteCollection(
+		context.TODO(),
+		metav1.DeleteOptions{},
+		metav1.ListOptions{
+			LabelSelector: label,
+		},
+	)
+	if err != nil {
+		klog.Errorf("failed to delete inferGroup %s/%s: %v", miNamedName.Namespace+"/"+mi.Name, groupname, err)
+	}
+
+	// check whether the deletion has been completed
+	pods, err := mic.kubeclientset.CoreV1().Pods(miNamedName.Namespace).List(
+		context.TODO(),
+		metav1.ListOptions{LabelSelector: label},
+	)
+	if err != nil {
+		klog.Errorf("failed to get podList of inferGroup %s/%s: %v", miNamedName.Namespace+"/"+mi.Name, groupname, err)
+	}
+	if len(pods.Items) == 0 {
+		mic.store.DeleteInferGroupOfRunningPodMap(miNamedName, groupname)
+		mic.enqueueMI(mi)
+		return
+	}
+
+	return
 }
