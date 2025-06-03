@@ -165,14 +165,16 @@ func (mic *ModelInferController) deletePod(obj interface{}) {
 		return
 	}
 
-	podNamedName := utils.GetNamespaceName(&pod)
-	inferGroupNames := mic.store.GetInferGroupNameByRunningPod(podNamedName)
-	for _, inferGroupName := range inferGroupNames {
-		modelInfer := mic.store.GetModelInferByInferGroup(types.NamespacedName{
-			Namespace: pod.GetNamespace(),
-			Name:      inferGroupName,
-		})
-		mic.DeleteInferGroup(modelInfer, inferGroupName)
+	labels := pod.GetLabels()
+	for key, value := range labels {
+		if key == podOfInferGroupLabel {
+			inferGroupName := value
+			modelInfer := mic.store.GetModelInferByInferGroup(types.NamespacedName{
+				Namespace: pod.GetNamespace(),
+				Name:      inferGroupName,
+			})
+			mic.DeleteInferGroup(modelInfer, inferGroupName)
+		}
 	}
 }
 

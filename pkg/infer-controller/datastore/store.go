@@ -1,6 +1,7 @@
 package datastore
 
 import (
+	"fmt"
 	"sync"
 
 	"k8s.io/apimachinery/pkg/types"
@@ -27,7 +28,7 @@ type store struct {
 
 	inferGroup              map[types.NamespacedName][]InferGroup
 	runningPodOfInferGroups map[types.NamespacedName][]string
-	inferGroupOfModelInfer  map[types.NamespacedName]*workloadv1alpha1.ModelInfer
+	modelInferOfInferGroup  map[types.NamespacedName]*workloadv1alpha1.ModelInfer
 }
 
 type InferGroup struct {
@@ -49,18 +50,33 @@ func New() (Store, error) {
 	return &store{
 		inferGroup:              make(map[types.NamespacedName][]InferGroup),
 		runningPodOfInferGroups: make(map[types.NamespacedName][]string),
-		inferGroupOfModelInfer:  make(map[types.NamespacedName]*workloadv1alpha1.ModelInfer),
+		modelInferOfInferGroup:  make(map[types.NamespacedName]*workloadv1alpha1.ModelInfer),
 	}, nil
 }
 
+// Returns the number of infergroups, the list of infergroup, and errors for a modelinfer
 func (s *store) GetInferGroupByModelInfer(modelInferName types.NamespacedName) (int, []InferGroup, error) {
-	// todo Returns the number of infergroups, the list of infergroup, and errors for a modelinfer
-	return 0, nil, nil
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	inferGroups, ok := s.inferGroup[modelInferName]
+	if !ok {
+		return 0, nil, nil
+	}
+	return len(inferGroups), inferGroups, nil
 }
 
+// Returns the number of running pods, the list of running pod names, and errors for an infergroup
 func (s *store) GetRunningPodByInferGroup(modelInferName types.NamespacedName, inferGroupName string) (int, []string, error) {
-	// todo Returns the number of running pods, the list of running pod names, and errors for an infergroup
-	return 0, nil, nil
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	runningPods, ok := s.runningPodOfInferGroups[types.NamespacedName{
+		Namespace: modelInferName.Namespace,
+		Name:      inferGroupName,
+	}]
+	if !ok {
+		return 0, nil, nil
+	}
+	return len(runningPods), runningPods, nil
 }
 
 func (s *store) GetInferGroupStatus(modelInferName types.NamespacedName, inferGroupName string) InferGroupStatus {
@@ -76,15 +92,30 @@ func (s *store) GetInferGroupStatus(modelInferName types.NamespacedName, inferGr
 	return InferGroupNotFound
 }
 
+// delete modelInfer in inferGroup map
 func (s *store) DeleteModelInfer(modelInferName types.NamespacedName) error {
-	// delete modelInfer in inferGroup map
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	inferGroups, ok := s.inferGroup[modelInferName]
+	if !ok {
+		return nil
+	}
+	for _, groupName := range inferGroups {
+		groupNamedName := types.NamespacedName{
+			Namespace: groupName.Namespace,
+			Name:      groupName.Name,
+		}
+		delete(s.modelInferOfInferGroup, groupNamedName)
+	}
+	delete(s.inferGroup, modelInferName)
 	return nil
 }
 
+// delete inferGroup in runningPodOfInferGroup
 func (s *store) DeleteInferGroupOfRunningPodMap(modelInferName types.NamespacedName, inferGroupName string) error {
-	// delete inferGroup in runningPodOfInferGroup
 	s.mutex.Lock()
 	defer s.mutex.RLock()
+
 	groupNamedName := types.NamespacedName{
 		Namespace: modelInferName.Namespace,
 		Name:      inferGroupName,
@@ -99,21 +130,41 @@ func (s *store) DeleteInferGroupOfRunningPodMap(modelInferName types.NamespacedN
 }
 
 func (s *store) UpdateInferGroupForModelInfer(modelInferName types.NamespacedName, inferGroupList []InferGroup) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	s.inferGroup[modelInferName] = inferGroupList
 	return nil
 }
 
 func (s *store) UpdateRunningPodForInferGroup(inferGroupName types.NamespacedName, runningPodList []string) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	s.runningPodOfInferGroups[inferGroupName] = runningPodList
 	return nil
 }
 
-func (s *store) UpdateInferGroupStatus(modelInferName types.NamespacedName, inferGroupName string, Status InferGroupStatus) error {
+func (s *store) UpdateInferGroupStatus(modelInferName types.NamespacedName, inferGroupName string, status InferGroupStatus) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	inferGroups, ok := s.inferGroup[modelInferName]
+	if !ok {
+		return fmt.Errorf("Failed to find modelInfer %s", modelInferName.Namespace+"/"+modelInferName.Name)
+	}
+	for _, inferGroup := range inferGroups {
+		if inferGroup.Name == inferGroupName {
+			inferGroup.Status = status
+		}
+	}
 	return nil
 }
 
 func (s *store) GetModelInferByInferGroup(name types.NamespacedName) *workloadv1alpha1.ModelInfer {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	for groupName, modelInfer := range s.inferGroupOfModelInfer {
+	for groupName, modelInfer := range s.modelInferOfInferGroup {
 		if groupName == name {
 			return modelInfer
 		}
