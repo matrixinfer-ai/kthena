@@ -18,7 +18,9 @@ package controller
 
 import (
 	"context"
-	"github.com/google/uuid"
+	"fmt"
+	"strings"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,7 +37,10 @@ import (
 const (
 	ModelFinalizer = "matrixinfer.ai/finalizer"
 	// Reason for condition
-	ModelInitsReason = "ModelInits"
+	ModelInitsReason             = "ModelInits"
+	ModelBackendEngineTypeVLLM   = "vllm"
+	ModelBackendEngineTypeSlang  = "sglang"
+	ModelBackendEngineTypeMindIE = "mindie"
 )
 
 // ModelReconciler reconciles a Model object
@@ -82,10 +87,10 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, nil
 	}
 	// When model condition is null, create model infer according to model.
-	if model.Status.Conditions == nil || len(model.Status.Conditions) == 0 {
+	if len(model.Status.Conditions) == 0 {
 		klog.Info("model status condition is null, create model infer")
-		modelInfers := make([]*workload.ModelInfer, len(model.Spec.Backends))
-		err := r.convertModelToModelInfer(model, modelInfers)
+
+		modelInfers, err := buildModelInferCR(model)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -117,39 +122,187 @@ func newCondition(conditionType string, status metav1.ConditionStatus, reason st
 	}
 }
 
-func (r *ModelReconciler) convertModelToModelInfer(model *registryv1.Model, infers []*workload.ModelInfer) error {
-	for i, backend := range model.Spec.Backends {
+func getModelBackendEngineType(engineType *registryv1.ModelBackendType) (string, error) {
+	switch *engineType {
+	case registryv1.ModelBackendTypeVLLM:
+		return ModelBackendEngineTypeVLLM, nil
+	case registryv1.ModelBackendTypeVLLMDisaggregated:
+		return ModelBackendEngineTypeVLLM, nil
+	case registryv1.ModelBackendTypeSGLang:
+		return ModelBackendEngineTypeSlang, nil
+	case registryv1.ModelBackendTypeMindIE:
+		return ModelBackendEngineTypeMindIE, nil
+	case registryv1.ModelBackendTypeMindIEDisaggregated:
+		return ModelBackendEngineTypeMindIE, nil
+	default:
+		return "", fmt.Errorf("not support model backend type: %s", *engineType)
+	}
+}
+
+func buildEngineContainer(backend *registryv1.ModelBackend, worker *registryv1.ModelWorker, volume *corev1.Volume) (*corev1.Container, error) {
+	workerName := backend.Name + "-" + string(worker.Type)
+	volumeMounts := []corev1.VolumeMount{}
+	if volume != nil {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      volume.Name,
+			MountPath: getMountPath(backend),
+		})
+	}
+	switch worker.Type {
+	case registryv1.ModelWorkerTypeServer:
+		return &corev1.Container{
+			Name:         workerName,
+			Image:        worker.Image,
+			Args:         nil, // TODO: Get args from backend.config
+			Resources:    worker.Resources,
+			VolumeMounts: volumeMounts,
+		}, nil
+	default:
+		// TODO: support prefill and decode
+		return nil, fmt.Errorf("not support worker type: %s", string(worker.Type))
+	}
+}
+
+func getWorkerName(backend *registryv1.ModelBackend, worker *registryv1.ModelWorker) string {
+	return backend.Name + "-" + string(worker.Type)
+}
+
+func getMountPath(backend *registryv1.ModelBackend) string {
+	return "/" + backend.Name
+}
+
+func buildRuntimeContainer(backend *registryv1.ModelBackend, worker *registryv1.ModelWorker) (*corev1.Container, error) {
+	modelBackendEngineType, e := getModelBackendEngineType(&backend.Type)
+	if e != nil {
+		return nil, e
+	}
+	switch worker.Type {
+	case registryv1.ModelWorkerTypeServer, registryv1.ModelWorkerTypePrefill, registryv1.ModelWorkerTypeDecode:
+		return &corev1.Container{
+			Name:  getWorkerName(backend, worker) + "-runtime",
+			Image: "matrixinfer/runtime:latest", //TODO: Get from helm values
+			Args: []string{
+				"-p", "8100",
+				"-u", "http://locahost:8000",
+				"-e", modelBackendEngineType,
+			},
+		}, nil
+	default:
+		return nil, nil
+	}
+}
+
+func buildCacheVolume(backend *registryv1.ModelBackend, worker *registryv1.ModelWorker) (*corev1.Volume, error) {
+	// TODO: add format check CacheURI
+	volumeName := getWorkerName(backend, worker) + "-weights"
+	switch {
+	case backend.CacheURI == "":
+		return nil, nil
+	case strings.HasPrefix(backend.CacheURI, "pvc://"):
+		return &corev1.Volume{
+			Name: volumeName,
+			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: strings.Split(backend.CacheURI, "://")[1],
+				},
+			},
+		}, nil
+	case strings.HasPrefix(backend.CacheURI, "hostPath://"):
+		return &corev1.Volume{
+			Name: volumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: strings.Split(backend.CacheURI, ":/")[1],
+				},
+			},
+		}, nil
+	}
+	return nil, fmt.Errorf("not support prefix in CacheURI: %s", backend.CacheURI)
+}
+
+func buildDownloadContainer(backend *registryv1.ModelBackend, worker *registryv1.ModelWorker, volume *corev1.Volume) (*corev1.Container, error) {
+	if worker.Type == registryv1.ModelWorkerTypeController || worker.Type == registryv1.ModelWorkerTypeCoordinator {
+		return nil, nil
+	}
+	workerName := getWorkerName(backend, worker)
+	downloaderPath := getMountPath(backend)
+
+	volumeMounts := []corev1.VolumeMount{}
+	if volume != nil {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      volume.Name,
+			MountPath: downloaderPath,
+		})
+	}
+	modelBackendEngineType, e := getModelBackendEngineType(&backend.Type)
+	if e != nil {
+		return nil, e
+	}
+	return &corev1.Container{
+		Name:         workerName + "-downloader",
+		Image:        "matrixinfer/downloader:latest", //TODO: Get from helm values
+		Args:         []string{"-s", backend.ModelURI, "-o", downloaderPath, "-e", modelBackendEngineType},
+		VolumeMounts: volumeMounts,
+	}, nil
+}
+
+func buildModelInferCR(model *registryv1.Model) ([]*workload.ModelInfer, error) {
+	infers := make([]*workload.ModelInfer, len(model.Spec.Backends))
+	for backend_idx, backend := range model.Spec.Backends {
 		roles := make([]workload.Role, len(backend.Workers))
-		for j, worker := range backend.Workers {
-			roles[j] = workload.Role{
-				Name:            string(worker.Type),
+		for worker_idx, worker := range backend.Workers {
+			workerName := getWorkerName(&backend, &worker)
+			initContainers := []corev1.Container{}
+			volumes := []corev1.Volume{}
+			// Set model weights volumes, if cacheURI is not empty.
+			cacheVolume, e := buildCacheVolume(&backend, &worker)
+			if e != nil {
+				return nil, e
+			}
+			if cacheVolume != nil {
+				volumes = append(volumes, *cacheVolume)
+			}
+			// Set downloader in init containers.
+			downloadContainer, e := buildDownloadContainer(&backend, &worker, cacheVolume)
+			if e != nil {
+				return nil, e
+			}
+			if downloadContainer != nil {
+				initContainers = append(initContainers, *downloadContainer)
+			}
+			// Set engine container.
+			engineContainer, e := buildEngineContainer(&backend, &worker, cacheVolume)
+			if e != nil {
+				return nil, e
+			}
+			containers := []corev1.Container{*engineContainer}
+			// Set runtime container if it's not controller or coordinator.
+			runtimeContainer, e := buildRuntimeContainer(&backend, &worker)
+			if e != nil {
+				return nil, e
+			}
+			if runtimeContainer != nil {
+				containers = append(containers, *runtimeContainer)
+			}
+
+			roles[worker_idx] = workload.Role{
+				Name:            workerName,
 				Replicas:        &worker.Replicas,
 				NetworkTopology: nil,
 				EntryTemplate: corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
-						InitContainers: []corev1.Container{
-							{
-								Name:  "init-container",
-								Image: "matrixinfer/runtime",
-							},
-						},
-						Containers: []corev1.Container{
-							{
-								Name:  "vllm-leader",
-								Image: worker.Image,
-								Args:  nil, // TODO: Get args from config
-							},
-						},
-						Resources: &worker.Resources,
+						InitContainers: initContainers,
+						Containers:     containers,
+						Volumes:        volumes,
 					},
 				},
 				WorkerReplicas: func() *int32 { result := worker.Pods - 1; return &result }(),
-				WorkerTemplate: nil,
+				WorkerTemplate: nil, // TODO: fix it
 			}
 		}
-		infers[i] = &workload.ModelInfer{
+		infers[backend_idx] = &workload.ModelInfer{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      model.Name + uuid.New().String(), // TODO: Can't use backend name as CR name due to k8s specification, use uuid for now.
+				Name:      model.Name + "-instance",
 				Namespace: model.Namespace,
 			},
 			Spec: workload.ModelInferSpec{
@@ -172,7 +325,7 @@ func (r *ModelReconciler) convertModelToModelInfer(model *registryv1.Model, infe
 			},
 		}
 	}
-	return nil
+	return infers, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

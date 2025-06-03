@@ -55,6 +55,13 @@ type ModelBackend struct {
 	Config apiextensionsv1.JSON `json:"config,omitempty"`
 	// ModelURI is the URI where the model is stored.
 	ModelURI string `json:"modelURI"`
+	// CacheURI is the URI where the model cache is stored.
+	// +optional
+	CacheURI string `json:"cacheURI,omitempty"`
+	// Env variables to be added to the server process.
+	Env map[string]string `json:"env,omitempty"`
+	// Env variables to be added to the server process from Secret or ConfigMap.
+	EnvFrom []corev1.EnvFromSource `json:"envFrom,omitempty"`
 	// MinReplicas is the minimum number of replicas for the backend.
 	// +kubebuilder:validation:Minimum=0
 	MinReplicas int32 `json:"minReplicas"`
