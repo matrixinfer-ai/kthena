@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -76,6 +77,12 @@ func NewModelInferController(kubeClientSet kubernetes.Interface, modelInferClien
 		},
 	})
 
+	podsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    mic.addPod,
+		UpdateFunc: mic.updatePod,
+		DeleteFunc: mic.deletePod,
+	})
+
 	mic.syncHandler = mic.syncModelInfer
 
 	return mic
@@ -110,6 +117,7 @@ func (mic *ModelInferController) updateMI(old, cur interface{}) {
 		klog.Error("failed to parse ModelInfer type when updateMI")
 		return
 	}
+
 	if *(oldMI.Spec.Replicas) != *(curMI.Spec.Replicas) || !reflect.DeepEqual(oldMI.Spec.Template, curMI.Spec.Template) {
 		// Reconciling is only triggered if modelinfer.replicas changes or infergroup.spec changes
 		klog.V(4).Info("Updating", "modelinfer", klog.KObj(curMI))
@@ -141,6 +149,30 @@ func (mic *ModelInferController) deleteMI(obj interface{}) {
 	})
 	if err != nil {
 		klog.Errorf("delete model infer store failed: %v", err)
+	}
+}
+
+func (mic *ModelInferController) addPod(obj interface{}) {
+}
+
+func (mic *ModelInferController) updatePod(oldObj, newObj interface{}) {
+}
+
+func (mic *ModelInferController) deletePod(obj interface{}) {
+	pod, ok := obj.(corev1.Pod)
+	if !ok {
+		klog.Error("failed to parse pod type when deletePod")
+		return
+	}
+
+	podNamedName := utils.GetNamespaceName(&pod)
+	inferGroupNames := mic.store.GetInferGroupNameByRunningPod(podNamedName)
+	for _, inferGroupName := range inferGroupNames {
+		modelInfer := mic.store.GetModelInferByInferGroup(types.NamespacedName{
+			Namespace: pod.GetNamespace(),
+			Name:      inferGroupName,
+		})
+		mic.DeleteInferGroup(modelInfer, inferGroupName)
 	}
 }
 
