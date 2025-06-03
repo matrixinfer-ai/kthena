@@ -18,9 +18,13 @@ package controller
 
 import (
 	"context"
+	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -82,3 +86,65 @@ var _ = Describe("Model Controller", func() {
 		})
 	})
 })
+
+func TestModelController_CacheVolume_HuggingFace_HostPath(t *testing.T) {
+	model := &registryv1.Model{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-model",
+			Namespace: "default",
+		},
+		Spec: registryv1.ModelSpec{
+			Backends: []registryv1.ModelBackend{
+				{
+					Name:        "backend1",
+					Type:        registryv1.ModelBackendTypeVLLM,
+					MinReplicas: 1,
+					ModelURI:    "hf://test/dummy",
+					CacheURI:    "hostPath://tmp/test",
+					Workers: []registryv1.ModelWorker{
+						{
+							Type:  registryv1.ModelWorkerTypeServer,
+							Pods:  1,
+							Image: "vllm-server:latest",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	infers, err := buildModelInferCR(model)
+	assert.Nil(t, err)
+	assert.Len(t, infers, 1)
+	assert.Len(t, infers[0].Spec.Template.Spec.Roles, 1)
+
+	// check volumes
+	assert.Len(t, infers[0].Spec.Template.Spec.Roles[0].EntryTemplate.Spec.Volumes, 1)
+	diff := cmp.Diff(corev1.Volume{
+		Name: "backend1-server-weights",
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: "/tmp/test",
+			},
+		},
+	}, infers[0].Spec.Template.Spec.Roles[0].EntryTemplate.Spec.Volumes[0])
+	assert.Empty(t, diff, "Differences found:\n%s", diff)
+	// check init containers
+	assert.Len(t, infers[0].Spec.Template.Spec.Roles[0].EntryTemplate.Spec.InitContainers, 1)
+	diff = cmp.Diff(corev1.Container{
+		Name:  "backend1-server-downloader",
+		Image: "matrixinfer/downloader:latest",
+		Args: []string{
+			"-s", "hf://test/dummy",
+			"-o", "/backend1",
+			"-e", "vllm",
+		},
+		VolumeMounts: []corev1.VolumeMount{
+			{
+				Name:      "backend1-server-weights",
+				MountPath: "/backend1",
+			},
+		},
+	}, infers[0].Spec.Template.Spec.Roles[0].EntryTemplate.Spec.InitContainers[0])
+	assert.Empty(t, diff, "Differences found:\n%s", diff)
+}
