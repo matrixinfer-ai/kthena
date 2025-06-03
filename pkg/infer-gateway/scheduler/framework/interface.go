@@ -7,6 +7,8 @@ import (
 // Context stores information which maybe useful in Filter or Score plugins.
 type Context struct {
 	Model string
+	User string
+	Message string
 }
 
 // FilterPlugin is an interface that is used to filter valid pods that can be sent request to.
