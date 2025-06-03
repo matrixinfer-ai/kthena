@@ -1,7 +1,7 @@
 from typing import Dict, Optional
 
 from prometheus_client import Metric
-from python.runtime.metric import MetricOperator, RenameMetric
+from metric import MetricOperator, RenameMetric
 
 
 STANDARD_RULES: Dict[str, list[MetricOperator]] = {

@@ -1,12 +1,12 @@
 import logging
-from typing import Optional, Dict, Iterable, List
+from typing import Iterable, List
 
 from prometheus_client import generate_latest
 from prometheus_client.parser import text_string_to_metric_families
 from prometheus_client.core import Metric
 from prometheus_client.registry import Collector, CollectorRegistry
 
-from python.runtime.standard import MetricStandard
+from standard import MetricStandard
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)

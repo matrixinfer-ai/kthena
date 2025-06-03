@@ -9,8 +9,8 @@ from env import TIMEOUT, TARGET_SERVICE_URL
 import uvicorn
 from contextlib import asynccontextmanager
 
-from python.runtime.collect import process_metrics
-from python.runtime.standard import MetricStandard
+from collect import process_metrics
+from standard import MetricStandard
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -58,7 +58,7 @@ def main():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
-        "-e",
+        "-E",
         "--engine",
         type=str,
         required=True,
@@ -72,14 +72,14 @@ def main():
         help="Host address",
     )
     parser.add_argument(
-        "-p",
+        "-P",
         "--port",
         type=int,
         default=8000,
         help="Port number",
     )
     parser.add_argument(
-        "-u",
+        "-U",
         "--url",
         type=str,
         default="/metrics",
