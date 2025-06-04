@@ -8,8 +8,6 @@ import (
 	"math"
 	"sync"
 	"time"
-
-	"github.com/vllm-project/aibrix/pkg/utils"
 )
 
 // Sliding window configuration
@@ -20,18 +18,11 @@ const (
 	defaultTimeUnit               = "minutes"
 )
 
-const (
-	VTC_TOKEN_TRACKER_WINDOW_SIZE = "AIBRIX_ROUTER_VTC_TOKEN_TRACKER_WINDOW_SIZE"
-	VTC_TOKEN_TRACKER_TIME_UNIT   = "AIBRIX_ROUTER_VTC_TOKEN_TRACKER_TIME_UNIT"
-	VTC_TOKEN_TRACKER_MIN_TOKENS  = "AIBRIX_ROUTER_VTC_TOKEN_TRACKER_MIN_TOKENS"
-	VTC_TOKEN_TRACKER_MAX_TOKENS  = "AIBRIX_ROUTER_VTC_TOKEN_TRACKER_MAX_TOKENS"
-)
-
 var (
-	tokenTrackerWindowSize = utils.LoadEnvInt(VTC_TOKEN_TRACKER_WINDOW_SIZE, defaultTokenTrackerWindowSize)
-	tokenTrackerMinTokens  = utils.LoadEnvFloat(VTC_TOKEN_TRACKER_MIN_TOKENS, defaultTokenTrackerMinTokens)
-	tokenTrackerMaxTokens  = utils.LoadEnvFloat(VTC_TOKEN_TRACKER_MAX_TOKENS, defaultTokenTrackerMaxTokens)
-	timeUnitStr            = utils.LoadEnv(VTC_TOKEN_TRACKER_TIME_UNIT, defaultTimeUnit)
+	tokenTrackerWindowSize = defaultTokenTrackerWindowSize
+	tokenTrackerMinTokens  = defaultTokenTrackerMinTokens
+	tokenTrackerMaxTokens  = defaultTokenTrackerMaxTokens
+	timeUnitStr            = defaultTimeUnit
 )
 
 type TimeUnit int
@@ -78,7 +69,6 @@ type InMemorySlidingWindowTokenTracker struct {
 	totalsToUsers   map[float64]map[string]struct{} // total -> set of users
 	minTrackedToken float64
 	maxTrackedToken float64
-	config          *VTCConfig
 }
 
 // TokenTrackerOption is a function that configures a token tracker
@@ -176,7 +166,7 @@ func (t *InMemorySlidingWindowTokenTracker) pruneExpiredBucketsAndUpdateState(us
 }
 
 // Time: Avg O(1) (amortized), Worst O(B_u) where B_u = buckets for user u | Space: O(1)
-func (t *InMemorySlidingWindowTokenTracker) GetTokenCount(ctx context.Context, user string) (float64, error) {
+func (t *InMemorySlidingWindowTokenTracker) GetTokenCount(user string) (float64, error) {
 	t.mu.RLock()
 
 	if user == "" {
@@ -226,7 +216,7 @@ func (t *InMemorySlidingWindowTokenTracker) GetTokenCount(ctx context.Context, u
 }
 
 // Time: O(1) | Space: O(1)
-func (t *InMemorySlidingWindowTokenTracker) GetMinTokenCount(ctx context.Context) (float64, error) {
+func (t *InMemorySlidingWindowTokenTracker) GetMinTokenCount() (float64, error) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
@@ -238,7 +228,7 @@ func (t *InMemorySlidingWindowTokenTracker) GetMinTokenCount(ctx context.Context
 }
 
 // Time: O(1) | Space: O(1)
-func (t *InMemorySlidingWindowTokenTracker) GetMaxTokenCount(ctx context.Context) (float64, error) {
+func (t *InMemorySlidingWindowTokenTracker) GetMaxTokenCount() (float64, error) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
@@ -250,7 +240,7 @@ func (t *InMemorySlidingWindowTokenTracker) GetMaxTokenCount(ctx context.Context
 }
 
 // Time: Avg O(1) (amortized), Worst O(B_u) where B_u = buckets for user u | Space: O(1)
-func (t *InMemorySlidingWindowTokenTracker) UpdateTokenCount(ctx context.Context, user string, inputTokens, outputTokens float64) error {
+func (t *InMemorySlidingWindowTokenTracker) UpdateTokenCount(user string, inputTokens, outputTokens float64) error {
 	if user == "" {
 		return fmt.Errorf("user ID cannot be empty")
 	}
