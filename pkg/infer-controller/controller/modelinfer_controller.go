@@ -12,12 +12,14 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	listerv1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
 	informersv1alpha1 "matrixinfer.ai/matrixinfer/client-go/informers/externalversions"
+	listerv1alpha1 "matrixinfer.ai/matrixinfer/client-go/listers/workload/v1alpha1"
 	workloadv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-controller/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
@@ -32,9 +34,9 @@ type ModelInferController struct {
 	modelInferClient clientset.Interface
 
 	syncHandler         func(ctx context.Context, miKey string) error
-	podsLister          cache.Indexer
+	podsLister          listerv1.PodLister
 	podsInformer        cache.Controller
-	modelInfersLister   cache.Indexer
+	modelInfersLister   listerv1alpha1.ModelInferLister
 	modelInfersInformer cache.Controller
 
 	// nolint
@@ -56,9 +58,9 @@ func NewModelInferController(kubeClientSet kubernetes.Interface, modelInferClien
 	mic := &ModelInferController{
 		kubeclientset:       kubeClientSet,
 		modelInferClient:    modelInferClient,
-		podsLister:          podsInformer.Informer().GetIndexer(),
+		podsLister:          podsInformer.Lister(),
 		podsInformer:        podsInformer.Informer(),
-		modelInfersLister:   modelInferInformer.Informer().GetIndexer(),
+		modelInfersLister:   modelInferInformer.Lister(),
 		modelInfersInformer: modelInferInformer.Informer(),
 		// nolint
 		workqueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "ModelInfers"),
@@ -78,10 +80,16 @@ func NewModelInferController(kubeClientSet kubernetes.Interface, modelInferClien
 		},
 	})
 
-	podsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    mic.addPod,
-		UpdateFunc: mic.updatePod,
-		DeleteFunc: mic.deletePod,
+	_, _ = podsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			mic.addPod(obj)
+		},
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			mic.updatePod(oldObj, newObj)
+		},
+		DeleteFunc: func(obj interface{}) {
+			mic.deletePod(obj)
+		},
 	})
 
 	mic.syncHandler = mic.syncModelInfer
@@ -167,19 +175,16 @@ func (mic *ModelInferController) deletePod(obj interface{}) {
 	}
 
 	inferGroupName, ok := pod.GetLabels()[podOfInferGroupLabel]
-	klog.Errorf("failed to get infergroupName of pod %s/%s", pod.GetNamespace(), pod.GetName())
+	if !ok {
+		klog.Errorf("failed to get infergroupName of pod %s/%s", pod.GetNamespace(), pod.GetName())
+		return
+	}
 
 	owners := pod.GetOwnerReferences()
 	for i := range owners {
 		if owners[i].Kind == "ModelInfer" {
-			miName := fmt.Sprintf("%s/%s", pod.GetNamespace(), owners[i].Name)
-			miObj, exist, err := mic.modelInfersLister.GetByKey(miName)
-			if err == nil && exist {
-				mi, ok := miObj.(*workloadv1alpha1.ModelInfer)
-				if !ok {
-					klog.Error("failed to parse modelInfer type when deletePod")
-					return
-				}
+			mi, err := mic.modelInfersLister.ModelInfers(pod.GetNamespace()).Get(owners[i].Name)
+			if err == nil {
 				mic.DeleteInferGroup(mi, inferGroupName)
 			} else {
 				klog.Errorf("failed to get modelInfer of pod %s/%s: %v", pod.GetNamespace(), pod.GetName(), err)
@@ -271,24 +276,16 @@ func (mic *ModelInferController) DeleteInferGroup(mi *workloadv1alpha1.ModelInfe
 	}
 
 	// check whether the deletion has been completed
-	deleteAll := true
 	selector := labels.SelectorFromSet(map[string]string{
 		podOfInferGroupLabel: groupname,
 	})
-	for _, obj := range mic.podsLister.List() {
-		pod, ok := obj.(*corev1.Pod)
-		if !ok {
-			continue
-		}
-		if selector.Matches(labels.Set(pod.Labels)) {
-			deleteAll = false
-		}
+	pods, err := mic.podsLister.Pods(mi.GetNamespace()).List(selector)
+	if err != nil {
+		klog.Errorf("failed to get ")
 	}
-	if deleteAll {
-		mic.store.DeleteInferGroupOfRunningPodMap(miNamedName, groupname)
+	if len(pods) == 0 {
+		_ = mic.store.DeleteInferGroupOfRunningPodMap(miNamedName, groupname)
 		mic.enqueueMI(mi)
 		return
 	}
-
-	return
 }
