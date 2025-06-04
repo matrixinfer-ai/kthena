@@ -72,104 +72,56 @@ func (v *BasicVTCRouter) Name() string {
 	return v.name
 }
 func (v *BasicVTCRouter) Score(pods []*datastore.PodInfo, ctx *framework.Context) map[*datastore.PodInfo]int {
-
-	return nil
-}
-
-// Route implements the VTC routing algorithm
-func (r *BasicVTCRouter) Route(ctx *types.RoutingContext, readyPodList types.PodList) (string, error) {
-	readyPods := readyPodList.All()
-	user := ctx.User
-	if user == nil {
-		klog.Warningf("VTC routing not possible: user is nil, falling back to random pod selection")
-		randomPod, err := utils.SelectRandomPod(readyPods, rand.Intn)
-		if err != nil {
-			return "", fmt.Errorf("fallback to random pod selection failed: %w", err)
-		}
-		ctx.SetTargetPod(randomPod)
-		return ctx.TargetAddress(), nil
+	// Stores the computed score for each pod
+	scoreResults := make(map[*datastore.PodInfo]int)
+	// Handle edge case: empty pod list
+	if len(pods) == 0 {
+		return scoreResults
 	}
+	user := ctx.User
+	inputTokens := v.tokenEstimator.EstimateInputTokens(ctx.Message)
+	outputTokens := v.tokenEstimator.EstimateOutputTokens(ctx.Message)
 
-	inputTokens := r.tokenEstimator.EstimateInputTokens(ctx.Message)
-	outputTokens := r.tokenEstimator.EstimateOutputTokens(ctx.Message)
-
-	userTokens, err := r.tokenTracker.GetTokenCount(ctx.Context, *user)
+	userTokens, err := v.tokenTracker.GetTokenCount(*user)
 	if err != nil {
 		klog.ErrorS(err, "failed to get user token count, falling back to zero", "user", *user)
 		userTokens = 0
 	}
-
-	klog.InfoS("VTC tokens for user",
-		"user", *user,
-		"tokens", userTokens,
-		"inputTokens", inputTokens,
-		"outputTokens", outputTokens)
-
-	var targetPod *v1.Pod
 	var minScore float64 = math.MaxFloat64
-
-	// Simple vtc-basic implementation
-	// Using clamped-linear instead of modulo - offers good monotonicity, fairness based routing.
-	// Pod utilization is used as a secondary metric to ensure good utilization.
-	// By adapting bucket sizes and normalizing scores, the algorithm remains robust as system load and user activity fluctuate.
-
-	// Get the min and max token counts for adaptive bucket sizing
-	minTokens, err := r.tokenTracker.GetMinTokenCount(ctx.Context)
+	minTokens, err := v.tokenTracker.GetMinTokenCount()
 	if err != nil {
 		klog.ErrorS(err, "failed to get minimum token count, using default value")
 		minTokens = tokenTrackerMinTokens // Use the configured default minimum token count
 	}
 
-	maxTokens, err := r.tokenTracker.GetMaxTokenCount(ctx.Context)
+	maxTokens, err := v.tokenTracker.GetMaxTokenCount()
 	if err != nil {
 		klog.ErrorS(err, "failed to get maximum token count, using default value")
 		maxTokens = tokenTrackerMaxTokens // Use the configured default maximum token count
 	}
-
-	// Calculate scores for each pod
-	for i, pod := range readyPods {
+	for i, info := range pods {
 
 		// 1. Dynamically calculate a reasonable "step size" for mapping user tokens onto pod indices, ensuring the mapping is
 		// relevant to the current system load while maintaining a minimum sensitivity
 		adaptiveBucketSize := math.Max(tokenTrackerMinTokens, (minTokens+maxTokens)/2)
 
-		metrics.SetGaugeMetric(
+		/*metrics.SetGaugeMetric(
 			metrics.VTCBucketSizeActive,
 			metrics.GetMetricHelp(metrics.VTCBucketSizeActive),
 			adaptiveBucketSize,
 			[]string{"pod", "model"},
 			pod.Name, ctx.Model,
-		)
+		)*/
 
 		// Apply clamped linear mapping: tokens / bucket_size, clamped to [0, npods-1]
 		normalizedTokens := math.Min(float64(userTokens)/adaptiveBucketSize, float64(len(readyPods)-1))
 
 		fairnessScore := math.Abs(float64(i) - normalizedTokens)
 
-		klog.InfoS("VTC token normalization details",
-			"user", *user,
-			"userTokens", userTokens,
-			"minTokens", minTokens,
-			"maxTokens", maxTokens,
-			"adaptiveBucketSize", adaptiveBucketSize,
-			"normalizedTokens", normalizedTokens,
-			"podIndex", i,
-			"fairnessScore", fairnessScore)
 
 		// 2. Get pod load for utilization score
 		var podLoad float64
-		if r.cache != nil {
-			reqCount, err := r.cache.GetMetricValueByPodModel(pod.Name, pod.Namespace, ctx.Model, metrics.NumRequestsRunning)
-			if err != nil {
-				klog.ErrorS(err, "failed to get pod metrics, using default value", "pod", pod.Name)
-				podLoad = 0
-			} else {
-				podLoad = reqCount.GetSimpleValue()
-			}
-		} else {
-			klog.Info("Cache is nil, using default pod load value")
-			podLoad = 0
-		}
+		reqCount = info.RequestRunningNum 
 
 		// 3. Calculate utilization score (normalized between 0-1)
 		utilizationScore := min(podLoad/maxPodLoad, 1.0)
@@ -180,44 +132,13 @@ func (r *BasicVTCRouter) Route(ctx *types.RoutingContext, readyPodList types.Pod
 		// 5. Calculate combined score (lower is better) - using configurable weights for fairness and utilization
 		score := (fairnessWeight * fairnessScore) + (utilizationWeight * utilizationScore) + randomFactor
 
-		klog.InfoS("VTC hybrid pod selection",
-			"pod", pod.Name,
-			"podIndex", i,
-			"userTokens", userTokens,
-			"podLoad", podLoad,
-			"fairnessScore", fairnessScore,
-			"fairnessWeight", fairnessWeight,
-			"utilizationScore", utilizationScore,
-			"utilizationWeight", utilizationWeight,
-			"combinedScore", score)
-
-		if score < minScore {
-			minScore = score
-			targetPod = pod
-		}
+		scoreResults[info] = int(score)
 	}
-
-	if targetPod == nil {
-		klog.Warning("No pods with valid metrics found or all pods scored equally; selecting a pod randomly as fallback")
-		var err error
-		targetPod, err = utils.SelectRandomPod(readyPods, rand.Intn)
-		if err != nil {
-			return "", fmt.Errorf("random fallback selection failed: %w", err)
-		}
-	}
-
-	if *user != "" {
-		err := r.tokenTracker.UpdateTokenCount(ctx.Context, *user, inputTokens, outputTokens)
-		if err != nil {
-			klog.ErrorS(err, "failed to update user token count", "user", *user)
-		}
-	}
-
-	ctx.SetTargetPod(targetPod)
-	return ctx.TargetAddress(), nil
+	return scoreResults
 }
 
-func (r *BasicVTCRouter) SubscribedMetrics() []string {
+
+func (v *BasicVTCRouter) SubscribedMetrics() []string {
 	return []string{
 		metrics.NumRequestsRunning,
 		metrics.VTCBucketSizeActive,
