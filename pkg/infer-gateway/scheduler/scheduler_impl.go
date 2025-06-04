@@ -14,6 +14,8 @@ type SchedulerImpl struct {
 
 	filterPlugins []framework.FilterPlugin
 	scorePlugins  []*scorePlugin
+
+	postHooks []framework.PostHook
 }
 
 type scorePlugin struct {
@@ -22,6 +24,7 @@ type scorePlugin struct {
 }
 
 func NewScheduler(store datastore.Store) Scheduler {
+	prefixCache := plugins.NewPrefixCache(store)
 	return &SchedulerImpl{
 		store: store,
 		scorePlugins: []*scorePlugin{
@@ -38,6 +41,13 @@ func NewScheduler(store datastore.Store) Scheduler {
 				plugin: plugins.NewLeastLatency(),
 				weight: 1,
 			},
+			{
+				plugin: prefixCache,
+				weight: 1,
+			},
+		},
+		postHooks: []framework.PostHook{
+			prefixCache,
 		},
 	}
 }
@@ -48,7 +58,8 @@ func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.P
 	}
 
 	ctx := &framework.Context{
-		Model: req["model"].(string),
+		Model:  req["model"].(string),
+		Prompt: req["prompt"].(string),
 	}
 
 	pods, err := s.RunFilterPlugins(pods, ctx)
@@ -71,6 +82,9 @@ func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.P
 	}
 
 	// TODO: return several best scorred pods to do fallback in case failure.
+
+	ctx.TargetPod = best
+	s.RunPostHooks(ctx)
 
 	return best, nil
 }
@@ -100,4 +114,10 @@ func (s *SchedulerImpl) RunScorePlugins(pods []*datastore.PodInfo, ctx *framewor
 	}
 
 	return res, nil
+}
+
+func (s *SchedulerImpl) RunPostHooks(ctx *framework.Context) {
+	for _, hook := range s.postHooks {
+		hook.PostSchedule(ctx)
+	}
 }
