@@ -1,8 +1,6 @@
 package datastore
 
 import (
-	"sync"
-
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -19,7 +17,7 @@ type Store interface {
 }
 
 type store struct {
-	mutex sync.RWMutex
+	// mutex sync.RWMutex
 
 	inferGroup             map[types.NamespacedName][]InferGroup
 	runningPodOfInferGroup map[types.NamespacedName][]string

@@ -14,11 +14,6 @@ const (
 	logSubsys = "subsys"
 )
 
-type LogEvent struct {
-	len uint32
-	Msg string
-}
-
 var (
 	defaultLogger  = initDefaultLogger()
 	fileOnlyLogger = initFileLogger()

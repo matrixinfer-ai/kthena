@@ -71,8 +71,6 @@ type modelServer struct {
 }
 
 type PodInfo struct {
-	mutex sync.RWMutex
-
 	Pod *corev1.Pod
 	// Name of AI inference engine
 	backend string
@@ -230,7 +228,7 @@ func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.Model
 
 	// if already have podinfo, need to delete old pod in modelserver
 	if podInfo, ok := s.pods[podName]; ok {
-		for name, _ := range podInfo.modelServer {
+		for name := range podInfo.modelServer {
 			delete(s.modelServer[name].pods, podName)
 		}
 	}
@@ -251,7 +249,7 @@ func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.Model
 	return nil
 }
 
-func (s *store) PodHandlerWhenDeleteModelServer(modelServerName types.NamespacedName) error {
+func (s *store) PodHandlerWhenDeleteModelServer(modelServerName types.NamespacedName) {
 	pods := s.modelServer[modelServerName].pods
 	for podName := range pods {
 		s.mutex.Lock()
@@ -262,8 +260,6 @@ func (s *store) PodHandlerWhenDeleteModelServer(modelServerName types.Namespaced
 		}
 		s.mutex.Unlock()
 	}
-
-	return nil
 }
 
 func (s *store) DeletePod(podName types.NamespacedName) error {

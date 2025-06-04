@@ -67,7 +67,7 @@ func (r *ModelServerController) Reconcile(ctx context.Context, req ctrl.Request)
 
 	if err := r.Get(ctx, name, ms); err != nil {
 		log.Infof("Delete ModelServer: %v", name.String())
-		r.store.DeleteModelServer(ms)
+		_ = r.store.DeleteModelServer(ms)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
@@ -89,7 +89,7 @@ func (r *ModelServerController) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	log.Infof("Update ModelServer: %v", name.String())
-	r.store.AddOrUpdateModelServer(name, ms, pods)
+	_ = r.store.AddOrUpdateModelServer(name, ms, pods)
 
 	return ctrl.Result{}, nil
 }

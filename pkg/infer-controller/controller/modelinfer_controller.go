@@ -30,12 +30,12 @@ type ModelInferController struct {
 	modelInfersLister   cache.Indexer
 	modelInfersInformer cache.Controller
 
+	// nolint
 	workqueue workqueue.RateLimitingInterface
 	store     datastore.Store
 }
 
 func NewModelInferController(kubeClientSet kubernetes.Interface, modelInferClient clientset.Interface) *ModelInferController {
-
 	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClientSet, 0)
 	podsInformer := kubeInformerFactory.Core().V1().Pods()
 	modelInferInformerFactory := informersv1alpha1.NewSharedInformerFactory(modelInferClient, 0)
@@ -53,12 +53,13 @@ func NewModelInferController(kubeClientSet kubernetes.Interface, modelInferClien
 		podsInformer:        podsInformer.Informer(),
 		modelInfersLister:   modelInferInformer.Informer().GetIndexer(),
 		modelInfersInformer: modelInferInformer.Informer(),
-		workqueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "ModelInfers"),
-		store:               store,
+		// nolint
+		workqueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "ModelInfers"),
+		store:     store,
 	}
 
 	klog.Info("Set the ModelInfer event handler")
-	modelInferInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, _ = modelInferInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			mic.addMI(obj)
 		},
@@ -112,7 +113,6 @@ func (mic *ModelInferController) updateMI(old, cur interface{}) {
 }
 
 func (mic *ModelInferController) deleteMI(obj interface{}) {
-
 	mi, ok := obj.(*workloadv1alpha1.ModelInfer)
 	if !ok {
 		klog.Error("failed to parse ModelInfer type when deleteMI")
@@ -137,7 +137,6 @@ func (mic *ModelInferController) deleteMI(obj interface{}) {
 	if err != nil {
 		klog.Errorf("delete model infer store failed: %v", err)
 	}
-
 }
 
 func (mic *ModelInferController) enqueueMI(mi *workloadv1alpha1.ModelInfer) {
@@ -179,13 +178,15 @@ func (mic *ModelInferController) syncModelInfer(ctx context.Context, key string)
 	return nil
 }
 
+// TODO: pass in a ctx
 func (mic *ModelInferController) Run() {
 	defer utilruntime.HandleCrash()
 	defer mic.workqueue.ShutDown()
 
 	klog.Info("start modelInfer controller")
-	// todo add controller logic
-
+	// TODO: wait for cache synced
+	// TODO add other controller logic
+	mic.worker(context.Background())
 }
 
 // UpdateStatus update ModelInfer status.
