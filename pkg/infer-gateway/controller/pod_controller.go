@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -33,12 +34,18 @@ func (p *PodController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	name := req.NamespacedName
 
 	if err := p.Get(ctx, name, pod); err != nil {
-		log.Infof("Delete pod: %v", name.String())
-		// TODO: pod delete
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+		if apierrors.IsNotFound(err) {
+			log.Infof("Delete pod: %v", name.String())
+			p.store.DeletePod(name)
+			return ctrl.Result{}, client.IgnoreNotFound(err)
+		}
+		log.Errorf("Unable to get pod %s: %v", name.Namespace+"/"+name.Name, err)
 	}
 
-	// TODO: handle pod status
+	if !isPodReady(pod) {
+		p.store.DeletePod(name)
+		return ctrl.Result{}, nil
+	}
 
 	ModelServers := &aiv1alpha1.ModelServerList{}
 	if err := p.List(ctx, ModelServers, client.InNamespace(pod.Namespace)); err != nil {

@@ -51,7 +51,7 @@ type Store interface {
 	// Refresh Store and ModelServer when add a new pod or update a pod
 	AddOrUpdatePod(pod *corev1.Pod, modelServer []*aiv1alpha1.ModelServer) error
 	// Refresh Store and ModelServer when delete a pod
-	DeletePod(pod *corev1.Pod) error
+	DeletePod(podName types.NamespacedName) error
 
 	// New methods for routing functionality
 	MatchModelServer(modelName string, request *http.Request) (types.NamespacedName, bool, error)
@@ -266,8 +266,7 @@ func (s *store) PodHandlerWhenDeleteModelServer(modelServerName types.Namespaced
 	return nil
 }
 
-func (s *store) DeletePod(pod *corev1.Pod) error {
-	podName := utils.GetNamespaceName(pod)
+func (s *store) DeletePod(podName types.NamespacedName) error {
 	s.mutex.Lock()
 	modelServers := s.pods[podName].modelServer
 	for modelServerName := range modelServers {
