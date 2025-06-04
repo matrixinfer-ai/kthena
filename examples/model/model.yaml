@@ -16,6 +16,7 @@ spec:
       config:
         maxModelLen: 12288
       modelURI: "s3://model-bucket/deepseek-r1-distill-llama-8b"
+      cacheURI: "hostPath://tmp/test"
       minReplicas: 1
       maxReplicas: 3
       cost: 1
