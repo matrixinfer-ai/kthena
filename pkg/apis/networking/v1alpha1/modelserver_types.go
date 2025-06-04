@@ -63,6 +63,12 @@ type WorkloadSelector struct {
 	// The labels to match the model serving instances.
 	// +kube:validation:Required
 	MatchLabels map[string]string `json:"matchLabels,omitempty"`
+	// The labels to match the model serving instances for prefill.
+	// +kube:validation:Required
+	PrefillLabels map[string]string `json:"prefillLabels,omitempty"`
+	// The labels to match the model serving instances for decode.
+	// +kube:validation:Required
+	DecodeLabels map[string]string `json:"decodeLabels,omitempty"`
 }
 
 // WorkloadPort defines the port and protocol configuration for the model server.
