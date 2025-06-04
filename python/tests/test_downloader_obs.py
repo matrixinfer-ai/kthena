@@ -11,7 +11,7 @@ class TestDownloadModel(unittest.TestCase):
         self.source = "obs://fake_bucket/fake_path"
         self.output_dir = "/tmp/models"
         self.model_name = "fake_name"
-        self.credentials = {"access_key": "fake_ak", "secret_key": "fake_sk"}
+        self.credentials = {"access_key": "fake_ak", "secret_key": "fake_sk", "obs_endpoint": "fake_endpoint"}
         self.mock_downloader = MagicMock()
 
     def tearDown(self):
