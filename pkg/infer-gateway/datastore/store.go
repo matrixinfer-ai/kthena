@@ -51,7 +51,7 @@ const (
 // EventData contains information about the event that triggered the callback
 type EventData struct {
 	EventType EventType
-	Pod       *PodInfo
+	Pod       types.NamespacedName
 	// Add more fields as needed for other event types
 }
 
@@ -305,7 +305,7 @@ func (s *store) DeletePod(podName types.NamespacedName) error {
 
 	s.triggerCallbacks(EventPodDeleted, EventData{
 		EventType: EventPodDeleted,
-		Pod:       s.pods[podName],
+		Pod:       podName,
 	})
 
 	return nil
@@ -619,7 +619,7 @@ func (s *store) triggerCallbacks(eventType EventType, data EventData) {
 
 	if callbacks, exists := s.callbacks[eventType]; exists {
 		for _, callback := range callbacks {
-			callback(data)
+			go callback(data)
 		}
 	}
 }

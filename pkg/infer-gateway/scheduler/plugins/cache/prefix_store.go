@@ -10,11 +10,12 @@ import (
 
 // ModelPrefixStore manages a three-level map structure for model inference requests
 type ModelPrefixStore struct {
-	mu sync.RWMutex // Mutex to protect entries access
+	// Mutex to protect entries access
+	// TODO: use finer-grained locks.
+	mu sync.RWMutex
 	// Three-level map: model -> hash -> pod namespaced name -> pod
 	entries map[string]map[uint64]map[types.NamespacedName]*datastore.PodInfo
 
-	// Changed from LRU to map
 	podHashes    map[types.NamespacedName]Cache[uint64, string] // Map of pod to its hash LRU
 	topK         int                                            // Each match returns at most topK pods.
 	hashCapacity int                                            // Capacity for each pod's hash LRU
@@ -50,17 +51,13 @@ func (s *ModelPrefixStore) onPodDeleted(data datastore.EventData) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	nsName := types.NamespacedName{
-		Namespace: data.Pod.Pod.Namespace,
-		Name:      data.Pod.Pod.Name,
-	}
-
 	// Remove pod's hash LRU
-	if hashLRU, exists := s.podHashes[nsName]; exists {
-		hashLRU.Clear()
-		delete(s.podHashes, nsName)
-	}
+	if hashLRU, exists := s.podHashes[data.Pod]; exists {
+		delete(s.podHashes, data.Pod)
 
+		// NOTE: The Clear operation may trigger eviction, so must unlock first.
+		hashLRU.Clear()
+	}
 }
 
 // FindTopMatches finds the topK pods with the longest matching prefixes for given model and hashes
@@ -72,7 +69,7 @@ func (s *ModelPrefixStore) FindTopMatches(model string, hashes []uint64, pods []
 	defer s.mu.RUnlock()
 	modelEntries, exists := s.entries[model]
 	if !exists {
-		return matches
+		return nil
 	}
 
 	// Track processed pods to avoid duplicates
@@ -127,6 +124,9 @@ func (s *ModelPrefixStore) Add(model string, hashes []uint64, pod *datastore.Pod
 	} else {
 		// Create new hash LRU for this pod
 		newHashLRU, _ := NewLRUCache[uint64, string](s.hashCapacity, func(key lru.Key, value interface{}) {
+			// NOTE: The eviction callback does not need to be locked.
+			// Because it's triggered by other operations, Add or Clear, and we should have locked at that time.
+
 			// Convert key and value to hash and model
 			hash := key.(uint64)
 			model := value.(string)
@@ -168,6 +168,7 @@ func (s *ModelPrefixStore) Add(model string, hashes []uint64, pod *datastore.Pod
 		s.entries[model][hash][nsName] = pod
 
 		// Add hash to pod's hash LRU
+		// The Add operation may trigger eviction, so must unlock first.
 		hashLRU.Add(hash, model)
 	}
 }
