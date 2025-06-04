@@ -137,18 +137,18 @@ func TestStoreUpdatePodMetrics(t *testing.T) {
 	}
 	s := &store{
 		pods: map[types.NamespacedName]*PodInfo{
-			types.NamespacedName{
+			{
 				Namespace: "default",
 				Name:      "pod1",
 			}: &podinfo,
 		},
 		modelServer: map[types.NamespacedName]*modelServer{
-			types.NamespacedName{
+			{
 				Namespace: "default",
 				Name:      "model1",
 			}: {
 				pods: map[types.NamespacedName]*PodInfo{
-					types.NamespacedName{
+					{
 						Namespace: "default",
 						Name:      "pod1",
 					}: &podinfo,
