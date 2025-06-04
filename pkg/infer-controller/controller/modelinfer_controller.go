@@ -7,6 +7,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/informers"
@@ -23,7 +24,7 @@ import (
 )
 
 const (
-	podOfInferGroupLabel = "modelinfer/infergroupname"
+	podOfInferGroupLabel = "matrixinfer.ai/infergroupname"
 )
 
 type ModelInferController struct {
@@ -159,21 +160,30 @@ func (mic *ModelInferController) updatePod(oldObj, newObj interface{}) {
 }
 
 func (mic *ModelInferController) deletePod(obj interface{}) {
-	pod, ok := obj.(corev1.Pod)
+	pod, ok := obj.(*corev1.Pod)
 	if !ok {
 		klog.Error("failed to parse pod type when deletePod")
 		return
 	}
 
-	labels := pod.GetLabels()
-	for key, value := range labels {
-		if key == podOfInferGroupLabel {
-			inferGroupName := value
-			modelInfer := mic.store.GetModelInferByInferGroup(types.NamespacedName{
-				Namespace: pod.GetNamespace(),
-				Name:      inferGroupName,
-			})
-			mic.DeleteInferGroup(modelInfer, inferGroupName)
+	inferGroupName, ok := pod.GetLabels()[podOfInferGroupLabel]
+	klog.Errorf("failed to get infergroupName of pod %s/%s", pod.GetNamespace(), pod.GetName())
+
+	owners := pod.GetOwnerReferences()
+	for i := range owners {
+		if owners[i].Kind == "ModelInfer" {
+			miName := fmt.Sprintf("%s/%s", pod.GetNamespace(), owners[i].Name)
+			miObj, exist, err := mic.modelInfersLister.GetByKey(miName)
+			if err == nil && exist {
+				mi, ok := miObj.(*workloadv1alpha1.ModelInfer)
+				if !ok {
+					klog.Error("failed to parse modelInfer type when deletePod")
+					return
+				}
+				mic.DeleteInferGroup(mi, inferGroupName)
+			} else {
+				klog.Errorf("failed to get modelInfer of pod %s/%s: %v", pod.GetNamespace(), pod.GetName(), err)
+			}
 		}
 	}
 }
@@ -239,35 +249,42 @@ func (mic *ModelInferController) DeleteInferGroup(mi *workloadv1alpha1.ModelInfe
 		return
 	}
 
+	label := fmt.Sprintf("%s=%s", podOfInferGroupLabel, groupname)
 	if inferGroupStatus != datastore.InferGroupDeleting {
 		err := mic.store.UpdateInferGroupStatus(miNamedName, groupname, datastore.InferGroupDeleting)
 		if err != nil {
 			klog.Errorf("failed to set inferGroup %s/%s status: %v", miNamedName.Namespace+"/"+mi.Name, groupname, err)
+			return
+		}
+		// Delete all pods in inferGroup
+		err = mic.kubeclientset.CoreV1().Pods(miNamedName.Namespace).DeleteCollection(
+			context.TODO(),
+			metav1.DeleteOptions{},
+			metav1.ListOptions{
+				LabelSelector: label,
+			},
+		)
+		if err != nil {
+			klog.Errorf("failed to delete inferGroup %s/%s: %v", miNamedName.Namespace+"/"+mi.Name, groupname, err)
+			return
 		}
 	}
 
-	// Delete all pods in inferGroup
-	label := fmt.Sprintf("%s=%s", podOfInferGroupLabel, groupname)
-	err := mic.kubeclientset.CoreV1().Pods(miNamedName.Namespace).DeleteCollection(
-		context.TODO(),
-		metav1.DeleteOptions{},
-		metav1.ListOptions{
-			LabelSelector: label,
-		},
-	)
-	if err != nil {
-		klog.Errorf("failed to delete inferGroup %s/%s: %v", miNamedName.Namespace+"/"+mi.Name, groupname, err)
-	}
-
 	// check whether the deletion has been completed
-	pods, err := mic.kubeclientset.CoreV1().Pods(miNamedName.Namespace).List(
-		context.TODO(),
-		metav1.ListOptions{LabelSelector: label},
-	)
-	if err != nil {
-		klog.Errorf("failed to get podList of inferGroup %s/%s: %v", miNamedName.Namespace+"/"+mi.Name, groupname, err)
+	deleteAll := true
+	selector := labels.SelectorFromSet(map[string]string{
+		podOfInferGroupLabel: groupname,
+	})
+	for _, obj := range mic.podsLister.List() {
+		pod, ok := obj.(*corev1.Pod)
+		if !ok {
+			continue
+		}
+		if selector.Matches(labels.Set(pod.Labels)) {
+			deleteAll = false
+		}
 	}
-	if len(pods.Items) == 0 {
+	if deleteAll {
 		mic.store.DeleteInferGroupOfRunningPodMap(miNamedName, groupname)
 		mic.enqueueMI(mi)
 		return
