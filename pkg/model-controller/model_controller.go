@@ -36,6 +36,7 @@ import (
 
 const (
 	ModelFinalizer = "matrixinfer.ai/finalizer"
+	PodLabelKey    = "owner"
 	// Reason for condition
 	ModelInitsReason             = "ModelInits"
 	ModelBackendEngineTypeVLLM   = "vllm"
@@ -78,7 +79,9 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		}
 	} else {
 		if controllerutil.ContainsFinalizer(model, ModelFinalizer) {
-			// TODO: Add logic before delete model
+			if err := r.deleteModelInfer(ctx, model); err != nil {
+				return ctrl.Result{Requeue: true}, err
+			}
 			controllerutil.RemoveFinalizer(model, ModelFinalizer)
 			if err := r.Update(ctx, model); err != nil {
 				return ctrl.Result{}, err
@@ -141,7 +144,7 @@ func getModelBackendEngineType(engineType *registryv1.ModelBackendType) (string,
 
 func buildEngineContainer(backend *registryv1.ModelBackend, worker *registryv1.ModelWorker, volume *corev1.Volume) (*corev1.Container, error) {
 	workerName := backend.Name + "-" + string(worker.Type)
-	volumeMounts := []corev1.VolumeMount{}
+	var volumeMounts []corev1.VolumeMount
 	if volume != nil {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      volume.Name,
@@ -172,9 +175,9 @@ func getMountPath(backend *registryv1.ModelBackend) string {
 }
 
 func buildRuntimeContainer(backend *registryv1.ModelBackend, worker *registryv1.ModelWorker) (*corev1.Container, error) {
-	modelBackendEngineType, e := getModelBackendEngineType(&backend.Type)
-	if e != nil {
-		return nil, e
+	modelBackendEngineType, err := getModelBackendEngineType(&backend.Type)
+	if err != nil {
+		return nil, err
 	}
 	switch worker.Type {
 	case registryv1.ModelWorkerTypeServer, registryv1.ModelWorkerTypePrefill, registryv1.ModelWorkerTypeDecode:
@@ -227,16 +230,16 @@ func buildDownloadContainer(backend *registryv1.ModelBackend, worker *registryv1
 	workerName := getWorkerName(backend, worker)
 	downloaderPath := getMountPath(backend)
 
-	volumeMounts := []corev1.VolumeMount{}
+	var volumeMounts []corev1.VolumeMount
 	if volume != nil {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      volume.Name,
 			MountPath: downloaderPath,
 		})
 	}
-	modelBackendEngineType, e := getModelBackendEngineType(&backend.Type)
-	if e != nil {
-		return nil, e
+	modelBackendEngineType, err := getModelBackendEngineType(&backend.Type)
+	if err != nil {
+		return nil, err
 	}
 	return &corev1.Container{
 		Name:         workerName + "-downloader",
@@ -248,48 +251,52 @@ func buildDownloadContainer(backend *registryv1.ModelBackend, worker *registryv1
 
 func buildModelInferCR(model *registryv1.Model) ([]*workload.ModelInfer, error) {
 	infers := make([]*workload.ModelInfer, len(model.Spec.Backends))
-	for backend_idx, backend := range model.Spec.Backends {
+	for backendIdx, backend := range model.Spec.Backends {
 		roles := make([]workload.Role, len(backend.Workers))
-		for worker_idx, worker := range backend.Workers {
+		for workerIdx, worker := range backend.Workers {
 			workerName := getWorkerName(&backend, &worker)
-			initContainers := []corev1.Container{}
-			volumes := []corev1.Volume{}
+			var initContainers []corev1.Container
+			var volumes []corev1.Volume
 			// Set model weights volumes, if cacheURI is not empty.
-			cacheVolume, e := buildCacheVolume(&backend, &worker)
-			if e != nil {
-				return nil, e
+			cacheVolume, err := buildCacheVolume(&backend, &worker)
+			if err != nil {
+				return nil, err
 			}
 			if cacheVolume != nil {
 				volumes = append(volumes, *cacheVolume)
 			}
 			// Set downloader in init containers.
-			downloadContainer, e := buildDownloadContainer(&backend, &worker, cacheVolume)
-			if e != nil {
-				return nil, e
+			downloadContainer, err := buildDownloadContainer(&backend, &worker, cacheVolume)
+			if err != nil {
+				return nil, err
 			}
 			if downloadContainer != nil {
 				initContainers = append(initContainers, *downloadContainer)
 			}
 			// Set engine container.
-			engineContainer, e := buildEngineContainer(&backend, &worker, cacheVolume)
-			if e != nil {
-				return nil, e
+			engineContainer, err := buildEngineContainer(&backend, &worker, cacheVolume)
+			if err != nil {
+				return nil, err
 			}
 			containers := []corev1.Container{*engineContainer}
-			// Set runtime container if it's not controller or coordinator.
-			runtimeContainer, e := buildRuntimeContainer(&backend, &worker)
-			if e != nil {
-				return nil, e
+			// Set runtime container if it's not a controller or coordinator.
+			runtimeContainer, err := buildRuntimeContainer(&backend, &worker)
+			if err != nil {
+				return nil, err
 			}
 			if runtimeContainer != nil {
 				containers = append(containers, *runtimeContainer)
 			}
-
-			roles[worker_idx] = workload.Role{
+			roles[workerIdx] = workload.Role{
 				Name:            workerName,
 				Replicas:        &worker.Replicas,
 				NetworkTopology: nil,
 				EntryTemplate: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							PodLabelKey: string(model.UID),
+						},
+					},
 					Spec: corev1.PodSpec{
 						InitContainers: initContainers,
 						Containers:     containers,
@@ -300,9 +307,9 @@ func buildModelInferCR(model *registryv1.Model) ([]*workload.ModelInfer, error) 
 				WorkerTemplate: nil, // TODO: fix it
 			}
 		}
-		infers[backend_idx] = &workload.ModelInfer{
+		infers[backendIdx] = &workload.ModelInfer{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      model.Name + "-instance",
+				Name:      model.Name + "-instance-" + fmt.Sprint(backendIdx),
 				Namespace: model.Namespace,
 			},
 			Spec: workload.ModelInferSpec{
@@ -334,4 +341,25 @@ func (r *ModelReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&registryv1.Model{}).
 		Named("model").
 		Complete(r)
+}
+
+// When delete model, model infer should also be deleted
+func (r *ModelReconciler) deleteModelInfer(ctx context.Context, model *registryv1.Model) error {
+	podList := &corev1.PodList{}
+	listOpts := []client.ListOption{
+		client.InNamespace(model.Namespace),
+		client.MatchingLabels{
+			PodLabelKey: string(model.UID),
+		},
+	}
+	if err := r.List(ctx, podList, listOpts...); err != nil {
+		return err
+	}
+	for _, pod := range podList.Items {
+		if err := r.Delete(ctx, &pod); client.IgnoreNotFound(err) != nil {
+			return err
+		}
+		klog.InfoS("Deleted pod", "pod", pod.Name, "namespace", pod.Namespace)
+	}
+	return nil
 }
