@@ -14,6 +14,7 @@
 
 import os
 import threading
+import hashlib
 from abc import ABC, abstractmethod
 from typing import Optional
 from typing import Tuple
@@ -42,16 +43,18 @@ class ModelDownloader(ABC):
         pass
 
     def download_model(self, output_dir: str, model_name: str):
-        output_dir = os.path.join(output_dir, model_name)
-        os.makedirs(output_dir, exist_ok=True)
-        lock_path = os.path.join(output_dir, f".{model_name}.lock")
+        md5_hash = hashlib.md5(model_name.encode()).hexdigest()
+        logger.info(f"Using MD5 hash for model '{model_name}': {md5_hash}")
+        target_dir = os.path.join(output_dir, md5_hash)
+        os.makedirs(target_dir, exist_ok=True)
+        lock_path = os.path.join(target_dir, ".lock")
         self.lock_manager = LockManager(lock_path, timeout=600)
         while True:
             try:
                 if self.lock_manager.try_acquire():
                     try:
                         logger.info(f"Acquired lock successfully. Starting download for model '{model_name}'")
-                        self.download(output_dir)
+                        self.download(target_dir)
                         break
                     except Exception as e:
                         logger.error(f"Error during model download: {e}")
