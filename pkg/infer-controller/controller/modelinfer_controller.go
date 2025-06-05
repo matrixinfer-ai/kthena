@@ -367,24 +367,25 @@ func (mic *ModelInferController) DeleteInferGroup(mi *workloadv1alpha1.ModelInfe
 
 func (mic *ModelInferController) CreatePodByRole(ctx context.Context, role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, roleIndex, groupIndex int) error {
 	groupName := utils.GenerateInferGroupName(mi.Name, groupIndex)
+	// Create entry pod
 	entryPod := utils.GenerateEntryPod(role, mi, groupName, roleIndex)
 	_, err := mic.kubeClientSet.CoreV1().Pods(mi.Namespace).Create(ctx, entryPod, metav1.CreateOptions{})
 	if err != nil {
 		klog.Errorf("create entry pod failed: %v", err)
 		return err
 	}
-	//Determine whether to create worker pods and headless service
+	// Determine whether to create worker pods and headless service
 	if role.WorkerTemplate == nil {
 		klog.V(4).Info("workerTemplate is nil, no need to create worker pods and headless service")
 		return nil
 	}
-	// create headless service
-	err = utils.CreateHeadlessServiceIfNotExists(ctx, mic.kubeClientSet, mi, entryPod.Spec.Subdomain, entryPod.ObjectMeta.Labels)
+	// Create headless service
+	err = utils.CreateHeadlessService(ctx, mic.kubeClientSet, mi, entryPod.Spec.Subdomain, entryPod.ObjectMeta.Labels)
 	if err != nil {
 		klog.Errorf("create headless service failed: %v", err)
 		return err
 	}
-	// create worker pods
+	// Create worker pods
 	for podIndex := range int(*role.WorkerReplicas) {
 		workerPod := utils.GenerateWorkerPod(role, mi, entryPod, groupName, roleIndex, podIndex+1) // worker-pod sequence number starts from 1, so we use index+1 here.
 		_, err = mic.kubeClientSet.CoreV1().Pods(mi.Namespace).Create(ctx, workerPod, metav1.CreateOptions{})
