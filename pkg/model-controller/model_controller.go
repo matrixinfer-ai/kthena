@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -35,10 +36,14 @@ import (
 )
 
 const (
-	ModelFinalizer = "matrixinfer.ai/finalizer"
-	PodLabelKey    = "owner"
+	ModelFinalizer  = "matrixinfer.ai/finalizer"
+	PodLabelKey     = "owner"
+	ModelInferOwner = "owner"
 	// Reason for condition
 	ModelInitsReason             = "ModelInits"
+	ModelDeletingReason          = "ModelDeleting"
+	ModelUpdatingReason          = "ModelUpdating"
+	ModelActiveReason            = "ModelActive"
 	ModelBackendEngineTypeVLLM   = "vllm"
 	ModelBackendEngineTypeSlang  = "sglang"
 	ModelBackendEngineTypeMindIE = "mindie"
@@ -69,7 +74,6 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 	klog.InfoS("Start to process model", "namespace", req.Namespace, "model status", model.Status)
-
 	if model.ObjectMeta.DeletionTimestamp.IsZero() {
 		if !controllerutil.ContainsFinalizer(model, ModelFinalizer) {
 			controllerutil.AddFinalizer(model, ModelFinalizer)
@@ -79,6 +83,11 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		}
 	} else {
 		if controllerutil.ContainsFinalizer(model, ModelFinalizer) {
+			meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1.ModelStatusConditionTypeDeleting),
+				metav1.ConditionTrue, ModelDeletingReason, "Model is deleting"))
+			if err := r.Status().Update(ctx, model); err != nil {
+				return ctrl.Result{}, err
+			}
 			if err := r.deleteModelInfer(ctx, model); err != nil {
 				return ctrl.Result{Requeue: true}, err
 			}
@@ -90,9 +99,8 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, nil
 	}
 	// When model condition is null, create model infer according to model.
-	if len(model.Status.Conditions) == 0 {
+	if len(model.Status.Conditions) == 0 || model.Status.Conditions == nil {
 		klog.Info("model status condition is null, create model infer")
-
 		modelInfers, err := buildModelInferCR(model)
 		if err != nil {
 			return ctrl.Result{}, err
@@ -107,11 +115,17 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 				return ctrl.Result{}, err
 			}
 		}
-		meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1.ModelStatusConditionTypeInitialized),
-			metav1.ConditionUnknown, ModelInitsReason, "Model inits"))
+		meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1.ModelStatusConditionTypeInitializing),
+			metav1.ConditionTrue, ModelInitsReason, "Model inits"))
 		if err := r.Status().Update(ctx, model); err != nil {
 			return ctrl.Result{}, err
 		}
+	}
+	if meta.IsStatusConditionPresentAndEqual(model.Status.Conditions, string(registryv1.ModelStatusConditionTypeInitializing), metav1.ConditionTrue) {
+		return r.isModelInferActive(ctx, model)
+	}
+	if meta.IsStatusConditionPresentAndEqual(model.Status.Conditions, string(registryv1.ModelStatusConditionTypeActive), metav1.ConditionTrue) {
+		return r.updateModelInfer(ctx, model)
 	}
 	return ctrl.Result{}, nil
 }
@@ -125,20 +139,21 @@ func newCondition(conditionType string, status metav1.ConditionStatus, reason st
 	}
 }
 
-func getModelBackendEngineType(engineType *registryv1.ModelBackendType) (string, error) {
+func getModelBackendEngineType(engineType *registryv1.ModelBackendType) string {
 	switch *engineType {
 	case registryv1.ModelBackendTypeVLLM:
-		return ModelBackendEngineTypeVLLM, nil
+		return ModelBackendEngineTypeVLLM
 	case registryv1.ModelBackendTypeVLLMDisaggregated:
-		return ModelBackendEngineTypeVLLM, nil
+		return ModelBackendEngineTypeVLLM
 	case registryv1.ModelBackendTypeSGLang:
-		return ModelBackendEngineTypeSlang, nil
+		return ModelBackendEngineTypeSlang
 	case registryv1.ModelBackendTypeMindIE:
-		return ModelBackendEngineTypeMindIE, nil
+		return ModelBackendEngineTypeMindIE
 	case registryv1.ModelBackendTypeMindIEDisaggregated:
-		return ModelBackendEngineTypeMindIE, nil
+		return ModelBackendEngineTypeMindIE
 	default:
-		return "", fmt.Errorf("not support model backend type: %s", *engineType)
+		// unreachable
+		return ModelBackendEngineTypeVLLM
 	}
 }
 
@@ -174,11 +189,8 @@ func getMountPath(backend *registryv1.ModelBackend) string {
 	return "/" + backend.Name
 }
 
-func buildRuntimeContainer(backend *registryv1.ModelBackend, worker *registryv1.ModelWorker) (*corev1.Container, error) {
-	modelBackendEngineType, err := getModelBackendEngineType(&backend.Type)
-	if err != nil {
-		return nil, err
-	}
+func buildRuntimeContainer(backend *registryv1.ModelBackend, worker *registryv1.ModelWorker) *corev1.Container {
+	modelBackendEngineType := getModelBackendEngineType(&backend.Type)
 	switch worker.Type {
 	case registryv1.ModelWorkerTypeServer, registryv1.ModelWorkerTypePrefill, registryv1.ModelWorkerTypeDecode:
 		return &corev1.Container{
@@ -189,9 +201,9 @@ func buildRuntimeContainer(backend *registryv1.ModelBackend, worker *registryv1.
 				"-u", "http://locahost:8000",
 				"-e", modelBackendEngineType,
 			},
-		}, nil
+		}
 	default:
-		return nil, nil
+		return nil
 	}
 }
 
@@ -223,9 +235,9 @@ func buildCacheVolume(backend *registryv1.ModelBackend, worker *registryv1.Model
 	return nil, fmt.Errorf("not support prefix in CacheURI: %s", backend.CacheURI)
 }
 
-func buildDownloadContainer(backend *registryv1.ModelBackend, worker *registryv1.ModelWorker, volume *corev1.Volume) (*corev1.Container, error) {
+func buildDownloadContainer(backend *registryv1.ModelBackend, worker *registryv1.ModelWorker, volume *corev1.Volume) *corev1.Container {
 	if worker.Type == registryv1.ModelWorkerTypeController || worker.Type == registryv1.ModelWorkerTypeCoordinator {
-		return nil, nil
+		return nil
 	}
 	workerName := getWorkerName(backend, worker)
 	downloaderPath := getMountPath(backend)
@@ -237,16 +249,13 @@ func buildDownloadContainer(backend *registryv1.ModelBackend, worker *registryv1
 			MountPath: downloaderPath,
 		})
 	}
-	modelBackendEngineType, err := getModelBackendEngineType(&backend.Type)
-	if err != nil {
-		return nil, err
-	}
+	modelBackendEngineType := getModelBackendEngineType(&backend.Type)
 	return &corev1.Container{
 		Name:         workerName + "-downloader",
 		Image:        "matrixinfer/downloader:latest", //TODO: Get from helm values
 		Args:         []string{"-s", backend.ModelURI, "-o", downloaderPath, "-e", modelBackendEngineType},
 		VolumeMounts: volumeMounts,
-	}, nil
+	}
 }
 
 func buildModelInferCR(model *registryv1.Model) ([]*workload.ModelInfer, error) {
@@ -266,10 +275,7 @@ func buildModelInferCR(model *registryv1.Model) ([]*workload.ModelInfer, error) 
 				volumes = append(volumes, *cacheVolume)
 			}
 			// Set downloader in init containers.
-			downloadContainer, err := buildDownloadContainer(&backend, &worker, cacheVolume)
-			if err != nil {
-				return nil, err
-			}
+			downloadContainer := buildDownloadContainer(&backend, &worker, cacheVolume)
 			if downloadContainer != nil {
 				initContainers = append(initContainers, *downloadContainer)
 			}
@@ -280,10 +286,7 @@ func buildModelInferCR(model *registryv1.Model) ([]*workload.ModelInfer, error) 
 			}
 			containers := []corev1.Container{*engineContainer}
 			// Set runtime container if it's not a controller or coordinator.
-			runtimeContainer, err := buildRuntimeContainer(&backend, &worker)
-			if err != nil {
-				return nil, err
-			}
+			runtimeContainer := buildRuntimeContainer(&backend, &worker)
 			if runtimeContainer != nil {
 				containers = append(containers, *runtimeContainer)
 			}
@@ -311,6 +314,9 @@ func buildModelInferCR(model *registryv1.Model) ([]*workload.ModelInfer, error) 
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      model.Name + "-instance-" + fmt.Sprint(backendIdx),
 				Namespace: model.Namespace,
+				Labels: map[string]string{
+					ModelInferOwner: string(model.UID),
+				},
 			},
 			Spec: workload.ModelInferSpec{
 				Replicas:      &backend.MinReplicas,
@@ -362,4 +368,54 @@ func (r *ModelReconciler) deleteModelInfer(ctx context.Context, model *registryv
 		klog.InfoS("Deleted pod", "pod", pod.Name, "namespace", pod.Namespace)
 	}
 	return nil
+}
+
+func (r *ModelReconciler) updateModelInfer(ctx context.Context, model *registryv1.Model) (ctrl.Result, error) {
+	klog.Info("update model")
+	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1.ModelStatusConditionTypeActive),
+		metav1.ConditionFalse, ModelUpdatingReason, "Model is updating, not ready yet"))
+	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1.ModelStatusConditionTypeUpdating),
+		metav1.ConditionTrue, ModelUpdatingReason, "Model is updating"))
+	if err := r.Status().Update(ctx, model); err != nil {
+		return ctrl.Result{}, err
+	}
+	modelInfers, err := buildModelInferCR(model)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	for _, modelInfer := range modelInfers {
+		if err := r.Update(ctx, modelInfer); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+	return ctrl.Result{}, nil
+}
+
+// isModelInferActive Check all Model Infers that belong to this model are available
+func (r *ModelReconciler) isModelInferActive(ctx context.Context, model *registryv1.Model) (ctrl.Result, error) {
+	modelInferList := &workload.ModelInferList{}
+	listOpts := []client.ListOption{
+		client.InNamespace(model.Namespace),
+		client.MatchingLabels{
+			ModelInferOwner: string(model.UID),
+		},
+	}
+	if err := r.List(ctx, modelInferList, listOpts...); err != nil {
+		return ctrl.Result{}, err
+	}
+	for _, modelInfer := range modelInferList.Items {
+		// todo: replace Available
+		if !meta.IsStatusConditionPresentAndEqual(modelInfer.Status.Conditions, "Available", metav1.ConditionTrue) {
+			// requeue until all Model Infers are active
+			klog.InfoS("model infer is not active", "model infer", modelInfer.Name, "namespace", modelInfer.Namespace)
+			return ctrl.Result{RequeueAfter: 3 * time.Second}, nil
+		}
+	}
+	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1.ModelStatusConditionTypeActive),
+		metav1.ConditionTrue, ModelActiveReason, "Model is active"))
+	meta.RemoveStatusCondition(&model.Status.Conditions, string(registryv1.ModelStatusConditionTypeInitializing))
+	if err := r.Status().Update(ctx, model); err != nil {
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{}, nil
 }
