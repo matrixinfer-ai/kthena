@@ -134,10 +134,6 @@ func (s *store) AddInferGroupForModelInfer(modelInferName types.NamespacedName, 
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	_, ok := s.inferGroup[modelInferName]
-	if !ok {
-		return fmt.Errorf("modelinfer %s inferGroup list does not exist and needs to be initialized", modelInferName.Name)
-	}
 	newGroup := InferGroup{
 		Name:      utils.GenerateInferGroupName(modelInferName.Name, idx),
 		Namespace: modelInferName.Namespace,
@@ -151,11 +147,6 @@ func (s *store) AddInferGroupForModelInfer(modelInferName types.NamespacedName, 
 func (s *store) AddRunningPodForInferGroup(inferGroupName types.NamespacedName, runningPodName string) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-
-	_, ok := s.runningPodOfInferGroups[inferGroupName]
-	if !ok {
-		return fmt.Errorf("inferGroup %s running pods listdoes not exist and needs to be initialized", inferGroupName.Name)
-	}
 
 	s.runningPodOfInferGroups[inferGroupName] = append(s.runningPodOfInferGroups[inferGroupName], runningPodName)
 	return nil
@@ -176,20 +167,4 @@ func (s *store) UpdateInferGroupStatus(modelInferName types.NamespacedName, infe
 		}
 	}
 	return nil
-}
-
-// InitInferGroupForModelInfer initialize a modelInfer into the inferGroup map
-func (s *store) InitInferGroupForModelInfer(modelInferName types.NamespacedName) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
-	s.inferGroup[modelInferName] = nil
-}
-
-// InitRunningPodForInferGroup initialize an inferGroup into the runningPodOfInferGroup map
-func (s *store) InitRunningPodForInferGroup(inferGroupName types.NamespacedName) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
-	s.runningPodOfInferGroups[inferGroupName] = nil
 }

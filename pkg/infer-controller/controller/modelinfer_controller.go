@@ -104,7 +104,6 @@ func (mic *ModelInferController) addMI(obj interface{}) {
 		return
 	}
 	klog.V(4).Info("Adding", "modelinfer", klog.KObj(mi))
-	mic.store.InitInferGroupForModelInfer(utils.GetNamespaceName(mi))
 	mic.enqueueMI(mi)
 }
 
@@ -257,20 +256,20 @@ func (mic *ModelInferController) manageReplicas(ctx context.Context, mi *workloa
 	if err != nil {
 		return fmt.Errorf("cannot get inferGroup from map: %v", err)
 	}
-	exceptedCount := int(*mi.Spec.Replicas)
+	expectedCount := int(*mi.Spec.Replicas)
 	curReplicas := len(inferGroupList)
-	if curReplicas == exceptedCount {
+	if curReplicas == expectedCount {
 		klog.V(4).Info("The number of replicas is consistent, no need to scale up or down")
 		return nil
 	}
 	// slice that will contain all InferGroups as excepted
-	replicas := make([]*datastore.InferGroup, exceptedCount)
+	replicas := make([]*datastore.InferGroup, expectedCount)
 	// slice that will contain all InferGroups Out of except or fails to parse ordinal
 	condemned := make([]datastore.InferGroup, 0)
 	// First we partition inferGroups into two lists valid replicas and condemned inferGroups
 	for _, group := range inferGroupList {
 		_, inferGroupOrdinal := utils.GetParentNameAndOrdinal(group.Name)
-		if inferGroupOrdinal >= 0 && inferGroupOrdinal < exceptedCount {
+		if inferGroupOrdinal >= 0 && inferGroupOrdinal < expectedCount {
 			copyInferGroup := group
 			replicas[inferGroupOrdinal] = &copyInferGroup
 		} else {
@@ -278,18 +277,13 @@ func (mic *ModelInferController) manageReplicas(ctx context.Context, mi *workloa
 			condemned = append(condemned, group)
 		}
 	}
-	for idx := 0; idx < exceptedCount; idx++ {
+	for idx := 0; idx < expectedCount; idx++ {
 		if replicas[idx] == nil {
 			// Insert new InferGroup to global storage
 			err = mic.store.AddInferGroupForModelInfer(utils.GetNamespaceName(mi), idx)
 			if err != nil {
 				return fmt.Errorf("store infer group failed: %v", err)
 			}
-			// Initialize runningPod storage for inferGroup
-			mic.store.InitRunningPodForInferGroup(types.NamespacedName{
-				Namespace: mi.Namespace,
-				Name:      utils.GenerateInferGroupName(mi.Name, idx),
-			})
 			// Create pods for inferGroup
 			err = mic.CreatePodsForInferGroup(ctx, mi, idx)
 			if err != nil {
@@ -308,7 +302,7 @@ func (mic *ModelInferController) CreatePodsForInferGroup(ctx context.Context, mi
 	roleList := mi.Spec.Template.Spec.Roles
 	for _, role := range roleList {
 		// there will be multiple replicas in a role, such as xPyD type
-		for roleIndex := range int(*mi.Spec.Replicas) {
+		for roleIndex := range int(*role.Replicas) {
 			err := mic.CreatePodByRole(ctx, role, mi, roleIndex, groupIndex)
 			if err != nil {
 				return fmt.Errorf("create role pod failed: %v, role name: %s, role index: %d", err, role.Name, roleIndex)
