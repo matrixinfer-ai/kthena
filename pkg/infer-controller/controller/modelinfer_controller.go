@@ -172,7 +172,6 @@ func (mic *ModelInferController) deletePod(obj interface{}) {
 
 	podLabels := pod.GetLabels()
 	if podLabels == nil {
-		klog.Errorf("pod %s/%s has no labels", pod.GetNamespace(), pod.GetName())
 		return
 	}
 
