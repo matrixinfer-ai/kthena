@@ -232,15 +232,25 @@ func (mic *ModelInferController) syncModelInfer(ctx context.Context, key string)
 	return nil
 }
 
-// TODO: pass in a ctx
-func (mic *ModelInferController) Run() {
+func (mic *ModelInferController) Run(ctx context.Context, workers int) {
 	defer utilruntime.HandleCrash()
 	defer mic.workqueue.ShutDown()
 
+	// start informers
+	go mic.podsInformer.RunWithContext(ctx)
+	go mic.modelInfersInformer.RunWithContext(ctx)
+
+	cache.WaitForCacheSync(ctx.Done(),
+		mic.podsInformer.HasSynced,
+		mic.modelInfersInformer.HasSynced,
+	)
+
 	klog.Info("start modelInfer controller")
-	// TODO: wait for cache synced
-	// TODO add other controller logic
-	mic.worker(context.Background())
+	for i := 0; i < workers; i++ {
+		go mic.worker(ctx)
+	}
+	<-ctx.Done()
+	klog.Info("shut down modelInfer controller")
 }
 
 // UpdateStatus update ModelInfer status.
