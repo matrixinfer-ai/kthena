@@ -60,11 +60,6 @@ class ModelDownloader(ABC):
                 else:
                     logger.info("Failed to acquire lock. Waiting for the lock to be released.")
                     self.stop_event.wait(timeout=60)
-            except LockError as e:
-                logger.error(f"Lock error: {e}")
-                if self.lock_manager:
-                    self.lock_manager.release()
-                raise
             except Exception as e:
                 logger.error(f"Unexpected error in download_model: {e}")
                 if self.lock_manager:
