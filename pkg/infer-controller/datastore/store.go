@@ -17,8 +17,6 @@ type Store interface {
 	GetInferGroupStatus(modelInferName types.NamespacedName, inferGroupName string) InferGroupStatus
 	DeleteModelInfer(modelInferName types.NamespacedName) error
 	DeleteInferGroupOfRunningPodMap(modelInferName types.NamespacedName, inferGroupName string) error
-	InitInferGroupForModelInfer(modelInferName types.NamespacedName)
-	InitRunningPodForInferGroup(inferGroupName types.NamespacedName)
 	AddInferGroupForModelInfer(modelInferName types.NamespacedName, idx int) error
 	AddRunningPodForInferGroup(inferGroupName types.NamespacedName, runningPodName string) error
 	UpdateInferGroupStatus(modelInferName types.NamespacedName, inferGroupName string, Status InferGroupStatus) error
@@ -139,7 +137,11 @@ func (s *store) AddInferGroupForModelInfer(modelInferName types.NamespacedName, 
 		Namespace: modelInferName.Namespace,
 		Status:    InferGroupCreating,
 	}
-	s.inferGroup[modelInferName] = slices.Insert(s.inferGroup[modelInferName], idx, newGroup)
+	group := s.inferGroup[modelInferName]
+	if idx < 0 || idx > len(group) {
+		return fmt.Errorf("infer group index %d out of range", idx)
+	}
+	s.inferGroup[modelInferName] = slices.Insert(group, idx, newGroup)
 	return nil
 }
 
