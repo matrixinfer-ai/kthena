@@ -67,6 +67,7 @@ type Store interface {
 	// Get modelServer name. This name is as same as modelServer.Spec.Model
 	GetModelNameByModelServer(name types.NamespacedName) *string
 	GetPodsByModelServer(name types.NamespacedName) []*PodInfo
+	GetPDGroupByModelServer(name types.NamespacedName) *aiv1alpha1.PDGroup
 
 	// Refresh Store and ModelServer when add a new pod or update a pod
 	AddOrUpdatePod(pod *corev1.Pod, modelServer []*aiv1alpha1.ModelServer) error
@@ -92,6 +93,7 @@ type modelServer struct {
 	model      *string
 	pods       map[types.NamespacedName]*PodInfo
 	targetPort aiv1alpha1.WorkloadPort
+	pdGroup    *aiv1alpha1.PDGroup
 }
 
 type PodInfo struct {
@@ -173,11 +175,13 @@ func (s *store) AddOrUpdateModelServer(name types.NamespacedName, ms *aiv1alpha1
 			model:      ms.Spec.Model,
 			pods:       make(map[types.NamespacedName]*PodInfo),
 			targetPort: ms.Spec.WorkloadPort,
+			pdGroup:    ms.Spec.WorkloadSelector.PDGroup,
 		}
 	} else {
 		s.modelServer[name].mutex.Lock()
 		s.modelServer[name].model = ms.Spec.Model
 		s.modelServer[name].targetPort = ms.Spec.WorkloadPort
+		s.modelServer[name].pdGroup = ms.Spec.WorkloadSelector.PDGroup
 		s.modelServer[name].mutex.Unlock()
 	}
 
@@ -237,6 +241,13 @@ func (s *store) GetPodsByModelServer(name types.NamespacedName) []*PodInfo {
 	}
 
 	return pods
+}
+
+func (s *store) GetPDGroupByModelServer(name types.NamespacedName) *aiv1alpha1.PDGroup {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	return s.modelServer[name].pdGroup
 }
 
 func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.ModelServer) error {

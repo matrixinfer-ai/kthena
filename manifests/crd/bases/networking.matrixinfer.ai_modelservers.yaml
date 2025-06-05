@@ -105,7 +105,32 @@ spec:
                   matchLabels:
                     additionalProperties:
                       type: string
-                    description: The labels to match the model serving instances.
+                    description: |-
+                      The base labels to match the model serving instances.
+                      All instances must match these labels.
+                    type: object
+                  pdGroup:
+                    description: |-
+                      PDGroup is used to further specify the role of the model serving instances,
+                      Prefill instances or Decode instances.
+                    properties:
+                      decodeLabels:
+                        additionalProperties:
+                          type: string
+                        description: The labels to match the model serving instances
+                          for decode.
+                        type: object
+                      groupKey:
+                        description: |-
+                          GroupKey is the key to distinguish different PD groups.
+                          Only PD instances with the same group key and group value could be paired.
+                        type: string
+                      prefillLabels:
+                        additionalProperties:
+                          type: string
+                        description: The labels to match the model serving instances
+                          for prefill.
+                        type: object
                     type: object
                 type: object
             required:

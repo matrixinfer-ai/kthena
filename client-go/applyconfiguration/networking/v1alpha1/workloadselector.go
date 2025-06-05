@@ -20,7 +20,8 @@ package v1alpha1
 // WorkloadSelectorApplyConfiguration represents a declarative configuration of the WorkloadSelector type for use
 // with apply.
 type WorkloadSelectorApplyConfiguration struct {
-	MatchLabels map[string]string `json:"matchLabels,omitempty"`
+	MatchLabels map[string]string          `json:"matchLabels,omitempty"`
+	PDGroup     *PDGroupApplyConfiguration `json:"pdGroup,omitempty"`
 }
 
 // WorkloadSelectorApplyConfiguration constructs a declarative configuration of the WorkloadSelector type for use with
@@ -40,5 +41,13 @@ func (b *WorkloadSelectorApplyConfiguration) WithMatchLabels(entries map[string]
 	for k, v := range entries {
 		b.MatchLabels[k] = v
 	}
+	return b
+}
+
+// WithPDGroup sets the PDGroup field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the PDGroup field is set to the value of the last call.
+func (b *WorkloadSelectorApplyConfiguration) WithPDGroup(value *PDGroupApplyConfiguration) *WorkloadSelectorApplyConfiguration {
+	b.PDGroup = value
 	return b
 }

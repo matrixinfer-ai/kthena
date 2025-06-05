@@ -11,7 +11,8 @@ type Context struct {
 
 	Hashes []uint64
 
-	TargetPod *datastore.PodInfo
+	PrimaryPod *datastore.PodInfo
+	PrefillPod *datastore.PodInfo
 }
 
 // FilterPlugin is an interface that is used to filter valid pods that can be sent request to.

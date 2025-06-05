@@ -61,6 +61,10 @@ func (m *MockStore) GetPodsByModelServer(name types.NamespacedName) []*datastore
 	return nil
 }
 
+func (m *MockStore) GetPDGroupByModelServer(name types.NamespacedName) *aiv1alpha1.PDGroup {
+	return nil
+}
+
 func (m *MockStore) AddOrUpdatePod(pod *corev1.Pod, modelServer []*aiv1alpha1.ModelServer) error {
 	return nil
 }
