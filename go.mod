@@ -4,6 +4,7 @@ go 1.24.0
 
 require (
 	github.com/agiledragon/gomonkey/v2 v2.13.0
+	github.com/cespare/xxhash v1.1.0
 	github.com/gin-gonic/gin v1.10.0
 	github.com/google/uuid v1.6.0
 	github.com/onsi/ginkgo/v2 v2.23.4
@@ -21,6 +22,7 @@ require (
 	k8s.io/client-go v0.33.0
 	k8s.io/code-generator v0.33.0
 	k8s.io/klog/v2 v2.130.1
+	k8s.io/utils v0.0.0-20250502105355-0f33e8f1c979
 	sigs.k8s.io/controller-runtime v0.20.4
 	sigs.k8s.io/structured-merge-diff/v4 v4.7.0
 )

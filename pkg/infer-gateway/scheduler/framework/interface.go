@@ -6,7 +6,12 @@ import (
 
 // Context stores information which maybe useful in Filter or Score plugins.
 type Context struct {
-	Model string
+	Model  string
+	Prompt string
+
+	Hashes []uint64
+
+	TargetPod *datastore.PodInfo
 }
 
 // FilterPlugin is an interface that is used to filter valid pods that can be sent request to.
@@ -20,4 +25,10 @@ type FilterPlugin interface {
 type ScorePlugin interface {
 	Name() string
 	Score(pods []*datastore.PodInfo, ctx *Context) map[*datastore.PodInfo]int
+}
+
+// PostHook is an interface that is executed after the scheduling is complete.
+type PostHook interface {
+	Name() string
+	PostSchedule(ctx *Context)
 }

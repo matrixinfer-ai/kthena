@@ -26,6 +26,7 @@ func (l *LoraAffinity) Name() string {
 
 func (l *LoraAffinity) Filter(pods []*datastore.PodInfo, ctx *framework.Context) []*datastore.PodInfo {
 	return slices.FilterInPlace(pods, func(info *datastore.PodInfo) bool {
+		// TODO: add lock protection
 		_, ok := info.Models[ctx.Model]
 		return ok
 	})

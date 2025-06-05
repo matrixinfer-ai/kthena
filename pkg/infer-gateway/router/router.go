@@ -113,6 +113,6 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 		}
 		defer resp.Body.Close()
 		// Maybe we need to read the response to get the tokens for ratelimiting later
-		bufio.NewReader(resp.Body).WriteTo(c.Writer)
+		_, _ = bufio.NewReader(resp.Body).WriteTo(c.Writer)
 	}
 }
