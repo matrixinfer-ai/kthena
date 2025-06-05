@@ -23,17 +23,17 @@ from logger import setup_logger
 logger = setup_logger()
 
 
-def load_credentials(credentials_str: str = None) -> dict:
-    credentials = {}
-    if credentials_str:
+def load_config(config_str: str = None) -> dict:
+    config = {}
+    if config_str:
         try:
-            credentials = json.loads(credentials_str)
-            logger.info("Loaded credentials from JSON string.")
+            config = json.loads(config_str)
+            logger.info("Loaded configuration from JSON string.")
         except json.JSONDecodeError as e:
-            logger.error(f"Error parsing credentials JSON: {e}")
-            raise ValueError("Invalid credentials JSON format.") from e
+            logger.error(f"Error parsing configuration JSON: {e}")
+            raise ValueError("Invalid configuration JSON format.") from e
 
-    env_credentials = {
+    env_config = {
         "hf_token": os.getenv("HF_AUTH_TOKEN"),
         "hf_endpoint": os.getenv("HF_ENDPOINT"),
         "hf_revision": os.getenv("HF_REVISION"),
@@ -42,16 +42,16 @@ def load_credentials(credentials_str: str = None) -> dict:
         "region_name": os.getenv("REGION_NAME"),
         "obs_endpoint": os.getenv("OBS_ENDPOINT"),
     }
-    for key, value in env_credentials.items():
+    for key, value in env_config.items():
         if value:
-            credentials.setdefault(key, value)
+            config.setdefault(key, value)
             logger.info(f"Loaded {key} from environment variables.")
-    return credentials
+    return config
 
 
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Universal Downloader Tool",
+        description="Universal Model Downloader Tool for AI/ML workflows",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
 
@@ -59,27 +59,34 @@ def parse_arguments() -> argparse.Namespace:
         "-s", "--source",
         type=str,
         required=True,
-        help="Source paths (e.g., HF repo IDs or S3 URIs)"
+        help="Model source URI or identifier. Supports multiple sources including: "
+             "Hugging Face repositories (format: 'organization/model_name'), "
+             "S3 buckets (s3://bucket/path), Object Storage (obs://bucket/path) and PVC storage (pvc://path)"
     )
     parser.add_argument(
         "-o", "--output-dir",
         type=str,
         default="~/downloads",
-        help="Output directory path"
+        help="Local directory path where model files will be saved."
     )
     parser.add_argument(
         "-m", "--model-name",
         type=str,
         required=True,
-        help="Name of the model to be downloaded"
+        help="Unique identifier for the model being downloaded."
     )
     parser.add_argument(
-        "-c", "--credentials",
+        "-c", "--config",
         type=str,
         default=None,
-        help="JSON-formatted string containing authentication credentials "
-             "(e.g., '{\"hf_token\": \"YOUR_HF_TOKEN\", \"access_key\": \"YOUR_ACCESS_KEY\", "
-             "\"secret_key\": \"YOUR_SECRET_KEY\", \"region_name\": \"YOUR_REGION_NAME\"}')"
+        help="JSON-formatted configuration string with provider-specific settings. Supported keys include:\n"
+             "- hf_token: Authentication token for Hugging Face\n"
+             "- hf_endpoint: Custom API endpoint for Hugging Face\n"
+             "- hf_revision: Specific model revision/branch to download\n"
+             "- access_key/secret_key: Cloud provider credentials\n"
+             "- region_name: Cloud provider region\n"
+             "- obs_endpoint: Object Storage endpoint URL\n"
+             "Example: '{\"hf_token\": \"hf_xxx\", \"region_name\": \"us-east-1\"}'"
     )
     args = parser.parse_args()
     args.output_dir = str(Path(args.output_dir).expanduser().resolve())
@@ -90,12 +97,12 @@ def parse_arguments() -> argparse.Namespace:
 def main():
     try:
         args = parse_arguments()
-        credentials = load_credentials(args.credentials)
+        config = load_config(args.config)
         download_model(
             source=args.source,
             output_dir=args.output_dir,
             model_name=args.model_name,
-            credentials=credentials
+            config=config
         )
     except Exception as e:
         logger.error(f"An error occurred: {e}")

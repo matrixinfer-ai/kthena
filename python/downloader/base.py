@@ -24,6 +24,7 @@ from logger import setup_logger
 
 logger = setup_logger()
 
+
 def parse_bucket_from_model_url(url: str, scheme: str) -> Tuple[str, str]:
     result = urlparse(url, scheme=scheme)
     bucket_name = result.netloc
@@ -67,15 +68,15 @@ class ModelDownloader(ABC):
                 raise
 
 
-def get_downloader(url: str, credentials: dict) -> ModelDownloader:
+def get_downloader(url: str, config: dict) -> ModelDownloader:
     try:
         if url.startswith("s3://"):
             from s3 import S3Downloader
             return S3Downloader(
                 model_uri=url,
-                access_key=credentials.get("access_key"),
-                secret_key=credentials.get("secret_key"),
-                region_name=credentials.get("region_name"),
+                access_key=config.get("access_key"),
+                secret_key=config.get("secret_key"),
+                region_name=config.get("region_name"),
             )
         elif url.startswith("pvc://"):
             from pvc import PVCDownloader
@@ -84,17 +85,17 @@ def get_downloader(url: str, credentials: dict) -> ModelDownloader:
             from objectstorage import OBSDownloader
             return OBSDownloader(
                 model_uri=url,
-                access_key=credentials.get("access_key"),
-                secret_key=credentials.get("secret_key"),
-                obs_endpoint=credentials.get("obs_endpoint"),
+                access_key=config.get("access_key"),
+                secret_key=config.get("secret_key"),
+                obs_endpoint=config.get("obs_endpoint"),
             )
         else:
             from huggingface import HuggingFaceDownloader
             return HuggingFaceDownloader(
                 model_uri=url,
-                hf_token=credentials.get("hf_token"),
-                hf_endpoint=credentials.get("hf_endpoint"),
-                hf_revision=credentials.get("hf_revision"),
+                hf_token=config.get("hf_token"),
+                hf_endpoint=config.get("hf_endpoint"),
+                hf_revision=config.get("hf_revision"),
             )
     except ImportError as e:
         logger.error(f"Failed to initialize downloader: {e}")

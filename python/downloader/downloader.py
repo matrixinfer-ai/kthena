@@ -15,6 +15,6 @@
 from base import get_downloader
 
 
-def download_model(source: str, output_dir: str, model_name: str, credentials: dict):
-    downloader = get_downloader(source, credentials)
+def download_model(source: str, output_dir: str, model_name: str, config: dict):
+    downloader = get_downloader(source, config)
     downloader.download_model(output_dir, model_name)
