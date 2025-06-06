@@ -16,7 +16,11 @@ import (
 	workloadv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 )
 
-const Entry = "true"
+const (
+	Entry                   = "true"
+	AllGroupsIsReady        = "All infer groups are ready"
+	SomeGroupsIsProgressing = "Some groups is progressing"
+)
 
 func GetNamespaceName(obj metav1.Object) types.NamespacedName {
 	return types.NamespacedName{
@@ -277,4 +281,59 @@ func ContainerRestarted(pod *corev1.Pod) bool {
 		}
 	}
 	return false
+}
+
+func newCondition(condType workloadv1alpha1.ModelInferSetConditionType, message string) metav1.Condition {
+	var conditionType, reason string
+	switch condType {
+	case workloadv1alpha1.ModelInferSetAvailable:
+		conditionType = string(workloadv1alpha1.ModelInferSetAvailable)
+		reason = "AllGroupsReady"
+	case workloadv1alpha1.ModelInferSetProgressing:
+		conditionType = string(workloadv1alpha1.ModelInferSetProgressing)
+		reason = "GroupProgressing"
+	}
+
+	return metav1.Condition{
+		Type:               conditionType,
+		Status:             metav1.ConditionStatus(corev1.ConditionTrue),
+		LastTransitionTime: metav1.Now(),
+		Reason:             reason,
+		Message:            message,
+	}
+}
+
+func SetCondition(mi *workloadv1alpha1.ModelInfer, progressingGroups []int) bool {
+	var newCond metav1.Condition
+	found := false
+	updated := false
+
+	if len(progressingGroups) == 0 {
+		newCond = newCondition(workloadv1alpha1.ModelInferSetAvailable, AllGroupsIsReady)
+	} else {
+		strOfProgressingGroups := fmt.Sprintf("%v", progressingGroups)
+		message := SomeGroupsIsProgressing + ": " + strOfProgressingGroups
+		newCond = newCondition(workloadv1alpha1.ModelInferSetProgressing, message)
+	}
+
+	newCond.LastTransitionTime = metav1.Now()
+	for i, curCondition := range mi.Status.Conditions {
+		if newCond.Type == curCondition.Type {
+			if newCond.Status != curCondition.Status {
+				mi.Status.Conditions[i] = newCond
+				updated = true
+			}
+			found = true
+		} else {
+			mi.Status.Conditions[i].Status = metav1.ConditionFalse
+			updated = true
+		}
+	}
+
+	if newCond.Status == metav1.ConditionTrue && !found {
+		mi.Status.Conditions = append(mi.Status.Conditions, newCond)
+		updated = true
+	}
+
+	return updated
 }

@@ -143,6 +143,21 @@ type TopologySpreadConstraint struct {
 	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty"`
 }
 
+type ModelInferSetConditionType string
+
+// There is a condition type of a modelInfer
+const (
+	// ModelInferSetAvailable means the modelInfer is available,
+	// at least the minimum available groups are up and running.
+	ModelInferSetAvailable ModelInferSetConditionType = "Available"
+
+	// The ModelInfer enters the ModelInferSetProgressing state whenever there are ongoing changes,
+	// such as the creation of new groups or the scaling of pods within a group.
+	// A group remains in the progressing state until all its pods become ready.
+	// As long as at least one group is progressing, the entire ModelInferSet is also considered progressing.
+	ModelInferSetProgressing ModelInferSetConditionType = "Progressing"
+)
+
 // ModelInferStatus defines the observed state of ModelInfer
 type ModelInferStatus struct {
 	// Replicas track the total number of InferGroup that have been created (updated or not, ready or not)
