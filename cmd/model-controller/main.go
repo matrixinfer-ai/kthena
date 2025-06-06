@@ -19,9 +19,10 @@ package main
 import (
 	"crypto/tls"
 	"flag"
-	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 	"os"
 	"path/filepath"
+
+	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -38,8 +39,10 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	registryv1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller"
+	registryv1alpha "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
+	webhookregistryv1alpha "matrixinfer.ai/matrixinfer/pkg/registry/webhook/v1alpha"
+
+	controller "matrixinfer.ai/matrixinfer/pkg/model-controller"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -51,7 +54,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(registryv1.AddToScheme(scheme))
+	utilruntime.Must(registryv1alpha.AddToScheme(scheme))
 	utilruntime.Must(workload.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
@@ -212,6 +215,21 @@ func main() {
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
+
+	// nolint:goconst
+	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
+		if err = webhookregistryv1alpha.SetupModelWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Model")
+			os.Exit(1)
+		}
+	}
+	// nolint:goconst
+	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
+		if err = webhookregistryv1alpha.SetupAutoscalingPolicyWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "AutoscalingPolicy")
+			os.Exit(1)
+		}
+	}
 
 	if metricsCertWatcher != nil {
 		setupLog.Info("Adding metrics certificate watcher to manager")

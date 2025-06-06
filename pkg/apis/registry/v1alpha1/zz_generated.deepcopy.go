@@ -307,6 +307,20 @@ func (in *Model) DeepCopyObject() runtime.Object {
 func (in *ModelBackend) DeepCopyInto(out *ModelBackend) {
 	*out = *in
 	in.Config.DeepCopyInto(&out.Config)
+	if in.Env != nil {
+		in, out := &in.Env, &out.Env
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
+	if in.EnvFrom != nil {
+		in, out := &in.EnvFrom, &out.EnvFrom
+		*out = make([]v1.EnvFromSource, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	out.ScaleToZeroGracePeriod = in.ScaleToZeroGracePeriod
 	if in.Workers != nil {
 		in, out := &in.Workers, &out.Workers

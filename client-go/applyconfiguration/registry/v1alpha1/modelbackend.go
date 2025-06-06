@@ -31,6 +31,9 @@ type ModelBackendApplyConfiguration struct {
 	Type                   *registryv1alpha1.ModelBackendType `json:"type,omitempty"`
 	Config                 *v1.JSON                           `json:"config,omitempty"`
 	ModelURI               *string                            `json:"modelURI,omitempty"`
+	CacheURI               *string                            `json:"cacheURI,omitempty"`
+	Env                    map[string]string                  `json:"env,omitempty"`
+	EnvFrom                []corev1.EnvFromSource             `json:"envFrom,omitempty"`
 	MinReplicas            *int32                             `json:"minReplicas,omitempty"`
 	MaxReplicas            *int32                             `json:"maxReplicas,omitempty"`
 	Cost                   *int64                             `json:"cost,omitempty"`
@@ -75,6 +78,38 @@ func (b *ModelBackendApplyConfiguration) WithConfig(value v1.JSON) *ModelBackend
 // If called multiple times, the ModelURI field is set to the value of the last call.
 func (b *ModelBackendApplyConfiguration) WithModelURI(value string) *ModelBackendApplyConfiguration {
 	b.ModelURI = &value
+	return b
+}
+
+// WithCacheURI sets the CacheURI field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the CacheURI field is set to the value of the last call.
+func (b *ModelBackendApplyConfiguration) WithCacheURI(value string) *ModelBackendApplyConfiguration {
+	b.CacheURI = &value
+	return b
+}
+
+// WithEnv puts the entries into the Env field in the declarative configuration
+// and returns the receiver, so that objects can be build by chaining "With" function invocations.
+// If called multiple times, the entries provided by each call will be put on the Env field,
+// overwriting an existing map entries in Env field with the same key.
+func (b *ModelBackendApplyConfiguration) WithEnv(entries map[string]string) *ModelBackendApplyConfiguration {
+	if b.Env == nil && len(entries) > 0 {
+		b.Env = make(map[string]string, len(entries))
+	}
+	for k, v := range entries {
+		b.Env[k] = v
+	}
+	return b
+}
+
+// WithEnvFrom adds the given value to the EnvFrom field in the declarative configuration
+// and returns the receiver, so that objects can be build by chaining "With" function invocations.
+// If called multiple times, values provided by each call will be appended to the EnvFrom field.
+func (b *ModelBackendApplyConfiguration) WithEnvFrom(values ...corev1.EnvFromSource) *ModelBackendApplyConfiguration {
+	for i := range values {
+		b.EnvFrom = append(b.EnvFrom, values[i])
+	}
 	return b
 }
 
