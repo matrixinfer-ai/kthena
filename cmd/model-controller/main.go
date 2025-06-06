@@ -19,6 +19,7 @@ package main
 import (
 	"crypto/tls"
 	"flag"
+	"matrixinfer.ai/matrixinfer/pkg/registry/controller"
 	"os"
 	"path/filepath"
 
@@ -41,8 +42,6 @@ import (
 
 	registryv1alpha "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	webhookregistryv1alpha "matrixinfer.ai/matrixinfer/pkg/registry/webhook/v1alpha"
-
-	controller "matrixinfer.ai/matrixinfer/pkg/model-controller"
 	// +kubebuilder:scaffold:imports
 )
 
