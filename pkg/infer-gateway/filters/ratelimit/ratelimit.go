@@ -3,8 +3,9 @@ package ratelimit
 import (
 	"context"
 	"fmt"
-	"golang.org/x/time/rate"
 	"time"
+
+	"golang.org/x/time/rate"
 
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/filters/tokenizer"
 )
