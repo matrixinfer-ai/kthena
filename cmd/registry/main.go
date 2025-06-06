@@ -19,11 +19,11 @@ package main
 import (
 	"crypto/tls"
 	"flag"
-	"matrixinfer.ai/matrixinfer/pkg/registry/controller"
 	"os"
 	"path/filepath"
 
 	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
+	"matrixinfer.ai/matrixinfer/pkg/registry/controller"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
