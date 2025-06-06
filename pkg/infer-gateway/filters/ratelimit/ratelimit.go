@@ -2,20 +2,29 @@ package ratelimit
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"golang.org/x/time/rate"
 
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/filters/tokenizer"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
+)
+
+var (
+	log = logger.NewLogger("ratelimit")
 )
 
 type RateLimit struct {
-	token *tokenizer.StringsTokenizer
+	limiter *rate.Limiter
+	token   *tokenizer.StringsTokenizer
 }
 
 func NewRateLimit() RateLimit {
-	return RateLimit{}
+	limit := rate.Every(100 * time.Millisecond)
+	limiter := rate.NewLimiter(limit, 1000000)
+	return RateLimit{
+		limiter: limiter,
+	}
 }
 
 func (r *RateLimit) SingleNodeRateLimit(prompt string) error {
@@ -24,20 +33,17 @@ func (r *RateLimit) SingleNodeRateLimit(prompt string) error {
 		return err
 	}
 
-	limit := rate.Every(100 * time.Millisecond)
-	limiter := rate.NewLimiter(limit, 1000000)
-
-	if limiter.AllowN(time.Now(), size) {
-		fmt.Println("rate limit allow")
+	if r.limiter.AllowN(time.Now(), size) {
+		log.Info("rate limit allow")
 	} else {
-		fmt.Println("rate limit disallow")
+		log.Error("rate limit disallow")
 		// set 1 min wait timeout
 		cxt, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 
-		err := limiter.Wait(cxt)
+		err := r.limiter.WaitN(cxt, 1)
 		if err != nil {
-			limiter.SetLimit(20)
+			r.limiter.SetLimit(20)
 			return err
 		}
 	}
