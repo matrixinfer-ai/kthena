@@ -38,7 +38,6 @@ async def get_health():
 @router.get("/metrics")
 async def metrics(request: Request):
     state = request.app.state
-    print(f"/metrics {TARGET_SERVICE_URL + state.engine_metrics_url}")
     response = await state.client.get(TARGET_SERVICE_URL + state.engine_metrics_url)
     response_content = await process_metrics(response.text, state.metric_standard)
     return Response(content=response_content, media_type="text/plain")

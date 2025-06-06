@@ -1,5 +1,3 @@
-from prometheus_client.core import Sample
-from typing import Dict
 from abc import ABC, abstractmethod
 
 

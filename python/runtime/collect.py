@@ -8,7 +8,6 @@ from prometheus_client.registry import Collector, CollectorRegistry
 
 from standard import MetricStandard
 
-# 配置日志
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 

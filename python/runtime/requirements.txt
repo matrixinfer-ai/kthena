@@ -1,13 +1,6 @@
-# Web框架和API
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
 starlette==0.27.0
-
-# HTTP客户端
 httpx==0.25.2
-
-# 监控指标处理
 prometheus-client==0.19.0
-
-# Python标准库扩展
 typing-extensions==4.8.0

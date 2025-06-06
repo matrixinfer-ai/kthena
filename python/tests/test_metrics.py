@@ -1,9 +1,7 @@
-from pprint import pprint
-
 import pytest
 
-from python.runtime.collect import MetricAdapter
-from python.runtime.standard import MetricStandard
+from collect import MetricAdapter
+from standard import MetricStandard
 
 # 固定的Prometheus格式字符串
 SGLANG_PROMETHEUS_METRICS = """
@@ -47,8 +45,6 @@ def mock_metric_standard():
 def test_metric_adapter_initialization_with_valid_input():
     standard = MetricStandard("sglang")
     adapter = MetricAdapter(SGLANG_PROMETHEUS_METRICS, standard)
-    print()
-    pprint(adapter.metrics)
     assert len(adapter.metrics) == 3
 
 
