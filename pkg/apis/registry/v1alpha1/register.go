@@ -18,7 +18,7 @@ package v1alpha1
 
 import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	runtime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
@@ -31,7 +31,6 @@ const ModelKind = "Model"
 var GroupVersion = v1.GroupVersion{Group: GroupName, Version: "v1alpha1"}
 
 // SchemeGroupVersion is group version used to register these objects
-// Deprecated: use GroupVersion instead.
 var SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: "v1alpha1"}
 
 // Resource takes an unqualified resource and returns a Group qualified GroupResource
@@ -43,9 +42,7 @@ var (
 	// localSchemeBuilder and AddToScheme will stay in k8s.io/kubernetes.
 	SchemeBuilder      runtime.SchemeBuilder
 	localSchemeBuilder = &SchemeBuilder
-	// Deprecated: use Install instead
-	AddToScheme = localSchemeBuilder.AddToScheme
-	Install     = localSchemeBuilder.AddToScheme
+	AddToScheme        = localSchemeBuilder.AddToScheme
 )
 
 func init() {
