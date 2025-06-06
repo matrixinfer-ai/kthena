@@ -1,0 +1,3 @@
+- op: replace
+  path: /spec/template/spec/containers/0/args/3
+  value: --acme-http01-solver-image=registry-cbu.huawei.com/quay.io/jetstack/cert-manager-acmesolver:v1.16.3
