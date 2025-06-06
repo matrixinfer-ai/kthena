@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/filters/ratelimit"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -20,14 +21,16 @@ var (
 )
 
 type Router struct {
-	scheduler scheduler.Scheduler
-	store     datastore.Store
+	scheduler       scheduler.Scheduler
+	store           datastore.Store
+	loadRateLimiter ratelimit.RateLimit
 }
 
 func NewRouter(store datastore.Store) *Router {
 	return &Router{
-		store:     store,
-		scheduler: scheduler.NewScheduler(store),
+		store:           store,
+		scheduler:       scheduler.NewScheduler(store),
+		loadRateLimiter: ratelimit.NewRateLimit(),
 	}
 }
 
@@ -50,6 +53,18 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 		modelName, ok := modelRequest["model"].(string)
 		if !ok {
 			c.AbortWithStatusJSON(http.StatusNotFound, "model not found")
+			return
+		}
+
+		prompt, ok := modelRequest["prompt"].(string)
+		if !ok {
+			c.AbortWithStatusJSON(http.StatusNotFound, "prompt not found")
+			return
+		}
+
+		err = r.loadRateLimiter.SingleNodeRateLimit(prompt)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, "token usage exceeds rate limit")
 			return
 		}
 
