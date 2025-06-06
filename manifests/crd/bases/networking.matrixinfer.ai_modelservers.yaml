@@ -43,7 +43,7 @@ spec:
                 description: The inference engine used to serve the model.
                 enum:
                 - vLLM
-                - sgLang
+                - SGLang
                 type: string
               model:
                 description: |-

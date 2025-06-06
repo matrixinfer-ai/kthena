@@ -186,6 +186,7 @@ func (s *store) AddOrUpdateModelServer(name types.NamespacedName, ms *aiv1alpha1
 		if _, ok := s.pods[podName]; !ok {
 			s.pods[podName] = &PodInfo{
 				Pod:         pod,
+				backend:     string(ms.Spec.InferenceEngine),
 				Models:      make(map[string]struct{}),
 				modelServer: sets.New[types.NamespacedName](name),
 			}
@@ -252,6 +253,8 @@ func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.Model
 		modelServerName := utils.GetNamespaceName(modelServer)
 		modelServerNames = append(modelServerNames, modelServerName)
 		newPodInfo.modelServer.Insert(modelServerName)
+		// NOTE: even if a pod belongs to multiple model servers, the backend should be the same
+		newPodInfo.backend = string(modelServer.Spec.InferenceEngine)
 	}
 
 	// if already have podinfo, need to delete old pod in modelserver
