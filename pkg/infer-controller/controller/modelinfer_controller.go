@@ -6,6 +6,7 @@ import (
 	"reflect"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
@@ -172,7 +173,7 @@ func (mic *ModelInferController) deletePod(obj interface{}) {
 
 	owners := pod.GetOwnerReferences()
 	for i := range owners {
-		if owners[i].Kind == "ModelInfer" {
+		if owners[i].Kind == workloadv1alpha1.ModelInferKind.Kind {
 			mi, err := mic.modelInfersLister.ModelInfers(pod.GetNamespace()).Get(owners[i].Name)
 			if err == nil {
 				mic.DeleteInferGroup(mi, inferGroupName)
@@ -225,8 +226,11 @@ func (mic *ModelInferController) syncModelInfer(ctx context.Context, key string)
 		return fmt.Errorf("invalid resource key: %s", err)
 	}
 	mi, err := mic.modelInfersLister.ModelInfers(namespace).Get(name)
+	if apierrors.IsNotFound(err) {
+		klog.V(4).Infof("%v has been deleted", key)
+		return nil
+	}
 	if err != nil {
-		klog.Errorf("Error getting ModelInfer: %v", err)
 		return err
 	}
 	err = mic.manageReplicas(ctx, mi)
