@@ -6,12 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/filters/ratelimit"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/filters/ratelimit"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler"
 )
