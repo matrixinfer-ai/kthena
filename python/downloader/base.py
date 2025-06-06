@@ -14,6 +14,7 @@
 
 import os
 import threading
+import hashlib
 from abc import ABC, abstractmethod
 from typing import Optional
 from typing import Tuple
@@ -23,6 +24,7 @@ from lock import LockManager, LockError
 from logger import setup_logger
 
 logger = setup_logger()
+
 
 def parse_bucket_from_model_url(url: str, scheme: str) -> Tuple[str, str]:
     result = urlparse(url, scheme=scheme)
@@ -41,16 +43,18 @@ class ModelDownloader(ABC):
         pass
 
     def download_model(self, output_dir: str, model_name: str):
-        output_dir = os.path.join(output_dir, model_name)
-        os.makedirs(output_dir, exist_ok=True)
-        lock_path = os.path.join(output_dir, f".{model_name}.lock")
+        md5_hash = hashlib.md5(model_name.encode()).hexdigest()
+        logger.info(f"Using MD5 hash for model '{model_name}': {md5_hash}")
+        target_dir = os.path.join(output_dir, md5_hash)
+        os.makedirs(target_dir, exist_ok=True)
+        lock_path = os.path.join(target_dir, ".lock")
         self.lock_manager = LockManager(lock_path, timeout=600)
         while True:
             try:
                 if self.lock_manager.try_acquire():
                     try:
                         logger.info(f"Acquired lock successfully. Starting download for model '{model_name}'")
-                        self.download(output_dir)
+                        self.download(target_dir)
                         break
                     except Exception as e:
                         logger.error(f"Error during model download: {e}")
@@ -60,11 +64,6 @@ class ModelDownloader(ABC):
                 else:
                     logger.info("Failed to acquire lock. Waiting for the lock to be released.")
                     self.stop_event.wait(timeout=60)
-            except LockError as e:
-                logger.error(f"Lock error: {e}")
-                if self.lock_manager:
-                    self.lock_manager.release()
-                raise
             except Exception as e:
                 logger.error(f"Unexpected error in download_model: {e}")
                 if self.lock_manager:
@@ -72,15 +71,15 @@ class ModelDownloader(ABC):
                 raise
 
 
-def get_downloader(url: str, credentials: dict) -> ModelDownloader:
+def get_downloader(url: str, config: dict, max_workers: int = 8) -> ModelDownloader:
     try:
         if url.startswith("s3://"):
             from s3 import S3Downloader
             return S3Downloader(
                 model_uri=url,
-                access_key=credentials.get("access_key"),
-                secret_key=credentials.get("secret_key"),
-                region_name=credentials.get("region_name"),
+                access_key=config.get("access_key"),
+                secret_key=config.get("secret_key"),
+                region_name=config.get("region_name"),
             )
         elif url.startswith("pvc://"):
             from pvc import PVCDownloader
@@ -89,17 +88,18 @@ def get_downloader(url: str, credentials: dict) -> ModelDownloader:
             from objectstorage import OBSDownloader
             return OBSDownloader(
                 model_uri=url,
-                access_key=credentials.get("access_key"),
-                secret_key=credentials.get("secret_key"),
-                obs_endpoint=credentials.get("obs_endpoint"),
+                access_key=config.get("access_key"),
+                secret_key=config.get("secret_key"),
+                obs_endpoint=config.get("obs_endpoint"),
             )
         else:
             from huggingface import HuggingFaceDownloader
             return HuggingFaceDownloader(
                 model_uri=url,
-                hf_token=credentials.get("hf_token"),
-                hf_endpoint=credentials.get("hf_endpoint"),
-                hf_revision=credentials.get("hf_revision"),
+                hf_token=config.get("hf_token"),
+                hf_endpoint=config.get("hf_endpoint"),
+                hf_revision=config.get("hf_revision"),
+                max_workers=max_workers
             )
     except ImportError as e:
         logger.error(f"Failed to initialize downloader: {e}")

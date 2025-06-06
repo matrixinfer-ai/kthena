@@ -117,7 +117,7 @@ class LockManager:
             if os.path.exists(self.lock_path):
                 try:
                     os.utime(self.lock_path, None)
-                    logger.debug(f"Lock renewed: {self.lock_path}")
+                    logger.info(f"Lock renewed: {self.lock_path}")
                 except IOError as e:
                     logger.error(f"IOError while renewing lock: {e}")
             else:

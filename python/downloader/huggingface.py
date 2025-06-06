@@ -23,13 +23,14 @@ from base import ModelDownloader
 
 class HuggingFaceDownloader(ModelDownloader):
     def __init__(self, model_uri: str, hf_revision: str = None, hf_token: str = None, hf_endpoint: str = None,
-                 force_download: bool = False):
+                 force_download: bool = False, max_workers: int = 8):
         super().__init__()
         self.model_uri = model_uri
         self.hf_revision = hf_revision
         self.hf_token = hf_token
         self.hf_endpoint = hf_endpoint
         self.force_download = force_download
+        self.max_workers = max_workers
 
     def download(self, output_dir: str):
         logger.info(f"Downloading model from Hugging Face: {self.model_uri}")
@@ -40,7 +41,8 @@ class HuggingFaceDownloader(ModelDownloader):
                 token=self.hf_token,
                 endpoint=self.hf_endpoint,
                 local_dir=output_dir,
-                force_download=self.force_download
+                force_download=self.force_download,
+                max_workers=self.max_workers
             )
         except Exception as e:
             logger.error(f"Error downloading model '{self.model_uri}': {e}")

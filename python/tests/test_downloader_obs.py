@@ -23,7 +23,7 @@ class TestDownloadModel(unittest.TestCase):
 
         download_model(self.source, self.output_dir, self.model_name, self.credentials)
 
-        mock_get_downloader.assert_called_once_with(self.source, self.credentials)
+        mock_get_downloader.assert_called_once_with(self.source, self.credentials, 8)
         self.mock_downloader.download_model.assert_called_once_with(
             self.output_dir, self.model_name
         )
@@ -37,7 +37,7 @@ class TestDownloadModel(unittest.TestCase):
             download_model(self.source, self.output_dir, self.model_name, self.credentials)
 
         self.assertIn("bucketName is empty", str(context.exception))
-        mock_get_downloader.assert_called_once_with(self.source, self.credentials)
+        mock_get_downloader.assert_called_once_with(self.source, self.credentials, 8)
 
     @patch("downloader.get_downloader")
     def test_obs_download_model_invalid_access_key(self, mock_get_downloader):
@@ -48,7 +48,7 @@ class TestDownloadModel(unittest.TestCase):
             download_model(self.source, self.output_dir, self.model_name, self.credentials)
 
         self.assertIn("InvalidAccessKeyId", str(context.exception))
-        mock_get_downloader.assert_called_once_with(self.source, self.credentials)
+        mock_get_downloader.assert_called_once_with(self.source, self.credentials, 8)
 
     @patch("downloader.get_downloader")
     def test_obs_download_model_invalid_secret_key(self, mock_get_downloader):
@@ -59,7 +59,7 @@ class TestDownloadModel(unittest.TestCase):
             download_model(self.source, self.output_dir, self.model_name, self.credentials)
 
         self.assertIn("SignatureDoesNotMatch", str(context.exception))
-        mock_get_downloader.assert_called_once_with(self.source, self.credentials)
+        mock_get_downloader.assert_called_once_with(self.source, self.credentials, 8)
 
     @patch("downloader.get_downloader")
     def test_obs_download_model_network_error(self, mock_get_downloader):
@@ -70,7 +70,7 @@ class TestDownloadModel(unittest.TestCase):
             download_model(self.source, self.output_dir, self.model_name, self.credentials)
 
         self.assertIn("Gateway Time-out", str(context.exception))
-        mock_get_downloader.assert_called_once_with(self.source, self.credentials)
+        mock_get_downloader.assert_called_once_with(self.source, self.credentials, 8)
 
     def test_get_obs_downloader(self):
         downloader = get_downloader(self.source, self.credentials)
