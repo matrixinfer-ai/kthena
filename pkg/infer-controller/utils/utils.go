@@ -62,6 +62,7 @@ func generateWorkerPodName(groupName, roleName string, roleIndex, podIndex int) 
 func GenerateEntryPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, groupName string, roleIndex int) *corev1.Pod {
 	entryPodName := generateEntryPodName(groupName, role.Name, roleIndex)
 	entryPod := createBasePod(role, mi, entryPodName, groupName)
+	entryPod.Spec = role.EntryTemplate.Spec
 	entryPod.Spec.Hostname = entryPodName
 	entryPod.Spec.Subdomain = entryPodName
 	// Build environment variables into each container of all pod
@@ -73,6 +74,7 @@ func GenerateEntryPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfe
 func GenerateWorkerPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, entryPod *corev1.Pod, groupName string, roleIndex, podIndex int) *corev1.Pod {
 	workerPodName := generateWorkerPodName(groupName, role.Name, roleIndex, podIndex)
 	workerPod := createBasePod(role, mi, workerPodName, groupName)
+	workerPod.Spec = role.WorkerTemplate.Spec
 	// Build environment variables into each container of all pod
 	envVars := createCommonEnvVars(role, mi, entryPod, podIndex)
 	addPodEnvVars(workerPod, envVars...)
