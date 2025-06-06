@@ -29,7 +29,7 @@ func (r *RateLimit) SingleNodeRateLimit(prompt string) error {
 		fmt.Println("rate limit allow")
 	} else {
 		fmt.Println("rate limit disallow")
-		// 设置1min等待超时
+		// set 1 min wait timeout
 		cxt, _ := context.WithTimeout(context.Background(), time.Second)
 		err := limiter.Wait(cxt)
 		if err != nil {
