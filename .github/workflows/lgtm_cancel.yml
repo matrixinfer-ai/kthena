@@ -6,7 +6,7 @@ jobs:
   execute:
     runs-on: ubuntu-latest
     steps:
-      - uses: jpmcb/prow-github-actions@v1
+      - uses: jpmcb/prow-github-actions@v2
         with:
           jobs: lgtm
           github-token: '${{ secrets.PROW_TOKEN }}'
