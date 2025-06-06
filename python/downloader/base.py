@@ -71,7 +71,7 @@ class ModelDownloader(ABC):
                 raise
 
 
-def get_downloader(url: str, config: dict) -> ModelDownloader:
+def get_downloader(url: str, config: dict, max_workers: int = 8) -> ModelDownloader:
     try:
         if url.startswith("s3://"):
             from s3 import S3Downloader
@@ -99,6 +99,7 @@ def get_downloader(url: str, config: dict) -> ModelDownloader:
                 hf_token=config.get("hf_token"),
                 hf_endpoint=config.get("hf_endpoint"),
                 hf_revision=config.get("hf_revision"),
+                max_workers=max_workers
             )
     except ImportError as e:
         logger.error(f"Failed to initialize downloader: {e}")

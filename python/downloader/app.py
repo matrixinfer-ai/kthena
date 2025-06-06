@@ -76,6 +76,12 @@ def parse_arguments() -> argparse.Namespace:
         help="Unique identifier for the model being downloaded."
     )
     parser.add_argument(
+        "-w", "--max-workers",
+        type=int,
+        default=8,
+        help="Maximum number of concurrent workers for downloading files."
+    )
+    parser.add_argument(
         "-c", "--config",
         type=str,
         default=None,
@@ -102,7 +108,8 @@ def main():
             source=args.source,
             output_dir=args.output_dir,
             model_name=args.model_name,
-            config=config
+            config=config,
+            max_workers=args.max_workers
         )
     except Exception as e:
         logger.error(f"An error occurred: {e}")
