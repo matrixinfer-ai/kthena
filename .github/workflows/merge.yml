@@ -1,0 +1,17 @@
+name: Merge on lgtm label
+on:
+  schedule:
+    - cron: '*/1 * * * *'
+
+jobs:
+  execute:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - run: npm install
+      - run: npm run build
+      - uses: ./
+        with:
+          jobs: lgtm
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          merge-method: squash
