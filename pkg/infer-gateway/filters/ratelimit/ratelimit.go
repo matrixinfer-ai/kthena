@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 	"golang.org/x/time/rate"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/filters/tokenizer"
 	"time"
+
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/filters/tokenizer"
 )
 
 type RateLimit struct {
