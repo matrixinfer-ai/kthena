@@ -25,10 +25,6 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-controller/utils"
 )
 
-const (
-	podOfInferGroupLabel = "matrixinfer.ai/infergroupname"
-)
-
 type ModelInferController struct {
 	kubeClientSet    kubernetes.Interface
 	modelInferClient clientset.Interface
@@ -163,7 +159,12 @@ func (mic *ModelInferController) deletePod(obj interface{}) {
 		return
 	}
 
-	inferGroupName, ok := pod.GetLabels()[podOfInferGroupLabel]
+	podLabels := pod.GetLabels()
+	if podLabels == nil {
+		return
+	}
+
+	inferGroupName, ok := podLabels[workloadv1alpha1.GroupNameLabelKey]
 	if !ok {
 		klog.Errorf("failed to get infergroupName of pod %s/%s", pod.GetNamespace(), pod.GetName())
 		return
@@ -329,7 +330,7 @@ func (mic *ModelInferController) DeleteInferGroup(mi *workloadv1alpha1.ModelInfe
 		return
 	}
 
-	label := fmt.Sprintf("%s=%s", podOfInferGroupLabel, groupname)
+	label := fmt.Sprintf("%s=%s", workloadv1alpha1.GroupNameLabelKey, groupname)
 	if inferGroupStatus != datastore.InferGroupDeleting {
 		err := mic.store.UpdateInferGroupStatus(miNamedName, groupname, datastore.InferGroupDeleting)
 		if err != nil {
@@ -352,7 +353,7 @@ func (mic *ModelInferController) DeleteInferGroup(mi *workloadv1alpha1.ModelInfe
 
 	// check whether the deletion has been completed
 	selector := labels.SelectorFromSet(map[string]string{
-		podOfInferGroupLabel: groupname,
+		workloadv1alpha1.GroupNameLabelKey: groupname,
 	})
 	pods, err := mic.podsLister.Pods(mi.GetNamespace()).List(selector)
 	if err != nil {
