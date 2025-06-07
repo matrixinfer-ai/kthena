@@ -291,11 +291,13 @@ func (s *store) PodHandlerWhenDeleteModelServer(modelServerName types.Namespaced
 
 func (s *store) DeletePod(podName types.NamespacedName) error {
 	s.mutex.Lock()
-	modelServers := s.pods[podName].modelServer
-	for modelServerName := range modelServers {
-		delete(s.modelServer[modelServerName].pods, podName)
+	if pod, ok := s.pods[podName]; ok {
+		modelServers := pod.modelServer
+		for modelServerName := range modelServers {
+			delete(s.modelServer[modelServerName].pods, podName)
+		}
+		delete(s.pods, podName)
 	}
-	delete(s.pods, podName)
 	s.mutex.Unlock()
 
 	s.triggerCallbacks(EventPodDeleted, EventData{

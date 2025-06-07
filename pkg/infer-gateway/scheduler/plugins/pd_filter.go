@@ -83,6 +83,6 @@ func (p *PDFilter) Filter(pods []*datastore.PodInfo, ctx *framework.Context) []*
 			filtered = append(filtered, pod)
 		}
 	}
-	return filtered
 
+	return filtered
 }
