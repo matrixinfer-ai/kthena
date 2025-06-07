@@ -29,7 +29,7 @@ func (l *LeastLatency) Name() string {
 }
 
 // Score calculates a score for each pod based on their inference latency:
-func (l *LeastLatency) Score(pods []*datastore.PodInfo, ctx *framework.Context) map[*datastore.PodInfo]int {
+func (l *LeastLatency) Score(ctx *framework.Context, pods []*datastore.PodInfo) map[*datastore.PodInfo]int {
 	// Stores the computed score for each pod
 	scoreResults := make(map[*datastore.PodInfo]int)
 	// Handle edge case: empty pod list
@@ -58,6 +58,7 @@ func (l *LeastLatency) Score(pods []*datastore.PodInfo, ctx *framework.Context) 
 
 	return scoreResults
 }
+
 func calculateMinMaxMetrics(pods []*datastore.PodInfo) (minTTFT, maxTTFT, minTPOT, maxTPOT float64) {
 	minTTFT = math.MaxFloat64
 	maxTTFT = 0.0

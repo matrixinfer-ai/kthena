@@ -96,7 +96,7 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 		req := c.Request
 
 		if targetPods.PrefillPod != nil {
-			log.Infof("prefill pod is %v", targetPods.PrefillPod.Pod.Name)
+			log.Debugf("prefill pod is %v", targetPods.PrefillPod.Pod.Name)
 
 			// First request to prefill pod
 			prefillReq := req.Clone(req.Context())
@@ -135,7 +135,7 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 			return
 		}
 
-		log.Infof("target/decode pod is %v", targetPods.DecodePod.Pod.Name)
+		log.Debugf("target/decode pod is %v", targetPods.DecodePod.Pod.Name)
 
 		// step 1: change request URL to real server URL.
 		req.URL.Host = fmt.Sprintf("%s:%d", targetPods.DecodePod.Pod.Status.PodIP, port)

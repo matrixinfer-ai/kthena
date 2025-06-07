@@ -28,7 +28,7 @@ func (p *PDFilter) Name() string {
 	return p.name
 }
 
-func (p *PDFilter) Filter(pods []*datastore.PodInfo, ctx *framework.Context) []*datastore.PodInfo {
+func (p *PDFilter) Filter(ctx *framework.Context, pods []*datastore.PodInfo) []*datastore.PodInfo {
 	if ctx.DecodePod != nil {
 		// Filter out prefill pods if decode pod is not nil.
 

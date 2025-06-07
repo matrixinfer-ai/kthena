@@ -101,7 +101,7 @@ func (p *PrefixCache) Name() string {
 	return p.name
 }
 
-func (p *PrefixCache) Score(pods []*datastore.PodInfo, ctx *framework.Context) map[*datastore.PodInfo]int {
+func (p *PrefixCache) Score(ctx *framework.Context, pods []*datastore.PodInfo) map[*datastore.PodInfo]int {
 	scoreResults := make(map[*datastore.PodInfo]int)
 
 	// Initialize all pods with score 0
