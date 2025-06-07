@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 
+	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins"
@@ -28,7 +29,8 @@ func NewScheduler(store datastore.Store) Scheduler {
 	return &SchedulerImpl{
 		store: store,
 		filterPlugins: []framework.FilterPlugin{
-			plugins.NewLoraAffinity(),
+			// TODO: enable lora affinity when models from metrics are available.
+			// plugins.NewLoraAffinity(),
 			plugins.NewLeastRequest(),
 		},
 		scorePlugins: []*scorePlugin{
@@ -56,7 +58,7 @@ func NewScheduler(store datastore.Store) Scheduler {
 	}
 }
 
-func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.PodInfo) (*datastore.PodInfo, error) {
+func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.PodInfo, pdGroup *aiv1alpha1.PDGroup) (*TargetPods, error) {
 	if len(pods) == 0 {
 		return nil, fmt.Errorf("pods shouldn't be empty")
 	}
@@ -69,6 +71,24 @@ func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.P
 	pods, err := s.RunFilterPlugins(pods, ctx)
 	if err != nil {
 		return nil, err
+	}
+
+	originalPods := make([]*datastore.PodInfo, len(pods))
+	copy(originalPods, pods)
+
+	var pdFilter framework.FilterPlugin
+	if pdGroup != nil {
+		// Initialize PDFilter plugin if PD disaggregation is enabled.
+
+		// First filter out decode pods.
+		// NOTE: Further optimization can be done on whether to filter out decode pod or prefill pod first,
+		// or even how to select the best PD group.
+		pdFilter = plugins.NewPDFilter(pdGroup.DecodeLabels, pdGroup.PrefillLabels, pdGroup.GroupKey)
+		pods = pdFilter.Filter(ctx, pods)
+
+		if len(pods) == 0 {
+			return nil, fmt.Errorf("no decode pod found")
+		}
 	}
 
 	scores, err := s.RunScorePlugins(pods, ctx)
@@ -85,17 +105,47 @@ func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.P
 		}
 	}
 
+	ctx.DecodePod = best
+
+	if pdGroup != nil {
+		// Filter prefill pods if PD disaggregation is enabled.
+		// Also make sure the prefill pod is in the same infer group of decode pod we get before.
+		originalPods = pdFilter.Filter(ctx, originalPods)
+
+		if len(originalPods) == 0 {
+			return nil, fmt.Errorf("no prefill pod found")
+		}
+
+		scores, err = s.RunScorePlugins(originalPods, ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		maxScore = math.MinInt
+		best = originalPods[0]
+		for pod, score := range scores {
+			if score > maxScore {
+				maxScore = score
+				best = pod
+			}
+		}
+
+		ctx.PrefillPod = best
+	}
+
 	// TODO: return several best scorred pods to do fallback in case failure.
 
-	ctx.TargetPod = best
 	s.RunPostHooks(ctx)
 
-	return best, nil
+	return &TargetPods{
+		DecodePod:  ctx.DecodePod,
+		PrefillPod: ctx.PrefillPod,
+	}, nil
 }
 
 func (s *SchedulerImpl) RunFilterPlugins(pods []*datastore.PodInfo, ctx *framework.Context) ([]*datastore.PodInfo, error) {
 	for _, filterPlugin := range s.filterPlugins {
-		pods = filterPlugin.Filter(pods, ctx)
+		pods = filterPlugin.Filter(ctx, pods)
 		if len(pods) == 0 {
 			return nil, fmt.Errorf("pods have all been filtered out by %q", filterPlugin.Name())
 		}
@@ -107,7 +157,7 @@ func (s *SchedulerImpl) RunFilterPlugins(pods []*datastore.PodInfo, ctx *framewo
 func (s *SchedulerImpl) RunScorePlugins(pods []*datastore.PodInfo, ctx *framework.Context) (map[*datastore.PodInfo]int, error) {
 	res := make(map[*datastore.PodInfo]int)
 	for _, scorePlugin := range s.scorePlugins {
-		scores := scorePlugin.plugin.Score(pods, ctx)
+		scores := scorePlugin.plugin.Score(ctx, pods)
 		for k, v := range scores {
 			if _, ok := res[k]; !ok {
 				res[k] = v * scorePlugin.weight
