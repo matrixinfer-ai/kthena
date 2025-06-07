@@ -12,7 +12,8 @@ type Scheduler interface {
 
 type TargetPods struct {
 	// Decode pod in case of PD disaggregation
-	PrimaryPod *datastore.PodInfo
+	// In non PD disaggregation case, the real target pod
+	DecodePod *datastore.PodInfo
 
 	// Prefill pod in case of PD disaggregation.
 	// Otherwise, it's nil

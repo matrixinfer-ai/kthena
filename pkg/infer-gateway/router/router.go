@@ -65,14 +65,21 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 		log.Debugf("modelServer is %v, is_lora: %v", modelServerName, is_lora)
 
 		// Get endpoints from datastore
-		pods, model, port, err := r.store.GetModelServerEndpoints(modelServerName)
+		pods, err := r.store.GetPodsByModelServer(modelServerName)
 		if err != nil || len(pods) == 0 {
 			c.AbortWithStatusJSON(http.StatusNotFound, fmt.Sprintf("can't find target pods of model server: %v, err: %v", modelServerName, err))
 			return
 		}
 
 		// Get PDGroup from datastore
-		pdGroup := r.store.GetPDGroupByModelServer(modelServerName)
+		modelServer := r.store.GetModelServer(modelServerName)
+		if modelServer == nil {
+			c.AbortWithStatusJSON(http.StatusNotFound, fmt.Sprintf("can't find model server: %v", modelServerName))
+			return
+		}
+		pdGroup := modelServer.Spec.WorkloadSelector.PDGroup
+		model := modelServer.Spec.Model
+		port := modelServer.Spec.WorkloadPort.Port
 
 		// Overwrite model.
 		if model != nil && !is_lora {
@@ -127,7 +134,7 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 		}
 
 		// step 1: change request URL to real server URL.
-		req.URL.Host = fmt.Sprintf("%s:%d", targetPods.PrimaryPod.Pod.Status.PodIP, port)
+		req.URL.Host = fmt.Sprintf("%s:%d", targetPods.DecodePod.Pod.Status.PodIP, port)
 		req.URL.Scheme = "http"
 		req.Body = io.NopCloser(bytes.NewBuffer(body))
 		req.ContentLength = int64(len(body))

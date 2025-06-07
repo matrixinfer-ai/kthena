@@ -3,7 +3,6 @@ package scheduler
 import (
 	"fmt"
 	"math"
-	"os"
 
 	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
@@ -18,8 +17,6 @@ type SchedulerImpl struct {
 	scorePlugins  []*scorePlugin
 
 	postHooks []framework.PostHook
-
-	enablePDDisaggregation bool
 }
 
 type scorePlugin struct {
@@ -29,7 +26,6 @@ type scorePlugin struct {
 
 func NewScheduler(store datastore.Store) Scheduler {
 	prefixCache := plugins.NewPrefixCache(store)
-	enablePDDisaggregation := os.Getenv("ENABLE_PD_DISAGGREGATION") == "true"
 	return &SchedulerImpl{
 		store: store,
 		filterPlugins: []framework.FilterPlugin{
@@ -58,7 +54,6 @@ func NewScheduler(store datastore.Store) Scheduler {
 		postHooks: []framework.PostHook{
 			prefixCache,
 		},
-		enablePDDisaggregation: enablePDDisaggregation,
 	}
 }
 
@@ -82,7 +77,7 @@ func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.P
 	originalPods := make([]*datastore.PodInfo, len(pods))
 	copy(originalPods, pods)
 
-	if s.enablePDDisaggregation {
+	if pdGroup != nil {
 		// Filter decode pods first if PD disaggregation is enabled
 		decodeFilter := plugins.NewDecodeFilter(pdGroup.DecodeLabels)
 		pods = decodeFilter.Filter(pods, ctx)
@@ -106,12 +101,12 @@ func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.P
 		}
 	}
 
-	res.PrimaryPod = best
+	res.DecodePod = best
 
-	if s.enablePDDisaggregation {
+	if pdGroup != nil {
 		// Filter prefill pods if PD disaggregation is enabled.
 		// Also make sure the prefill pod is in the same infer group of decode pod we get before.
-		prefillFilter := plugins.NewPrefillFilter(pdGroup.PrefillLabels, pdGroup.GroupKey, res.PrimaryPod.Pod.Labels[pdGroup.GroupKey])
+		prefillFilter := plugins.NewPrefillFilter(pdGroup.PrefillLabels, pdGroup.GroupKey, res.DecodePod.Pod.Labels[pdGroup.GroupKey])
 		originalPods = prefillFilter.Filter(originalPods, ctx)
 
 		if len(originalPods) == 0 {
@@ -137,7 +132,7 @@ func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.P
 
 	// TODO: return several best scorred pods to do fallback in case failure.
 
-	ctx.PrimaryPod = res.PrimaryPod
+	ctx.DecodePod = res.DecodePod
 	ctx.PrefillPod = res.PrefillPod
 
 	s.RunPostHooks(ctx)

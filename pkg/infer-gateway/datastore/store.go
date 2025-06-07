@@ -64,10 +64,9 @@ type Store interface {
 	AddOrUpdateModelServer(name types.NamespacedName, modelServer *aiv1alpha1.ModelServer, pods []*corev1.Pod) error
 	// Delete modelServer
 	DeleteModelServer(modelServer *aiv1alpha1.ModelServer) error
-	// Get modelServer name. This name is as same as modelServer.Spec.Model
-	GetModelNameByModelServer(name types.NamespacedName) *string
-	GetPodsByModelServer(name types.NamespacedName) []*PodInfo
-	GetPDGroupByModelServer(name types.NamespacedName) *aiv1alpha1.PDGroup
+	// Get modelServer
+	GetModelServer(name types.NamespacedName) *aiv1alpha1.ModelServer
+	GetPodsByModelServer(name types.NamespacedName) ([]*PodInfo, error)
 
 	// Refresh Store and ModelServer when add a new pod or update a pod
 	AddOrUpdatePod(pod *corev1.Pod, modelServer []*aiv1alpha1.ModelServer) error
@@ -76,7 +75,6 @@ type Store interface {
 
 	// New methods for routing functionality
 	MatchModelServer(modelName string, request *http.Request) (types.NamespacedName, bool, error)
-	GetModelServerEndpoints(name types.NamespacedName) ([]*PodInfo, *string, int32, error)
 
 	// Model routing methods
 	AddOrUpdateModelRoute(mr *aiv1alpha1.ModelRoute) error
@@ -90,10 +88,8 @@ type Store interface {
 type modelServer struct {
 	mutex sync.RWMutex
 
-	model      *string
-	pods       map[types.NamespacedName]*PodInfo
-	targetPort aiv1alpha1.WorkloadPort
-	pdGroup    *aiv1alpha1.PDGroup
+	modelServer *aiv1alpha1.ModelServer
+	pods        map[types.NamespacedName]*PodInfo
 }
 
 type PodInfo struct {
@@ -172,16 +168,12 @@ func (s *store) AddOrUpdateModelServer(name types.NamespacedName, ms *aiv1alpha1
 
 	if _, ok := s.modelServer[name]; !ok {
 		s.modelServer[name] = &modelServer{
-			model:      ms.Spec.Model,
-			pods:       make(map[types.NamespacedName]*PodInfo),
-			targetPort: ms.Spec.WorkloadPort,
-			pdGroup:    ms.Spec.WorkloadSelector.PDGroup,
+			modelServer: ms,
+			pods:        make(map[types.NamespacedName]*PodInfo),
 		}
 	} else {
 		s.modelServer[name].mutex.Lock()
-		s.modelServer[name].model = ms.Spec.Model
-		s.modelServer[name].targetPort = ms.Spec.WorkloadPort
-		s.modelServer[name].pdGroup = ms.Spec.WorkloadSelector.PDGroup
+		s.modelServer[name].modelServer = ms
 		s.modelServer[name].mutex.Unlock()
 	}
 
@@ -210,24 +202,24 @@ func (s *store) DeleteModelServer(ms *aiv1alpha1.ModelServer) error {
 	return nil
 }
 
-func (s *store) GetModelNameByModelServer(name types.NamespacedName) *string {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+func (s *store) GetModelServer(name types.NamespacedName) *aiv1alpha1.ModelServer {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 
 	if ms, ok := s.modelServer[name]; ok {
-		return ms.model
+		return ms.modelServer
 	}
 
 	return nil
 }
 
-func (s *store) GetPodsByModelServer(name types.NamespacedName) []*PodInfo {
+func (s *store) GetPodsByModelServer(name types.NamespacedName) ([]*PodInfo, error) {
 	s.mutex.RLock()
 	ms, ok := s.modelServer[name]
 	s.mutex.RUnlock()
 
 	if !ok {
-		return nil
+		return nil, fmt.Errorf("model server not found: %v", name)
 	}
 
 	ms.mutex.RLock()
@@ -240,14 +232,7 @@ func (s *store) GetPodsByModelServer(name types.NamespacedName) []*PodInfo {
 		pods = append(pods, pod)
 	}
 
-	return pods
-}
-
-func (s *store) GetPDGroupByModelServer(name types.NamespacedName) *aiv1alpha1.PDGroup {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-
-	return s.modelServer[name].pdGroup
+	return pods, nil
 }
 
 func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.ModelServer) error {
@@ -488,25 +473,6 @@ func selectFromWeightedSlice(weights []uint32) int {
 	}
 
 	return 0
-}
-
-func (s *store) GetModelServerEndpoints(name types.NamespacedName) ([]*PodInfo, *string, int32, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-
-	if ms, ok := s.modelServer[name]; ok {
-		ms.mutex.RLock()
-		defer ms.mutex.RUnlock()
-
-		pods := []*PodInfo{}
-		for _, pod := range ms.pods {
-			pods = append(pods, pod)
-		}
-
-		return pods, ms.model, ms.targetPort.Port, nil
-	}
-
-	return nil, nil, 0, fmt.Errorf("model server not found: %v", name)
 }
 
 func (s *store) updatePodMetrics(pod *corev1.Pod) {

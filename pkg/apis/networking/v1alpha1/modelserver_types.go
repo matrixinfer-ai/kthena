@@ -61,11 +61,11 @@ const (
 // Currently they must be pods within the same namespace as modelServer object.
 type WorkloadSelector struct {
 	// The base labels to match the model serving instances.
-	// All instances must match these labels.
+	// All serving instances must match these labels.
 	// +kube:validation:Required
 	MatchLabels map[string]string `json:"matchLabels,omitempty"`
-	// PDGroup is used to further specify the role of the model serving instances,
-	// Prefill instances or Decode instances.
+	// PDGroup is used to further match different roles of the model serving instances,
+	// mainly used in case like PD disaggregation.
 	PDGroup *PDGroup `json:"pdGroup,omitempty"`
 }
 
@@ -73,12 +73,12 @@ type WorkloadSelector struct {
 // Also the labels to match the model serving instances for prefill and decode.
 type PDGroup struct {
 	// GroupKey is the key to distinguish different PD groups.
-	// Only PD instances with the same group key and group value could be paired.
-	GroupKey string `json:"groupKey,omitempty"`
+	// Only PD instances with the same group key and value could be paired.
+	GroupKey string `json:"groupKey"`
 	// The labels to match the model serving instances for prefill.
-	PrefillLabels map[string]string `json:"prefillLabels,omitempty"`
+	PrefillLabels map[string]string `json:"prefillLabels"`
 	// The labels to match the model serving instances for decode.
-	DecodeLabels map[string]string `json:"decodeLabels,omitempty"`
+	DecodeLabels map[string]string `json:"decodeLabels"`
 }
 
 // WorkloadPort defines the port and protocol configuration for the model server.

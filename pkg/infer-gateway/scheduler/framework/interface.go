@@ -11,7 +11,7 @@ type Context struct {
 
 	Hashes []uint64
 
-	PrimaryPod *datastore.PodInfo
+	DecodePod  *datastore.PodInfo
 	PrefillPod *datastore.PodInfo
 }
 

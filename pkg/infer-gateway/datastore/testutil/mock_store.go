@@ -57,8 +57,8 @@ func (m *MockStore) GetModelNameByModelServer(name types.NamespacedName) *string
 	return nil
 }
 
-func (m *MockStore) GetPodsByModelServer(name types.NamespacedName) []*datastore.PodInfo {
-	return nil
+func (m *MockStore) GetPodsByModelServer(name types.NamespacedName) ([]*datastore.PodInfo, error) {
+	return nil, nil
 }
 
 func (m *MockStore) GetPDGroupByModelServer(name types.NamespacedName) *aiv1alpha1.PDGroup {
@@ -77,14 +77,14 @@ func (m *MockStore) MatchModelServer(modelName string, request *http.Request) (t
 	return types.NamespacedName{}, false, nil
 }
 
-func (m *MockStore) GetModelServerEndpoints(name types.NamespacedName) ([]*datastore.PodInfo, *string, int32, error) {
-	return nil, nil, 0, nil
-}
-
 func (m *MockStore) AddOrUpdateModelRoute(mr *aiv1alpha1.ModelRoute) error {
 	return nil
 }
 
 func (m *MockStore) DeleteModelRoute(namespacedName string) error {
+	return nil
+}
+
+func (m *MockStore) GetModelServer(name types.NamespacedName) *aiv1alpha1.ModelServer {
 	return nil
 }
