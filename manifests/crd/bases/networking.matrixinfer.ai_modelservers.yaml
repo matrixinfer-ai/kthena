@@ -131,6 +131,10 @@ spec:
                         description: The labels to match the model serving instances
                           for prefill.
                         type: object
+                    required:
+                    - decodeLabels
+                    - groupKey
+                    - prefillLabels
                     type: object
                 type: object
             required:

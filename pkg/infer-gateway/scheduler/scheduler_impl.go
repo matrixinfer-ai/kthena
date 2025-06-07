@@ -29,7 +29,8 @@ func NewScheduler(store datastore.Store) Scheduler {
 	return &SchedulerImpl{
 		store: store,
 		filterPlugins: []framework.FilterPlugin{
-			plugins.NewLoraAffinity(),
+			// TODO: enable lora affinity when models from metrics are available.
+			// plugins.NewLoraAffinity(),
 			plugins.NewLeastRequest(),
 		},
 		scorePlugins: []*scorePlugin{
@@ -72,15 +73,18 @@ func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.P
 		return nil, err
 	}
 
-	res := &TargetPods{}
-
 	originalPods := make([]*datastore.PodInfo, len(pods))
 	copy(originalPods, pods)
 
+	var pdFilter framework.FilterPlugin
 	if pdGroup != nil {
-		// Filter decode pods first if PD disaggregation is enabled
-		decodeFilter := plugins.NewDecodeFilter(pdGroup.DecodeLabels)
-		pods = decodeFilter.Filter(pods, ctx)
+		// Initialize PDFilter plugin if PD disaggregation is enabled.
+
+		// First filter out decode pods.
+		// NOTE: Further optimization can be done on whether to filter out decode pod or prefill pod first,
+		// or even how to select the best PD group.
+		pdFilter = plugins.NewPDFilter(pdGroup.DecodeLabels, pdGroup.PrefillLabels, pdGroup.GroupKey)
+		pods = pdFilter.Filter(pods, ctx)
 
 		if len(pods) == 0 {
 			return nil, fmt.Errorf("no decode pod found")
@@ -101,13 +105,12 @@ func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.P
 		}
 	}
 
-	res.DecodePod = best
+	ctx.DecodePod = best
 
 	if pdGroup != nil {
 		// Filter prefill pods if PD disaggregation is enabled.
 		// Also make sure the prefill pod is in the same infer group of decode pod we get before.
-		prefillFilter := plugins.NewPrefillFilter(pdGroup.PrefillLabels, pdGroup.GroupKey, res.DecodePod.Pod.Labels[pdGroup.GroupKey])
-		originalPods = prefillFilter.Filter(originalPods, ctx)
+		originalPods = pdFilter.Filter(originalPods, ctx)
 
 		if len(originalPods) == 0 {
 			return nil, fmt.Errorf("no prefill pod found")
@@ -127,17 +130,17 @@ func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.P
 			}
 		}
 
-		res.PrefillPod = best
+		ctx.PrefillPod = best
 	}
 
 	// TODO: return several best scorred pods to do fallback in case failure.
 
-	ctx.DecodePod = res.DecodePod
-	ctx.PrefillPod = res.PrefillPod
-
 	s.RunPostHooks(ctx)
 
-	return res, nil
+	return &TargetPods{
+		DecodePod:  ctx.DecodePod,
+		PrefillPod: ctx.PrefillPod,
+	}, nil
 }
 
 func (s *SchedulerImpl) RunFilterPlugins(pods []*datastore.PodInfo, ctx *framework.Context) ([]*datastore.PodInfo, error) {

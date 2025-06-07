@@ -96,6 +96,8 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 		req := c.Request
 
 		if targetPods.PrefillPod != nil {
+			log.Infof("prefill pod is %v", targetPods.PrefillPod.Pod.Name)
+
 			// First request to prefill pod
 			prefillReq := req.Clone(req.Context())
 			prefillBody := make(map[string]interface{})
@@ -132,6 +134,8 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, fmt.Sprintf("marshal http body failed: %v", err))
 			return
 		}
+
+		log.Infof("target/decode pod is %v", targetPods.DecodePod.Pod.Name)
 
 		// step 1: change request URL to real server URL.
 		req.URL.Host = fmt.Sprintf("%s:%d", targetPods.DecodePod.Pod.Status.PodIP, port)
