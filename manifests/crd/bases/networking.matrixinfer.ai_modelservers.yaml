@@ -43,7 +43,7 @@ spec:
                 description: The inference engine used to serve the model.
                 enum:
                 - vLLM
-                - sgLang
+                - SGLang
                 type: string
               model:
                 description: |-
@@ -105,7 +105,36 @@ spec:
                   matchLabels:
                     additionalProperties:
                       type: string
-                    description: The labels to match the model serving instances.
+                    description: |-
+                      The base labels to match the model serving instances.
+                      All serving instances must match these labels.
+                    type: object
+                  pdGroup:
+                    description: |-
+                      PDGroup is used to further match different roles of the model serving instances,
+                      mainly used in case like PD disaggregation.
+                    properties:
+                      decodeLabels:
+                        additionalProperties:
+                          type: string
+                        description: The labels to match the model serving instances
+                          for decode.
+                        type: object
+                      groupKey:
+                        description: |-
+                          GroupKey is the key to distinguish different PD groups.
+                          Only PD instances with the same group key and value could be paired.
+                        type: string
+                      prefillLabels:
+                        additionalProperties:
+                          type: string
+                        description: The labels to match the model serving instances
+                          for prefill.
+                        type: object
+                    required:
+                    - decodeLabels
+                    - groupKey
+                    - prefillLabels
                     type: object
                 type: object
             required:

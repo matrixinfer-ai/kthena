@@ -23,7 +23,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -67,7 +66,7 @@ func (r *ModelServerController) Reconcile(ctx context.Context, req ctrl.Request)
 
 	if err := r.Get(ctx, name, ms); err != nil {
 		log.Infof("Delete ModelServer: %v", name.String())
-		r.store.DeleteModelServer(ms)
+		_ = r.store.DeleteModelServer(ms)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
@@ -89,7 +88,7 @@ func (r *ModelServerController) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	log.Infof("Update ModelServer: %v", name.String())
-	r.store.AddOrUpdateModelServer(name, ms, pods)
+	_ = r.store.AddOrUpdateModelServer(name, ms, pods)
 
 	return ctrl.Result{}, nil
 }
@@ -102,9 +101,4 @@ func (r *ModelServerController) SetupWithManager(mgr ctrl.Manager) error {
 		For(&aiv1alpha1.ModelServer{}).
 		Named("ModelServer").
 		Complete(r)
-}
-
-// Find the corresponding endpoints and real model name by user provided model name
-func (r *ModelServerController) GetEndpoints(name types.NamespacedName) ([]*datastore.PodInfo, *string, error) {
-	return r.store.GetPodsByModelServer(name), r.store.GetModelNameByModelServer(name), nil
 }

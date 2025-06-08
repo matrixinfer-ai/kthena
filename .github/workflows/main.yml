@@ -22,12 +22,14 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-
     - name: Setup Go
       uses: actions/setup-go@v4.0.0
       with:
         go-version: ${{ matrix.go-version }}
-    
+    - name: golangci-lint
+      shell: bash
+      run: |
+        make lint
     - name: Build matrixinfer
       shell: bash
       run: |

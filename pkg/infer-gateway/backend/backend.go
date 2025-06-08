@@ -22,8 +22,8 @@ type MetricsProvider interface {
 }
 
 var engineRegistry = map[string]MetricsProvider{
-	"sglang": sglang.NewSglangEngine(),
-	"vllm":   vllm.NewVllmEngine(),
+	"SGLang": sglang.NewSglangEngine(),
+	"vLLM":   vllm.NewVllmEngine(),
 }
 
 func GetPodMetrics(engine string, pod *corev1.Pod, previousHistogram map[string]*dto.Histogram) (map[string]float64, map[string]*dto.Histogram) {
@@ -35,7 +35,7 @@ func GetPodMetrics(engine string, pod *corev1.Pod, previousHistogram map[string]
 
 	allMetrics, err := provider.GetPodMetrics(pod)
 	if err != nil {
-		log.Errorf("failed to get metrics of pod: %s/%s", pod.GetNamespace(), pod.GetName())
+		log.Errorf("failed to get metrics of pod: %s/%s: %v", pod.GetNamespace(), pod.GetName(), err)
 		return nil, nil
 	}
 

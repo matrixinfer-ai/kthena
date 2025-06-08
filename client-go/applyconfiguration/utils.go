@@ -43,6 +43,8 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &networkingv1alpha1.ModelServerApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("ModelServerSpec"):
 		return &networkingv1alpha1.ModelServerSpecApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("PDGroup"):
+		return &networkingv1alpha1.PDGroupApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("RateLimit"):
 		return &networkingv1alpha1.RateLimitApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("Retry"):
