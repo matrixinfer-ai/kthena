@@ -19,7 +19,7 @@ rules:
 - apiGroups:
   - workload.matrixinfer.ai
   resources:
-  - workloads/status
+  - modelinfers/status
   verbs:
   - get
   - patch
