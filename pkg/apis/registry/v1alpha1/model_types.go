@@ -148,6 +148,9 @@ type ModelStatus struct {
 	// BackendStatuses contains the status of each backend.
 	// +listType=atomic
 	BackendStatuses []ModelBackendStatus `json:"backendStatuses,omitempty"`
+	// ObservedGeneration track of generation
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
 type ModelStatusConditionType string
