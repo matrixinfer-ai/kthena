@@ -2,20 +2,23 @@ package datastore
 
 import (
 	"fmt"
+	"slices"
 	"sync"
 
 	"k8s.io/apimachinery/pkg/types"
+
+	"matrixinfer.ai/matrixinfer/pkg/infer-controller/utils"
 )
 
 // Store is an interface for storing and retrieving data
 type Store interface {
-	GetInferGroupByModelInfer(modelInferName types.NamespacedName) (int, []InferGroup, error)
-	GetRunningPodByInferGroup(modelInferName types.NamespacedName, inferGroupName string) (int, []string, error)
+	GetInferGroupByModelInfer(modelInferName types.NamespacedName) ([]InferGroup, error)
+	GetRunningPodByInferGroup(modelInferName types.NamespacedName, inferGroupName string) ([]string, error)
 	GetInferGroupStatus(modelInferName types.NamespacedName, inferGroupName string) InferGroupStatus
 	DeleteModelInfer(modelInferName types.NamespacedName) error
 	DeleteInferGroupOfRunningPodMap(modelInferName types.NamespacedName, inferGroupName string) error
-	UpdateInferGroupForModelInfer(modelInferName types.NamespacedName, inferGroupList []InferGroup) error
-	UpdateRunningPodForInferGroup(inferGroupName types.NamespacedName, runningPodList []string) error
+	AddInferGroupForModelInfer(modelInferName types.NamespacedName, idx int) error
+	AddRunningPodForInferGroup(inferGroupName types.NamespacedName, runningPodName string) error
 	UpdateInferGroupStatus(modelInferName types.NamespacedName, inferGroupName string, Status InferGroupStatus) error
 }
 
@@ -48,19 +51,19 @@ func New() (Store, error) {
 	}, nil
 }
 
-// Returns the number of infergroups, the list of infergroup, and errors for a modelinfer
-func (s *store) GetInferGroupByModelInfer(modelInferName types.NamespacedName) (int, []InferGroup, error) {
+// GetInferGroupByModelInfer returns the list of inferGroups and errors
+func (s *store) GetInferGroupByModelInfer(modelInferName types.NamespacedName) ([]InferGroup, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	inferGroups, ok := s.inferGroup[modelInferName]
 	if !ok {
-		return 0, nil, nil
+		return nil, nil
 	}
-	return len(inferGroups), inferGroups, nil
+	return inferGroups, nil
 }
 
-// Returns the number of running pods, the list of running pod names, and errors for an infergroup
-func (s *store) GetRunningPodByInferGroup(modelInferName types.NamespacedName, inferGroupName string) (int, []string, error) {
+// GetRunningPodByInferGroup returns the list of running pods name and errors
+func (s *store) GetRunningPodByInferGroup(modelInferName types.NamespacedName, inferGroupName string) ([]string, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	runningPods, ok := s.runningPodOfInferGroups[types.NamespacedName{
@@ -68,11 +71,12 @@ func (s *store) GetRunningPodByInferGroup(modelInferName types.NamespacedName, i
 		Name:      inferGroupName,
 	}]
 	if !ok {
-		return 0, nil, nil
+		return nil, nil
 	}
-	return len(runningPods), runningPods, nil
+	return runningPods, nil
 }
 
+// GetInferGroupStatus returns the status of inferGroup
 func (s *store) GetInferGroupStatus(modelInferName types.NamespacedName, inferGroupName string) InferGroupStatus {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
@@ -86,7 +90,7 @@ func (s *store) GetInferGroupStatus(modelInferName types.NamespacedName, inferGr
 	return InferGroupNotFound
 }
 
-// delete modelInfer in inferGroup map
+// DeleteModelInfer delete modelInfer in inferGroup map
 func (s *store) DeleteModelInfer(modelInferName types.NamespacedName) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -105,7 +109,7 @@ func (s *store) DeleteModelInfer(modelInferName types.NamespacedName) error {
 	return nil
 }
 
-// delete inferGroup in runningPodOfInferGroup
+// DeleteInferGroupOfRunningPodMap delete inferGroup in runningPodOfInferGroup map
 func (s *store) DeleteInferGroupOfRunningPodMap(modelInferName types.NamespacedName, inferGroupName string) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -123,29 +127,41 @@ func (s *store) DeleteInferGroupOfRunningPodMap(modelInferName types.NamespacedN
 	return nil
 }
 
-func (s *store) UpdateInferGroupForModelInfer(modelInferName types.NamespacedName, inferGroupList []InferGroup) error {
+// AddInferGroupForModelInfer add inferGroup item of one modelInfer
+func (s *store) AddInferGroupForModelInfer(modelInferName types.NamespacedName, idx int) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	s.inferGroup[modelInferName] = inferGroupList
+	newGroup := InferGroup{
+		Name:      utils.GenerateInferGroupName(modelInferName.Name, idx),
+		Namespace: modelInferName.Namespace,
+		Status:    InferGroupCreating,
+	}
+	group := s.inferGroup[modelInferName]
+	if idx < 0 || idx > len(group) {
+		return fmt.Errorf("infer group index %d out of range", idx)
+	}
+	s.inferGroup[modelInferName] = slices.Insert(group, idx, newGroup)
 	return nil
 }
 
-func (s *store) UpdateRunningPodForInferGroup(inferGroupName types.NamespacedName, runningPodList []string) error {
+// AddRunningPodForInferGroup add inferGroup in runningPodOfInferGroup map
+func (s *store) AddRunningPodForInferGroup(inferGroupName types.NamespacedName, runningPodName string) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	s.runningPodOfInferGroups[inferGroupName] = runningPodList
+	s.runningPodOfInferGroups[inferGroupName] = append(s.runningPodOfInferGroups[inferGroupName], runningPodName)
 	return nil
 }
 
+// UpdateInferGroupStatus update status of one inferGroup
 func (s *store) UpdateInferGroupStatus(modelInferName types.NamespacedName, inferGroupName string, status InferGroupStatus) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	inferGroups, ok := s.inferGroup[modelInferName]
 	if !ok {
-		return fmt.Errorf("Failed to find modelInfer %s", modelInferName.Namespace+"/"+modelInferName.Name)
+		return fmt.Errorf("failed to find modelInfer %s", modelInferName.Namespace+"/"+modelInferName.Name)
 	}
 	for i := range inferGroups {
 		if inferGroups[i].Name == inferGroupName {

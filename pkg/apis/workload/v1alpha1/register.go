@@ -33,6 +33,12 @@ func Resource(resource string) schema.GroupResource {
 	return SchemeGroupVersion.WithResource(resource).GroupResource()
 }
 
+// GroupVersionKind definitions
+var (
+	ModelInferKind     = SchemeGroupVersion.WithKind("ModelInfer")
+	ModelInferListKind = SchemeGroupVersion.WithKind("ModelInferList")
+)
+
 var (
 	// localSchemeBuilder and AddToScheme will stay in k8s.io/kubernetes.
 	SchemeBuilder      runtime.SchemeBuilder
