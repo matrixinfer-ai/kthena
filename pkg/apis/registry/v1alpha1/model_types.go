@@ -201,7 +201,6 @@ type ModelBackendStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
-// +genclient
 
 // Model is the Schema for the models API.
 type Model struct {
