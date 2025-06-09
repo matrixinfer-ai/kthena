@@ -29,10 +29,10 @@ class LockError(Exception):
 
 
 class LockManager:
-    def __init__(self, lock_path: str, timeout: int = 600):
+    def __init__(self, lock_path: str, timeout: int = 15):
         self.lock_path = lock_path
         self.timeout = timeout
-        self.renew_interval = 300
+        self.renew_interval = 5
         self.stop_renew_event = threading.Event()
         self._lock_file: Optional[IO] = None
         self._renew_thread: Optional[threading.Thread] = None
@@ -110,7 +110,7 @@ class LockManager:
         )
         self._renew_thread.start()
 
-    def renew(self, interval: int = 300) -> None:
+    def renew(self, interval: int = 15) -> None:
         while not self.stop_renew_event.is_set():
             if not self._is_locked:
                 break

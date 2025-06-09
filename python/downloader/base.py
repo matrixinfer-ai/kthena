@@ -48,7 +48,7 @@ class ModelDownloader(ABC):
         target_dir = os.path.join(output_dir, md5_hash)
         os.makedirs(target_dir, exist_ok=True)
         lock_path = os.path.join(target_dir, ".lock")
-        self.lock_manager = LockManager(lock_path, timeout=600)
+        self.lock_manager = LockManager(lock_path, timeout=15)
         while True:
             try:
                 if self.lock_manager.try_acquire():
@@ -63,7 +63,7 @@ class ModelDownloader(ABC):
                         self.lock_manager.release()
                 else:
                     logger.info("Failed to acquire lock. Waiting for the lock to be released.")
-                    self.stop_event.wait(timeout=60)
+                    self.stop_event.wait(timeout=5)
             except Exception as e:
                 logger.error(f"Unexpected error in download_model: {e}")
                 if self.lock_manager:
