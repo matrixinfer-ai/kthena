@@ -5,7 +5,7 @@ from fastapi.responses import Response
 import httpx
 from starlette.responses import JSONResponse
 
-from env import TIMEOUT, TARGET_SERVICE_URL
+from env import TIMEOUT
 import uvicorn
 from contextlib import asynccontextmanager
 
@@ -38,7 +38,7 @@ async def get_health():
 @router.get("/metrics")
 async def metrics(request: Request):
     state = request.app.state
-    response = await state.client.get(TARGET_SERVICE_URL + state.engine_metrics_url)
+    response = await state.client.get(state.engine_metrics_url)
     response_content = await process_metrics(response.text, state.metric_standard)
     return Response(content=response_content, media_type="text/plain")
 
@@ -81,7 +81,7 @@ def main():
         "-U",
         "--url",
         type=str,
-        default="/metrics",
+        default="http://localhost:8000",
         help="Metrics url",
     )
     args = parser.parse_args()
