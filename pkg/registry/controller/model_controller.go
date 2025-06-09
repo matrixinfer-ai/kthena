@@ -19,9 +19,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"strings"
-	"time"
-
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,13 +28,13 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"strings"
 
 	registryv1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
 
 const (
 	ModelFinalizer  = "matrixinfer.ai/finalizer"
-	PodLabelKey     = "owner"
 	ModelInferOwner = "owner"
 	// Reason for condition
 	ModelInitsReason             = "ModelInits"
@@ -85,11 +82,8 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		if controllerutil.ContainsFinalizer(model, ModelFinalizer) {
 			meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1.ModelStatusConditionTypeDeleting),
 				metav1.ConditionTrue, ModelDeletingReason, "Model is deleting"))
-			if err := r.updateModelStatus(ctx, model); err != nil {
+			if err := r.updateModelStatus(ctx, model, nil); err != nil {
 				return ctrl.Result{}, err
-			}
-			if err := r.deleteModelInfer(ctx, model); err != nil {
-				return ctrl.Result{Requeue: true}, err
 			}
 			controllerutil.RemoveFinalizer(model, ModelFinalizer)
 			if err := r.Update(ctx, model); err != nil {
@@ -99,7 +93,7 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, nil
 	}
 	// When model condition is null, create model infer according to model.
-	if len(model.Status.Conditions) == 0 || model.Status.Conditions == nil {
+	if len(model.Status.Conditions) == 0 {
 		klog.Info("model status condition is null, create model infer")
 		modelInfers, err := buildModelInferCR(model)
 		if err != nil {
@@ -117,29 +111,29 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		}
 		meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1.ModelStatusConditionTypeInitializing),
 			metav1.ConditionTrue, ModelInitsReason, "Model inits"))
-		if err := r.updateModelStatus(ctx, model); err != nil {
+		if err := r.updateModelStatus(ctx, model, nil); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
-	if meta.IsStatusConditionPresentAndEqual(model.Status.Conditions, string(registryv1.ModelStatusConditionTypeInitializing), metav1.ConditionTrue) {
-		return r.isModelInferActive(ctx, model)
-	}
-	if meta.IsStatusConditionPresentAndEqual(model.Status.Conditions, string(registryv1.ModelStatusConditionTypeActive), metav1.ConditionTrue) {
+	if model.Generation != model.Status.ObservedGeneration {
+		klog.Info("model generation is not equal to observed generation, update model infer")
 		return r.updateModelInfer(ctx, model)
 	}
-	return ctrl.Result{}, nil
+	return r.isModelInferActive(ctx, model)
 }
 
-func (r *ModelReconciler) updateModelStatus(ctx context.Context, model *registryv1.Model) error {
-	modelInferList := &workload.ModelInferList{}
-	listOpts := []client.ListOption{
-		client.InNamespace(model.Namespace),
-		client.MatchingLabels{
-			ModelInferOwner: string(model.UID),
-		},
-	}
-	if err := r.List(ctx, modelInferList, listOpts...); err != nil {
-		return err
+func (r *ModelReconciler) updateModelStatus(ctx context.Context, model *registryv1.Model, modelInferList *workload.ModelInferList) error {
+	if modelInferList == nil {
+		modelInferList = &workload.ModelInferList{}
+		listOpts := []client.ListOption{
+			client.InNamespace(model.Namespace),
+			client.MatchingLabels{
+				ModelInferOwner: string(model.UID),
+			},
+		}
+		if err := r.List(ctx, modelInferList, listOpts...); err != nil {
+			return err
+		}
 	}
 	var backendStatus []registryv1.ModelBackendStatus
 	for _, infer := range modelInferList.Items {
@@ -150,6 +144,7 @@ func (r *ModelReconciler) updateModelStatus(ctx context.Context, model *registry
 		})
 	}
 	model.Status.BackendStatuses = backendStatus
+	model.Status.ObservedGeneration = model.Generation
 	if err := r.Status().Update(ctx, model); err != nil {
 		return err
 	}
@@ -321,11 +316,6 @@ func buildModelInferCR(model *registryv1.Model) ([]*workload.ModelInfer, error) 
 				Replicas:        &worker.Replicas,
 				NetworkTopology: nil,
 				EntryTemplate: corev1.PodTemplateSpec{
-					ObjectMeta: metav1.ObjectMeta{
-						Labels: map[string]string{
-							PodLabelKey: string(model.UID),
-						},
-					},
 					Spec: corev1.PodSpec{
 						InitContainers: initContainers,
 						Containers:     containers,
@@ -371,38 +361,17 @@ func buildModelInferCR(model *registryv1.Model) ([]*workload.ModelInfer, error) 
 func (r *ModelReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&registryv1.Model{}).
+		Owns(&workload.ModelInfer{}). // watch secondary resource
 		Named("model").
 		Complete(r)
 }
 
-// When delete model, model infer should also be deleted
-func (r *ModelReconciler) deleteModelInfer(ctx context.Context, model *registryv1.Model) error {
-	podList := &corev1.PodList{}
-	listOpts := []client.ListOption{
-		client.InNamespace(model.Namespace),
-		client.MatchingLabels{
-			PodLabelKey: string(model.UID),
-		},
-	}
-	if err := r.List(ctx, podList, listOpts...); err != nil {
-		return err
-	}
-	for _, pod := range podList.Items {
-		if err := r.Delete(ctx, &pod); client.IgnoreNotFound(err) != nil {
-			return err
-		}
-		klog.InfoS("Deleted pod", "pod", pod.Name, "namespace", pod.Namespace)
-	}
-	return nil
-}
-
 func (r *ModelReconciler) updateModelInfer(ctx context.Context, model *registryv1.Model) (ctrl.Result, error) {
-	klog.Info("update model")
 	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1.ModelStatusConditionTypeActive),
 		metav1.ConditionFalse, ModelUpdatingReason, "Model is updating, not ready yet"))
 	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1.ModelStatusConditionTypeUpdating),
 		metav1.ConditionTrue, ModelUpdatingReason, "Model is updating"))
-	if err := r.updateModelStatus(ctx, model); err != nil {
+	if err := r.updateModelStatus(ctx, model, nil); err != nil {
 		return ctrl.Result{}, err
 	}
 	modelInfers, err := buildModelInferCR(model)
@@ -429,18 +398,24 @@ func (r *ModelReconciler) isModelInferActive(ctx context.Context, model *registr
 	if err := r.List(ctx, modelInferList, listOpts...); err != nil {
 		return ctrl.Result{}, err
 	}
+	if len(modelInferList.Items) != len(model.Spec.Backends) {
+		return ctrl.Result{}, fmt.Errorf("model infer number not equal to backend number")
+	}
 	for _, modelInfer := range modelInferList.Items {
 		// todo: replace Available
 		if !meta.IsStatusConditionPresentAndEqual(modelInfer.Status.Conditions, "Available", metav1.ConditionTrue) {
 			// requeue until all Model Infers are active
 			klog.InfoS("model infer is not active", "model infer", modelInfer.Name, "namespace", modelInfer.Namespace)
-			return ctrl.Result{RequeueAfter: 3 * time.Second}, nil
+			return ctrl.Result{}, nil
 		}
 	}
 	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1.ModelStatusConditionTypeActive),
 		metav1.ConditionTrue, ModelActiveReason, "Model is active"))
-	meta.RemoveStatusCondition(&model.Status.Conditions, string(registryv1.ModelStatusConditionTypeInitializing))
-	if err := r.updateModelStatus(ctx, model); err != nil {
+	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1.ModelStatusConditionTypeInitializing),
+		metav1.ConditionFalse, ModelActiveReason, "Model is active, so initializing is false"))
+	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1.ModelStatusConditionTypeUpdating),
+		metav1.ConditionFalse, ModelActiveReason, "Model not updating"))
+	if err := r.updateModelStatus(ctx, model, modelInferList); err != nil {
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
