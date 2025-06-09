@@ -40,7 +40,6 @@ type LoraAdapterStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
-// +genclient
 //
 // LoraAdapter is the Schema for the loraadapters API.
 type LoraAdapter struct {

@@ -89,7 +89,6 @@ type AutoscalingPolicyStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
-// +genclient
 //
 // AutoscalingPolicy is the Schema for the autoscalingpolicies API.
 type AutoscalingPolicy struct {
