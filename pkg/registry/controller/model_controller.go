@@ -85,7 +85,7 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		if controllerutil.ContainsFinalizer(model, ModelFinalizer) {
 			meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1.ModelStatusConditionTypeDeleting),
 				metav1.ConditionTrue, ModelDeletingReason, "Model is deleting"))
-			if err := r.Status().Update(ctx, model); err != nil {
+			if err := r.updateModelStatus(ctx, model); err != nil {
 				return ctrl.Result{}, err
 			}
 			if err := r.deleteModelInfer(ctx, model); err != nil {
@@ -117,7 +117,7 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		}
 		meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1.ModelStatusConditionTypeInitializing),
 			metav1.ConditionTrue, ModelInitsReason, "Model inits"))
-		if err := r.Status().Update(ctx, model); err != nil {
+		if err := r.updateModelStatus(ctx, model); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
@@ -128,6 +128,32 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return r.updateModelInfer(ctx, model)
 	}
 	return ctrl.Result{}, nil
+}
+
+func (r *ModelReconciler) updateModelStatus(ctx context.Context, model *registryv1.Model) error {
+	modelInferList := &workload.ModelInferList{}
+	listOpts := []client.ListOption{
+		client.InNamespace(model.Namespace),
+		client.MatchingLabels{
+			ModelInferOwner: string(model.UID),
+		},
+	}
+	if err := r.List(ctx, modelInferList, listOpts...); err != nil {
+		return err
+	}
+	var backendStatus []registryv1.ModelBackendStatus
+	for _, infer := range modelInferList.Items {
+		backendStatus = append(backendStatus, registryv1.ModelBackendStatus{
+			Name:     infer.Name,
+			Hash:     "", // todo: get hash
+			Replicas: infer.Status.Replicas,
+		})
+	}
+	model.Status.BackendStatuses = backendStatus
+	if err := r.Status().Update(ctx, model); err != nil {
+		return err
+	}
+	return nil
 }
 
 func newCondition(conditionType string, status metav1.ConditionStatus, reason string, message string) metav1.Condition {
@@ -376,7 +402,7 @@ func (r *ModelReconciler) updateModelInfer(ctx context.Context, model *registryv
 		metav1.ConditionFalse, ModelUpdatingReason, "Model is updating, not ready yet"))
 	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1.ModelStatusConditionTypeUpdating),
 		metav1.ConditionTrue, ModelUpdatingReason, "Model is updating"))
-	if err := r.Status().Update(ctx, model); err != nil {
+	if err := r.updateModelStatus(ctx, model); err != nil {
 		return ctrl.Result{}, err
 	}
 	modelInfers, err := buildModelInferCR(model)
@@ -414,7 +440,7 @@ func (r *ModelReconciler) isModelInferActive(ctx context.Context, model *registr
 	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1.ModelStatusConditionTypeActive),
 		metav1.ConditionTrue, ModelActiveReason, "Model is active"))
 	meta.RemoveStatusCondition(&model.Status.Conditions, string(registryv1.ModelStatusConditionTypeInitializing))
-	if err := r.Status().Update(ctx, model); err != nil {
+	if err := r.updateModelStatus(ctx, model); err != nil {
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
