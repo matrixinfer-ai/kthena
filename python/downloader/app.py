@@ -39,8 +39,7 @@ def load_config(config_str: str = None) -> dict:
         "hf_revision": os.getenv("HF_REVISION"),
         "access_key": os.getenv("ACCESS_KEY"),
         "secret_key": os.getenv("SECRET_KEY"),
-        "region_name": os.getenv("REGION_NAME"),
-        "obs_endpoint": os.getenv("OBS_ENDPOINT"),
+        "endpoint": os.getenv("ENDPOINT"),
     }
     for key, value in env_config.items():
         if value:
@@ -82,6 +81,18 @@ def parse_arguments() -> argparse.Namespace:
         help="Maximum number of concurrent workers for downloading files."
     )
     parser.add_argument(
+        "-p", "--partition-size",
+        type=int,
+        default=10 * 1024 * 1024,
+        help="The partition size of each part for a multipart transfer."
+    )
+    parser.add_argument(
+        "-t", "--multipart-threshold",
+        type=int,
+        default=20 * 1024 * 1024,
+        help="The transfer size threshold for which multipart downloads"
+    )
+    parser.add_argument(
         "-c", "--config",
         type=str,
         default=None,
@@ -90,8 +101,7 @@ def parse_arguments() -> argparse.Namespace:
              "- hf_endpoint: Custom API endpoint for Hugging Face\n"
              "- hf_revision: Specific model revision/branch to download\n"
              "- access_key/secret_key: Cloud provider credentials\n"
-             "- region_name: Cloud provider region\n"
-             "- obs_endpoint: Object Storage endpoint URL\n"
+             "- endpoint:  obs endpoint URL, for s3, not a required config but a private bucket \n"
              "Example: '{\"hf_token\": \"hf_xxx\", \"region_name\": \"us-east-1\"}'"
     )
     args = parser.parse_args()
@@ -109,7 +119,9 @@ def main():
             output_dir=args.output_dir,
             model_name=args.model_name,
             config=config,
-            max_workers=args.max_workers
+            max_workers=args.max_workers,
+            chunk_size=args.partition_size,
+            multipart_threshold=args.multipart_threshold
         )
     except Exception as e:
         logger.error(f"An error occurred: {e}")

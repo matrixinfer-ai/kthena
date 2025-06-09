@@ -71,27 +71,22 @@ class ModelDownloader(ABC):
                 raise
 
 
-def get_downloader(url: str, config: dict, max_workers: int = 8) -> ModelDownloader:
+def get_downloader(url: str, config: dict, max_workers: int = 8,
+                   chunk_size: int = 10485760, multipart_threshold: int = 20971520) -> ModelDownloader:
     try:
-        if url.startswith("s3://"):
+        if url.startswith("s3://") or url.startswith("obs://"):
             from s3 import S3Downloader
             return S3Downloader(
                 model_uri=url,
                 access_key=config.get("access_key"),
                 secret_key=config.get("secret_key"),
-                region_name=config.get("region_name"),
+                endpoint=config.get("endpoint"),
+                chunk_size=chunk_size,
+                multipart_threshold=multipart_threshold
             )
         elif url.startswith("pvc://"):
             from pvc import PVCDownloader
             return PVCDownloader()
-        elif url.startswith("obs://"):
-            from objectstorage import OBSDownloader
-            return OBSDownloader(
-                model_uri=url,
-                access_key=config.get("access_key"),
-                secret_key=config.get("secret_key"),
-                obs_endpoint=config.get("obs_endpoint"),
-            )
         else:
             from huggingface import HuggingFaceDownloader
             return HuggingFaceDownloader(

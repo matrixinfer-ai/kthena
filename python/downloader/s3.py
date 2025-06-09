@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import boto3
+from boto3.s3.transfer import TransferConfig
 from botocore.exceptions import ClientError
 import os.path
 
@@ -23,16 +24,22 @@ logger = setup_logger()
 
 
 class S3Downloader(ModelDownloader):
-    def __init__(self, model_uri: str, access_key: str = None, secret_key: str = None, region_name: str = None):
+    def __init__(self, model_uri: str, access_key: str = None, secret_key: str = None,
+                 endpoint: str = None, max_workers: int = 8, use_threads: bool = True,
+                 chunk_size: int = 10485760, multipart_threshold: int = 20971520):
         super().__init__()
         self.access_key = access_key
         self.secret_key = secret_key
         self.model_uri = model_uri
+        self.max_concurrency = max_workers
+        self.use_threads = use_threads
+        self.chunk_size = chunk_size
+        self.multipart_threshold = multipart_threshold
         self.client = boto3.client(
                 's3',
                 aws_access_key_id=access_key,
                 aws_secret_access_key=secret_key,
-                region_name=region_name
+                endpoint_url=endpoint
             )
 
     def download(self, output_dir: str):
@@ -42,6 +49,12 @@ class S3Downloader(ModelDownloader):
             return
 
         bucket_name, bucket_path = parse_bucket_from_model_url(self.model_uri, "s3")
+        config = TransferConfig(
+            use_threads=self.use_threads,  # 启用多线程
+            max_concurrency=self.max_concurrency,  # 并发线程数
+            multipart_threshold=self.multipart_threshold,
+            multipart_chunksize=self.chunk_size
+        )
         try:
             list_response = self.client.list_objects_v2(Bucket=bucket_name, Prefix=bucket_path)
             obj_list = list_response.get('Contents', [])
@@ -53,7 +66,7 @@ class S3Downloader(ModelDownloader):
                     continue
                 output_path = os.path.join(output_dir, os.path.relpath(key, bucket_path))
                 os.makedirs(os.path.dirname(output_path), exist_ok=True)
-                self.client.download_file(bucket_name, key, output_path)
+                self.client.download_file(bucket_name, key, output_path, Config=config)
             logger.info(f"Successfully downloaded model '{self.model_uri}' to '{output_dir}'.")
         except ClientError as e:
             error_code = e.response["Error"]["Code"]
