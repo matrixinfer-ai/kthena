@@ -1,0 +1,15 @@
+apiVersion: networking.matrixinfer.ai/v1alpha1
+kind: ModelServer
+metadata:
+  name: deepseek-r1-7b
+  namespace: default
+spec:
+  workloadSelector:
+    matchLabels:
+      app: deepseek-r1-7b
+  workloadPort:
+    port: 8000
+  model: "deepseek-r1:7b"
+  inferenceEngine: "SGLang"
+  trafficPolicy:
+    timeout: 10s
