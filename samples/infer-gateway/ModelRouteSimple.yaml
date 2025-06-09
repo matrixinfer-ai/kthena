@@ -1,0 +1,11 @@
+apiVersion: networking.matrixinfer.ai/v1alpha1
+kind: ModelRoute
+metadata:
+  name: deepseek-simple
+  namespace: default
+spec:
+  modelName: "deepseek-r1"
+  rules:
+  - name: "default"
+    targetModels:
+    - modelServerName: "deepseek-r1-1-5b"
