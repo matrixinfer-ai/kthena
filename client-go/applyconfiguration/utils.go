@@ -24,10 +24,8 @@ import (
 	testing "k8s.io/client-go/testing"
 	internal "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/internal"
 	networkingv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/networking/v1alpha1"
-	applyconfigurationregistryv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/registry/v1alpha1"
 	applyconfigurationworkloadv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/workload/v1alpha1"
 	v1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
-	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	workloadv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 )
 

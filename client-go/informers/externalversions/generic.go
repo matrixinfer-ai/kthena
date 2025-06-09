@@ -24,7 +24,6 @@ import (
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 	v1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
-	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	workloadv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 )
 
