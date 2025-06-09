@@ -25,14 +25,12 @@ import (
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
 	networkingv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/networking/v1alpha1"
-	registryv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/registry/v1alpha1"
 	workloadv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/workload/v1alpha1"
 )
 
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
 	NetworkingV1alpha1() networkingv1alpha1.NetworkingV1alpha1Interface
-	RegistryV1alpha1() registryv1alpha1.RegistryV1alpha1Interface
 	WorkloadV1alpha1() workloadv1alpha1.WorkloadV1alpha1Interface
 }
 
@@ -40,18 +38,12 @@ type Interface interface {
 type Clientset struct {
 	*discovery.DiscoveryClient
 	networkingV1alpha1 *networkingv1alpha1.NetworkingV1alpha1Client
-	registryV1alpha1   *registryv1alpha1.RegistryV1alpha1Client
 	workloadV1alpha1   *workloadv1alpha1.WorkloadV1alpha1Client
 }
 
 // NetworkingV1alpha1 retrieves the NetworkingV1alpha1Client
 func (c *Clientset) NetworkingV1alpha1() networkingv1alpha1.NetworkingV1alpha1Interface {
 	return c.networkingV1alpha1
-}
-
-// RegistryV1alpha1 retrieves the RegistryV1alpha1Client
-func (c *Clientset) RegistryV1alpha1() registryv1alpha1.RegistryV1alpha1Interface {
-	return c.registryV1alpha1
 }
 
 // WorkloadV1alpha1 retrieves the WorkloadV1alpha1Client
@@ -107,10 +99,6 @@ func NewForConfigAndClient(c *rest.Config, httpClient *http.Client) (*Clientset,
 	if err != nil {
 		return nil, err
 	}
-	cs.registryV1alpha1, err = registryv1alpha1.NewForConfigAndClient(&configShallowCopy, httpClient)
-	if err != nil {
-		return nil, err
-	}
 	cs.workloadV1alpha1, err = workloadv1alpha1.NewForConfigAndClient(&configShallowCopy, httpClient)
 	if err != nil {
 		return nil, err
@@ -137,7 +125,6 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
 	cs.networkingV1alpha1 = networkingv1alpha1.New(c)
-	cs.registryV1alpha1 = registryv1alpha1.New(c)
 	cs.workloadV1alpha1 = workloadv1alpha1.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
