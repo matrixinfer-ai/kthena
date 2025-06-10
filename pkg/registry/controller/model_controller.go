@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -56,6 +57,8 @@ type ModelReconciler struct {
 // +kubebuilder:rbac:groups=registry.matrixinfer.ai,resources=models,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=registry.matrixinfer.ai,resources=models/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=registry.matrixinfer.ai,resources=models/finalizers,verbs=update
+// +kubebuilder:rbac:groups=workload.matrixinfer.ai,resources=modelinfers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=workload.matrixinfer.ai,resources=modelinfers/status,verbs=get;update;patch;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -85,6 +88,20 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 				metav1.ConditionTrue, ModelDeletingReason, "Model is deleting"))
 			if err := r.updateModelStatus(ctx, model, nil); err != nil {
 				return ctrl.Result{}, err
+			}
+			modelInferList := &workload.ModelInferList{}
+			listOpts := []client.ListOption{
+				client.InNamespace(model.Namespace),
+				client.MatchingLabels{
+					ModelInferOwner: string(model.UID),
+				},
+			}
+			if err := r.List(ctx, modelInferList, listOpts...); err != nil {
+				return ctrl.Result{}, err
+			}
+			if len(modelInferList.Items) != 0 {
+				klog.Info("Model infer still exists, retry delete")
+				return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 			}
 			controllerutil.RemoveFinalizer(model, ModelFinalizer)
 			if err := r.Update(ctx, model); err != nil {
