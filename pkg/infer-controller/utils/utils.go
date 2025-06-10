@@ -204,15 +204,6 @@ func GetModelInferAndGroupByLabel(podLabels map[string]string) (string, string, 
 	return modelInferName, inferGroupName, true
 }
 
-func AllContainersReady(pod *corev1.Pod) bool {
-	for _, cs := range pod.Status.ContainerStatuses {
-		if !cs.Ready {
-			return false
-		}
-	}
-	return true
-}
-
 func CalcPodExpectedNum(mi *workloadv1alpha1.ModelInfer) int {
 	num := 0
 	for _, role := range mi.Spec.Template.Spec.Roles {

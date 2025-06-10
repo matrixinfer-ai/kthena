@@ -16,6 +16,7 @@ import (
 	listerv1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
+	endpointutil "k8s.io/endpointslice/util"
 	"k8s.io/klog/v2"
 
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
@@ -145,6 +146,7 @@ func (mic *ModelInferController) deleteMI(obj interface{}) {
 	if err != nil {
 		klog.Errorf("delete model infer store failed: %v", err)
 	}
+	klog.Infof("modelInfer %s has been deleted", mi.Name)
 }
 
 func (mic *ModelInferController) addPod(obj interface{}) {
@@ -167,10 +169,14 @@ func (mic *ModelInferController) updatePod(oldObj, newObj interface{}) {
 	}
 	mi, err := mic.modelInfersLister.ModelInfers(newPod.GetNamespace()).Get(modelInferName)
 	if err != nil {
-		klog.Errorf("get model infer failed when update pod: %v", err)
+		if apierrors.IsNotFound(err) {
+			klog.V(4).Infof("modelInfer %s has been deleted", modelInferName)
+		} else {
+			klog.Errorf("get model infer failed when update pod: %v", err)
+		}
+		return
 	}
-	if newPod.Status.Phase == corev1.PodRunning &&
-		utils.AllContainersReady(newPod) {
+	if endpointutil.IsPodReady(newPod) {
 		// pod running and all containers ready, update inferGroup status
 		err = mic.handleRunningPod(mi, inferGroupName, newPod)
 		if err != nil {
@@ -253,11 +259,11 @@ func (mic *ModelInferController) processNextWorkItem(ctx context.Context) bool {
 
 func (mic *ModelInferController) syncModelInfer(ctx context.Context, key string) error {
 	// TODO: add modelinfer rolling upgrade logic
-	klog.V(4).Info("Started syncing ModelInfer")
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return fmt.Errorf("invalid resource key: %s", err)
 	}
+	klog.V(4).Infof("Started syncing ModelInfer %s", name)
 	mi, err := mic.modelInfersLister.ModelInfers(namespace).Get(name)
 	if apierrors.IsNotFound(err) {
 		klog.V(4).Infof("%v has been deleted", key)
@@ -301,17 +307,17 @@ func (mic *ModelInferController) Run(ctx context.Context, workers int) {
 
 // updateStatus update ModelInfer status.
 func (mic *ModelInferController) updateStatus(ctx context.Context, mi *workloadv1alpha1.ModelInfer) error {
-	err := mic.updateModelInferReplicasStatus(mi)
+	miCopy, err := mic.updateModelInferReplicasStatus(mi)
 	if err != nil {
 		return fmt.Errorf("failed to update modelinfer replicas status, err: %v", err)
 	}
 	// TODO: add modelinfer condition update logic
 
-	_, err = mic.modelInferClient.WorkloadV1alpha1().ModelInfers(mi.Namespace).UpdateStatus(ctx, mi, metav1.UpdateOptions{})
+	_, err = mic.modelInferClient.WorkloadV1alpha1().ModelInfers(miCopy.Namespace).UpdateStatus(ctx, miCopy, metav1.UpdateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to update modelinfer status, err: %v", err)
 	}
-	klog.Infof("update ModelInfer %s status successfully", mi.Name)
+	klog.Infof("update ModelInfer %s status successfully", miCopy.Name)
 	return nil
 }
 
@@ -359,6 +365,7 @@ func (mic *ModelInferController) manageReplicas(ctx context.Context, mi *workloa
 	for _, group := range condemned {
 		mic.DeleteInferGroup(mi, group.Name)
 	}
+	klog.Infof("ModelInfer %s replicas processing completed", mi.Name)
 	return nil
 }
 
@@ -374,6 +381,7 @@ func (mic *ModelInferController) CreatePodsForInferGroup(ctx context.Context, mi
 			}
 		}
 	}
+	klog.Infof("pods of InferGroup %s-%d creating completed", mi.Name, groupIndex)
 	return nil
 }
 
@@ -490,11 +498,12 @@ func (mic *ModelInferController) checkInferGroupReady(mi *workloadv1alpha1.Model
 }
 
 // updateModelInferReplicasStatus update replicas in modelInfer status.
-func (mic *ModelInferController) updateModelInferReplicasStatus(mi *workloadv1alpha1.ModelInfer) error {
+func (mic *ModelInferController) updateModelInferReplicasStatus(mi *workloadv1alpha1.ModelInfer) (*workloadv1alpha1.ModelInfer, error) {
 	// TODO: Add the number of updated replicas of inferGroup
-	groups, err := mic.store.GetInferGroupByModelInfer(utils.GetNamespaceName(mi))
+	miCopy := mi.DeepCopy()
+	groups, err := mic.store.GetInferGroupByModelInfer(utils.GetNamespaceName(miCopy))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// get the number of inferGroups that are already running
 	available := 0
@@ -505,7 +514,7 @@ func (mic *ModelInferController) updateModelInferReplicasStatus(mi *workloadv1al
 		}
 	}
 	// update modelInfer status
-	mi.Status.Replicas = int32(len(groups))
-	mi.Status.AvailableReplicas = int32(available)
-	return nil
+	miCopy.Status.Replicas = int32(len(groups))
+	miCopy.Status.AvailableReplicas = int32(available)
+	return miCopy, nil
 }
