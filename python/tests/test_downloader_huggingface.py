@@ -10,7 +10,6 @@ class TestDownloadModel(unittest.TestCase):
     def setUp(self):
         self.source = "fake_repo/fake_name"
         self.output_dir = "/tmp/models"
-        self.model_name = "fake_name"
         self.credentials = {"hf_token": "fake-token"}
         self.mock_downloader = MagicMock()
 
@@ -21,11 +20,11 @@ class TestDownloadModel(unittest.TestCase):
     def test_download_model_huggingface_default_workers(self, mock_get_downloader):
         mock_get_downloader.return_value = self.mock_downloader
 
-        download_model(self.source, self.output_dir, self.model_name, self.credentials)
+        download_model(self.source, self.output_dir, self.credentials)
 
         mock_get_downloader.assert_called_once_with(self.source, self.credentials, 8)
         self.mock_downloader.download_model.assert_called_once_with(
-            self.output_dir, self.model_name
+            self.output_dir
         )
 
     @patch("downloader.get_downloader")
@@ -33,11 +32,11 @@ class TestDownloadModel(unittest.TestCase):
         mock_get_downloader.return_value = self.mock_downloader
 
         custom_max_workers = 16
-        download_model(self.source, self.output_dir, self.model_name, self.credentials, max_workers=custom_max_workers)
+        download_model(self.source, self.output_dir, self.credentials, max_workers=custom_max_workers)
 
         mock_get_downloader.assert_called_once_with(self.source, self.credentials, custom_max_workers)
         self.mock_downloader.download_model.assert_called_once_with(
-            self.output_dir, self.model_name
+            self.output_dir
         )
 
     @patch("downloader.get_downloader")
@@ -46,7 +45,7 @@ class TestDownloadModel(unittest.TestCase):
         mock_get_downloader.return_value = self.mock_downloader
 
         with self.assertRaises(ValueError) as context:
-            download_model(self.source, self.output_dir, self.model_name, self.credentials)
+            download_model(self.source, self.output_dir, self.credentials)
 
         self.assertIn("Invalid authentication token", str(context.exception))
         mock_get_downloader.assert_called_once_with(self.source, self.credentials, 8)
@@ -57,7 +56,7 @@ class TestDownloadModel(unittest.TestCase):
         mock_get_downloader.return_value = self.mock_downloader
 
         with self.assertRaises(ConnectionError) as context:
-            download_model(self.source, self.output_dir, self.model_name, self.credentials)
+            download_model(self.source, self.output_dir, self.credentials)
 
         self.assertIn("Failed to establish connection to server", str(context.exception))
         mock_get_downloader.assert_called_once_with(self.source, self.credentials, 8)
@@ -69,7 +68,7 @@ class TestDownloadModel(unittest.TestCase):
         mock_get_downloader.return_value = self.mock_downloader
 
         with self.assertRaises(PermissionError) as context:
-            download_model(self.source, self.output_dir, self.model_name, self.credentials)
+            download_model(self.source, self.output_dir, self.credentials)
 
         self.assertIn("Insufficient permissions", str(context.exception))
 

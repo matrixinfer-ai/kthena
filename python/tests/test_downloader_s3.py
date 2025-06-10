@@ -10,7 +10,6 @@ class TestDownloadModel(unittest.TestCase):
     def setUp(self):
         self.source = "s3://fake_bucket/fake_path"
         self.output_dir = "/tmp/models"
-        self.model_name = "fake_name"
         self.credentials = {"access_key": "fake_ak", "secret_key": "fake_sk"}
         self.mock_downloader = MagicMock()
 
@@ -21,11 +20,11 @@ class TestDownloadModel(unittest.TestCase):
     def test_download_model_s3(self, mock_get_downloader):
         mock_get_downloader.return_value = self.mock_downloader
 
-        download_model(self.source, self.output_dir, self.model_name, self.credentials)
+        download_model(self.source, self.output_dir, self.credentials)
 
         mock_get_downloader.assert_called_once_with(self.source, self.credentials, 8)
         self.mock_downloader.download_model.assert_called_once_with(
-            self.output_dir, self.model_name
+            self.output_dir
         )
 
     @patch("downloader.get_downloader")
@@ -34,7 +33,7 @@ class TestDownloadModel(unittest.TestCase):
         mock_get_downloader.return_value = self.mock_downloader
 
         with self.assertRaises(ValueError) as context:
-            download_model(self.source, self.output_dir, self.model_name, self.credentials)
+            download_model(self.source, self.output_dir, self.credentials)
 
         self.assertIn("Invalid bucket name", str(context.exception))
         mock_get_downloader.assert_called_once_with(self.source, self.credentials, 8)
@@ -45,7 +44,7 @@ class TestDownloadModel(unittest.TestCase):
         mock_get_downloader.return_value = self.mock_downloader
 
         with self.assertRaises(ValueError) as context:
-            download_model(self.source, self.output_dir, self.model_name, self.credentials)
+            download_model(self.source, self.output_dir, self.credentials)
 
         self.assertIn("InvalidAccessKeyId", str(context.exception))
         mock_get_downloader.assert_called_once_with(self.source, self.credentials, 8)
@@ -56,7 +55,7 @@ class TestDownloadModel(unittest.TestCase):
         mock_get_downloader.return_value = self.mock_downloader
 
         with self.assertRaises(ValueError) as context:
-            download_model(self.source, self.output_dir, self.model_name, self.credentials)
+            download_model(self.source, self.output_dir, self.credentials)
 
         self.assertIn("SignatureDoesNotMatch", str(context.exception))
         mock_get_downloader.assert_called_once_with(self.source, self.credentials, 8)
@@ -67,7 +66,7 @@ class TestDownloadModel(unittest.TestCase):
         mock_get_downloader.return_value = self.mock_downloader
 
         with self.assertRaises(ConnectionError) as context:
-            download_model(self.source, self.output_dir, self.model_name, self.credentials)
+            download_model(self.source, self.output_dir, self.credentials)
 
         self.assertIn("Failed to establish connection to server", str(context.exception))
         mock_get_downloader.assert_called_once_with(self.source, self.credentials, 8)

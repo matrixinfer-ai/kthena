@@ -28,7 +28,7 @@ logger = setup_logger()
 
 class S3Downloader(ModelDownloader):
     def __init__(self, model_uri: str, access_key: str = None, secret_key: str = None,
-                 endpoint: str = None, max_workers: int = 8, chunk_size: int = 10485760):
+                 endpoint: str = None, max_workers: int = 8, chunk_size: int = 10 * 1024 * 1024):
         super().__init__()
         self.access_key = access_key
         self.secret_key = secret_key
@@ -55,7 +55,7 @@ class S3Downloader(ModelDownloader):
     def _calculate_file_md5(file_path):
         md5_hash = hashlib.md5()
         with open(file_path, 'rb') as file:
-            for chunk in iter(lambda: file.read(65536), b''):
+            for chunk in iter(lambda: file.read(4 * 1024 * 1024), b''):
                 md5_hash.update(chunk)
         return f'"{md5_hash.hexdigest()}"'
 

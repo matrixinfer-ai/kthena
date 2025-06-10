@@ -69,12 +69,6 @@ def parse_arguments() -> argparse.Namespace:
         help="Local directory path where model files will be saved."
     )
     parser.add_argument(
-        "-m", "--model-name",
-        type=str,
-        required=True,
-        help="Unique identifier for the model being downloaded."
-    )
-    parser.add_argument(
         "-w", "--max-workers",
         type=int,
         default=8,
@@ -105,7 +99,6 @@ def main():
         download_model(
             source=args.source,
             output_dir=args.output_dir,
-            model_name=args.model_name,
             config=config,
             max_workers=args.max_workers,
         )
