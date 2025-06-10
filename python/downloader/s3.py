@@ -65,6 +65,9 @@ class S3Downloader(ModelDownloader):
                 if key.endswith("/"):
                     continue
                 output_path = os.path.join(output_dir, os.path.relpath(key, bucket_path))
+                if os.path.exists(output_path) and os.path.getsize(output_path) == obj['Size']:
+                    logger.info(f"{output_path} already exist,no need to download")
+                    continue
                 os.makedirs(os.path.dirname(output_path), exist_ok=True)
                 self.client.download_file(bucket_name, key, output_path, Config=config)
             logger.info(f"Successfully downloaded model '{self.model_uri}' to '{output_dir}'.")
