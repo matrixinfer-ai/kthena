@@ -18,7 +18,7 @@ type Store interface {
 	DeleteModelInfer(modelInferName types.NamespacedName) error
 	DeleteInferGroupOfRunningPodMap(modelInferName types.NamespacedName, inferGroupName string) error
 	AddInferGroupForModelInfer(modelInferName types.NamespacedName, idx int) error
-	AddRunningPodForInferGroup(inferGroupName types.NamespacedName, runningPodName string) error
+	AddRunningPodForInferGroup(inferGroupName types.NamespacedName, runningPodName string)
 	UpdateInferGroupStatus(modelInferName types.NamespacedName, inferGroupName string, Status InferGroupStatus) error
 }
 
@@ -71,7 +71,7 @@ func (s *store) GetRunningPodByInferGroup(modelInferName types.NamespacedName, i
 		Name:      inferGroupName,
 	}]
 	if !ok {
-		return nil, nil
+		return nil, fmt.Errorf("failed get running pod list in %s/%s", modelInferName.Namespace, inferGroupName)
 	}
 	return runningPods, nil
 }
@@ -146,12 +146,10 @@ func (s *store) AddInferGroupForModelInfer(modelInferName types.NamespacedName, 
 }
 
 // AddRunningPodForInferGroup add inferGroup in runningPodOfInferGroup map
-func (s *store) AddRunningPodForInferGroup(inferGroupName types.NamespacedName, runningPodName string) error {
+func (s *store) AddRunningPodForInferGroup(inferGroupName types.NamespacedName, runningPodName string) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-
 	s.runningPodOfInferGroups[inferGroupName] = append(s.runningPodOfInferGroups[inferGroupName], runningPodName)
-	return nil
 }
 
 // UpdateInferGroupStatus update status of one inferGroup

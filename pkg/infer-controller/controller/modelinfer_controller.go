@@ -151,6 +151,34 @@ func (mic *ModelInferController) addPod(obj interface{}) {
 }
 
 func (mic *ModelInferController) updatePod(oldObj, newObj interface{}) {
+	newPod, ok := newObj.(*corev1.Pod)
+	if !ok {
+		klog.Error("failed to parse newPod type when updatePod")
+		return
+	}
+
+	podLabels := newPod.GetLabels()
+	if podLabels == nil {
+		return
+	}
+	modelInferName, inferGroupName, ok := utils.GetModelInferAndGroupByLabel(podLabels)
+	if !ok {
+		return
+	}
+	mi, err := mic.modelInfersLister.ModelInfers(newPod.GetNamespace()).Get(modelInferName)
+	if err != nil {
+		klog.Errorf("get model infer failed when update pod: %v", err)
+	}
+	if newPod.Status.Phase == corev1.PodRunning &&
+		utils.AllContainersReady(newPod) {
+		// pod running and all containers ready, update inferGroup status
+		err = mic.handleRunningPod(mi, inferGroupName, newPod)
+		if err != nil {
+			klog.Errorf("handle running pod failed: %v", err)
+		}
+		return
+	}
+	// TODO: Add detection logic for pod failures and container failures, and consider graceful reconstruction capabilities
 }
 
 func (mic *ModelInferController) deletePod(obj interface{}) {
@@ -177,9 +205,14 @@ func (mic *ModelInferController) deletePod(obj interface{}) {
 			mi, err := mic.modelInfersLister.ModelInfers(pod.GetNamespace()).Get(owners[i].Name)
 			if err == nil {
 				mic.DeleteInferGroup(mi, inferGroupName)
+				return
+			}
+			if apierrors.IsNotFound(err) {
+				klog.V(4).Infof("ModelInfer %v has been deleted", owners[i].Name)
 			} else {
 				klog.Errorf("failed to get modelInfer of pod %s/%s: %v", pod.GetNamespace(), pod.GetName(), err)
 			}
+			return
 		}
 	}
 }
@@ -238,6 +271,10 @@ func (mic *ModelInferController) syncModelInfer(ctx context.Context, key string)
 		return fmt.Errorf("cannot manage inferGroup replicas: %v", err)
 	}
 	//TODO: Add rolling upgrade function
+	err = mic.updateStatus(ctx, mi)
+	if err != nil {
+		return fmt.Errorf("cannot update model status: %v", err)
+	}
 	return nil
 }
 
@@ -262,8 +299,20 @@ func (mic *ModelInferController) Run(ctx context.Context, workers int) {
 	klog.Info("shut down modelInfer controller")
 }
 
-// UpdateStatus update ModelInfer status.
-func (mic *ModelInferController) UpdateStatus() {
+// updateStatus update ModelInfer status.
+func (mic *ModelInferController) updateStatus(ctx context.Context, mi *workloadv1alpha1.ModelInfer) error {
+	err := mic.updateModelInferReplicasStatus(mi)
+	if err != nil {
+		return fmt.Errorf("failed to update modelinfer replicas status, err: %v", err)
+	}
+	// TODO: add modelinfer condition update logic
+
+	_, err = mic.modelInferClient.WorkloadV1alpha1().ModelInfers(mi.Namespace).UpdateStatus(ctx, mi, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to update modelinfer status, err: %v", err)
+	}
+	klog.Infof("update ModelInfer %s status successfully", mi.Name)
+	return nil
 }
 
 func (mic *ModelInferController) manageReplicas(ctx context.Context, mi *workloadv1alpha1.ModelInfer) error {
@@ -277,6 +326,7 @@ func (mic *ModelInferController) manageReplicas(ctx context.Context, mi *workloa
 		klog.V(4).Info("The number of replicas is consistent, no need to scale up or down")
 		return nil
 	}
+	klog.Infof("start managing replicas for ModelInfer %s", mi.Name)
 	// slice that will contain all InferGroups as excepted
 	replicas := make([]*datastore.InferGroup, expectedCount)
 	// slice that will contain all InferGroups Out of except or fails to parse ordinal
@@ -364,6 +414,7 @@ func (mic *ModelInferController) DeleteInferGroup(mi *workloadv1alpha1.ModelInfe
 		klog.Errorf("failed to get ")
 	}
 	if len(pods) == 0 {
+		klog.Infof("InferGroup %s has been deleted", groupname)
 		_ = mic.store.DeleteInferGroupOfRunningPodMap(miNamedName, groupname)
 		mic.enqueueMI(mi)
 		return
@@ -399,5 +450,62 @@ func (mic *ModelInferController) CreatePodByRole(ctx context.Context, role workl
 			return err
 		}
 	}
+	return nil
+}
+
+func (mic *ModelInferController) handleRunningPod(mi *workloadv1alpha1.ModelInfer, inferGroupName string, newPod *corev1.Pod) error {
+	// Add the running pod to the global storage and try to update the inferGroup status
+	mic.store.AddRunningPodForInferGroup(types.NamespacedName{
+		Namespace: mi.Namespace,
+		Name:      inferGroupName,
+	}, newPod.Name)
+	ready, err := mic.checkInferGroupReady(mi, inferGroupName)
+	if err != nil {
+		return fmt.Errorf("failed to check inferGroup status, err: %v", err)
+	}
+	if ready {
+		// All pods in the inferGroup are running, so the inferGroup status also needs to be set to running
+		err = mic.store.UpdateInferGroupStatus(utils.GetNamespaceName(mi), inferGroupName, datastore.InferGroupRunning)
+		if err != nil {
+			return fmt.Errorf("failed to set inferGroup %s status: %v", inferGroupName, err)
+		}
+		klog.Infof("Update inferGroup %s status to Running", inferGroupName)
+		mic.enqueueMI(mi)
+	} else {
+		klog.V(4).Infof("inferGroup %s still creating", inferGroupName)
+	}
+	return nil
+}
+
+func (mic *ModelInferController) checkInferGroupReady(mi *workloadv1alpha1.ModelInfer, inferGroupName string) (bool, error) {
+	runningPodList, err := mic.store.GetRunningPodByInferGroup(utils.GetNamespaceName(mi), inferGroupName)
+	if err != nil {
+		return false, err
+	}
+	if len(runningPodList) != utils.CalcPodExpectedNum(mi) {
+		// the number of running pods does not reach the expected number
+		return false, nil
+	}
+	return true, nil
+}
+
+// updateModelInferReplicasStatus update replicas in modelInfer status.
+func (mic *ModelInferController) updateModelInferReplicasStatus(mi *workloadv1alpha1.ModelInfer) error {
+	// TODO: Add the number of updated replicas of inferGroup
+	groups, err := mic.store.GetInferGroupByModelInfer(utils.GetNamespaceName(mi))
+	if err != nil {
+		return err
+	}
+	// get the number of inferGroups that are already running
+	available := 0
+	for index := range groups {
+		switch groups[index].Status {
+		case datastore.InferGroupRunning:
+			available = available + 1
+		}
+	}
+	// update modelInfer status
+	mi.Status.Replicas = int32(len(groups))
+	mi.Status.AvailableReplicas = int32(available)
 	return nil
 }

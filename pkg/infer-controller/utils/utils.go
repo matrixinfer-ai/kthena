@@ -191,3 +191,33 @@ func CreateHeadlessService(ctx context.Context, k8sClient kubernetes.Interface, 
 	}
 	return nil
 }
+
+func GetModelInferAndGroupByLabel(podLabels map[string]string) (string, string, bool) {
+	modelInferName, ok := podLabels[workloadv1alpha1.ModelInferNameLabelKey]
+	if !ok {
+		return "", "", false
+	}
+	inferGroupName, ok := podLabels[workloadv1alpha1.GroupNameLabelKey]
+	if !ok {
+		return "", "", false
+	}
+	return modelInferName, inferGroupName, true
+}
+
+func AllContainersReady(pod *corev1.Pod) bool {
+	for _, cs := range pod.Status.ContainerStatuses {
+		if !cs.Ready {
+			return false
+		}
+	}
+	return true
+}
+
+func CalcPodExpectedNum(mi *workloadv1alpha1.ModelInfer) int {
+	num := 0
+	for _, role := range mi.Spec.Template.Spec.Roles {
+		// Calculate the expected number of pod replicas when the role is running normally
+		num += (1 + int(*role.WorkerReplicas)) * int(*role.Replicas)
+	}
+	return num
+}
