@@ -15,7 +15,6 @@
 from base import get_downloader
 
 
-def download_model(source: str, output_dir: str, model_name: str, config: dict,
-                   max_workers: int = 8, chunk_size: int = 10485760, multipart_threshold: int = 20971520):
-    downloader = get_downloader(source, config, max_workers, chunk_size, multipart_threshold)
+def download_model(source: str, output_dir: str, model_name: str, config: dict, max_workers: int = 8):
+    downloader = get_downloader(source, config, max_workers)
     downloader.download_model(output_dir, model_name)

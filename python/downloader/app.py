@@ -81,18 +81,6 @@ def parse_arguments() -> argparse.Namespace:
         help="Maximum number of concurrent workers for downloading files."
     )
     parser.add_argument(
-        "-p", "--partition-size",
-        type=int,
-        default=10 * 1024 * 1024,
-        help="The partition size of each part for a multipart transfer."
-    )
-    parser.add_argument(
-        "-t", "--multipart-threshold",
-        type=int,
-        default=20 * 1024 * 1024,
-        help="The transfer size threshold for which multipart downloads"
-    )
-    parser.add_argument(
         "-c", "--config",
         type=str,
         default=None,
@@ -120,8 +108,6 @@ def main():
             model_name=args.model_name,
             config=config,
             max_workers=args.max_workers,
-            chunk_size=args.partition_size,
-            multipart_threshold=args.multipart_threshold
         )
     except Exception as e:
         logger.error(f"An error occurred: {e}")

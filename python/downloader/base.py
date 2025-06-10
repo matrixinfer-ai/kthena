@@ -12,15 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import hashlib
 import os
 import threading
-import hashlib
 from abc import ABC, abstractmethod
 from typing import Optional
 from typing import Tuple
 from urllib.parse import urlparse
 
-from lock import LockManager, LockError
+from lock import LockManager
 from logger import setup_logger
 
 logger = setup_logger()
@@ -71,8 +71,7 @@ class ModelDownloader(ABC):
                 raise
 
 
-def get_downloader(url: str, config: dict, max_workers: int = 8,
-                   chunk_size: int = 10485760, multipart_threshold: int = 20971520) -> ModelDownloader:
+def get_downloader(url: str, config: dict, max_workers: int = 8) -> ModelDownloader:
     try:
         if url.startswith("s3://") or url.startswith("obs://"):
             from s3 import S3Downloader
@@ -81,8 +80,7 @@ def get_downloader(url: str, config: dict, max_workers: int = 8,
                 access_key=config.get("access_key"),
                 secret_key=config.get("secret_key"),
                 endpoint=config.get("endpoint"),
-                chunk_size=chunk_size,
-                multipart_threshold=multipart_threshold
+                max_workers=max_workers
             )
         elif url.startswith("pvc://"):
             from pvc import PVCDownloader
