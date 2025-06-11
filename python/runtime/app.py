@@ -74,14 +74,14 @@ def main():
         "-P",
         "--port",
         type=int,
-        default=8000,
+        default=9000,
         help="Port number",
     )
     parser.add_argument(
         "-U",
         "--url",
         type=str,
-        default="http://localhost:8000",
+        default="http://localhost:8000/metrics",
         help="Metrics url",
     )
     args = parser.parse_args()

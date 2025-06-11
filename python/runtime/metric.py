@@ -67,7 +67,6 @@ class RenameMetric(MetricOperator):
             sample.value,
             sample.timestamp,
             sample.exemplar,
-            sample.native_histogram,
         )
 
     def process(self, origin_metric: Metric) -> Metric:
