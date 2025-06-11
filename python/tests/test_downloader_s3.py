@@ -1,9 +1,9 @@
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, call
 
-from base import get_downloader
 from downloader import download_model
 from s3 import S3Downloader
+from base import get_downloader
 
 
 class TestDownloadModel(unittest.TestCase):
@@ -70,6 +70,27 @@ class TestDownloadModel(unittest.TestCase):
 
         self.assertIn("Failed to establish connection to server", str(context.exception))
         mock_get_downloader.assert_called_once_with(self.source, self.credentials, 8)
+
+    @patch('s3.S3Downloader._build_sync_command')
+    @patch('subprocess.Popen')
+    def test_s3_download_implementation(self, mock_popen, mock_build_cmd):
+        process_mock = MagicMock()
+        process_mock.stdout.readline.side_effect = ['output1', 'output2', '']
+        process_mock.poll.return_value = 0
+        process_mock.stderr.readlines.return_value = []
+        mock_popen.return_value = process_mock
+        mock_build_cmd.return_value = ['aws', 's3', 'sync', 's3://fake_bucket/fake_path', '/tmp/models']
+        
+        downloader = S3Downloader(
+            model_uri=self.source,
+            access_key="fake_ak",
+            secret_key="fake_sk",
+            endpoint=None,
+        )
+        
+        downloader.download(self.output_dir)
+        mock_build_cmd.assert_called_once_with('s3://fake_bucket/fake_path', self.output_dir)
+        mock_popen.assert_called_once()
 
     def test_get_s3_downloader(self):
         downloader = get_downloader(self.source, self.credentials)

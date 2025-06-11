@@ -76,7 +76,6 @@ def get_downloader(url: str, config: dict, max_workers: int = 8) -> ModelDownloa
                 access_key=config.get("access_key"),
                 secret_key=config.get("secret_key"),
                 endpoint=config.get("endpoint"),
-                max_workers=max_workers
             )
         elif url.startswith("pvc://"):
             from pvc import PVCDownloader
