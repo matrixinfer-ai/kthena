@@ -137,6 +137,7 @@ spec:
                             type: string
                         type: object
                       restartGracePeriodSeconds:
+                        default: 0
                         description: |-
                           RestartGracePeriodSeconds defines the grace time for the controller to rebuild the infergroup when an error occurs
                           Defaults to 0 (infergroup will be rebuilt immediately after an error)
@@ -8501,6 +8502,7 @@ spec:
                               format: int32
                               type: integer
                             workerReplicas:
+                              default: 0
                               description: WorkerReplicas defines the number for the
                                 worker pod of a role.
                               format: int32
