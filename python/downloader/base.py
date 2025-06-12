@@ -67,23 +67,23 @@ class ModelDownloader(ABC):
                 raise
 
 
-def get_downloader(url: str, config: dict, max_workers: int = 8) -> ModelDownloader:
+def get_downloader(source: str, config: dict, max_workers: int = 8) -> ModelDownloader:
     try:
-        if url.startswith("s3://") or url.startswith("obs://"):
+        if source.startswith("s3://") or source.startswith("obs://"):
             from s3 import S3Downloader
             return S3Downloader(
-                model_uri=url,
+                model_uri=source,
                 access_key=config.get("access_key"),
                 secret_key=config.get("secret_key"),
                 endpoint=config.get("endpoint"),
             )
-        elif url.startswith("pvc://"):
+        elif source.startswith("pvc://"):
             from pvc import PVCDownloader
-            return PVCDownloader()
+            return PVCDownloader(source_path=source)
         else:
             from huggingface import HuggingFaceDownloader
             return HuggingFaceDownloader(
-                model_uri=url,
+                model_uri=source,
                 hf_token=config.get("hf_token"),
                 hf_endpoint=config.get("hf_endpoint"),
                 hf_revision=config.get("hf_revision"),

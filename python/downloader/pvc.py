@@ -15,6 +15,7 @@
 import os
 import subprocess
 from pathlib import Path
+
 from base import ModelDownloader
 from logger import setup_logger
 
@@ -22,46 +23,77 @@ logger = setup_logger()
 
 
 class PVCDownloader(ModelDownloader):
-    def __init__(self):
+    def __init__(self, source_path: str = None):
         super().__init__()
-        self.pvc_mount_point = "/mnt/pvc"
+        if not source_path:
+            raise ValueError("PVC source URI must be provided")
+        self.source_path = source_path
 
     @staticmethod
-    def _copy_from_pvc(pvc_path: str, output_dir: str):
-        try:
-            pvc_path_obj = Path(pvc_path).resolve()
-            output_dir_obj = Path(output_dir).resolve()
-            if not pvc_path_obj.exists() or not pvc_path_obj.is_dir():
-                raise FileNotFoundError(f"Invalid PVC path: {pvc_path}")
-            output_dir_obj.mkdir(parents=True, exist_ok=True)
-            subprocess.run(
-                [
-                    "rsync",
-                    "-av",
-                    "--partial",
-                    "--progress",
-                    f"{str(pvc_path_obj)}/",
-                    f"{str(output_dir_obj)}/"
-                ],
-                check=False,
-                capture_output=True,
-                text=True
-            )
-        except Exception as e:
-            logger.error(f"Error copying files from PVC: {str(e)}")
-            raise
+    def _copy_from_pvc(pvc_path: str, output_dir: str) -> bool:
+        pvc_path_obj = Path(pvc_path).resolve()
+        output_dir_obj = Path(output_dir).resolve()
 
-    def _parse_pvc_path(self) -> str:
-        return os.path.normpath(self.pvc_mount_point)
-
-    def download(self, output_dir: str):
-        pvc_path = self._parse_pvc_path()
-        os.makedirs(output_dir, exist_ok=True)
-
-        if not os.path.exists(pvc_path):
-            logger.error(f"PVC path does not exist: {pvc_path}")
+        if not pvc_path_obj.exists():
             raise FileNotFoundError(f"PVC path does not exist: {pvc_path}")
 
-        logger.info(f"Starting to copy files from PVC at {pvc_path}")
-        self._copy_from_pvc(pvc_path, output_dir)
-        logger.info(f"Successfully copied files to {output_dir}")
+        if not pvc_path_obj.is_dir():
+            raise FileNotFoundError(f"PVC path is not a directory: {pvc_path}")
+
+        output_dir_obj.mkdir(parents=True, exist_ok=True)
+
+        cmd = [
+            "rsync",
+            "-av",
+            "--partial",
+            "--progress",
+            f"{str(pvc_path_obj)}/",
+            f"{str(output_dir_obj)}/"
+        ]
+
+        logger.info(f"Starting file sync from {pvc_path} to {output_dir}")
+
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1
+        )
+
+        for line in iter(process.stdout.readline, ''):
+            if line:
+                logger.info(line.strip())
+
+        process.stdout.close()
+        return_code = process.wait()
+
+        if return_code != 0:
+            errors = process.stderr.read()
+            logger.error(f"rsync failed with code {return_code}: {errors}")
+            raise subprocess.SubprocessError(f"rsync failed with code {return_code}")
+
+        return True
+
+    def _parse_pvc_path(self) -> str:
+        path = self.source_path[6:]
+        if not path:
+            raise ValueError(f"No path specified in PVC URI: {self.source_path}")
+
+        if not path.startswith('/'):
+            path = '/' + path
+
+        return os.path.normpath(path)
+
+    def download(self, output_dir: str):
+        try:
+            pvc_path = self._parse_pvc_path()
+            os.makedirs(output_dir, exist_ok=True)
+            self._copy_from_pvc(pvc_path, output_dir)
+            logger.info(f"Files copied from {pvc_path} to {output_dir}")
+        except FileNotFoundError as e:
+            logger.error(f"PVC path error: {str(e)}")
+            raise
+        except Exception as e:
+            logger.error(f"Failed to copy from PVC: {str(e)}")
+            raise

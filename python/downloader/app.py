@@ -59,7 +59,7 @@ def parse_arguments() -> argparse.Namespace:
         type=str,
         required=True,
         help="Model source URI or identifier. Supports multiple sources including: "
-             "Hugging Face repositories (format: 'organization/model_name'), "
+             "Hugging Face repositories (format: '<namespace>/<repo_name>'), "
              "S3 buckets (s3://bucket/path), Object Storage (obs://bucket/path) and PVC storage (pvc://path)"
     )
     parser.add_argument(

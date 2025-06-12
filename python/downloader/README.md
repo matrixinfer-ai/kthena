@@ -5,7 +5,7 @@ A universal LLM downloader tool that supports retrieving model files from multip
 ## Features
 
 - Support for multiple model sources:
-  - Hugging Face repositories (`organization/model_name`)
+  - Hugging Face repositories (`<namespace>/<repo_name>`)
   - S3 buckets (`s3://bucket/path`)
   - Object Storage (`obs://bucket/path`)
   - PVC storage (`pvc://path`)
@@ -71,7 +71,7 @@ docker run --rm \
   -e ENDPOINT="your_endpoint_url" \
   -v ./models:/output \
   matrixinfer-downloader:latest \
-  --source "organization/model_name" \
+  --source "<namespace>/<repo_name>" \
   --output-dir /output
 ```
 
