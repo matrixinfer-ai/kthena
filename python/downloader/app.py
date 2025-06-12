@@ -84,7 +84,7 @@ def parse_arguments() -> argparse.Namespace:
              "- hf_revision: Specific model revision/branch to download\n"
              "- access_key/secret_key: Cloud provider credentials\n"
              "- endpoint:  obs endpoint URL, for s3, not a required config but a private bucket \n"
-             "Example: '{\"hf_token\": \"hf_xxx\", \"region_name\": \"us-east-1\"}'"
+             "Example: '{\"hf_token\": \"your_huggingface_token\", \"hf_endpoint\": \"custom_endpoint\", \"hf_revision\": \"main\", \"access_key\": \"your_access_key\", \"secret_key\": \"your_secret_key\", \"endpoint\": \"your_endpoint_url\"}'"
     )
     args = parser.parse_args()
     args.output_dir = str(Path(args.output_dir).expanduser().resolve())
