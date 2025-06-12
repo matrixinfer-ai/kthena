@@ -240,11 +240,6 @@ func (in *Role) DeepCopyInto(out *Role) {
 		(*in).DeepCopyInto(*out)
 	}
 	in.EntryTemplate.DeepCopyInto(&out.EntryTemplate)
-	if in.WorkerReplicas != nil {
-		in, out := &in.WorkerReplicas, &out.WorkerReplicas
-		*out = new(int32)
-		**out = **in
-	}
 	if in.WorkerTemplate != nil {
 		in, out := &in.WorkerTemplate, &out.WorkerTemplate
 		*out = new(v1.PodTemplateSpec)
