@@ -1,7 +1,7 @@
 # List of usernames who may use /lgtm
 reviewers:
-  - repo-admin
+  - hzxuzhonghu
 
 # List of usernames who may use /approve
 approvers:
-  - repo-admin
+  - hzxuzhonghu
