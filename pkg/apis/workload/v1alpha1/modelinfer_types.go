@@ -28,6 +28,8 @@ const (
 	GroupNameLabelKey = "modelinfer.matrixinfer.ai/group-name"
 	// RoleLabelKey is the pod label key for the role.
 	RoleLabelKey = "modelinfer.matrixinfer.ai/role"
+	// EntryLabelKey is the entry pod label key.
+	EntryLabelKey = "modelinfer.matrixinfer.ai/entry"
 
 	// RevisionLabelKey is the revision label for the model infer.
 	RevisionLabelKey = "modelinfer.matrixinfer.ai/revision"
