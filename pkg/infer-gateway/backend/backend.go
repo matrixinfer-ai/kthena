@@ -17,6 +17,7 @@ var (
 
 type MetricsProvider interface {
 	GetPodMetrics(pod *corev1.Pod) (map[string]*dto.MetricFamily, error)
+	GetPodModels(pod *corev1.Pod) ([]string, error)
 	GetCountMetricsInfo(allMetrics map[string]*dto.MetricFamily) map[string]float64
 	GetHistogramPodMetrics(allMetrics map[string]*dto.MetricFamily, previousHistogram map[string]*dto.Histogram) (map[string]float64, map[string]*dto.Histogram)
 }
@@ -56,4 +57,14 @@ func GetMetricsProvider(engine string) (MetricsProvider, error) {
 		return provider, nil
 	}
 	return nil, fmt.Errorf("unsupported engine: %s", engine)
+}
+
+func GetPodModels(engine string, pod *corev1.Pod) ([]string, error) {
+	provider, err := GetMetricsProvider(engine)
+	if err != nil {
+		log.Errorf("Failed to get inference engine: %v", err)
+		return nil, nil
+	}
+
+	return provider.GetPodModels(pod)
 }

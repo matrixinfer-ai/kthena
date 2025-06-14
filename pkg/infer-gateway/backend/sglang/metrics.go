@@ -99,3 +99,8 @@ func (engine *sglangEngine) GetHistogramPodMetrics(allMetrics map[string]*dto.Me
 
 	return wantMetrics, histogramMetrics
 }
+
+// TODO： Methods to get Models from sglang
+func (engine *sglangEngine) GetPodModels(pod *corev1.Pod) ([]string, error) {
+	return nil, nil
+}
