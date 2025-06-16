@@ -109,7 +109,7 @@ func createCommonEnvVars(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelI
 	return []corev1.EnvVar{
 		{
 			Name:  workloadv1alpha1.GroupSizeEnv,
-			Value: strconv.Itoa(int(*role.WorkerReplicas) + 1),
+			Value: strconv.Itoa(int(role.WorkerReplicas) + 1),
 		},
 		{
 			Name:  workloadv1alpha1.EntryAddressEnv,

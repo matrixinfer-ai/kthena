@@ -26,6 +26,7 @@ type InferGroupSpec struct {
 	// RestartGracePeriodSeconds defines the grace time for the controller to rebuild the infergroup when an error occurs
 	// Defaults to 0 (infergroup will be rebuilt immediately after an error)
 	// +optional
+	// +kubebuilder:default=0
 	RestartGracePeriodSeconds *int64 `json:"restartGracePeriodSeconds,omitempty"`
 
 	// NetworkTopology defines the NetworkTopology config, this field works in conjunction with network topology feature and hyperNode CRD.
@@ -69,8 +70,8 @@ type Role struct {
 	EntryTemplate corev1.PodTemplateSpec `json:"entryTemplate"`
 
 	// WorkerReplicas defines the number for the worker pod of a role.
-	// +optional
-	WorkerReplicas *int32 `json:"workerReplicas,omitempty"`
+	// Required: Need to set the number of worker-pod replicas.
+	WorkerReplicas int32 `json:"workerReplicas"`
 
 	// WorkerTemplate defines the template for the worker pod of a role.
 	// +optional

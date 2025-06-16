@@ -391,7 +391,7 @@ func (mic *ModelInferController) CreatePodByRole(ctx context.Context, role workl
 		return err
 	}
 	// Create worker pods
-	for podIndex := range int(*role.WorkerReplicas) {
+	for podIndex := range int(role.WorkerReplicas) {
 		workerPod := utils.GenerateWorkerPod(role, mi, entryPod, groupName, roleIndex, podIndex+1) // worker-pod sequence number starts from 1, so we use index+1 here.
 		_, err = mic.kubeClientSet.CoreV1().Pods(mi.Namespace).Create(ctx, workerPod, metav1.CreateOptions{})
 		if err != nil {
