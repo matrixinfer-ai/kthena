@@ -115,6 +115,9 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 			// step 1: change request URL to prefill pod URL.
 			prefillReq.URL.Host = fmt.Sprintf("%s:%d", targetPods.PrefillPod.Pod.Status.PodIP, port)
 			prefillReq.URL.Scheme = "http"
+			// Preserve the original path
+			prefillReq.URL.Path = c.Request.URL.Path
+			prefillReq.URL.RawPath = c.Request.URL.RawPath
 			prefillReq.Body = io.NopCloser(bytes.NewBuffer(body))
 			prefillReq.ContentLength = int64(len(body))
 
@@ -140,6 +143,9 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 		// step 1: change request URL to real server URL.
 		req.URL.Host = fmt.Sprintf("%s:%d", targetPods.DecodePod.Pod.Status.PodIP, port)
 		req.URL.Scheme = "http"
+		// Preserve the original path
+		req.URL.Path = c.Request.URL.Path
+		req.URL.RawPath = c.Request.URL.RawPath
 		req.Body = io.NopCloser(bytes.NewBuffer(body))
 		req.ContentLength = int64(len(body))
 
