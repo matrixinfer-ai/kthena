@@ -104,7 +104,7 @@ type PodInfo struct {
 	TimePerOutputToken *dto.Histogram
 	TPOT               float64
 	TTFT               float64
-	Models             map[string]struct{}            // running lora adapaters.
+	Models             sets.Set[string]               // running models. Including base model and lora adapaters.
 	modelServer        sets.Set[types.NamespacedName] // The modelservers this pod belongs to
 }
 
@@ -155,6 +155,7 @@ func (s *store) Run(stop <-chan struct{}) {
 			for _, ms := range s.modelServer {
 				for _, podInfo := range ms.pods {
 					s.updatePodMetrics(podInfo.Pod)
+					s.updatePodModels(podInfo.Pod)
 					time.Sleep(uppdateInterval)
 				}
 			}
@@ -183,7 +184,7 @@ func (s *store) AddOrUpdateModelServer(name types.NamespacedName, ms *aiv1alpha1
 			s.pods[podName] = &PodInfo{
 				Pod:         pod,
 				backend:     string(ms.Spec.InferenceEngine),
-				Models:      make(map[string]struct{}),
+				Models:      sets.New[string](),
 				modelServer: sets.New[types.NamespacedName](name),
 			}
 		}
@@ -272,6 +273,7 @@ func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.Model
 	s.mutex.Unlock()
 
 	s.updatePodMetrics(pod)
+	s.updatePodModels(pod)
 
 	return nil
 }
@@ -497,6 +499,36 @@ func (s *store) updatePodMetrics(pod *corev1.Pod) {
 	metricsInfo, histogramMetrics := backend.GetPodMetrics(podInfo.backend, pod, previousHistogram)
 	updateMetricsInfo(podInfo, metricsInfo)
 	updateHistogramMetrics(podInfo, histogramMetrics)
+
+	for ms := range podInfo.modelServer {
+		s.modelServer[ms].pods[podName] = podInfo
+	}
+}
+
+func (s *store) updatePodModels(pod *corev1.Pod) {
+	podName := utils.GetNamespaceName(pod)
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	podInfo, exist := s.pods[podName]
+	if !exist {
+		log.Errorf("failed to get podInfo of pod %s/%s", pod.GetNamespace(), pod.GetName())
+		return
+	}
+
+	if podInfo.backend == "" {
+		log.Error("failed to find backend in pod")
+		return
+	}
+
+	models, err := backend.GetPodModels(podInfo.backend, pod)
+	if err != nil {
+		log.Errorf("failed to get models of pod %s/%s", pod.GetNamespace(), pod.GetName())
+	}
+
+	for i := range models {
+		podInfo.Models.Insert(models[i])
+	}
 
 	for ms := range podInfo.modelServer {
 		s.modelServer[ms].pods[podName] = podInfo
