@@ -8474,6 +8474,8 @@ spec:
                             name:
                               description: The name of a role. Name must be unique
                                 within an infergroup
+                              maxLength: 12
+                              pattern: ^[a-zA-Z0-9]([-a-zA-Z0-9]*[a-zA-Z0-9])?$
                               type: string
                             networkTopology:
                               description: NetworkTopology defines the NetworkTopology
@@ -16832,7 +16834,12 @@ spec:
                           - entryTemplate
                           - name
                           type: object
+                        maxItems: 4
+                        minItems: 1
                         type: array
+                        x-kubernetes-validations:
+                        - message: roles name must be unique
+                          rule: self.all(x, self.exists_one(y, y.name == x.name))
                     required:
                     - roles
                     type: object
