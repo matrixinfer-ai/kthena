@@ -36,7 +36,7 @@ func (engine *vllmEngine) GetPodModels(pod *corev1.Pod) ([]string, error) {
 		return nil, err
 	}
 
-	models := []string{}
+	models := make([]string, 0, len(modelList.Data))
 	for _, model := range modelList.Data {
 		models = append(models, model.ID)
 	}

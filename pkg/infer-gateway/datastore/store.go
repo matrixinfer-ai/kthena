@@ -104,7 +104,7 @@ type PodInfo struct {
 	TimePerOutputToken *dto.Histogram
 	TPOT               float64
 	TTFT               float64
-	Models             sets.Set[string]               // running lora adapaters.
+	Models             sets.Set[string]               // running models. Including base model and lora adapaters.
 	modelServer        sets.Set[types.NamespacedName] // The modelservers this pod belongs to
 }
 
@@ -155,6 +155,7 @@ func (s *store) Run(stop <-chan struct{}) {
 			for _, ms := range s.modelServer {
 				for _, podInfo := range ms.pods {
 					s.updatePodMetrics(podInfo.Pod)
+					s.updatePodModels(podInfo.Pod)
 					time.Sleep(uppdateInterval)
 				}
 			}
@@ -272,6 +273,7 @@ func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.Model
 	s.mutex.Unlock()
 
 	s.updatePodMetrics(pod)
+	s.updatePodModels(pod)
 
 	return nil
 }
