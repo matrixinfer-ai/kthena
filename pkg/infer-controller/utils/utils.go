@@ -16,6 +16,8 @@ import (
 	workloadv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 )
 
+const Entry = "true"
+
 func GetNamespaceName(obj metav1.Object) types.NamespacedName {
 	return types.NamespacedName{
 		Namespace: obj.GetNamespace(),
@@ -62,6 +64,7 @@ func generateWorkerPodName(groupName, roleName string, roleIndex, podIndex int) 
 func GenerateEntryPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, groupName string, roleIndex int) *corev1.Pod {
 	entryPodName := generateEntryPodName(groupName, role.Name, roleIndex)
 	entryPod := createBasePod(role, mi, entryPodName, groupName)
+	entryPod.ObjectMeta.Labels[workloadv1alpha1.EntryLabelKey] = Entry
 	entryPod.Spec = role.EntryTemplate.Spec
 	entryPod.Spec.Hostname = entryPodName
 	entryPod.Spec.Subdomain = entryPodName
