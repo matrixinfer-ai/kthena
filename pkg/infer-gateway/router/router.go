@@ -1,7 +1,6 @@
 package router
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -159,7 +158,15 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 			}
 		}
 		defer resp.Body.Close()
+
 		// Maybe we need to read the response to get the tokens for ratelimiting later
-		_, _ = bufio.NewReader(resp.Body).WriteTo(c.Writer)
+		c.Stream(func(w io.Writer) bool {
+			buf := make([]byte, 512)
+			n, err := resp.Body.Read(buf)
+			if n > 0 {
+				w.Write(buf[:n])
+			}
+			return err != io.EOF
+		})
 	}
 }
