@@ -32,8 +32,8 @@ func startRouter(stop <-chan struct{}, store datastore.Store) {
 
 	r := router.NewRouter(store)
 
-	// vllm use /v1 prefix, not sure other frameworks
-	engine.Any("/v1/:path", r.HandlerFunc())
+	// Handle all paths under /v1/
+	engine.Any("/v1/*path", r.HandlerFunc())
 
 	server := &http.Server{
 		Addr:    ":8080",

@@ -8,6 +8,7 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
 type SchedulerImpl struct {
@@ -63,12 +64,17 @@ func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.P
 		return nil, fmt.Errorf("pods shouldn't be empty")
 	}
 
-	ctx := &framework.Context{
-		Model:  req["model"].(string),
-		Prompt: req["prompt"].(string),
+	prompt, err := utils.GetPrompt(req)
+	if err != nil {
+		return nil, err
 	}
 
-	pods, err := s.RunFilterPlugins(pods, ctx)
+	ctx := &framework.Context{
+		Model:  req["model"].(string),
+		Prompt: prompt,
+	}
+
+	pods, err = s.RunFilterPlugins(pods, ctx)
 	if err != nil {
 		return nil, err
 	}
