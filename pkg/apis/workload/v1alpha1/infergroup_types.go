@@ -36,7 +36,10 @@ type InferGroupSpec struct {
 	// GangSchedule defines the GangSchedule config.
 	// +optional
 	GangSchedule GangSchedule `json:"gangSchedule,omitempty"`
-	Roles        []Role       `json:"roles"`
+	// +kubebuilder:validation:MaxItems=4
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:XValidation:rule="self.all(x, self.exists_one(y, y.name == x.name))", message="roles name must be unique"
+	Roles []Role `json:"roles"`
 }
 
 // GangSchedule defines the gang scheduling configuration.
@@ -51,6 +54,8 @@ type GangSchedule struct {
 // Role defines the specific pod instance role that performs the inference task.
 type Role struct {
 	// The name of a role. Name must be unique within an infergroup
+	// +kubebuilder:validation:MaxLength=12
+	// +kubebuilder:validation:Pattern=^[a-zA-Z0-9]([-a-zA-Z0-9]*[a-zA-Z0-9])?$
 	Name string `json:"name"`
 
 	// The number of a certain role.
