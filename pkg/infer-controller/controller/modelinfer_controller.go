@@ -45,7 +45,13 @@ type ModelInferController struct {
 }
 
 func NewModelInferController(kubeClientSet kubernetes.Interface, modelInferClient clientset.Interface) *ModelInferController {
-	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClientSet, 0)
+	kubeInformerFactory := informers.NewSharedInformerFactoryWithOptions(
+		kubeClientSet,
+		0,
+		informers.WithTweakListOptions(func(opts *metav1.ListOptions) {
+			opts.LabelSelector = workloadv1alpha1.ModelInferNameLabelKey
+		}),
+	)
 	podsInformer := kubeInformerFactory.Core().V1().Pods()
 	modelInferInformerFactory := informersv1alpha1.NewSharedInformerFactory(modelInferClient, 0)
 	modelInferInformer := modelInferInformerFactory.Workload().V1alpha1().ModelInfers()
@@ -160,18 +166,10 @@ func (mic *ModelInferController) updatePod(oldObj, newObj interface{}) {
 		return
 	}
 
-	podLabels := newPod.GetLabels()
-	if podLabels == nil {
-		return
-	}
-	modelInferName, inferGroupName, ok := utils.GetModelInferAndGroupByLabel(podLabels)
-	if !ok {
-		return
-	}
-	mi, err := mic.modelInfersLister.ModelInfers(newPod.GetNamespace()).Get(modelInferName)
+	mi, inferGroupName, err := mic.getModelInfer(newPod)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.V(4).Infof("modelInfer %s has been deleted", modelInferName)
+			klog.V(4).Infof("modelInfer of pod %s has been deleted", newPod.Name)
 		} else {
 			klog.Errorf("get model infer failed when update pod: %v", err)
 		}
@@ -202,27 +200,15 @@ func (mic *ModelInferController) deletePod(obj interface{}) {
 		return
 	}
 
-	podLabels := pod.GetLabels()
-	if podLabels == nil {
+	mi, inferGroupName, err := mic.getModelInfer(pod)
+	if err == nil {
+		mic.DeleteInferGroup(mi, inferGroupName)
 		return
 	}
-
-	inferGroupName, ok := podLabels[workloadv1alpha1.GroupNameLabelKey]
-	if !ok {
-		klog.Errorf("failed to get infergroupName of pod %s/%s", pod.GetNamespace(), pod.GetName())
-		return
-	}
-
-	owners := pod.GetOwnerReferences()
-	for i := range owners {
-		if owners[i].Kind == workloadv1alpha1.ModelInferKind.Kind {
-			mi, err := mic.modelInfersLister.ModelInfers(pod.GetNamespace()).Get(owners[i].Name)
-			if err == nil {
-				mic.DeleteInferGroup(mi, inferGroupName)
-			} else {
-				klog.Errorf("failed to get modelInfer of pod %s/%s: %v", pod.GetNamespace(), pod.GetName(), err)
-			}
-		}
+	if apierrors.IsNotFound(err) {
+		klog.V(4).Infof("modelInfer of pod %s/%s has been deleted", pod.GetNamespace(), pod.GetName())
+	} else {
+		klog.Errorf("failed to get modelInfer of pod %s/%s: %v", pod.GetNamespace(), pod.GetName(), err)
 	}
 }
 
@@ -262,6 +248,7 @@ func (mic *ModelInferController) processNextWorkItem(ctx context.Context) bool {
 
 func (mic *ModelInferController) syncModelInfer(ctx context.Context, key string) error {
 	// TODO: add modelinfer rolling upgrade logic
+	// TODO: Consider obtaining the pod status during the modelinfer reconcile to process the infergroup status. This can ensure the real-time status.
 	klog.V(4).Info("Started syncing ModelInfer")
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
@@ -502,7 +489,7 @@ func (mic *ModelInferController) handleErrorPod(mi *workloadv1alpha1.ModelInfer,
 		Namespace: mi.Namespace,
 		Name:      inferGroupName,
 	}, errPod.Name)
-	// If the infergroup status is already running, the status needs to be updated
+	// If the inferGroup status is already running, the status needs to be updated
 	if groupStatus := mic.store.GetInferGroupStatus(utils.GetNamespaceName(mi), inferGroupName); groupStatus == datastore.InferGroupRunning {
 		err := mic.store.UpdateInferGroupStatus(utils.GetNamespaceName(mi), inferGroupName, datastore.InferGroupCreating)
 		if err != nil {
@@ -511,26 +498,28 @@ func (mic *ModelInferController) handleErrorPod(mi *workloadv1alpha1.ModelInfer,
 		klog.V(2).Infof("update infergroup %s to creating when pod error", inferGroupName)
 	}
 	// Wait for the grace period before processing
-	go mic.waitGraceTime(mi, errPod)
+	go mic.handlePodAfterGraceTime(mi, errPod)
 	// InferGroup status may change, needs reconcile
 	mic.enqueueModelInfer(mi)
 	return nil
 }
 
-func (mic *ModelInferController) waitGraceTime(mi *workloadv1alpha1.ModelInfer, errPod *corev1.Pod) {
+func (mic *ModelInferController) handlePodAfterGraceTime(mi *workloadv1alpha1.ModelInfer, errPod *corev1.Pod) {
 	if mi.Spec.Template.Spec.RestartGracePeriodSeconds != nil && *mi.Spec.Template.Spec.RestartGracePeriodSeconds > 0 {
 		// Wait for the grace period before making a decision
-		timer := time.NewTimer(time.Duration(*mi.Spec.Template.Spec.RestartGracePeriodSeconds) * time.Second)
-		<-timer.C
+		time.Sleep(time.Duration(*mi.Spec.Template.Spec.RestartGracePeriodSeconds) * time.Second)
 		klog.V(4).Infof("%s after grace time", errPod.Name)
 		defer mic.graceMap.Delete(utils.GetNamespaceName(errPod))
+
 		newPod, err := mic.podsLister.Pods(mi.Namespace).Get(errPod.Name)
 		if err != nil {
 			klog.Errorf("cannot get pod %s after grace time, err: %v", errPod.Name, err)
 			return
 		}
+
 		if !utils.IsPodRunningAndReady(newPod) {
 			// pod has not recovered after the grace period, needs to be rebuilt
+			// After this pod has been deleted, we will rebuild the inferGroup in deletePod function
 			err = mic.kubeClientSet.CoreV1().Pods(mi.Namespace).Delete(context.TODO(), newPod.Name, metav1.DeleteOptions{})
 			if err != nil {
 				klog.Errorf("cannot delete pod %s after grace time, err: %v", newPod.Name, err)
@@ -541,6 +530,7 @@ func (mic *ModelInferController) waitGraceTime(mi *workloadv1alpha1.ModelInfer, 
 	} else {
 		// grace period is not set or the grace period is 0, the deletion will be executed immediately.
 		defer mic.graceMap.Delete(utils.GetNamespaceName(errPod))
+
 		err := mic.kubeClientSet.CoreV1().Pods(mi.Namespace).Delete(context.TODO(), errPod.Name, metav1.DeleteOptions{})
 		if err != nil {
 			klog.Errorf("cannot delete pod %s when it error, err: %v", errPod.Name, err)
@@ -551,6 +541,7 @@ func (mic *ModelInferController) waitGraceTime(mi *workloadv1alpha1.ModelInfer, 
 }
 
 func (mic *ModelInferController) checkInferGroupReady(mi *workloadv1alpha1.ModelInfer, inferGroupName string) (bool, error) {
+	// TODO: modify inferGroupReady logic after rolling update functionality is implemented
 	runningPodList, err := mic.store.GetRunningPodByInferGroup(utils.GetNamespaceName(mi), inferGroupName)
 	if err != nil {
 		return false, err
@@ -560,4 +551,16 @@ func (mic *ModelInferController) checkInferGroupReady(mi *workloadv1alpha1.Model
 		return false, nil
 	}
 	return true, nil
+}
+
+func (mic *ModelInferController) getModelInfer(pod *corev1.Pod) (*workloadv1alpha1.ModelInfer, string, error) {
+	modelInferName, inferGroupName, ok := utils.GetModelInferAndGroupByLabel(pod.GetLabels())
+	if !ok {
+		return nil, "", fmt.Errorf("cannot get modelInfer name and inferGroup name from pod %s", pod.Name)
+	}
+	mi, err := mic.modelInfersLister.ModelInfers(pod.Namespace).Get(modelInferName)
+	if err != nil {
+		return nil, "", err
+	}
+	return mi, inferGroupName, nil
 }

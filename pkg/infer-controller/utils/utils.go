@@ -10,7 +10,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
-	endpointutil "k8s.io/endpointslice/util"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 
@@ -181,8 +180,7 @@ func CreateHeadlessService(ctx context.Context, k8sClient kubernetes.Interface, 
 				newModelInferOwnerRef(mi),
 			},
 			Labels: map[string]string{
-				workloadv1alpha1.ModelInferNameLabelKey: mi.Name,
-				workloadv1alpha1.GroupNameLabelKey:      groupName,
+				workloadv1alpha1.GroupNameLabelKey: groupName,
 			},
 		},
 		Spec: corev1.ServiceSpec{
@@ -214,7 +212,32 @@ func GetModelInferAndGroupByLabel(podLabels map[string]string) (string, string, 
 
 // IsPodRunningAndReady returns true if pod is in the PodRunning Phase, if it has a condition of PodReady.
 func IsPodRunningAndReady(pod *corev1.Pod) bool {
-	return pod.Status.Phase == corev1.PodRunning && endpointutil.IsPodReady(pod)
+	return pod.Status.Phase == corev1.PodRunning && isPodReady(pod)
+}
+
+func isPodReady(pod *corev1.Pod) bool {
+	return isPodReadyConditionTrue(pod.Status)
+}
+
+func isPodReadyConditionTrue(status corev1.PodStatus) bool {
+	condition := getPodReadyCondition(&status)
+	return condition != nil && condition.Status == corev1.ConditionTrue
+}
+
+// getPodReadyCondition extracts the pod ready condition from the given status and returns that.
+// Returns nil if the condition is not present.
+// copied from k8s.io/kubernetes/pkg/api/v1/pod
+func getPodReadyCondition(status *corev1.PodStatus) *corev1.PodCondition {
+	if status == nil || status.Conditions == nil {
+		return nil
+	}
+
+	for i := range status.Conditions {
+		if status.Conditions[i].Type == corev1.PodReady {
+			return &status.Conditions[i]
+		}
+	}
+	return nil
 }
 
 // IsPodTerminating returns true if pod's DeletionTimestamp has been set
