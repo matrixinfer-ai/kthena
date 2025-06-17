@@ -160,18 +160,13 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 		defer resp.Body.Close()
 
 		// Maybe we need to read the response to get the tokens for ratelimiting later
-		rawWriter := c.Writer.(http.ResponseWriter)
-		buf := make([]byte, 512)
-		for {
+		c.Stream(func(w io.Writer) bool {
+			buf := make([]byte, 512)
 			n, err := resp.Body.Read(buf)
 			if n > 0 {
-				rawWriter.Write(buf[:n])
-				// NOTE: flush the response to the client immediately to avoid excessive delay due to improper buffer.
-				rawWriter.(http.Flusher).Flush()
+				w.Write(buf[:n])
 			}
-			if err == io.EOF {
-				break
-			}
-		}
+			return err != io.EOF
+		})
 	}
 }
