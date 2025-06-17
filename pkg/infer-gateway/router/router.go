@@ -62,7 +62,7 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 			return
 		}
 
-		err = r.loadRateLimiter.SingleNodeRateLimit(prompt)
+		err = r.loadRateLimiter.RateLimit(prompt)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusTooManyRequests, "token usage exceeds rate limit")
 			return

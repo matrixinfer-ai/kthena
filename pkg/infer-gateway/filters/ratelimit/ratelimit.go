@@ -1,7 +1,6 @@
 package ratelimit
 
 import (
-	"context"
 	"time"
 
 	"golang.org/x/time/rate"
@@ -14,20 +13,28 @@ var (
 	log = logger.NewLogger("ratelimit")
 )
 
+type RateLimitExceededError struct{}
+
+func (e RateLimitExceededError) Error() string {
+	return "rate limit exceeded"
+}
+
 type RateLimit struct {
 	limiter *rate.Limiter
-	token   *tokenizer.StringsTokenizer
+	token   tokenizer.Tokenizer
 }
 
 func NewRateLimit() RateLimit {
+	// TODO: replace API to get token value
 	limit := rate.Every(100 * time.Millisecond)
 	limiter := rate.NewLimiter(limit, 1000000)
 	return RateLimit{
 		limiter: limiter,
+		token:   tokenizer.NewSimpleEstimateTokenizer(),
 	}
 }
 
-func (r *RateLimit) SingleNodeRateLimit(prompt string) error {
+func (r *RateLimit) RateLimit(prompt string) error {
 	size, err := r.token.CalculateTokenNum(prompt)
 	if err != nil {
 		return err
@@ -35,17 +42,7 @@ func (r *RateLimit) SingleNodeRateLimit(prompt string) error {
 
 	if r.limiter.AllowN(time.Now(), size) {
 		log.Info("rate limit allow")
-	} else {
-		log.Error("rate limit disallow")
-		// set 1 min wait timeout
-		cxt, cancel := context.WithTimeout(context.Background(), time.Second)
-		defer cancel()
-
-		err := r.limiter.WaitN(cxt, 1)
-		if err != nil {
-			r.limiter.SetLimit(20)
-			return err
-		}
+		return nil
 	}
-	return nil
+	return &RateLimitExceededError{}
 }
