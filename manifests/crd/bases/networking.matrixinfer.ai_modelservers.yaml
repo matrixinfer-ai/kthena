@@ -61,7 +61,7 @@ spec:
                       attempts:
                         description: |-
                           The maximum number of times an individual inference request to a model server should be retried.
-                          If the maximum number of retries is exceeded without a successgful response, the request will be considered failed.
+                          If the maximum number of retries has been done without a successgful response, the request will be considered failed.
                         format: int32
                         type: integer
                       retryInterval:
