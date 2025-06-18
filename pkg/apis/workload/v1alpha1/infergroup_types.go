@@ -26,6 +26,7 @@ type InferGroupSpec struct {
 	// RestartGracePeriodSeconds defines the grace time for the controller to rebuild the infergroup when an error occurs
 	// Defaults to 0 (infergroup will be rebuilt immediately after an error)
 	// +optional
+	// +kubebuilder:default=0
 	RestartGracePeriodSeconds *int64 `json:"restartGracePeriodSeconds,omitempty"`
 
 	// NetworkTopology defines the NetworkTopology config, this field works in conjunction with network topology feature and hyperNode CRD.
@@ -35,7 +36,10 @@ type InferGroupSpec struct {
 	// GangSchedule defines the GangSchedule config.
 	// +optional
 	GangSchedule GangSchedule `json:"gangSchedule,omitempty"`
-	Roles        []Role       `json:"roles"`
+	// +kubebuilder:validation:MaxItems=4
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:XValidation:rule="self.all(x, self.exists_one(y, y.name == x.name))", message="roles name must be unique"
+	Roles []Role `json:"roles"`
 }
 
 // GangSchedule defines the gang scheduling configuration.
@@ -50,6 +54,8 @@ type GangSchedule struct {
 // Role defines the specific pod instance role that performs the inference task.
 type Role struct {
 	// The name of a role. Name must be unique within an infergroup
+	// +kubebuilder:validation:MaxLength=12
+	// +kubebuilder:validation:Pattern=^[a-zA-Z0-9]([-a-zA-Z0-9]*[a-zA-Z0-9])?$
 	Name string `json:"name"`
 
 	// The number of a certain role.
@@ -69,8 +75,8 @@ type Role struct {
 	EntryTemplate corev1.PodTemplateSpec `json:"entryTemplate"`
 
 	// WorkerReplicas defines the number for the worker pod of a role.
-	// +optional
-	WorkerReplicas *int32 `json:"workerReplicas,omitempty"`
+	// Required: Need to set the number of worker-pod replicas.
+	WorkerReplicas int32 `json:"workerReplicas"`
 
 	// WorkerTemplate defines the template for the worker pod of a role.
 	// +optional

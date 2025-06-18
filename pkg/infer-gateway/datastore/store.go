@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"reflect"
 	"regexp"
 	"strings"
 	"sync"
@@ -38,15 +39,34 @@ var (
 	uppdateInterval = 1 * time.Second
 )
 
+// EventType represents different types of events that can trigger callbacks
+type EventType string
+
+const (
+	// EventPodDeleted is triggered when a pod is deleted
+	EventPodDeleted EventType = "PodDeleted"
+	// Add more event types here as needed
+)
+
+// EventData contains information about the event that triggered the callback
+type EventData struct {
+	EventType EventType
+	Pod       types.NamespacedName
+	// Add more fields as needed for other event types
+}
+
+// CallbackFunc is the type of function that can be registered as a callback
+type CallbackFunc func(data EventData)
+
 // Store is an interface for storing and retrieving data
 type Store interface {
 	// Add modelServer and pods which are selected by modelServer.Spec.WorkloadSelector
 	AddOrUpdateModelServer(name types.NamespacedName, modelServer *aiv1alpha1.ModelServer, pods []*corev1.Pod) error
 	// Delete modelServer
 	DeleteModelServer(modelServer *aiv1alpha1.ModelServer) error
-	// Get modelServer name. This name is as same as modelServer.Spec.Model
-	GetModelNameByModelServer(name types.NamespacedName) *string
-	GetPodsByModelServer(name types.NamespacedName) []*PodInfo
+	// Get modelServer
+	GetModelServer(name types.NamespacedName) *aiv1alpha1.ModelServer
+	GetPodsByModelServer(name types.NamespacedName) ([]*PodInfo, error)
 
 	// Refresh Store and ModelServer when add a new pod or update a pod
 	AddOrUpdatePod(pod *corev1.Pod, modelServer []*aiv1alpha1.ModelServer) error
@@ -55,24 +75,24 @@ type Store interface {
 
 	// New methods for routing functionality
 	MatchModelServer(modelName string, request *http.Request) (types.NamespacedName, bool, error)
-	GetModelServerEndpoints(name types.NamespacedName) ([]*PodInfo, *string, int32, error)
 
 	// Model routing methods
 	AddOrUpdateModelRoute(mr *aiv1alpha1.ModelRoute) error
 	DeleteModelRoute(namespacedName string) error
+
+	// New methods for callback management
+	RegisterCallback(eventType EventType, callback CallbackFunc)
+	UnregisterCallback(eventType EventType, callback CallbackFunc)
 }
 
 type modelServer struct {
 	mutex sync.RWMutex
 
-	model      *string
-	pods       map[types.NamespacedName]*PodInfo
-	targetPort aiv1alpha1.WorkloadPort
+	modelServer *aiv1alpha1.ModelServer
+	pods        map[types.NamespacedName]*PodInfo
 }
 
 type PodInfo struct {
-	mutex sync.RWMutex
-
 	Pod *corev1.Pod
 	// Name of AI inference engine
 	backend string
@@ -84,7 +104,7 @@ type PodInfo struct {
 	TimePerOutputToken *dto.Histogram
 	TPOT               float64
 	TTFT               float64
-	Models             map[string]struct{}            // running lora adapaters.
+	Models             sets.Set[string]               // running models. Including base model and lora adapaters.
 	modelServer        sets.Set[types.NamespacedName] // The modelservers this pod belongs to
 }
 
@@ -110,6 +130,9 @@ type store struct {
 	routeInfo  map[string]*modelRouteInfo
 	routes     map[string]*aiv1alpha1.ModelRoute
 	loraRoutes map[string]*aiv1alpha1.ModelRoute
+
+	// New fields for callback management
+	callbacks map[EventType][]CallbackFunc
 }
 
 func New() Store {
@@ -119,6 +142,7 @@ func New() Store {
 		routeInfo:   make(map[string]*modelRouteInfo),
 		routes:      make(map[string]*aiv1alpha1.ModelRoute),
 		loraRoutes:  make(map[string]*aiv1alpha1.ModelRoute),
+		callbacks:   make(map[EventType][]CallbackFunc),
 	}
 }
 
@@ -131,6 +155,7 @@ func (s *store) Run(stop <-chan struct{}) {
 			for _, ms := range s.modelServer {
 				for _, podInfo := range ms.pods {
 					s.updatePodMetrics(podInfo.Pod)
+					s.updatePodModels(podInfo.Pod)
 					time.Sleep(uppdateInterval)
 				}
 			}
@@ -144,14 +169,12 @@ func (s *store) AddOrUpdateModelServer(name types.NamespacedName, ms *aiv1alpha1
 
 	if _, ok := s.modelServer[name]; !ok {
 		s.modelServer[name] = &modelServer{
-			model:      ms.Spec.Model,
-			pods:       make(map[types.NamespacedName]*PodInfo),
-			targetPort: ms.Spec.WorkloadPort,
+			modelServer: ms,
+			pods:        make(map[types.NamespacedName]*PodInfo),
 		}
 	} else {
 		s.modelServer[name].mutex.Lock()
-		s.modelServer[name].model = ms.Spec.Model
-		s.modelServer[name].targetPort = ms.Spec.WorkloadPort
+		s.modelServer[name].modelServer = ms
 		s.modelServer[name].mutex.Unlock()
 	}
 
@@ -160,7 +183,8 @@ func (s *store) AddOrUpdateModelServer(name types.NamespacedName, ms *aiv1alpha1
 		if _, ok := s.pods[podName]; !ok {
 			s.pods[podName] = &PodInfo{
 				Pod:         pod,
-				Models:      make(map[string]struct{}),
+				backend:     string(ms.Spec.InferenceEngine),
+				Models:      sets.New[string](),
 				modelServer: sets.New[types.NamespacedName](name),
 			}
 		}
@@ -179,24 +203,24 @@ func (s *store) DeleteModelServer(ms *aiv1alpha1.ModelServer) error {
 	return nil
 }
 
-func (s *store) GetModelNameByModelServer(name types.NamespacedName) *string {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+func (s *store) GetModelServer(name types.NamespacedName) *aiv1alpha1.ModelServer {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 
 	if ms, ok := s.modelServer[name]; ok {
-		return ms.model
+		return ms.modelServer
 	}
 
 	return nil
 }
 
-func (s *store) GetPodsByModelServer(name types.NamespacedName) []*PodInfo {
+func (s *store) GetPodsByModelServer(name types.NamespacedName) ([]*PodInfo, error) {
 	s.mutex.RLock()
 	ms, ok := s.modelServer[name]
 	s.mutex.RUnlock()
 
 	if !ok {
-		return nil
+		return nil, fmt.Errorf("model server not found: %v", name)
 	}
 
 	ms.mutex.RLock()
@@ -209,7 +233,7 @@ func (s *store) GetPodsByModelServer(name types.NamespacedName) []*PodInfo {
 		pods = append(pods, pod)
 	}
 
-	return pods
+	return pods, nil
 }
 
 func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.ModelServer) error {
@@ -226,11 +250,13 @@ func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.Model
 		modelServerName := utils.GetNamespaceName(modelServer)
 		modelServerNames = append(modelServerNames, modelServerName)
 		newPodInfo.modelServer.Insert(modelServerName)
+		// NOTE: even if a pod belongs to multiple model servers, the backend should be the same
+		newPodInfo.backend = string(modelServer.Spec.InferenceEngine)
 	}
 
 	// if already have podinfo, need to delete old pod in modelserver
 	if podInfo, ok := s.pods[podName]; ok {
-		for name, _ := range podInfo.modelServer {
+		for name := range podInfo.modelServer {
 			delete(s.modelServer[name].pods, podName)
 		}
 	}
@@ -247,11 +273,12 @@ func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.Model
 	s.mutex.Unlock()
 
 	s.updatePodMetrics(pod)
+	s.updatePodModels(pod)
 
 	return nil
 }
 
-func (s *store) PodHandlerWhenDeleteModelServer(modelServerName types.NamespacedName) error {
+func (s *store) PodHandlerWhenDeleteModelServer(modelServerName types.NamespacedName) {
 	pods := s.modelServer[modelServerName].pods
 	for podName := range pods {
 		s.mutex.Lock()
@@ -262,18 +289,24 @@ func (s *store) PodHandlerWhenDeleteModelServer(modelServerName types.Namespaced
 		}
 		s.mutex.Unlock()
 	}
-
-	return nil
 }
 
 func (s *store) DeletePod(podName types.NamespacedName) error {
 	s.mutex.Lock()
-	modelServers := s.pods[podName].modelServer
-	for modelServerName := range modelServers {
-		delete(s.modelServer[modelServerName].pods, podName)
+	if pod, ok := s.pods[podName]; ok {
+		modelServers := pod.modelServer
+		for modelServerName := range modelServers {
+			delete(s.modelServer[modelServerName].pods, podName)
+		}
+		delete(s.pods, podName)
 	}
-	delete(s.pods, podName)
 	s.mutex.Unlock()
+
+	s.triggerCallbacks(EventPodDeleted, EventData{
+		EventType: EventPodDeleted,
+		Pod:       podName,
+	})
+
 	return nil
 }
 
@@ -446,25 +479,6 @@ func selectFromWeightedSlice(weights []uint32) int {
 	return 0
 }
 
-func (s *store) GetModelServerEndpoints(name types.NamespacedName) ([]*PodInfo, *string, int32, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-
-	if ms, ok := s.modelServer[name]; ok {
-		ms.mutex.RLock()
-		defer ms.mutex.RUnlock()
-
-		pods := []*PodInfo{}
-		for _, pod := range ms.pods {
-			pods = append(pods, pod)
-		}
-
-		return pods, ms.model, ms.targetPort.Port, nil
-	}
-
-	return nil, nil, 0, fmt.Errorf("model server not found: %v", name)
-}
-
 func (s *store) updatePodMetrics(pod *corev1.Pod) {
 	podName := utils.GetNamespaceName(pod)
 	s.mutex.Lock()
@@ -485,6 +499,36 @@ func (s *store) updatePodMetrics(pod *corev1.Pod) {
 	metricsInfo, histogramMetrics := backend.GetPodMetrics(podInfo.backend, pod, previousHistogram)
 	updateMetricsInfo(podInfo, metricsInfo)
 	updateHistogramMetrics(podInfo, histogramMetrics)
+
+	for ms := range podInfo.modelServer {
+		s.modelServer[ms].pods[podName] = podInfo
+	}
+}
+
+func (s *store) updatePodModels(pod *corev1.Pod) {
+	podName := utils.GetNamespaceName(pod)
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	podInfo, exist := s.pods[podName]
+	if !exist {
+		log.Errorf("failed to get podInfo of pod %s/%s", pod.GetNamespace(), pod.GetName())
+		return
+	}
+
+	if podInfo.backend == "" {
+		log.Error("failed to find backend in pod")
+		return
+	}
+
+	models, err := backend.GetPodModels(podInfo.backend, pod)
+	if err != nil {
+		log.Errorf("failed to get models of pod %s/%s", pod.GetNamespace(), pod.GetName())
+	}
+
+	for i := range models {
+		podInfo.Models.Insert(models[i])
+	}
 
 	for ms := range podInfo.modelServer {
 		s.modelServer[ms].pods[podName] = podInfo
@@ -548,6 +592,44 @@ func updateHistogramMetrics(podinfo *PodInfo, histogramMetrics map[string]*dto.H
 			updateFunc(histogramMetrics[name])
 		} else {
 			log.Debugf("Unknow histogram metric: %s", name)
+		}
+	}
+}
+
+// RegisterCallback registers a callback function for a specific event type
+func (s *store) RegisterCallback(eventType EventType, callback CallbackFunc) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if _, exists := s.callbacks[eventType]; !exists {
+		s.callbacks[eventType] = make([]CallbackFunc, 0)
+	}
+	s.callbacks[eventType] = append(s.callbacks[eventType], callback)
+}
+
+// UnregisterCallback removes a callback function for a specific event type
+func (s *store) UnregisterCallback(eventType EventType, callback CallbackFunc) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if callbacks, exists := s.callbacks[eventType]; exists {
+		for i, cb := range callbacks {
+			if reflect.ValueOf(cb).Pointer() == reflect.ValueOf(callback).Pointer() {
+				s.callbacks[eventType] = append(callbacks[:i], callbacks[i+1:]...)
+				break
+			}
+		}
+	}
+}
+
+// triggerCallbacks executes all registered callbacks for a specific event type
+func (s *store) triggerCallbacks(eventType EventType, data EventData) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	if callbacks, exists := s.callbacks[eventType]; exists {
+		for _, callback := range callbacks {
+			go callback(data)
 		}
 	}
 }

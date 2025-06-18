@@ -21,6 +21,28 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+const (
+	// ModelInferNameLabelKey is the pod label key for the model infer name.
+	ModelInferNameLabelKey = "modelinfer.matrixinfer.ai/name"
+	// GroupNameLabelKey is the pod label key for the group name.
+	GroupNameLabelKey = "modelinfer.matrixinfer.ai/group-name"
+	// RoleLabelKey is the pod label key for the role.
+	RoleLabelKey = "modelinfer.matrixinfer.ai/role"
+	// EntryLabelKey is the entry pod label key.
+	EntryLabelKey = "modelinfer.matrixinfer.ai/entry"
+
+	// RevisionLabelKey is the revision label for the model infer.
+	RevisionLabelKey = "modelinfer.matrixinfer.ai/revision"
+
+	// Environment injected to the worker pods.
+	EntryAddressEnv = "ENTRY_ADDRESS"
+	// WorkerIndexEnv is the environment variable for the worker index.
+	// The entry pod always has a worker index of 0, while the other worker pods has a unique index from 1 to GroupSize-1.
+	WorkerIndexEnv = "WORKER_INDEX"
+	// GroupSizeEnv is the environment variable for the group size.
+	GroupSizeEnv = "GROUP_SIZE"
+)
+
 // ModelInferSpec defines the specification of the ModelInfer resource.
 type ModelInferSpec struct {
 	// Number of InferGroups. That is the number of instances that run infer tasks

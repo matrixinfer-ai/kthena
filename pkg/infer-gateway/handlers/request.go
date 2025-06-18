@@ -37,7 +37,7 @@ func ParseOpenAIRequestBody(r *http.Request) (string, error) {
 	return requestBody.Model, nil
 }
 
-// Do some model name convertion here
+// Do some model name conversion here
 func (h *Handler) HandleRequestBody(r *http.Request) {
 
 }

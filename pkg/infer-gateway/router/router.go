@@ -1,7 +1,6 @@
 package router
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -80,18 +79,29 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 		log.Debugf("modelServer is %v, is_lora: %v", modelServerName, is_lora)
 
 		// Get endpoints from datastore
-		pods, model, port, err := r.store.GetModelServerEndpoints(modelServerName)
+		pods, err := r.store.GetPodsByModelServer(modelServerName)
 		if err != nil || len(pods) == 0 {
 			c.AbortWithStatusJSON(http.StatusNotFound, fmt.Sprintf("can't find target pods of model server: %v, err: %v", modelServerName, err))
 			return
 		}
+
+		// Get PDGroup from datastore
+		modelServer := r.store.GetModelServer(modelServerName)
+		if modelServer == nil {
+			c.AbortWithStatusJSON(http.StatusNotFound, fmt.Sprintf("can't find model server: %v", modelServerName))
+			return
+		}
+		pdGroup := modelServer.Spec.WorkloadSelector.PDGroup
+		model := modelServer.Spec.Model
+		port := modelServer.Spec.WorkloadPort.Port
+
 		// Overwrite model.
 		if model != nil && !is_lora {
 			modelRequest["model"] = *model
 		}
 
 		// call scheduler.Schedule
-		targetPod, err := r.scheduler.Schedule(modelRequest, pods)
+		targetPods, err := r.scheduler.Schedule(modelRequest, pods, pdGroup)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, fmt.Sprintf("can't schedule to target pod: %v", err))
 			return
@@ -99,14 +109,50 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 
 		req := c.Request
 
+		if targetPods.PrefillPod != nil {
+			log.Debugf("prefill pod is %v", targetPods.PrefillPod.Pod.Name)
+
+			// First request to prefill pod
+			prefillReq := req.Clone(req.Context())
+			prefillBody := make(map[string]interface{})
+			for k, v := range modelRequest {
+				prefillBody[k] = v
+			}
+			prefillBody["max_tokens"] = 1
+
+			body, err := json.Marshal(prefillBody)
+			if err != nil {
+				c.AbortWithStatusJSON(http.StatusInternalServerError, fmt.Sprintf("marshal prefill body failed: %v", err))
+				return
+			}
+
+			// step 1: change request URL to prefill pod URL.
+			prefillReq.URL.Host = fmt.Sprintf("%s:%d", targetPods.PrefillPod.Pod.Status.PodIP, port)
+			prefillReq.URL.Scheme = "http"
+			prefillReq.Body = io.NopCloser(bytes.NewBuffer(body))
+			prefillReq.ContentLength = int64(len(body))
+
+			// step 2: use http.Transport to do request to prefill pod.
+			transport := http.DefaultTransport
+			resp, err := transport.RoundTrip(prefillReq)
+			if err != nil {
+				log.Errorf("prefill request error: %v", err)
+				c.AbortWithStatusJSON(http.StatusInternalServerError, "prefill request error")
+				return
+			}
+			resp.Body.Close()
+		}
+
 		body, err := json.Marshal(modelRequest)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, fmt.Sprintf("marshal http body failed: %v", err))
 			return
 		}
 
+		log.Debugf("target/decode pod is %v", targetPods.DecodePod.Pod.Name)
+
 		// step 1: change request URL to real server URL.
-		req.URL.Host = fmt.Sprintf("%s:%d", targetPod.Pod.Status.PodIP, port)
+		req.URL.Host = fmt.Sprintf("%s:%d", targetPods.DecodePod.Pod.Status.PodIP, port)
 		req.URL.Scheme = "http"
 		req.Body = io.NopCloser(bytes.NewBuffer(body))
 		req.ContentLength = int64(len(body))
@@ -127,7 +173,15 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 			}
 		}
 		defer resp.Body.Close()
+
 		// Maybe we need to read the response to get the tokens for ratelimiting later
-		bufio.NewReader(resp.Body).WriteTo(c.Writer)
+		c.Stream(func(w io.Writer) bool {
+			buf := make([]byte, 512)
+			n, err := resp.Body.Read(buf)
+			if n > 0 {
+				w.Write(buf[:n])
+			}
+			return err != io.EOF
+		})
 	}
 }

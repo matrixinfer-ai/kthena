@@ -50,7 +50,7 @@ func ParseOpenAIResponseBody(resp *http.Response) (*OpenAIResponseBody, error) {
 	return &responseBody, nil
 }
 
-// Do some model name convertion here
+// Do some model name conversion here
 func (h *Handler) HandleResponse(r *http.Response) {
 	// Parse the OpenAI response body
 	responseBody, err := ParseOpenAIResponseBody(r)
@@ -61,7 +61,6 @@ func (h *Handler) HandleResponse(r *http.Response) {
 
 	// Do something with the response body
 	_ = responseBody
-
 }
 
 const (

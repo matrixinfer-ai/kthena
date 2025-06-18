@@ -4,6 +4,7 @@ go 1.24.0
 
 require (
 	github.com/agiledragon/gomonkey/v2 v2.13.0
+	github.com/cespare/xxhash v1.1.0
 	github.com/gin-gonic/gin v1.10.0
 	github.com/pkoukk/tiktoken-go v0.1.7
 	github.com/pkoukk/tiktoken-go-loader v0.0.1
@@ -20,6 +21,7 @@ require (
 	k8s.io/client-go v0.33.0
 	k8s.io/code-generator v0.33.0
 	k8s.io/klog/v2 v2.130.1
+	k8s.io/utils v0.0.0-20250502105355-0f33e8f1c979
 	sigs.k8s.io/controller-runtime v0.20.4
 	sigs.k8s.io/structured-merge-diff/v4 v4.7.0
 )
@@ -88,7 +90,6 @@ require (
 	k8s.io/apiextensions-apiserver v0.33.0 // indirect
 	k8s.io/gengo/v2 v2.0.0-20250207200755-1244d31929d7 // indirect
 	k8s.io/kube-openapi v0.0.0-20250318190949-c8a335a9a2ff // indirect
-	k8s.io/utils v0.0.0-20250502105355-0f33e8f1c979 // indirect
 	sigs.k8s.io/json v0.0.0-20241014173422-cfa47c3a1cc8 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect

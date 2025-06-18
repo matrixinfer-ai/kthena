@@ -137,6 +137,7 @@ spec:
                             type: string
                         type: object
                       restartGracePeriodSeconds:
+                        default: 0
                         description: |-
                           RestartGracePeriodSeconds defines the grace time for the controller to rebuild the infergroup when an error occurs
                           Defaults to 0 (infergroup will be rebuilt immediately after an error)
@@ -8474,6 +8475,8 @@ spec:
                             name:
                               description: The name of a role. Name must be unique
                                 within an infergroup
+                              maxLength: 12
+                              pattern: ^[a-zA-Z0-9]([-a-zA-Z0-9]*[a-zA-Z0-9])?$
                               type: string
                             networkTopology:
                               description: NetworkTopology defines the NetworkTopology
@@ -8501,8 +8504,9 @@ spec:
                               format: int32
                               type: integer
                             workerReplicas:
-                              description: WorkerReplicas defines the number for the
-                                worker pod of a role.
+                              description: |-
+                                WorkerReplicas defines the number for the worker pod of a role.
+                                Required: Need to set the number of worker-pod replicas.
                               format: int32
                               type: integer
                             workerTemplate:
@@ -16831,8 +16835,14 @@ spec:
                           required:
                           - entryTemplate
                           - name
+                          - workerReplicas
                           type: object
+                        maxItems: 4
+                        minItems: 1
                         type: array
+                        x-kubernetes-validations:
+                        - message: roles name must be unique
+                          rule: self.all(x, self.exists_one(y, y.name == x.name))
                     required:
                     - roles
                     type: object

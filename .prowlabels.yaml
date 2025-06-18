@@ -1,0 +1,13 @@
+area:
+  - model-infer
+  - gateway
+
+kind:
+  - failing-test
+  - cleanup
+  - feature
+  - bug
+
+priority:
+  - low
+  - high
