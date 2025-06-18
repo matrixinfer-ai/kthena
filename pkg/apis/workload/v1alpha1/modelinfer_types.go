@@ -66,7 +66,7 @@ type ModelInferSpec struct {
 	// +kubebuilder:default=InferGroupRestart
 	// +kubebuilder:validation:Enum={InferGroupRestart,None}
 	// +optional
-	RecoveryPolicy            RecoveryPolicy             `json:"recoveryPolicy"`
+	RecoveryPolicy            RecoveryPolicy             `json:"recoveryPolicy,omitempty"`
 	TopologySpreadConstraints []TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
 }
 
