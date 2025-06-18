@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/filters/ratelimit"
@@ -55,8 +56,8 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 			return
 		}
 
-		prompt, ok := modelRequest["prompt"].(string)
-		if !ok {
+		prompt, err := utils.GetPrompt(modelRequest)
+		if err != nil {
 			c.AbortWithStatusJSON(http.StatusNotFound, "prompt not found")
 			return
 		}
