@@ -3,7 +3,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"k8s.io/apimachinery/pkg/selection"
 	"reflect"
 	"sync"
 	"time"
@@ -13,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/informers"
@@ -335,15 +335,18 @@ func (mic *ModelInferController) UpdateModelInferStatus(mi *workloadv1alpha1.Mod
 		// TODO: Handler of status == updating
 		if groups[index].Status != datastore.InferGroupRunning {
 			progressingGroups = append(progressingGroups, index)
+		} else {
+			available = available + 1
 		}
 	}
 
 	shouldUpdate := utils.SetCondition(mi, progressingGroups)
-	mi.Status.Replicas = *mi.Spec.Replicas
-	mi.Status.AvailableReplicas = int32(available)
+	miCopy := mi.DeepCopy()
+	miCopy.Status.Replicas = int32(len(groups))
+	miCopy.Status.AvailableReplicas = int32(available)
 
 	if shouldUpdate {
-		_, err := mic.modelInferClient.WorkloadV1alpha1().ModelInfers(mi.GetNamespace()).UpdateStatus(context.TODO(), mi, metav1.UpdateOptions{})
+		_, err := mic.modelInferClient.WorkloadV1alpha1().ModelInfers(mi.GetNamespace()).UpdateStatus(context.TODO(), miCopy, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}

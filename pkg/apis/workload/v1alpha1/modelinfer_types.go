@@ -167,7 +167,7 @@ type ModelInferStatus struct {
 	UpdatedReplicas int32 `json:"updatedReplicas,omitempty"`
 
 	// AvailableReplicas track the number of InferGroup that are in ready state (updated or not).
-	AvailableReplicas int32 `json:"availableReplicas,omitempty"`
+	AvailableReplicas int32 `json:"availableReplicas"`
 
 	// Conditions track the condition of the ModelInfer.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
