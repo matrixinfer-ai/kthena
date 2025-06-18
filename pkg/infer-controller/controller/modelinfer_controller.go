@@ -10,6 +10,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
@@ -267,6 +268,7 @@ func (mic *ModelInferController) syncModelInfer(ctx context.Context, key string)
 	if err != nil {
 		return fmt.Errorf("invalid resource key: %s", err)
 	}
+
 	mi, err := mic.modelInfersLister.ModelInfers(namespace).Get(name)
 	if apierrors.IsNotFound(err) {
 		klog.V(4).Infof("%v has been deleted", key)
@@ -275,10 +277,16 @@ func (mic *ModelInferController) syncModelInfer(ctx context.Context, key string)
 	if err != nil {
 		return err
 	}
+
 	err = mic.manageReplicas(ctx, mi)
 	if err != nil {
 		return fmt.Errorf("cannot manage inferGroup replicas: %v", err)
 	}
+
+	if err := mic.UpdateModelInferStatus(mi); err != nil {
+		return fmt.Errorf("failed to update status of mi %s/%s: %v", namespace, name, err)
+	}
+
 	//TODO: Add rolling upgrade function
 	return nil
 }
@@ -306,8 +314,42 @@ func (mic *ModelInferController) Run(ctx context.Context, workers int) {
 	klog.Info("shut down modelInfer controller")
 }
 
-// UpdateStatus update ModelInfer status.
-func (mic *ModelInferController) UpdateStatus() {
+// UpdateModelInferConditionsStatus update conditions ModelInfer status.
+func (mic *ModelInferController) UpdateModelInferConditionsStatus(mi *workloadv1alpha1.ModelInfer, condition metav1.Condition) error {
+	if !meta.SetStatusCondition(&mi.Status.Conditions, condition) {
+		return fmt.Errorf("failed to update modelInfer %s/%s status conditions", mi.GetNamespace(), mi.GetName())
+	}
+	return nil
+}
+
+// UpdateModelInferReplicasStatus update replicas in modelInfer status.
+func (mic *ModelInferController) UpdateModelInferStatus(mi *workloadv1alpha1.ModelInfer) error {
+	groups, err := mic.store.GetInferGroupByModelInfer(utils.GetNamespaceName(mi))
+	if err != nil {
+		return err
+	}
+
+	available := 0
+	progressingGroups := []int{}
+	for index := range groups {
+		// TODO: Handler of status == updating
+		if groups[index].Status != datastore.InferGroupRunning {
+			progressingGroups = append(progressingGroups, index)
+		}
+	}
+
+	shouldUpdate := utils.SetCondition(mi, progressingGroups)
+	mi.Status.Replicas = *mi.Spec.Replicas
+	mi.Status.AvailableReplicas = int32(available)
+
+	if shouldUpdate {
+		_, err := mic.modelInferClient.WorkloadV1alpha1().ModelInfers(mi.GetNamespace()).UpdateStatus(context.TODO(), mi, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (mic *ModelInferController) manageReplicas(ctx context.Context, mi *workloadv1alpha1.ModelInfer) error {

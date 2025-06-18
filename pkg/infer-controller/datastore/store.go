@@ -42,6 +42,7 @@ const (
 	InferGroupRunning  InferGroupStatus = "Running"
 	InferGroupCreating InferGroupStatus = "Creating"
 	InferGroupDeleting InferGroupStatus = "Deleting"
+	InferGroupUpdating InferGroupStatus = "Updating"
 	InferGroupNotFound InferGroupStatus = "NotFound"
 )
 
