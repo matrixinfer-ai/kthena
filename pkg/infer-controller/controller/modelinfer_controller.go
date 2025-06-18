@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/selection"
 	"reflect"
 	"sync"
 	"time"
@@ -35,6 +36,8 @@ type ModelInferController struct {
 	syncHandler         func(ctx context.Context, miKey string) error
 	podsLister          listerv1.PodLister
 	podsInformer        cache.Controller
+	servicesLister      listerv1.ServiceLister
+	servicesInformer    cache.Controller
 	modelInfersLister   listerv1alpha1.ModelInferLister
 	modelInfersInformer cache.Controller
 
@@ -45,14 +48,22 @@ type ModelInferController struct {
 }
 
 func NewModelInferController(kubeClientSet kubernetes.Interface, modelInferClient clientset.Interface) *ModelInferController {
+	req, err := labels.NewRequirement(workloadv1alpha1.GroupNameLabelKey, selection.Exists, nil)
+	if err != nil {
+		klog.Errorf("cannot create label selector,err:%v", err)
+		return nil
+	}
+	selector := labels.NewSelector().Add(*req)
+
 	kubeInformerFactory := informers.NewSharedInformerFactoryWithOptions(
 		kubeClientSet,
 		0,
 		informers.WithTweakListOptions(func(opts *metav1.ListOptions) {
-			opts.LabelSelector = workloadv1alpha1.ModelInferNameLabelKey
+			opts.LabelSelector = selector.String()
 		}),
 	)
 	podsInformer := kubeInformerFactory.Core().V1().Pods()
+	servicesInformer := kubeInformerFactory.Core().V1().Services()
 	modelInferInformerFactory := informersv1alpha1.NewSharedInformerFactory(modelInferClient, 0)
 	modelInferInformer := modelInferInformerFactory.Workload().V1alpha1().ModelInfers()
 
@@ -66,6 +77,8 @@ func NewModelInferController(kubeClientSet kubernetes.Interface, modelInferClien
 		modelInferClient:    modelInferClient,
 		podsLister:          podsInformer.Lister(),
 		podsInformer:        podsInformer.Informer(),
+		servicesLister:      servicesInformer.Lister(),
+		servicesInformer:    servicesInformer.Informer(),
 		modelInfersLister:   modelInferInformer.Lister(),
 		modelInfersInformer: modelInferInformer.Informer(),
 		// nolint
@@ -276,10 +289,12 @@ func (mic *ModelInferController) Run(ctx context.Context, workers int) {
 
 	// start informers
 	go mic.podsInformer.RunWithContext(ctx)
+	go mic.servicesInformer.RunWithContext(ctx)
 	go mic.modelInfersInformer.RunWithContext(ctx)
 
 	cache.WaitForCacheSync(ctx.Done(),
 		mic.podsInformer.HasSynced,
+		mic.servicesInformer.HasSynced,
 		mic.modelInfersInformer.HasSynced,
 	)
 
@@ -364,6 +379,9 @@ func (mic *ModelInferController) DeleteInferGroup(mi *workloadv1alpha1.ModelInfe
 	}
 
 	label := fmt.Sprintf("%s=%s", workloadv1alpha1.GroupNameLabelKey, groupname)
+	selector := labels.SelectorFromSet(map[string]string{
+		workloadv1alpha1.GroupNameLabelKey: groupname,
+	})
 	if inferGroupStatus != datastore.InferGroupDeleting {
 		err := mic.store.UpdateInferGroupStatus(miNamedName, groupname, datastore.InferGroupDeleting)
 		if err != nil {
@@ -382,14 +400,13 @@ func (mic *ModelInferController) DeleteInferGroup(mi *workloadv1alpha1.ModelInfe
 			klog.Errorf("failed to delete inferGroup %s/%s: %v", miNamedName.Namespace+"/"+mi.Name, groupname, err)
 			return
 		}
-		services, err := mic.kubeClientSet.CoreV1().Services(miNamedName.Namespace).List(context.TODO(), metav1.ListOptions{
-			LabelSelector: label,
-		})
+		// There is no DeleteCollection operation in the service of client-go. We need to list and delete them one by one.
+		services, err := mic.servicesLister.Services(miNamedName.Namespace).List(selector)
 		if err != nil {
 			klog.Errorf("failed to get service %v", err)
 			return
 		}
-		for _, svc := range services.Items {
+		for _, svc := range services {
 			err = mic.kubeClientSet.CoreV1().Services(miNamedName.Namespace).Delete(context.TODO(), svc.Name, metav1.DeleteOptions{})
 			if err != nil {
 				klog.Errorf("failed to delete service %s/%s: %v", miNamedName.Namespace, svc.Name, err)
@@ -399,20 +416,15 @@ func (mic *ModelInferController) DeleteInferGroup(mi *workloadv1alpha1.ModelInfe
 	}
 
 	// check whether the deletion has been completed
-	selector := labels.SelectorFromSet(map[string]string{
-		workloadv1alpha1.GroupNameLabelKey: groupname,
-	})
 	pods, err := mic.podsLister.Pods(mi.GetNamespace()).List(selector)
 	if err != nil {
 		klog.Errorf("failed to get pod, err:%v", err)
 	}
-	services, err := mic.kubeClientSet.CoreV1().Services(miNamedName.Namespace).List(context.TODO(), metav1.ListOptions{
-		LabelSelector: label,
-	})
+	services, err := mic.servicesLister.Services(miNamedName.Namespace).List(selector)
 	if err != nil {
 		klog.Errorf("failed to get service, err:%v", err)
 	}
-	if len(pods) == 0 && len(services.Items) == 0 {
+	if len(pods) == 0 && len(services) == 0 {
 		_ = mic.store.DeleteInferGroupOfRunningPodMap(miNamedName, groupname)
 		mic.enqueueModelInfer(mi)
 		return
@@ -495,7 +507,7 @@ func (mic *ModelInferController) handleErrorPod(mi *workloadv1alpha1.ModelInfer,
 		if err != nil {
 			return fmt.Errorf("update infergroup status failed, err:%v", err)
 		}
-		klog.V(2).Infof("update infergroup %s to creating when pod error", inferGroupName)
+		klog.V(2).Infof("update infergroup %s to processing when pod fails", inferGroupName)
 	}
 	// Wait for the grace period before processing
 	go mic.handlePodAfterGraceTime(mi, errPod)
@@ -513,7 +525,11 @@ func (mic *ModelInferController) handlePodAfterGraceTime(mi *workloadv1alpha1.Mo
 
 		newPod, err := mic.podsLister.Pods(mi.Namespace).Get(errPod.Name)
 		if err != nil {
-			klog.Errorf("cannot get pod %s after grace time, err: %v", errPod.Name, err)
+			if apierrors.IsNotFound(err) {
+				klog.V(4).Infof("pod %s has been deleted after grace time", newPod.Name)
+			} else {
+				klog.Errorf("cannot get pod %s after grace time, err: %v", errPod.Name, err)
+			}
 			return
 		}
 
