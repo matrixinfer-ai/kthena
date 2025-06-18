@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
@@ -93,6 +94,13 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 		}
 
 		req := c.Request
+
+		// Generate request ID at the beginning
+		requestID := uuid.New().String()
+		if req.Header.Get("x-request-id") == "" {
+			// Add x-request-id header to prefill request
+			req.Header.Set("x-request-id", requestID)
+		}
 
 		if targetPods.PrefillPod != nil {
 			log.Debugf("prefill pod is %v", targetPods.PrefillPod.Pod.Name)
