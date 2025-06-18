@@ -171,13 +171,16 @@ func newModelInferOwnerRef(mi *workloadv1alpha1.ModelInfer) metav1.OwnerReferenc
 	}
 }
 
-func CreateHeadlessService(ctx context.Context, k8sClient kubernetes.Interface, mi *workloadv1alpha1.ModelInfer, serviceName string, serviceSelector map[string]string) error {
+func CreateHeadlessService(ctx context.Context, k8sClient kubernetes.Interface, mi *workloadv1alpha1.ModelInfer, serviceName string, serviceSelector map[string]string, groupName string) error {
 	headlessService := corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      serviceName,
 			Namespace: mi.Namespace,
 			OwnerReferences: []metav1.OwnerReference{
 				newModelInferOwnerRef(mi),
+			},
+			Labels: map[string]string{
+				workloadv1alpha1.GroupNameLabelKey: groupName,
 			},
 		},
 		Spec: corev1.ServiceSpec{
@@ -193,4 +196,85 @@ func CreateHeadlessService(ctx context.Context, k8sClient kubernetes.Interface, 
 		return fmt.Errorf("create headless service failed: %v", err)
 	}
 	return nil
+}
+
+func GetModelInferAndGroupByLabel(podLabels map[string]string) (string, string, bool) {
+	modelInferName, ok := podLabels[workloadv1alpha1.ModelInferNameLabelKey]
+	if !ok {
+		return "", "", false
+	}
+	inferGroupName, ok := podLabels[workloadv1alpha1.GroupNameLabelKey]
+	if !ok {
+		return "", "", false
+	}
+	return modelInferName, inferGroupName, true
+}
+
+// IsPodRunningAndReady returns true if pod is in the PodRunning Phase, if it has a condition of PodReady.
+func IsPodRunningAndReady(pod *corev1.Pod) bool {
+	return pod.Status.Phase == corev1.PodRunning && isPodReady(pod)
+}
+
+func isPodReady(pod *corev1.Pod) bool {
+	return isPodReadyConditionTrue(pod.Status)
+}
+
+func isPodReadyConditionTrue(status corev1.PodStatus) bool {
+	condition := getPodReadyCondition(&status)
+	return condition != nil && condition.Status == corev1.ConditionTrue
+}
+
+// getPodReadyCondition extracts the pod ready condition from the given status and returns that.
+// Returns nil if the condition is not present.
+// copied from k8s.io/kubernetes/pkg/api/v1/pod
+func getPodReadyCondition(status *corev1.PodStatus) *corev1.PodCondition {
+	if status == nil || status.Conditions == nil {
+		return nil
+	}
+
+	for i := range status.Conditions {
+		if status.Conditions[i].Type == corev1.PodReady {
+			return &status.Conditions[i]
+		}
+	}
+	return nil
+}
+
+// IsPodTerminating returns true if pod's DeletionTimestamp has been set
+func IsPodTerminating(pod *corev1.Pod) bool {
+	return pod.DeletionTimestamp != nil
+}
+
+// IsPodFailed returns true if pod has a Phase of PodFailed.
+func IsPodFailed(pod *corev1.Pod) bool {
+	return pod.Status.Phase == corev1.PodFailed
+}
+
+func ExpectedPodNum(mi *workloadv1alpha1.ModelInfer) int {
+	num := 0
+	for _, role := range mi.Spec.Template.Spec.Roles {
+		// Calculate the expected number of pod replicas when the role is running normally
+		// For each role, the expected number of pods is (entryPod.num + workerPod.num) * role.replicas
+		num += (1 + int(role.WorkerReplicas)) * int(*role.Replicas)
+	}
+	return num
+}
+
+// ContainerRestarted return true when there is any container in the pod that gets restarted
+func ContainerRestarted(pod *corev1.Pod) bool {
+	if pod.Status.Phase == corev1.PodRunning || pod.Status.Phase == corev1.PodPending {
+		for j := range pod.Status.InitContainerStatuses {
+			stat := pod.Status.InitContainerStatuses[j]
+			if stat.RestartCount > 0 {
+				return true
+			}
+		}
+		for j := range pod.Status.ContainerStatuses {
+			stat := pod.Status.ContainerStatuses[j]
+			if stat.RestartCount > 0 {
+				return true
+			}
+		}
+	}
+	return false
 }
