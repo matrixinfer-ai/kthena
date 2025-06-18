@@ -35,9 +35,6 @@ type ModelRequest map[string]interface{}
 
 func (r *Router) HandlerFunc() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Generate request ID at the beginning
-		requestID := uuid.New().String()
-
 		// implement gin request body reading here
 		bodyBytes, err := io.ReadAll(c.Request.Body)
 		if err != nil {
@@ -98,6 +95,13 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 
 		req := c.Request
 
+		// Generate request ID at the beginning
+		requestID := uuid.New().String()
+		if req.Header.Get("x-request-id") == "" {
+			// Add x-request-id header to prefill request
+			req.Header.Set("x-request-id", requestID)
+		}
+
 		if targetPods.PrefillPod != nil {
 			log.Debugf("prefill pod is %v", targetPods.PrefillPod.Pod.Name)
 
@@ -120,11 +124,6 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 			prefillReq.URL.Scheme = "http"
 			prefillReq.Body = io.NopCloser(bytes.NewBuffer(body))
 			prefillReq.ContentLength = int64(len(body))
-
-			if prefillReq.Header.Get("x-request-id") == "" {
-				// Add x-request-id header to prefill request
-				prefillReq.Header.Set("x-request-id", requestID)
-			}
 
 			// step 2: use http.Transport to do request to prefill pod.
 			transport := http.DefaultTransport
@@ -150,11 +149,6 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 		req.URL.Scheme = "http"
 		req.Body = io.NopCloser(bytes.NewBuffer(body))
 		req.ContentLength = int64(len(body))
-
-		if req.Header.Get("x-request-id") == "" {
-			// Add x-request-id header to decode request
-			req.Header.Set("x-request-id", requestID)
-		}
 
 		// step 2: use http.Transport to do request to real server.
 		transport := http.DefaultTransport
