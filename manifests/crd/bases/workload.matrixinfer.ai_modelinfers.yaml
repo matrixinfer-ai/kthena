@@ -16994,6 +16994,8 @@ spec:
                   been updated (ready or not).
                 format: int32
                 type: integer
+            required:
+            - availableReplicas
             type: object
         type: object
     served: true
