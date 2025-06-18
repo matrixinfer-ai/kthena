@@ -1,69 +1,106 @@
-from typing import Dict, Optional
+from typing import Dict, Optional, List
+from enum import Enum
 
 from prometheus_client import Metric
 from metric import MetricOperator, RenameMetric
 
 
-STANDARD_RULES: Dict[str, list[MetricOperator]] = {
-    "vllm": [
+class SupportedEngine(Enum):
+    VLLM = "vllm"
+    SGLANG = "sglang"
+
+
+class StandardMetricNames:
+    GENERATION_TOKENS_TOTAL = "matrixinfer:generation_tokens_total"
+    NUM_REQUESTS_WAITING = "matrixinfer:num_requests_waiting"
+    TIME_TO_FIRST_TOKEN_SECONDS = "matrixinfer:time_to_first_token_seconds"
+    TIME_PER_OUTPUT_TOKEN_SECONDS = "matrixinfer:time_per_output_token_seconds"
+    E2E_REQUEST_LATENCY_SECONDS = "matrixinfer:e2e_request_latency_seconds"
+
+
+STANDARD_RULES: Dict[str, List[MetricOperator]] = {
+    SupportedEngine.VLLM.value: [
         RenameMetric(
             "vllm:generation_tokens_total",
-            "matrixinfer:generation_tokens_total",
+            StandardMetricNames.GENERATION_TOKENS_TOTAL,
         ),
-        RenameMetric("vllm:num_requests_waiting", "matrixinfer:num_requests_waiting"),
+        RenameMetric(
+            "vllm:num_requests_waiting", 
+            StandardMetricNames.NUM_REQUESTS_WAITING
+        ),
         RenameMetric(
             "vllm:time_to_first_token_seconds",
-            "matrixinfer:time_to_first_token_seconds",
+            StandardMetricNames.TIME_TO_FIRST_TOKEN_SECONDS,
         ),
         RenameMetric(
             "vllm:time_per_output_token_seconds",
-            "matrixinfer:time_per_output_token_seconds",
+            StandardMetricNames.TIME_PER_OUTPUT_TOKEN_SECONDS,
         ),
         RenameMetric(
             "vllm:e2e_request_latency_seconds",
-            "matrixinfer:e2e_request_latency_seconds",
+            StandardMetricNames.E2E_REQUEST_LATENCY_SECONDS,
         ),
     ],
-    "sglang": [
+    SupportedEngine.SGLANG.value: [
         RenameMetric(
             "sglang:generation_tokens_total",
-            "matrixinfer:generation_tokens_total",
+            StandardMetricNames.GENERATION_TOKENS_TOTAL,
         ),
-        RenameMetric("sglang:num_queue_reqs", "matrixinfer:num_requests_waiting"),
+        RenameMetric(
+            "sglang:num_queue_reqs", 
+            StandardMetricNames.NUM_REQUESTS_WAITING
+        ),
         RenameMetric(
             "sglang:time_to_first_token_seconds",
-            "matrixinfer:time_to_first_token_seconds",
+            StandardMetricNames.TIME_TO_FIRST_TOKEN_SECONDS,
         ),
         RenameMetric(
             "sglang:time_per_output_token_seconds",
-            "matrixinfer:time_per_output_token_seconds",
+            StandardMetricNames.TIME_PER_OUTPUT_TOKEN_SECONDS,
         ),
         RenameMetric(
             "sglang:e2e_request_latency_seconds",
-            "matrixinfer:e2e_request_latency_seconds",
+            StandardMetricNames.E2E_REQUEST_LATENCY_SECONDS,
         ),
     ],
 }
 
 
-class MetricStandard:
-    def __init__(self, engine: str):
-        self.metric_operators_dict = self._build_operators_dict(engine)
+class UnsupportedEngineError(ValueError):
+    pass
 
-    @staticmethod
-    def _build_operators_dict(engine: str) -> dict:
-        normalized_engine = engine.lower()
-        if normalized_engine not in STANDARD_RULES:
-            raise ValueError(f"Unsupported engine : {engine}")
+
+class MetricStandard:
+    
+    def __init__(self, engine: str):
+        self.engine = engine.lower()
+        self.metric_operators_dict = self._build_operators_dict()
+
+    def _build_operators_dict(self) -> Dict[str, MetricOperator]:
+        if self.engine not in STANDARD_RULES:
+            supported_engines = list(STANDARD_RULES.keys())
+            raise UnsupportedEngineError(
+                f"Unsupported engine: {self.engine}. "
+                f"Supported engine: {', '.join(supported_engines)}"
+            )
+        
         return {
             operator.register_name(): operator
-            for operator in STANDARD_RULES[normalized_engine]
+            for operator in STANDARD_RULES[self.engine]
         }
 
     def process(self, origin_metric: Metric) -> Optional[Metric]:
-        if (
-            len(self.metric_operators_dict) == 0
-            or origin_metric.name not in self.metric_operators_dict
-        ):
+        if not self.metric_operators_dict:
             return None
-        return self.metric_operators_dict[origin_metric.name].process(origin_metric)
+            
+        operator = self.metric_operators_dict.get(origin_metric.name)
+        if operator is None:
+            return None
+            
+        return operator.process(origin_metric)
+
+    def is_supported_metric(self, metric_name: str) -> bool:
+        return metric_name in self.metric_operators_dict
+
+    def get_supported_metrics(self) -> List[str]:
+        return list(self.metric_operators_dict.keys())

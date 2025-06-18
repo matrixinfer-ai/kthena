@@ -34,7 +34,7 @@ class MetricOperator(ABC):
         return labels
 
     @abstractmethod
-    def process(self, origin_metric: Metric) -> str:
+    def process(self, origin_metric: Metric) -> Metric:
         pass
 
 

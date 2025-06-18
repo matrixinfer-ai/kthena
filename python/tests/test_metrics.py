@@ -1,7 +1,7 @@
 import pytest
 
 from collect import MetricAdapter
-from standard import MetricStandard
+from standard import MetricStandard, UnsupportedEngineError
 
 # 固定的Prometheus格式字符串
 SGLANG_PROMETHEUS_METRICS = """
@@ -32,7 +32,8 @@ def test_build_operators_dict_with_valid_engine():
 def test_build_operators_dict_with_invalid_engine():
     invalid_engine_name = "invalid_engine"
 
-    with pytest.raises(ValueError, match=f"Unsupported engine : {invalid_engine_name}"):
+    with pytest.raises(UnsupportedEngineError,
+                       match=f"Unsupported engine: {invalid_engine_name}. Supported engine: vllm, sglang"):
         MetricStandard(invalid_engine_name)
 
 
