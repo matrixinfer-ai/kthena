@@ -243,6 +243,7 @@ func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.Model
 	newPodInfo := &PodInfo{
 		Pod:         pod,
 		modelServer: sets.Set[types.NamespacedName]{},
+		Models:      sets.New[string](),
 	}
 
 	modelServerNames := []types.NamespacedName{}
