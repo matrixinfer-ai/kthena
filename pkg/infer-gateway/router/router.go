@@ -113,6 +113,11 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 			}
 			prefillBody["max_tokens"] = 1
 
+			// Remove stream and stream_options headers from prefill request if they exist
+			// This is necessary because prefill request should not be streamed
+			delete(prefillBody, "stream")
+			delete(prefillBody, "stream_options")
+
 			body, err := json.Marshal(prefillBody)
 			if err != nil {
 				c.AbortWithStatusJSON(http.StatusInternalServerError, fmt.Sprintf("marshal prefill body failed: %v", err))
