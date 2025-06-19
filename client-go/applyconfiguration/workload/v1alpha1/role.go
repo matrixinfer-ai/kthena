@@ -17,19 +17,15 @@ limitations under the License.
 
 package v1alpha1
 
-import (
-	v1 "k8s.io/api/core/v1"
-)
-
 // RoleApplyConfiguration represents a declarative configuration of the Role type for use
 // with apply.
 type RoleApplyConfiguration struct {
 	Name            *string                                `json:"name,omitempty"`
 	Replicas        *int32                                 `json:"replicas,omitempty"`
 	NetworkTopology *NetworkTopologySpecApplyConfiguration `json:"networkTopology,omitempty"`
-	EntryTemplate   *v1.PodTemplateSpec                    `json:"entryTemplate,omitempty"`
+	EntryTemplate   *PodTemplateSpecApplyConfiguration     `json:"entryTemplate,omitempty"`
 	WorkerReplicas  *int32                                 `json:"workerReplicas,omitempty"`
-	WorkerTemplate  *v1.PodTemplateSpec                    `json:"workerTemplate,omitempty"`
+	WorkerTemplate  *PodTemplateSpecApplyConfiguration     `json:"workerTemplate,omitempty"`
 }
 
 // RoleApplyConfiguration constructs a declarative configuration of the Role type for use with
@@ -65,8 +61,8 @@ func (b *RoleApplyConfiguration) WithNetworkTopology(value *NetworkTopologySpecA
 // WithEntryTemplate sets the EntryTemplate field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the EntryTemplate field is set to the value of the last call.
-func (b *RoleApplyConfiguration) WithEntryTemplate(value v1.PodTemplateSpec) *RoleApplyConfiguration {
-	b.EntryTemplate = &value
+func (b *RoleApplyConfiguration) WithEntryTemplate(value *PodTemplateSpecApplyConfiguration) *RoleApplyConfiguration {
+	b.EntryTemplate = value
 	return b
 }
 
@@ -81,7 +77,7 @@ func (b *RoleApplyConfiguration) WithWorkerReplicas(value int32) *RoleApplyConfi
 // WithWorkerTemplate sets the WorkerTemplate field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the WorkerTemplate field is set to the value of the last call.
-func (b *RoleApplyConfiguration) WithWorkerTemplate(value v1.PodTemplateSpec) *RoleApplyConfiguration {
-	b.WorkerTemplate = &value
+func (b *RoleApplyConfiguration) WithWorkerTemplate(value *PodTemplateSpecApplyConfiguration) *RoleApplyConfiguration {
+	b.WorkerTemplate = value
 	return b
 }

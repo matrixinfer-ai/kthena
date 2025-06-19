@@ -67,8 +67,8 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &applyconfigurationworkloadv1alpha1.GangScheduleApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("InferGroup"):
 		return &applyconfigurationworkloadv1alpha1.InferGroupApplyConfiguration{}
-	case workloadv1alpha1.SchemeGroupVersion.WithKind("InferGroupSpec"):
-		return &applyconfigurationworkloadv1alpha1.InferGroupSpecApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("Metadata"):
+		return &applyconfigurationworkloadv1alpha1.MetadataApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelInfer"):
 		return &applyconfigurationworkloadv1alpha1.ModelInferApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelInferSpec"):
@@ -77,6 +77,8 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &applyconfigurationworkloadv1alpha1.ModelInferStatusApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("NetworkTopologySpec"):
 		return &applyconfigurationworkloadv1alpha1.NetworkTopologySpecApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("PodTemplateSpec"):
+		return &applyconfigurationworkloadv1alpha1.PodTemplateSpecApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("Role"):
 		return &applyconfigurationworkloadv1alpha1.RoleApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("RollingUpdateConfiguration"):
