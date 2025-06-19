@@ -1,5 +1,5 @@
 import logging
-from typing import Iterable, List
+from typing import Iterable, List, Optional
 
 from prometheus_client import generate_latest
 from prometheus_client.parser import text_string_to_metric_families
@@ -8,42 +8,57 @@ from prometheus_client.registry import Collector, CollectorRegistry
 
 from runtime.standard import MetricStandard
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 class MetricAdapter(Collector):
     def __init__(self, origin_metric_text: str, standard: MetricStandard):
-        self.metrics: List[Metric] = []
+        self.metrics: List[Metric] = self._parse_and_process_metrics(origin_metric_text, standard)
+
+    def _parse_and_process_metrics(self, origin_metric_text: str, standard: MetricStandard) -> List[Metric]:
+        metrics = []
+        
+        if not origin_metric_text.strip():
+            logger.warning("Empty metric text provided")
+            return metrics
+            
         try:
             for origin_metric in text_string_to_metric_families(origin_metric_text):
-                self.metrics.append(origin_metric)
-                processed = standard.process(origin_metric)
-                if processed is not None:
-                    self.metrics.append(processed)
-        except ValueError as ve:
-            logger.error(f"Invalid metric text: {str(ve)}")
-            raise ValueError(f"Failed to parse metric text: {str(ve)}")
+                metrics.append(origin_metric)
+                
+                processed_metric = standard.process(origin_metric)
+                if processed_metric is not None:
+                    metrics.append(processed_metric)
+                    
+        except ValueError as e:
+            logger.error(f"Invalid metric text format: {e}")
+            raise ValueError(f"Failed to parse metric text: {e}")
         except Exception as e:
-            logger.error(f"Error processing metrics in MetricAdapter: {str(e)}")
-            raise RuntimeError(f"Failed to initialize MetricAdapter: {str(e)}")
+            logger.error(f"Unexpected error processing metrics: {e}")
+            raise RuntimeError(f"Failed to initialize MetricAdapter: {e}")
+            
+        return metrics
 
     def collect(self) -> Iterable[Metric]:
-        for metric in self.metrics:
-            yield metric
+        yield from self.metrics
 
 
 async def process_metrics(origin_metric_text: str, standard: MetricStandard) -> bytes:
+    if not isinstance(origin_metric_text, str):
+        raise TypeError("Metric text must be a string")
+    
+    if not isinstance(standard, MetricStandard):
+        raise TypeError("Standard must be a MetricStandard instance")
+    
     registry = CollectorRegistry()
+    
     try:
-        if not origin_metric_text.strip():
-            logger.warning("Empty metric text provided.")
-            return generate_latest(registry)
-        registry.register(MetricAdapter(origin_metric_text, standard))
+        adapter = MetricAdapter(origin_metric_text, standard)
+        registry.register(adapter)
         return generate_latest(registry)
-    except ValueError as ve:
-        logger.error(f"Invalid metric text: {str(ve)}")
+        
+    except (ValueError, RuntimeError):
         raise
     except Exception as e:
-        logger.error(f"Unexpected error in process_metrics: {str(e)}")
-        raise RuntimeError(f"Failed to process metrics: {str(e)}")
+        logger.error(f"Unexpected error in process_metrics: {e}")
+        raise RuntimeError(f"Failed to process metrics: {e}")
