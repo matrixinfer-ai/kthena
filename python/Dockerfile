@@ -26,6 +26,7 @@ ENTRYPOINT ["python", "app.py"]
 
 FROM python:3.9.6-slim AS runtime
 WORKDIR /app
-COPY runtime/ ./python/runtime/
-RUN pip install --no-cache-dir -r python/runtime/requirements.txt
-ENTRYPOINT ["python", "python/runtime/app.py"]
+COPY runtime/ ./runtime/
+RUN pip install --no-cache-dir -r runtime/requirements.txt
+ENV PYTHONPATH="/app"
+ENTRYPOINT ["python", "runtime/app.py"]

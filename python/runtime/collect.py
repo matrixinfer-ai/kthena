@@ -6,7 +6,7 @@ from prometheus_client.parser import text_string_to_metric_families
 from prometheus_client.core import Metric
 from prometheus_client.registry import Collector, CollectorRegistry
 
-from standard import MetricStandard
+from runtime.standard import MetricStandard
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

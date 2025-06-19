@@ -9,8 +9,8 @@ from env import TIMEOUT
 import uvicorn
 from contextlib import asynccontextmanager
 
-from collect import process_metrics
-from standard import MetricStandard
+from runtime.collect import process_metrics
+from runtime.standard import MetricStandard
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

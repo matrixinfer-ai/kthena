@@ -1,7 +1,7 @@
 import pytest
 
-from collect import MetricAdapter
-from standard import MetricStandard, UnsupportedEngineError
+from runtime.collect import MetricAdapter
+from runtime.standard import MetricStandard, UnsupportedEngineError
 
 # 固定的Prometheus格式字符串
 SGLANG_PROMETHEUS_METRICS = """

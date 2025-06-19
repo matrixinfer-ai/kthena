@@ -2,7 +2,7 @@ from typing import Dict, Optional, List
 from enum import Enum
 
 from prometheus_client import Metric
-from metric import MetricOperator, RenameMetric
+from runtime.metric import MetricOperator, RenameMetric
 
 
 class SupportedEngine(Enum):
