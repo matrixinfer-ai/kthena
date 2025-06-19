@@ -454,8 +454,12 @@ func (mic *ModelInferController) DeleteInferGroup(mi *workloadv1alpha1.ModelInfe
 		for _, svc := range services {
 			err = mic.kubeClientSet.CoreV1().Services(miNamedName.Namespace).Delete(context.TODO(), svc.Name, metav1.DeleteOptions{})
 			if err != nil {
-				klog.Errorf("failed to delete service %s/%s: %v", miNamedName.Namespace, svc.Name, err)
-				return
+				if apierrors.IsNotFound(err) {
+					klog.V(4).Infof("service %s/%s has been deleted", miNamedName.Namespace, svc.Name)
+				} else {
+					klog.Errorf("failed to delete service %s/%s: %v", miNamedName.Namespace, svc.Name, err)
+					return
+				}
 			}
 		}
 	}
@@ -571,7 +575,7 @@ func (mic *ModelInferController) handlePodAfterGraceTime(mi *workloadv1alpha1.Mo
 		newPod, err := mic.podsLister.Pods(mi.Namespace).Get(errPod.Name)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
-				klog.V(4).Infof("pod %s has been deleted after grace time", newPod.Name)
+				klog.V(4).Infof("pod %s has been deleted after grace time", errPod.Name)
 			} else {
 				klog.Errorf("cannot get pod %s after grace time, err: %v", errPod.Name, err)
 			}
