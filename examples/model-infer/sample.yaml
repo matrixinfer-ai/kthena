@@ -7,40 +7,39 @@ spec:
   schedulerName: volcano
   replicas: 1  # inferGroup replicas
   template:
-    spec:
-      restartGracePeriodSeconds: 60
-      roles:
-        - name: prefill
-          replicas: 1       # role replicas, for example, 1P1D
-          entryTemplate:
-            spec:
-              containers:
-                - name: leader
-                  image: nginx
-                  ports:
-                    - containerPort: 8080
-          workerReplicas: 3
-          workerTemplate:
-            spec:
-              containers:
-                - name: worker
-                  image: nginx
-                  ports:
-                    - containerPort: 8080
-        - name: decode
-          replicas: 1  # role replicas, for example, 1P1D
-          entryTemplate:
-            spec:
-              containers:
-                - name: leader
-                  image: nginx
-                  ports:
-                    - containerPort: 8080
-          workerReplicas: 3
-          workerTemplate:
-            spec:
-              containers:
-                - name: worker
-                  image: nginx
-                  ports:
-                    - containerPort: 8080
+    restartGracePeriodSeconds: 60
+    roles:
+      - name: prefill
+        replicas: 1       # role replicas, for example, 1P1D
+        entryTemplate:
+          spec:
+            containers:
+              - name: leader
+                image: nginx
+                ports:
+                  - containerPort: 8080
+        workerReplicas: 3
+        workerTemplate:
+          spec:
+            containers:
+              - name: worker
+                image: nginx
+                ports:
+                  - containerPort: 8080
+      - name: decode
+        replicas: 1  # role replicas, for example, 1P1D
+        entryTemplate:
+          spec:
+            containers:
+              - name: leader
+                image: nginx
+                ports:
+                  - containerPort: 8080
+        workerReplicas: 3
+        workerTemplate:
+          spec:
+            containers:
+              - name: worker
+                image: nginx
+                ports:
+                  - containerPort: 8080

@@ -403,7 +403,7 @@ func (mic *ModelInferController) manageReplicas(ctx context.Context, mi *workloa
 
 func (mic *ModelInferController) CreatePodsForInferGroup(ctx context.Context, mi *workloadv1alpha1.ModelInfer, groupIndex int) error {
 	// traverse each role in inferGroup to create entry-worker pod group.
-	roleList := mi.Spec.Template.Spec.Roles
+	roleList := mi.Spec.Template.Roles
 	for _, role := range roleList {
 		// there will be multiple replicas in a role, such as xPyD type
 		for roleIndex := range int(*role.Replicas) {
@@ -454,8 +454,12 @@ func (mic *ModelInferController) DeleteInferGroup(mi *workloadv1alpha1.ModelInfe
 		for _, svc := range services {
 			err = mic.kubeClientSet.CoreV1().Services(miNamedName.Namespace).Delete(context.TODO(), svc.Name, metav1.DeleteOptions{})
 			if err != nil {
-				klog.Errorf("failed to delete service %s/%s: %v", miNamedName.Namespace, svc.Name, err)
-				return
+				if apierrors.IsNotFound(err) {
+					klog.V(4).Infof("service %s/%s has been deleted", miNamedName.Namespace, svc.Name)
+				} else {
+					klog.Errorf("failed to delete service %s/%s: %v", miNamedName.Namespace, svc.Name, err)
+					return
+				}
 			}
 		}
 	}
@@ -562,16 +566,16 @@ func (mic *ModelInferController) handleErrorPod(mi *workloadv1alpha1.ModelInfer,
 }
 
 func (mic *ModelInferController) handlePodAfterGraceTime(mi *workloadv1alpha1.ModelInfer, errPod *corev1.Pod) {
-	if mi.Spec.Template.Spec.RestartGracePeriodSeconds != nil && *mi.Spec.Template.Spec.RestartGracePeriodSeconds > 0 {
+	if mi.Spec.Template.RestartGracePeriodSeconds != nil && *mi.Spec.Template.RestartGracePeriodSeconds > 0 {
 		// Wait for the grace period before making a decision
-		time.Sleep(time.Duration(*mi.Spec.Template.Spec.RestartGracePeriodSeconds) * time.Second)
+		time.Sleep(time.Duration(*mi.Spec.Template.RestartGracePeriodSeconds) * time.Second)
 		klog.V(4).Infof("%s after grace time", errPod.Name)
 		defer mic.graceMap.Delete(utils.GetNamespaceName(errPod))
 
 		newPod, err := mic.podsLister.Pods(mi.Namespace).Get(errPod.Name)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
-				klog.V(4).Infof("pod %s has been deleted after grace time", newPod.Name)
+				klog.V(4).Infof("pod %s has been deleted after grace time", errPod.Name)
 			} else {
 				klog.Errorf("cannot get pod %s after grace time, err: %v", errPod.Name, err)
 			}

@@ -69,6 +69,7 @@ func GenerateEntryPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfe
 	entryPodName := generateEntryPodName(groupName, role.Name, roleIndex)
 	entryPod := createBasePod(role, mi, entryPodName, groupName)
 	entryPod.ObjectMeta.Labels[workloadv1alpha1.EntryLabelKey] = Entry
+	addPodLabelAndAnnotation(entryPod, role.EntryTemplate.Metadata)
 	entryPod.Spec = role.EntryTemplate.Spec
 	entryPod.Spec.Hostname = entryPodName
 	entryPod.Spec.Subdomain = entryPodName
@@ -81,6 +82,7 @@ func GenerateEntryPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfe
 func GenerateWorkerPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, entryPod *corev1.Pod, groupName string, roleIndex, podIndex int) *corev1.Pod {
 	workerPodName := generateWorkerPodName(groupName, role.Name, roleIndex, podIndex)
 	workerPod := createBasePod(role, mi, workerPodName, groupName)
+	addPodLabelAndAnnotation(workerPod, role.WorkerTemplate.Metadata)
 	workerPod.Spec = role.WorkerTemplate.Spec
 	// Build environment variables into each container of all pod
 	envVars := createCommonEnvVars(role, mi, entryPod, podIndex)
@@ -106,6 +108,22 @@ func createBasePod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, 
 				newModelInferOwnerRef(mi),
 			},
 		},
+	}
+}
+
+func addPodLabelAndAnnotation(pod *corev1.Pod, metadata *workloadv1alpha1.Metadata) {
+	if metadata == nil {
+		return
+	}
+	if metadata.Labels != nil {
+		for k, v := range metadata.Labels {
+			pod.Labels[k] = v
+		}
+	}
+	if metadata.Annotations != nil {
+		for k, v := range metadata.Annotations {
+			pod.Annotations[k] = v
+		}
 	}
 }
 
@@ -256,7 +274,7 @@ func IsPodFailed(pod *corev1.Pod) bool {
 
 func ExpectedPodNum(mi *workloadv1alpha1.ModelInfer) int {
 	num := 0
-	for _, role := range mi.Spec.Template.Spec.Roles {
+	for _, role := range mi.Spec.Template.Roles {
 		// Calculate the expected number of pod replicas when the role is running normally
 		// For each role, the expected number of pods is (entryPod.num + workerPod.num) * role.replicas
 		num += (1 + int(role.WorkerReplicas)) * int(*role.Replicas)
