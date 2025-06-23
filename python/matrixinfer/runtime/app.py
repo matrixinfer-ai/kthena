@@ -8,8 +8,8 @@ from starlette.responses import JSONResponse
 from contextlib import asynccontextmanager
 
 import uvicorn
-from runtime.collect import process_metrics
-from runtime.standard import MetricStandard
+from matrixinfer.runtime.collect import process_metrics
+from matrixinfer.runtime.standard import MetricStandard
 
 TIMEOUT = float(os.getenv("REQUEST_TIMEOUT", "30.0"))
 
