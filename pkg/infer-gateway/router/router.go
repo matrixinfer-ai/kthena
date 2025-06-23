@@ -8,16 +8,12 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-<<<<<<< HEAD
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
-=======
-	"github.com/google/uuid"
->>>>>>> 97282ce056337e4f092f771ea26ca0650b308fdf
-
+    "github.com/google/uuid"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/filters/ratelimit"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
 var (
