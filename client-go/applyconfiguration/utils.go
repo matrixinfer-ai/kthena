@@ -23,8 +23,10 @@ import (
 	testing "k8s.io/client-go/testing"
 	internal "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/internal"
 	networkingv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/networking/v1alpha1"
+	applyconfigurationregistryv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/registry/v1alpha1"
 	applyconfigurationworkloadv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/workload/v1alpha1"
 	v1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
+	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	workloadv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 )
 
@@ -61,6 +63,34 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &networkingv1alpha1.WorkloadPortApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("WorkloadSelector"):
 		return &networkingv1alpha1.WorkloadSelectorApplyConfiguration{}
+
+		// Group=registry.matrixinfer.ai, Version=v1alpha1
+	case registryv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicy"):
+		return &applyconfigurationregistryv1alpha1.AutoscalingPolicyApplyConfiguration{}
+	case registryv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyBehavior"):
+		return &applyconfigurationregistryv1alpha1.AutoscalingPolicyBehaviorApplyConfiguration{}
+	case registryv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyMetric"):
+		return &applyconfigurationregistryv1alpha1.AutoscalingPolicyMetricApplyConfiguration{}
+	case registryv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyPanicPolicy"):
+		return &applyconfigurationregistryv1alpha1.AutoscalingPolicyPanicPolicyApplyConfiguration{}
+	case registryv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyScaleUpPolicy"):
+		return &applyconfigurationregistryv1alpha1.AutoscalingPolicyScaleUpPolicyApplyConfiguration{}
+	case registryv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicySpec"):
+		return &applyconfigurationregistryv1alpha1.AutoscalingPolicySpecApplyConfiguration{}
+	case registryv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyStablePolicy"):
+		return &applyconfigurationregistryv1alpha1.AutoscalingPolicyStablePolicyApplyConfiguration{}
+	case registryv1alpha1.SchemeGroupVersion.WithKind("Model"):
+		return &applyconfigurationregistryv1alpha1.ModelApplyConfiguration{}
+	case registryv1alpha1.SchemeGroupVersion.WithKind("ModelBackend"):
+		return &applyconfigurationregistryv1alpha1.ModelBackendApplyConfiguration{}
+	case registryv1alpha1.SchemeGroupVersion.WithKind("ModelBackendStatus"):
+		return &applyconfigurationregistryv1alpha1.ModelBackendStatusApplyConfiguration{}
+	case registryv1alpha1.SchemeGroupVersion.WithKind("ModelSpec"):
+		return &applyconfigurationregistryv1alpha1.ModelSpecApplyConfiguration{}
+	case registryv1alpha1.SchemeGroupVersion.WithKind("ModelStatus"):
+		return &applyconfigurationregistryv1alpha1.ModelStatusApplyConfiguration{}
+	case registryv1alpha1.SchemeGroupVersion.WithKind("ModelWorker"):
+		return &applyconfigurationregistryv1alpha1.ModelWorkerApplyConfiguration{}
 
 		// Group=workload.matrixinfer.ai, Version=v1alpha1
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("GangSchedule"):
