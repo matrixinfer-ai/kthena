@@ -6,12 +6,9 @@ require (
 	github.com/agiledragon/gomonkey/v2 v2.13.0
 	github.com/cespare/xxhash v1.1.0
 	github.com/gin-gonic/gin v1.10.0
-<<<<<<< HEAD
 	github.com/pkoukk/tiktoken-go v0.1.7
 	github.com/pkoukk/tiktoken-go-loader v0.0.1
-=======
 	github.com/google/uuid v1.6.0
->>>>>>> b4d5590f46321c6accebf7dc28487db43ba8c97f
 	github.com/prometheus/client_model v0.6.2
 	github.com/prometheus/common v0.63.0
 	github.com/sirupsen/logrus v1.9.3
