@@ -21,8 +21,9 @@ RUN set -ex && \
 WORKDIR /app
 COPY matrixinfer/downloader/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY matrixinfer/downloader/ .
-ENTRYPOINT ["python", "app.py"]
+COPY matrixinfer/downloader/ ./matrixinfer/downloader/
+ENV PYTHONPATH="/app"
+ENTRYPOINT ["python", "matrixinfer/downloader/app.py"]
 
 FROM python:3.9.6-slim AS runtime
 WORKDIR /app

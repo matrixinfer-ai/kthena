@@ -70,7 +70,7 @@ class ModelDownloader(ABC):
 def get_downloader(source: str, config: dict, max_workers: int = 8) -> ModelDownloader:
     try:
         if source.startswith("s3://") or source.startswith("obs://"):
-            from .s3 import S3Downloader
+            from matrixinfer.downloader.s3 import S3Downloader
             return S3Downloader(
                 model_uri=source,
                 access_key=config.get("access_key"),
@@ -78,10 +78,10 @@ def get_downloader(source: str, config: dict, max_workers: int = 8) -> ModelDown
                 endpoint=config.get("endpoint"),
             )
         elif source.startswith("pvc://"):
-            from .pvc import PVCDownloader
+            from matrixinfer.downloader.pvc import PVCDownloader
             return PVCDownloader(source_path=source)
         else:
-            from .huggingface import HuggingFaceDownloader
+            from matrixinfer.downloader.huggingface import HuggingFaceDownloader
             return HuggingFaceDownloader(
                 model_uri=source,
                 hf_token=config.get("hf_token"),
