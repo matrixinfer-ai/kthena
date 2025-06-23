@@ -39,7 +39,8 @@ func LastPeriodAvg(previous, current *dto.Histogram) float64 {
 	deltaCount := currentCount - previousCount
 
 	if deltaCount == 0 {
-		return 0
+		// If there is no change, still use previous result.
+		return previousSum / float64(previousCount)
 	}
 
 	return deltaSum / float64(deltaCount)

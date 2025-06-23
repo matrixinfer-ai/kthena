@@ -40,16 +40,16 @@ func GetPodMetrics(engine string, pod *corev1.Pod, previousHistogram map[string]
 		return nil, nil
 	}
 
-	countMetricsInfo := provider.GetCountMetricsInfo(allMetrics)
+	MetricsInfo := provider.GetCountMetricsInfo(allMetrics)
 	histogramMetricsInfo, histogramMetrics := provider.GetHistogramPodMetrics(allMetrics, previousHistogram)
 
 	for name, value := range histogramMetricsInfo {
 		// Since the key in countMetricInfo must not be the same as the key in histogramMetricsInfo.
 		// You don't have to worry about overriding the value
-		countMetricsInfo[name] = value
+		MetricsInfo[name] = value
 	}
 
-	return countMetricsInfo, histogramMetrics
+	return MetricsInfo, histogramMetrics
 }
 
 func GetMetricsProvider(engine string) (MetricsProvider, error) {
