@@ -18,7 +18,8 @@ type Store interface {
 	DeleteModelInfer(modelInferName types.NamespacedName) error
 	DeleteInferGroupOfRunningPodMap(modelInferName types.NamespacedName, inferGroupName string) error
 	AddInferGroupForModelInfer(modelInferName types.NamespacedName, idx int) error
-	AddRunningPodForInferGroup(inferGroupName types.NamespacedName, runningPodName string) error
+	AddRunningPodForInferGroup(inferGroupName types.NamespacedName, runningPodName string)
+	DeleteRunningPodForInferGroup(inferGroupName types.NamespacedName, deletePodName string)
 	UpdateInferGroupStatus(modelInferName types.NamespacedName, inferGroupName string, Status InferGroupStatus) error
 }
 
@@ -41,6 +42,7 @@ const (
 	InferGroupRunning  InferGroupStatus = "Running"
 	InferGroupCreating InferGroupStatus = "Creating"
 	InferGroupDeleting InferGroupStatus = "Deleting"
+	InferGroupUpdating InferGroupStatus = "Updating"
 	InferGroupNotFound InferGroupStatus = "NotFound"
 )
 
@@ -146,12 +148,19 @@ func (s *store) AddInferGroupForModelInfer(modelInferName types.NamespacedName, 
 }
 
 // AddRunningPodForInferGroup add inferGroup in runningPodOfInferGroup map
-func (s *store) AddRunningPodForInferGroup(inferGroupName types.NamespacedName, runningPodName string) error {
+func (s *store) AddRunningPodForInferGroup(inferGroupName types.NamespacedName, runningPodName string) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-
 	s.runningPodOfInferGroups[inferGroupName] = append(s.runningPodOfInferGroups[inferGroupName], runningPodName)
-	return nil
+}
+
+// DeleteRunningPodForInferGroup delete runningPod in map
+func (s *store) DeleteRunningPodForInferGroup(inferGroupName types.NamespacedName, deletePodName string) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	s.runningPodOfInferGroups[inferGroupName] = slices.DeleteFunc(s.runningPodOfInferGroups[inferGroupName], func(podName string) bool {
+		return podName == deletePodName
+	})
 }
 
 // UpdateInferGroupStatus update status of one inferGroup

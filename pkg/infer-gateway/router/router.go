@@ -8,7 +8,11 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+<<<<<<< HEAD
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
+=======
+	"github.com/google/uuid"
+>>>>>>> 97282ce056337e4f092f771ea26ca0650b308fdf
 
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/filters/ratelimit"
@@ -110,6 +114,13 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 
 		req := c.Request
 
+		// Generate request ID at the beginning
+		requestID := uuid.New().String()
+		if req.Header.Get("x-request-id") == "" {
+			// Add x-request-id header to prefill request
+			req.Header.Set("x-request-id", requestID)
+		}
+
 		if targetPods.PrefillPod != nil {
 			log.Debugf("prefill pod is %v", targetPods.PrefillPod.Pod.Name)
 
@@ -120,6 +131,11 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 				prefillBody[k] = v
 			}
 			prefillBody["max_tokens"] = 1
+
+			// Remove stream and stream_options headers from prefill request if they exist
+			// This is necessary because prefill request should not be streamed
+			delete(prefillBody, "stream")
+			delete(prefillBody, "stream_options")
 
 			body, err := json.Marshal(prefillBody)
 			if err != nil {
