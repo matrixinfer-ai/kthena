@@ -45,13 +45,13 @@ spec:
             path: /healthz
             port: 8080
           initialDelaySeconds: 1
-          periodSeconds: 3
+          periodSeconds: 5
         readinessProbe:
           httpGet:
             path: /healthz
             port: 8080
           initialDelaySeconds: 1
-          periodSeconds: 2
+          periodSeconds: 5
       serviceAccountName: infer-gateway  
 ---
 apiVersion: v1

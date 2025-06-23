@@ -16,8 +16,9 @@ var log = logger.NewLogger("")
 
 // Starts router
 func startRouter(stop <-chan struct{}, store datastore.Store) {
-	// Your application logic here
-	engine := gin.Default()
+	engine := gin.New()
+	engine.Use(gin.LoggerWithWriter(gin.DefaultWriter, "/healthz"), gin.Recovery())
+
 	// TODO: add middle ware
 	// engine.Use()
 
