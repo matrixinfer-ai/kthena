@@ -39,7 +39,9 @@ func LastPeriodAvg(previous, current *dto.Histogram) float64 {
 	deltaCount := currentCount - previousCount
 
 	if deltaCount == 0 {
-		return 0
+		// If no new access records have been generated in a period of time, directly return zero.
+		// When updating MetricsInfo, the last value is preserved for values of 0.
+		return previousSum / float64(previousCount)
 	}
 
 	return deltaSum / float64(deltaCount)

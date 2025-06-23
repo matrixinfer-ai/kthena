@@ -241,9 +241,13 @@ func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.Model
 
 	podName := utils.GetNamespaceName(pod)
 	newPodInfo := &PodInfo{
-		Pod:         pod,
-		modelServer: sets.Set[types.NamespacedName]{},
-		Models:      sets.New[string](),
+		Pod:               pod,
+		modelServer:       sets.Set[types.NamespacedName]{},
+		Models:            sets.New[string](),
+		RequestWaitingNum: float64(0),
+		GPUCacheUsage:     float64(0),
+		TPOT:              float64(0),
+		TTFT:              float64(0),
 	}
 
 	modelServerNames := []types.NamespacedName{}
