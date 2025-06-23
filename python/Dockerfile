@@ -27,7 +27,7 @@ ENTRYPOINT ["python", "matrixinfer/downloader/app.py"]
 
 FROM python:3.9.6-slim AS runtime
 WORKDIR /app
-COPY matrixinfer/runtime/ ./runtime/
-RUN pip install --no-cache-dir -r runtime/requirements.txt
+COPY matrixinfer/runtime/ ./matrixinfer/runtime/
+RUN pip install --no-cache-dir -r matrixinfer/runtime/requirements.txt
 ENV PYTHONPATH="/app"
-ENTRYPOINT ["python", "runtime/app.py"]
+ENTRYPOINT ["python", "matrixinfer/runtime/app.py"]
