@@ -2,9 +2,9 @@ import subprocess
 import unittest
 from unittest.mock import MagicMock, patch
 
-from base import get_downloader
-from downloader import download_model
-from pvc import PVCDownloader
+from matrixinfer.downloader.base import get_downloader
+from matrixinfer.downloader.downloader import download_model
+from matrixinfer.downloader.pvc import PVCDownloader
 
 
 class TestDownloadModel(unittest.TestCase):
@@ -17,7 +17,7 @@ class TestDownloadModel(unittest.TestCase):
     def tearDown(self):
         pass
 
-    @patch("downloader.get_downloader")
+    @patch("matrixinfer.downloader.downloader.get_downloader")
     def test_download_model_pvc_default(self, mock_get_downloader):
         mock_get_downloader.return_value = self.mock_downloader
 
@@ -28,7 +28,7 @@ class TestDownloadModel(unittest.TestCase):
             self.output_dir
         )
 
-    @patch("downloader.get_downloader")
+    @patch("matrixinfer.downloader.downloader.get_downloader")
     def test_download_model_pvc_custom_workers(self, mock_get_downloader):
         mock_get_downloader.return_value = self.mock_downloader
 
@@ -40,7 +40,7 @@ class TestDownloadModel(unittest.TestCase):
             self.output_dir
         )
 
-    @patch("downloader.get_downloader")
+    @patch("matrixinfer.downloader.downloader.get_downloader")
     def test_download_model_file_error(self, mock_get_downloader):
         self.mock_downloader.download_model.side_effect = FileNotFoundError("PVC path does not exist")
         mock_get_downloader.return_value = self.mock_downloader
@@ -51,7 +51,7 @@ class TestDownloadModel(unittest.TestCase):
         self.assertIn("PVC path does not exist", str(context.exception))
         mock_get_downloader.assert_called_once_with(self.source, self.config, 8)
 
-    @patch("downloader.get_downloader")
+    @patch("matrixinfer.downloader.downloader.get_downloader")
     def test_download_model_permission_error(self, mock_get_downloader):
         self.mock_downloader.download_model.side_effect = PermissionError(
             "Insufficient permissions to write to output directory")
@@ -145,8 +145,8 @@ class TestDownloadModel(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             PVCDownloader._copy_from_pvc("/nonexistent/path", "/fake/dest")
 
-    @patch("pvc.PVCDownloader._copy_from_pvc")
-    @patch("pvc.PVCDownloader._parse_pvc_path")
+    @patch("matrixinfer.downloader.pvc.PVCDownloader._copy_from_pvc")
+    @patch("matrixinfer.downloader.pvc.PVCDownloader._parse_pvc_path")
     @patch("os.makedirs")
     def test_download_success(self, _, mock_parse_path, mock_copy):
         mock_parse_path.return_value = "/parsed/pvc/path"
@@ -158,7 +158,7 @@ class TestDownloadModel(unittest.TestCase):
         mock_parse_path.assert_called_once()
         mock_copy.assert_called_once_with("/parsed/pvc/path", "/output/dir")
 
-    @patch("pvc.PVCDownloader._parse_pvc_path")
+    @patch("matrixinfer.downloader.pvc.PVCDownloader._parse_pvc_path")
     def test_download_path_error(self, mock_parse_path):
         mock_parse_path.side_effect = ValueError("Invalid path")
 

@@ -19,7 +19,7 @@ import time
 from typing import Optional, IO
 import stat
 
-from logger import setup_logger
+from matrixinfer.downloader.logger import setup_logger
 
 logger = setup_logger()
 

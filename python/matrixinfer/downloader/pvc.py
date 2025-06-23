@@ -16,8 +16,8 @@ import os
 import subprocess
 from pathlib import Path
 
-from base import ModelDownloader
-from logger import setup_logger
+from matrixinfer.downloader.base import ModelDownloader
+from matrixinfer.downloader.logger import setup_logger
 
 logger = setup_logger()
 

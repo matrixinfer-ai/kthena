@@ -14,11 +14,11 @@
 
 from huggingface_hub import snapshot_download
 
-from logger import setup_logger
+from matrixinfer.downloader.logger import setup_logger
 
 logger = setup_logger()
 
-from base import ModelDownloader
+from matrixinfer.downloader.base import ModelDownloader
 
 
 class HuggingFaceDownloader(ModelDownloader):

@@ -1,9 +1,9 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-from base import get_downloader
-from downloader import download_model
-from huggingface import HuggingFaceDownloader
+from matrixinfer.downloader.base import get_downloader
+from matrixinfer.downloader.downloader import download_model
+from matrixinfer.downloader.huggingface import HuggingFaceDownloader
 
 
 class TestDownloadModel(unittest.TestCase):
@@ -16,7 +16,7 @@ class TestDownloadModel(unittest.TestCase):
     def tearDown(self):
         pass
 
-    @patch("downloader.get_downloader")
+    @patch("matrixinfer.downloader.downloader.get_downloader")
     def test_download_model_huggingface_default_workers(self, mock_get_downloader):
         mock_get_downloader.return_value = self.mock_downloader
 
@@ -27,7 +27,7 @@ class TestDownloadModel(unittest.TestCase):
             self.output_dir
         )
 
-    @patch("downloader.get_downloader")
+    @patch("matrixinfer.downloader.downloader.get_downloader")
     def test_download_model_huggingface_custom_workers(self, mock_get_downloader):
         mock_get_downloader.return_value = self.mock_downloader
 
@@ -39,7 +39,7 @@ class TestDownloadModel(unittest.TestCase):
             self.output_dir
         )
 
-    @patch("downloader.get_downloader")
+    @patch("matrixinfer.downloader.downloader.get_downloader")
     def test_download_model_invalid_credentials(self, mock_get_downloader):
         self.mock_downloader.download_model.side_effect = ValueError("Invalid authentication token")
         mock_get_downloader.return_value = self.mock_downloader
@@ -50,7 +50,7 @@ class TestDownloadModel(unittest.TestCase):
         self.assertIn("Invalid authentication token", str(context.exception))
         mock_get_downloader.assert_called_once_with(self.source, self.credentials, 8)
 
-    @patch("downloader.get_downloader")
+    @patch("matrixinfer.downloader.downloader.get_downloader")
     def test_download_model_network_error(self, mock_get_downloader):
         self.mock_downloader.download_model.side_effect = ConnectionError("Failed to establish connection to server")
         mock_get_downloader.return_value = self.mock_downloader
@@ -61,7 +61,7 @@ class TestDownloadModel(unittest.TestCase):
         self.assertIn("Failed to establish connection to server", str(context.exception))
         mock_get_downloader.assert_called_once_with(self.source, self.credentials, 8)
 
-    @patch("downloader.get_downloader")
+    @patch("matrixinfer.downloader.downloader.get_downloader")
     def test_download_model_permission_error(self, mock_get_downloader):
         self.mock_downloader.download_model.side_effect = PermissionError(
             "Insufficient permissions to write to output directory")

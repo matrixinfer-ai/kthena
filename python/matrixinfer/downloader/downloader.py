@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from base import get_downloader
+from matrixinfer.downloader.base import get_downloader
 
 
 def download_model(source: str, output_dir: str, config: dict, max_workers: int = 8):

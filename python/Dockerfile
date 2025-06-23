@@ -19,9 +19,9 @@ RUN set -ex && \
     rm -rf awscliv2.zip aws
 
 WORKDIR /app
-COPY downloader/requirements.txt .
+COPY matrixinfer/downloader/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY downloader/ .
+COPY matrixinfer/downloader/ .
 ENTRYPOINT ["python", "app.py"]
 
 FROM python:3.9.6-slim AS runtime

@@ -19,8 +19,8 @@ from typing import Optional
 from typing import Tuple
 from urllib.parse import urlparse
 
-from lock import LockManager
-from logger import setup_logger
+from matrixinfer.downloader.lock import LockManager
+from matrixinfer.downloader.logger import setup_logger
 
 logger = setup_logger()
 
@@ -70,7 +70,7 @@ class ModelDownloader(ABC):
 def get_downloader(source: str, config: dict, max_workers: int = 8) -> ModelDownloader:
     try:
         if source.startswith("s3://") or source.startswith("obs://"):
-            from s3 import S3Downloader
+            from .s3 import S3Downloader
             return S3Downloader(
                 model_uri=source,
                 access_key=config.get("access_key"),
@@ -78,10 +78,10 @@ def get_downloader(source: str, config: dict, max_workers: int = 8) -> ModelDown
                 endpoint=config.get("endpoint"),
             )
         elif source.startswith("pvc://"):
-            from pvc import PVCDownloader
+            from .pvc import PVCDownloader
             return PVCDownloader(source_path=source)
         else:
-            from huggingface import HuggingFaceDownloader
+            from .huggingface import HuggingFaceDownloader
             return HuggingFaceDownloader(
                 model_uri=source,
                 hf_token=config.get("hf_token"),

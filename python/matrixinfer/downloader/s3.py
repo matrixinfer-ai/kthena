@@ -15,8 +15,8 @@
 import os
 import subprocess
 
-from base import ModelDownloader, parse_bucket_from_model_url
-from logger import setup_logger
+from matrixinfer.downloader.base import ModelDownloader, parse_bucket_from_model_url
+from matrixinfer.downloader.logger import setup_logger
 
 logger = setup_logger()
 

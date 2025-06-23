@@ -1,10 +1,10 @@
 import os
 import time
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
-from lock import LockManager, LockError
-from test_utils import create_temp_dir, cleanup_temp_dir
+from matrixinfer.downloader.lock import LockManager, LockError
+from matrixinfer.tests.test_utils import create_temp_dir, cleanup_temp_dir
 
 
 class TestLockManager(unittest.TestCase):
@@ -86,13 +86,13 @@ class TestLockManager(unittest.TestCase):
         self.assertFalse(self.lock_manager._renew_thread.is_alive() if self.lock_manager._renew_thread else True,
                          "Renew thread should be stopped")
 
-    @patch("lock.logger.error")
+    @patch("matrixinfer.downloader.lock.logger.error")
     def test_lock_manager_acquire_exception_handling(self, mock_logger_error):
         with patch("os.makedirs", side_effect=OSError("Mocked error")):
             self.assertFalse(self.lock_manager.try_acquire(), "Acquire should fail due to mocked OSError")
             mock_logger_error.assert_called_with("Error acquiring lock: Mocked error")
 
-    @patch("lock.logger.error")
+    @patch("matrixinfer.downloader.lock.logger.error")
     def test_lock_manager_release_exception_handling(self, mock_logger_error):
         self._acquire_lock()
         with patch("os.remove", side_effect=OSError("Mocked error")):
