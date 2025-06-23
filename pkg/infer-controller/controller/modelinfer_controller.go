@@ -391,6 +391,8 @@ func (mic *ModelInferController) manageReplicas(ctx context.Context, mi *workloa
 			// Create pods for inferGroup
 			err = mic.CreatePodsForInferGroup(ctx, mi, idx)
 			if err != nil {
+				// I think that after create a pod failed, a period of time should pass before joining the coordination queue.
+				// TODO: Add a handler that enqueue model infer after an interval time.
 				return fmt.Errorf("create infer group failed: %v", err)
 			}
 		}
@@ -518,7 +520,7 @@ func (mic *ModelInferController) createPod(ctx context.Context, mi *workloadv1al
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			_, err := mic.kubeClientSet.CoreV1().Pods(mi.Namespace).Create(ctx, expectPod, metav1.CreateOptions{})
-			if err != nil {
+			if err != nil && !apierrors.IsNotFound(err) {
 				klog.Errorf("failed to create entry pod %s/%s: %v", expectPod.GetNamespace(), expectPod.GetName(), err)
 				return err
 			}
@@ -533,8 +535,7 @@ func (mic *ModelInferController) createPod(ctx context.Context, mi *workloadv1al
 				return fmt.Errorf("failed to find inferGroup name in pod: %s/%s", existPod.GetNamespace(), existPod.GetName())
 			}
 			mic.DeleteInferGroup(mi, groupName)
-			mic.enqueueModelInfer(mi)
-			return nil
+			return fmt.Errorf("The pods that exist now don't meet expectations")
 		}
 	}
 	return nil
