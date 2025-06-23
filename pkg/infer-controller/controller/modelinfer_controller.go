@@ -484,11 +484,12 @@ func (mic *ModelInferController) CreatePodByRole(ctx context.Context, role workl
 	groupName := utils.GenerateInferGroupName(mi.Name, groupIndex)
 	// Create entry pod
 	entryPod := utils.GenerateEntryPod(role, mi, groupName, roleIndex)
-	_, err := mic.kubeClientSet.CoreV1().Pods(mi.Namespace).Create(ctx, entryPod, metav1.CreateOptions{})
+	err := mic.createPod(ctx, mi, entryPod)
 	if err != nil {
 		klog.Errorf("create entry pod failed: %v", err)
 		return err
 	}
+
 	// Determine whether to create worker pods and headless service
 	if role.WorkerTemplate == nil {
 		klog.V(4).Info("workerTemplate is nil, no need to create worker pods and headless service")
@@ -503,10 +504,37 @@ func (mic *ModelInferController) CreatePodByRole(ctx context.Context, role workl
 	// Create worker pods
 	for podIndex := range int(role.WorkerReplicas) {
 		workerPod := utils.GenerateWorkerPod(role, mi, entryPod, groupName, roleIndex, podIndex+1) // worker-pod sequence number starts from 1, so we use index+1 here.
-		_, err = mic.kubeClientSet.CoreV1().Pods(mi.Namespace).Create(ctx, workerPod, metav1.CreateOptions{})
+		err := mic.createPod(ctx, mi, workerPod)
 		if err != nil {
 			klog.Errorf("create worker pod failed: %v", err)
 			return err
+		}
+	}
+	return nil
+}
+
+func (mic *ModelInferController) createPod(ctx context.Context, mi *workloadv1alpha1.ModelInfer, expectPod *corev1.Pod) error {
+	existPod, err := mic.kubeClientSet.CoreV1().Pods(expectPod.GetNamespace()).Get(ctx, expectPod.GetName(), metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			_, err := mic.kubeClientSet.CoreV1().Pods(mi.Namespace).Create(ctx, expectPod, metav1.CreateOptions{})
+			if err != nil {
+				klog.Errorf("failed to create entry pod %s/%s: %v", expectPod.GetNamespace(), expectPod.GetName(), err)
+				return err
+			}
+		} else {
+			klog.Errorf("failed to get pod %s/%s: %v", expectPod.GetNamespace(), expectPod.GetName(), err)
+		}
+	} else {
+		if !reflect.DeepEqual(expectPod.Spec, existPod.Spec) {
+			// This pod needs to be upgraded. Then this infergroups needs to be deleted and rebuilt.
+			groupName, ok := existPod.Labels[workloadv1alpha1.GroupNameLabelKey]
+			if !ok {
+				return fmt.Errorf("failed to find inferGroup name in pod: %s/%s", existPod.GetNamespace(), existPod.GetName())
+			}
+			mic.DeleteInferGroup(mi, groupName)
+			mic.enqueueModelInfer(mi)
+			return nil
 		}
 	}
 	return nil
