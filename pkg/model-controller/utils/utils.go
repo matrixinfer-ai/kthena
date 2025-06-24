@@ -111,8 +111,8 @@ func buildVllmModelInfer(model *registry.Model, backendIdx int) (*workload.Model
 			// model owns model infer. ModelInfer will be deleted when the model is deleted
 			OwnerReferences: []metav1.OwnerReference{
 				{
-					APIVersion: model.APIVersion,
-					Kind:       model.Kind,
+					APIVersion: model.TypeMeta.APIVersion,
+					Kind:       model.TypeMeta.Kind,
 					Name:       model.Name,
 					UID:        model.UID,
 				},
