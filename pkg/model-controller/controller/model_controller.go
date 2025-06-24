@@ -3,29 +3,27 @@ package controller
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
-	listerv1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
+	informersv1alpha1 "matrixinfer.ai/matrixinfer/client-go/informers/externalversions"
 	listerv1alpha1 "matrixinfer.ai/matrixinfer/client-go/listers/registry/v1alpha1"
+	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/datastore"
 	"sync"
 )
 
 type ModelController struct {
-	kubeClientSet    kubernetes.Interface
-	modelInferClient clientset.Interface
+	kubeClientSet kubernetes.Interface
+	modelClient   clientset.Interface
 
-	syncHandler      func(ctx context.Context, miKey string) error
-	podsLister       listerv1.PodLister
-	podsInformer     cache.Controller
-	servicesLister   listerv1.ServiceLister
-	servicesInformer cache.Controller
-	modelsLister     listerv1alpha1.ModelLister
-	modelsInformer   cache.Controller
+	syncHandler    func(ctx context.Context, miKey string) error
+	modelsLister   listerv1alpha1.ModelLister
+	modelsInformer cache.Controller
 
 	// nolint
 	workqueue workqueue.RateLimitingInterface
@@ -33,54 +31,128 @@ type ModelController struct {
 	graceMap  sync.Map // key: errorPod.namespace/errorPod.name, value:time
 }
 
-func (mic *ModelController) Run(ctx context.Context, workers int) {
+func (mc *ModelController) Run(ctx context.Context, workers int) {
 	defer utilruntime.HandleCrash()
-	defer mic.workqueue.ShutDown()
+	defer mc.workqueue.ShutDown()
 
 	// start informers
-	go mic.podsInformer.RunWithContext(ctx)
-	go mic.servicesInformer.RunWithContext(ctx)
-	go mic.modelsInformer.RunWithContext(ctx)
+	go mc.modelsInformer.RunWithContext(ctx)
 
 	cache.WaitForCacheSync(ctx.Done(),
-		mic.podsInformer.HasSynced,
-		mic.servicesInformer.HasSynced,
-		mic.modelsInformer.HasSynced,
+		mc.modelsInformer.HasSynced,
 	)
 
 	klog.Info("start model controller")
 	for i := 0; i < workers; i++ {
-		go mic.worker(ctx)
+		go mc.worker(ctx)
 	}
 	<-ctx.Done()
 	klog.Info("shut down model controller")
 }
 
-func (mic *ModelController) worker(ctx context.Context) {
-	for mic.processNextWorkItem(ctx) {
+func (mc *ModelController) worker(ctx context.Context) {
+	for mc.processNextWorkItem(ctx) {
 	}
 }
 
-func (mic *ModelController) processNextWorkItem(ctx context.Context) bool {
-	key, quit := mic.workqueue.Get()
+func (mc *ModelController) processNextWorkItem(ctx context.Context) bool {
+	key, quit := mc.workqueue.Get()
 	if quit {
 		return false
 	}
-	defer mic.workqueue.Done(key)
+	defer mc.workqueue.Done(key)
 
-	err := mic.syncHandler(ctx, key.(string))
+	err := mc.syncHandler(ctx, key.(string))
 	if err == nil {
-		mic.workqueue.Forget(key)
+		mc.workqueue.Forget(key)
 		return true
 	}
 
 	utilruntime.HandleError(fmt.Errorf("sync %q failed with %v", key, err))
-	mic.workqueue.AddRateLimited(key)
+	mc.workqueue.AddRateLimited(key)
 
 	return true
 }
 
+func (mc *ModelController) createModel(obj interface{}) {
+	model, ok := obj.(*registryv1alpha1.Model)
+	if !ok {
+		klog.Error("failed to parse Model when createModel")
+		return
+	}
+	klog.V(4).Info("Creating", "model", klog.KObj(model))
+	mc.enqueueModel(model)
+}
+
+func (mc *ModelController) enqueueModel(model *registryv1alpha1.Model) {
+	if key, err := cache.MetaNamespaceKeyFunc(model); err != nil {
+		utilruntime.HandleError(err)
+	} else {
+		mc.workqueue.Add(key)
+	}
+}
+
+func (mc *ModelController) updateModel(old interface{}, new interface{}) {
+	newModel, ok := new.(*registryv1alpha1.Model)
+	if !ok {
+		klog.Error("failed to parse new Model type when updateModel")
+		return
+	}
+	oldModel, ok := old.(*registryv1alpha1.Model)
+	if !ok {
+		klog.Error("failed to parse old Model when updateModel")
+		return
+	}
+	// When observed generation not equal to generation, trigger reconciles
+	if oldModel.Status.ObservedGeneration != newModel.Generation {
+		mc.enqueueModel(newModel)
+	}
+}
+
+func (mc *ModelController) deleteModel(obj interface{}) {
+	model, ok := obj.(*registryv1alpha1.Model)
+	if !ok {
+		klog.Error("failed to parse Model when deleteModel")
+		return
+	}
+	if err := mc.store.DeleteModel(types.NamespacedName{
+		Namespace: model.Namespace,
+		Name:      model.Name,
+	}); err != nil {
+		klog.Errorf("failed to delete model %s: %v", model.Name, err)
+	}
+}
+
 func NewModelController(kubeClientSet kubernetes.Interface, modelClient clientset.Interface) *ModelController {
-	// todo
-	return nil
+	modelInformerFactory := informersv1alpha1.NewSharedInformerFactory(modelClient, 0)
+	modelInformer := modelInformerFactory.Registry().V1alpha1().Models()
+	store, err := datastore.New()
+	if err != nil {
+		klog.Fatal("Unable to create data store")
+	}
+	mc := &ModelController{
+		kubeClientSet:  kubeClientSet,
+		modelClient:    modelClient,
+		modelsLister:   modelInformer.Lister(),
+		modelsInformer: modelInformer.Informer(),
+		workqueue:      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Models"),
+		store:          store,
+	}
+	klog.Info("Set the Model event handler")
+	_, err = modelInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			mc.createModel(obj)
+		},
+		UpdateFunc: func(old, new interface{}) {
+			mc.updateModel(old, new)
+		},
+		DeleteFunc: func(obj interface{}) {
+			mc.deleteModel(obj)
+		},
+	})
+	if err != nil {
+		klog.Fatal("Unable to add model event handler")
+		return nil
+	}
+	return mc
 }
