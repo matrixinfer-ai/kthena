@@ -118,6 +118,7 @@ func (mc *ModelController) deleteModel(obj interface{}) {
 		klog.Error("failed to parse Model when deleteModel")
 		return
 	}
+	klog.Infof("Delete model: %s", model.Name)
 	if err := mc.store.DeleteModel(types.NamespacedName{
 		Namespace: model.Namespace,
 		Name:      model.Name,
