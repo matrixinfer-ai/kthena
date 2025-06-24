@@ -108,6 +108,15 @@ func buildVllmModelInfer(model *registry.Model, backendIdx int) (*workload.Model
 			Labels: map[string]string{
 				ModelInferOwnerKey: string(model.UID),
 			},
+			// model owns model infer. ModelInfer will be deleted when the model is deleted
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: "workload.matrixinfer.io/v1",
+					Kind:       "ModelInfer",
+					Name:       model.Name,
+					UID:        model.UID,
+				},
+			},
 		},
 		"MODEL_NAME":       model.Name,
 		"BACKEND_NAME":     strings.ToLower(backend.Name),
