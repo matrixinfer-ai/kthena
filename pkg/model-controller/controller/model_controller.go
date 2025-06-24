@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -15,6 +16,7 @@ import (
 	listerv1alpha1 "matrixinfer.ai/matrixinfer/client-go/listers/registry/v1alpha1"
 	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/datastore"
+	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
 	"sync"
 )
 
@@ -138,14 +140,21 @@ func (mc *ModelController) syncModel(ctx context.Context, key string) error {
 	if err != nil {
 		return err
 	}
-	if err := mc.manageReplicas(ctx, model); err != nil {
-		return fmt.Errorf("cannot manage model replicas: %v", err)
+	if len(model.Status.Conditions) == 0 {
+		klog.Info("model status condition is null, create model infer")
+		if modelInfers, err := utils.BuildModelInferCR(model); err != nil {
+			klog.Errorf("failed to build model infer for model %s: %v", model.Name, err)
+			return err
+		} else {
+			for _, modelInfer := range modelInfers {
+				// modelInfer is owned by model. ModelInfer will be deleted when the model is deleted
+				if _, err := mc.modelClient.WorkloadV1alpha1().ModelInfers(model.Namespace).Create(ctx, modelInfer, metav1.CreateOptions{}); err != nil {
+					klog.Errorf("create modelInfer failed: %v", err)
+					return err
+				}
+			}
+		}
 	}
-	return nil
-}
-
-func (mc *ModelController) manageReplicas(ctx context.Context, model *registryv1alpha1.Model) error {
-	// todo
 	return nil
 }
 
