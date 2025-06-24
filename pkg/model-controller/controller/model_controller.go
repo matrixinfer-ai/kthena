@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -123,6 +124,31 @@ func (mc *ModelController) deleteModel(obj interface{}) {
 	}
 }
 
+func (mc *ModelController) syncModel(ctx context.Context, key string) error {
+	klog.V(4).Info("Started syncing Model")
+	namespace, name, err := cache.SplitMetaNamespaceKey(key)
+	if err != nil {
+		return fmt.Errorf("invalid resource key: %s", err)
+	}
+	model, err := mc.modelsLister.Models(namespace).Get(name)
+	if apierrors.IsNotFound(err) {
+		klog.V(4).Infof("Model %s does not exist anymore", key)
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if err := mc.manageReplicas(ctx, model); err != nil {
+		return fmt.Errorf("cannot manage model replicas: %v", err)
+	}
+	return nil
+}
+
+func (mc *ModelController) manageReplicas(ctx context.Context, model *registryv1alpha1.Model) error {
+	// todo
+	return nil
+}
+
 func NewModelController(kubeClientSet kubernetes.Interface, modelClient clientset.Interface) *ModelController {
 	modelInformerFactory := informersv1alpha1.NewSharedInformerFactory(modelClient, 0)
 	modelInformer := modelInformerFactory.Registry().V1alpha1().Models()
@@ -154,5 +180,6 @@ func NewModelController(kubeClientSet kubernetes.Interface, modelClient clientse
 		klog.Fatal("Unable to add model event handler")
 		return nil
 	}
+	mc.syncHandler = mc.syncModel
 	return mc
 }
