@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: matrixinfer-system
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: model-controller
+  namespace: matrixinfer-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: model-controller
+  namespace: matrixinfer-system
+  labels:
+    app: model-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: model-controller
+  template:
+    metadata:
+      labels:
+        app: model-controller
+    spec:
+      containers:
+        - name: model-controller
+          image: ghcr.io/matrixinfer-ai/model-controller:latest  # todo replace this
+          imagePullPolicy: IfNotPresent
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+      serviceAccountName: model-controller
