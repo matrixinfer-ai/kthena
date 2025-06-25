@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/sirupsen/logrus"
+
 	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
@@ -184,10 +186,12 @@ func (s *SchedulerImpl) RunScorePlugins(pods []*datastore.PodInfo, ctx *framewor
 		}
 	}
 
-	log.Debugf("Final Pod Scores:")
-	for k, v := range res {
-		if k.Pod != nil {
-			log.Debugf("  Pod: %s/%s, Final Score: %d", k.Pod.Namespace, k.Pod.Name, v)
+	if log.Logger != nil && log.Logger.IsLevelEnabled(logrus.DebugLevel) {
+		log.Debugf("Final Pod Scores:")
+		for k, v := range res {
+			if k.Pod != nil {
+				log.Debugf("  Pod: %s/%s, Final Score: %d", k.Pod.Namespace, k.Pod.Name, v)
+			}
 		}
 	}
 
