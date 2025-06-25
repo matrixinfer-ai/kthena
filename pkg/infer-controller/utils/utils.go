@@ -212,7 +212,7 @@ func CreateHeadlessService(ctx context.Context, k8sClient kubernetes.Interface, 
 		},
 	}
 	// create the service in the cluster
-	klog.V(2).Info("Creating headless service")
+	klog.V(4).Infof("Creating headless service %s", headlessService.Name)
 	_, err := k8sClient.CoreV1().Services(mi.Namespace).Create(ctx, &headlessService, metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("create headless service failed: %v", err)

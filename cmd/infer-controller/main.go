@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"os"
 	"os/signal"
 	"syscall"
@@ -19,6 +20,10 @@ func main() {
 	var kubeconfig string
 	var master string
 	var workers int
+
+	klog.InitFlags(nil)
+	_ = flag.Set("v", "2")
+	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 
 	pflag.StringVar(&kubeconfig, "kubeconfig", "", "kubeconfig file path")
 	pflag.StringVar(&master, "master", "", "master URL")
