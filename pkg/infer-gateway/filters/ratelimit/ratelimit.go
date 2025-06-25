@@ -47,7 +47,6 @@ func (r *TokenRateLimiter) RateLimit(model, prompt string) error {
 	if err != nil {
 		return err
 	}
-
 	if limiter.AllowN(time.Now(), size) {
 		return nil
 	}
