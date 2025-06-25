@@ -243,9 +243,7 @@ func NewModelController(kubeClient kubernetes.Interface, modelClient clientset.I
 	}
 	klog.Info("Set the Model event handler")
 	_, err := modelInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			mc.createModel(obj)
-		},
+		AddFunc: mc.createModel,
 		UpdateFunc: func(old, new interface{}) {
 			mc.updateModel(old, new)
 		},
