@@ -38,6 +38,8 @@ type ModelController struct {
 	modelsLister   registryLister.ModelLister
 	modelsInformer cache.Controller
 
+	modelInfersInformer cache.Controller
+
 	// nolint
 	workqueue workqueue.RateLimitingInterface
 }
@@ -233,13 +235,15 @@ func (mc *ModelController) updateModelStatus(ctx context.Context, model *registr
 }
 
 func NewModelController(kubeClient kubernetes.Interface, modelClient clientset.Interface) *ModelController {
-	modelInformerFactory := informersv1alpha1.NewSharedInformerFactory(modelClient, 0)
-	modelInformer := modelInformerFactory.Registry().V1alpha1().Models()
+	informerFactory := informersv1alpha1.NewSharedInformerFactory(modelClient, 0)
+	modelInformer := informerFactory.Registry().V1alpha1().Models()
+	modelInferInformer := informerFactory.Workload().V1alpha1().ModelInfers()
 	mc := &ModelController{
-		kubeClient:     kubeClient,
-		modelClient:    modelClient,
-		modelsLister:   modelInformer.Lister(),
-		modelsInformer: modelInformer.Informer(),
+		kubeClient:          kubeClient,
+		modelClient:         modelClient,
+		modelsLister:        modelInformer.Lister(),
+		modelsInformer:      modelInformer.Informer(),
+		modelInfersInformer: modelInferInformer.Informer(),
 		// nolint
 		workqueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Models"),
 	}
@@ -251,6 +255,13 @@ func NewModelController(kubeClient kubernetes.Interface, modelClient clientset.I
 	})
 	if err != nil {
 		klog.Fatal("Unable to add model event handler")
+		return nil
+	}
+	_, err = modelInferInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		UpdateFunc: mc.triggerModel,
+	})
+	if err != nil {
+		klog.Fatal("Unable to add model infer event handler")
 		return nil
 	}
 	mc.syncHandler = mc.reconcile
@@ -313,5 +324,24 @@ func (mc *ModelController) loadConfigFromConfigMap() {
 		klog.Errorf("failed to load model_infer_runtime_image: %v", err)
 	} else {
 		config.Config.SetModelInferRuntimeImage(modelInferRuntimeImage)
+	}
+}
+
+// When model infer status changed, model reconciles
+func (mc *ModelController) triggerModel(old interface{}, new interface{}) {
+	newModelInfer, ok := new.(*workload.ModelInfer)
+	if !ok {
+		klog.Error("failed to parse new ModelInfer")
+		return
+	}
+	_, ok = old.(*workload.ModelInfer)
+	if !ok {
+		klog.Error("failed to parse old ModelInfer")
+		return
+	}
+	if ownerRef := metav1.GetControllerOf(newModelInfer); ownerRef != nil && ownerRef.Kind == registryv1alpha1.ModelKind {
+		if model, err := mc.modelsLister.Models(newModelInfer.Namespace).Get(ownerRef.Name); err == nil {
+			mc.enqueueModel(model)
+		}
 	}
 }
