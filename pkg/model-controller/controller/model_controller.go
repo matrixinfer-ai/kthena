@@ -16,10 +16,8 @@ import (
 	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/config"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sync"
 )
 
 const (
@@ -41,8 +39,6 @@ type ModelController struct {
 
 	// nolint
 	workqueue workqueue.RateLimitingInterface
-	store     datastore.Store
-	graceMap  sync.Map // key: errorPod.namespace/errorPod.name, value:time
 }
 
 func (mc *ModelController) Run(ctx context.Context, workers int) {
@@ -238,20 +234,15 @@ func (mc *ModelController) updateModelStatus(ctx context.Context, model *registr
 func NewModelController(kubeClient kubernetes.Interface, modelClient clientset.Interface) *ModelController {
 	modelInformerFactory := informersv1alpha1.NewSharedInformerFactory(modelClient, 0)
 	modelInformer := modelInformerFactory.Registry().V1alpha1().Models()
-	store, err := datastore.New()
-	if err != nil {
-		klog.Fatal("Unable to create data store")
-	}
 	mc := &ModelController{
 		kubeClient:     kubeClient,
 		modelClient:    modelClient,
 		modelsLister:   modelInformer.Lister(),
 		modelsInformer: modelInformer.Informer(),
 		workqueue:      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Models"),
-		store:          store,
 	}
 	klog.Info("Set the Model event handler")
-	_, err = modelInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err := modelInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			mc.createModel(obj)
 		},
