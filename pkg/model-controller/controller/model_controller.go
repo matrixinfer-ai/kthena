@@ -137,15 +137,17 @@ func (mc *ModelController) deleteModel(obj interface{}) {
 	}
 }
 
-func (mc *ModelController) syncModel(ctx context.Context, key string) error {
+// reconcile is part of the main kubernetes reconciliation loop which aims to
+// move the current state of the cluster closer to the desired state.
+func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName string) error {
 	klog.V(4).Info("Started syncing Model")
-	namespace, name, err := cache.SplitMetaNamespaceKey(key)
+	namespace, name, err := cache.SplitMetaNamespaceKey(namespaceAndName)
 	if err != nil {
 		return fmt.Errorf("invalid resource key: %s", err)
 	}
 	model, err := mc.modelsLister.Models(namespace).Get(name)
 	if apierrors.IsNotFound(err) {
-		klog.V(4).Infof("Model %s does not exist anymore", key)
+		klog.V(4).Infof("Model %s does not exist anymore", namespaceAndName)
 		return nil
 	}
 	if err != nil {
@@ -240,7 +242,7 @@ func NewModelController(kubeClientSet kubernetes.Interface, modelClient clientse
 		klog.Fatal("Unable to add model event handler")
 		return nil
 	}
-	mc.syncHandler = mc.syncModel
+	mc.syncHandler = mc.reconcile
 	return mc
 }
 
