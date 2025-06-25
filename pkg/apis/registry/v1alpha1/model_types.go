@@ -183,7 +183,6 @@ type ModelStatusConditionType string
 
 const (
 	ModelStatusConditionTypeInitializing ModelStatusConditionType = "Initializing"
-	ModelStatusConditionTypeDeleting     ModelStatusConditionType = "Deleting"
 	ModelStatusConditionTypeActive       ModelStatusConditionType = "Active"
 	ModelStatusConditionTypeUpdating     ModelStatusConditionType = "Updating"
 	ModelStatusConditionTypeFailed       ModelStatusConditionType = "Failed"
