@@ -24,8 +24,9 @@ import (
 // RateLimitApplyConfiguration represents a declarative configuration of the RateLimit type for use
 // with apply.
 type RateLimitApplyConfiguration struct {
-	TokensPerUnit *uint32                           `json:"tokensPerUnit,omitempty"`
-	Unit          *networkingv1alpha1.RateLimitUnit `json:"unit,omitempty"`
+	InputTokensPerUnit  *uint32                           `json:"inputTokensPerUnit,omitempty"`
+	OutputTokensPerUnit *uint32                           `json:"outputTokensPerUnit,omitempty"`
+	Unit                *networkingv1alpha1.RateLimitUnit `json:"unit,omitempty"`
 }
 
 // RateLimitApplyConfiguration constructs a declarative configuration of the RateLimit type for use with
@@ -34,11 +35,19 @@ func RateLimit() *RateLimitApplyConfiguration {
 	return &RateLimitApplyConfiguration{}
 }
 
-// WithTokensPerUnit sets the TokensPerUnit field in the declarative configuration to the given value
+// WithInputTokensPerUnit sets the InputTokensPerUnit field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the TokensPerUnit field is set to the value of the last call.
-func (b *RateLimitApplyConfiguration) WithTokensPerUnit(value uint32) *RateLimitApplyConfiguration {
-	b.TokensPerUnit = &value
+// If called multiple times, the InputTokensPerUnit field is set to the value of the last call.
+func (b *RateLimitApplyConfiguration) WithInputTokensPerUnit(value uint32) *RateLimitApplyConfiguration {
+	b.InputTokensPerUnit = &value
+	return b
+}
+
+// WithOutputTokensPerUnit sets the OutputTokensPerUnit field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the OutputTokensPerUnit field is set to the value of the last call.
+func (b *RateLimitApplyConfiguration) WithOutputTokensPerUnit(value uint32) *RateLimitApplyConfiguration {
+	b.OutputTokensPerUnit = &value
 	return b
 }
 

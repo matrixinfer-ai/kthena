@@ -52,15 +52,19 @@ spec:
                   `model` in the LLM request, it could be a base model name, lora adapter name or even
                   a virtual model name. This field is used to match scenarios other than model adapter name and
                   this field could be empty, but it and  `ModelAdapters` can't both be empty.
-                minLength: 3
                 type: string
                 x-kubernetes-validations:
                 - message: modelName is immutable
                   rule: self == oldSelf
               rateLimit:
-                description: Rate limit for `ModelName`
+                description: |-
+                  Rate limit for the LLM request based on prompt tokens or output tokens.
+                  There is no limitation if this field is not set.
                 properties:
-                  tokensPerUnit:
+                  inputTokensPerUnit:
+                    format: int32
+                    type: integer
+                  outputTokensPerUnit:
                     format: int32
                     type: integer
                   unit:
@@ -72,7 +76,8 @@ spec:
                     - month
                     type: string
                 required:
-                - tokensPerUnit
+                - inputTokensPerUnit
+                - outputTokensPerUnit
                 - unit
                 type: object
               rules:
@@ -118,7 +123,6 @@ spec:
                       type: object
                     name:
                       description: Rule name
-                      minLength: 3
                       type: string
                     targetModels:
                       items:
@@ -127,7 +131,6 @@ spec:
                           modelServerName:
                             description: ModelServerName is used to specify the correlated
                               modelServer within the same namespace.
-                            minLength: 3
                             type: string
                           weight:
                             default: 100
