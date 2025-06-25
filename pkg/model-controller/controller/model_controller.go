@@ -178,6 +178,7 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 	return nil
 }
 
+// newCondition returns a condition
 func newCondition(conditionType string, status metav1.ConditionStatus, reason string, message string) metav1.Condition {
 	return metav1.Condition{
 		Type:               conditionType,
@@ -188,6 +189,7 @@ func newCondition(conditionType string, status metav1.ConditionStatus, reason st
 	}
 }
 
+// updateModelStatus updates model status.
 func (mc *ModelController) updateModelStatus(ctx context.Context, model *registryv1alpha1.Model) error {
 	modelInferList, err := mc.listModelInferByLabel(model)
 	if err != nil {
@@ -259,6 +261,7 @@ func (mc *ModelController) listModelInferByLabel(model *registryv1alpha1.Model) 
 	}
 }
 
+// updateModelInfer updates model infer when model changed
 func (mc *ModelController) updateModelInfer(ctx context.Context, model *registryv1alpha1.Model) error {
 	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeActive),
 		metav1.ConditionFalse, ModelUpdatingReason, "Model is updating, not ready yet"))
