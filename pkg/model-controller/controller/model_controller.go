@@ -27,6 +27,7 @@ import (
 const (
 	ModelInitsReason    = "ModelInits"
 	ModelUpdatingReason = "ModelUpdating"
+	ModelActiveReason   = "ModelActive"
 )
 
 type ModelController struct {
@@ -174,6 +175,35 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 	if model.Generation != model.Status.ObservedGeneration {
 		klog.Info("model generation is not equal to observed generation, update model infer")
 		return mc.updateModelInfer(ctx, model)
+	}
+	return mc.isModelInferActive(ctx, model)
+}
+
+// isModelInferActive checks all Model Infers that belong to this model are available
+func (mc *ModelController) isModelInferActive(ctx context.Context, model *registryv1alpha1.Model) error {
+	modelInferList, err := mc.listModelInferByLabel(model)
+	if err != nil {
+		return err
+	}
+	if len(modelInferList) != len(model.Spec.Backends) {
+		return fmt.Errorf("model infer number not equal to backend number")
+	}
+	for _, modelInfer := range modelInferList {
+		if !meta.IsStatusConditionPresentAndEqual(modelInfer.Status.Conditions, string(workload.ModelInferSetAvailable), metav1.ConditionTrue) {
+			// requeue until all Model Infers are active
+			klog.InfoS("model infer is not active", "model infer", modelInfer.Name, "namespace", modelInfer.Namespace)
+			return nil
+		}
+	}
+	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeActive),
+		metav1.ConditionTrue, ModelActiveReason, "Model is active"))
+	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeInitializing),
+		metav1.ConditionFalse, ModelActiveReason, "Model is active, so initializing is false"))
+	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeUpdating),
+		metav1.ConditionFalse, ModelActiveReason, "Model not updating"))
+	if err := mc.updateModelStatus(ctx, model); err != nil {
+		klog.Errorf("update model status failed: %v", err)
+		return err
 	}
 	return nil
 }
