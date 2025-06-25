@@ -15,6 +15,7 @@ import (
 	registryLister "matrixinfer.ai/matrixinfer/client-go/listers/registry/v1alpha1"
 	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
+	"matrixinfer.ai/matrixinfer/pkg/model-controller/config"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -25,6 +26,7 @@ const (
 	ModelInitsReason    = "ModelInits"
 	ModelUpdatingReason = "ModelUpdating"
 	ModelActiveReason   = "ModelActive"
+	ConfigMapName       = "model-config-map"
 )
 
 type ModelController struct {
@@ -265,6 +267,7 @@ func NewModelController(kubeClientSet kubernetes.Interface, modelClient clientse
 		return nil
 	}
 	mc.syncHandler = mc.reconcile
+	mc.loadConfigFromConfigMap()
 	return mc
 }
 
@@ -305,4 +308,23 @@ func (mc *ModelController) updateModelInfer(ctx context.Context, model *registry
 		}
 	}
 	return nil
+}
+
+func (mc *ModelController) loadConfigFromConfigMap() {
+	// todo configmap namespace and name is hard-code
+	cm, err := mc.kubeClientSet.CoreV1().ConfigMaps("default").Get(context.Background(), ConfigMapName, metav1.GetOptions{})
+	if err != nil {
+		klog.Warningf("ConfigMap does not exist. Error: %v", err)
+		return
+	}
+	if modelInferDownloaderImage, ok := cm.Data["model_infer_downloader_image"]; !ok {
+		klog.Errorf("failed to load modelInferDownloaderImage: %w", err)
+	} else {
+		config.Config.SetModelInferDownloaderImage(modelInferDownloaderImage)
+	}
+	if modelInferRuntimeImage, ok := cm.Data["model_infer_runtime_image"]; !ok {
+		klog.Errorf("failed to load model_infer_runtime_image: %w", err)
+	} else {
+		config.Config.SetModelInferRuntimeImage(modelInferRuntimeImage)
+	}
 }

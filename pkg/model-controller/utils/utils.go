@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
+	"matrixinfer.ai/matrixinfer/pkg/model-controller/config"
 	"sort"
 	"strconv"
 	"strings"
@@ -27,9 +28,6 @@ const (
 
 	VllmTemplatePath              = "templates/vllm.yaml"
 	VllmDisaggregatedTemplatePath = "templates/vllm-pd.yaml"
-
-	DefaultModelInferDownloaderImage = "matrixinfer/downloader:latest"
-	DefaultModelInferRuntimeImage    = "matrixinfer/runtime:latest"
 
 	VllmMultiNodeServingScriptPath = "/vllm-workspace/vllm/examples/online_serving/multi-node-serving.sh"
 )
@@ -141,8 +139,8 @@ func buildVllmModelInfer(model *registry.Model, backendIdx int) (*workload.Model
 		"MODEL_URL":                    backend.ModelURI,
 		"MODEL_DOWNLOAD_PATH":          weightsPath,
 		"MODEL_DOWNLOAD_ENV":           backend.Env,
-		"MODEL_INFER_DOWNLOADER_IMAGE": DefaultModelInferDownloaderImage, // todo: get from configmap
-		"MODEL_INFER_RUNTIME_IMAGE":    DefaultModelInferRuntimeImage,    // todo: get from configmap
+		"MODEL_INFER_DOWNLOADER_IMAGE": config.Config.GetModelInferDownloaderImage(),
+		"MODEL_INFER_RUNTIME_IMAGE":    config.Config.GetModelInferRuntimeImage(),
 		"ENGINE_SERVER_RESOURCES":      workersMap[registry.ModelWorkerTypeServer].Resources,
 		"ENGINE_SERVER_IMAGE":          workersMap[registry.ModelWorkerTypeServer].Image,
 		"ENGINE_SERVER_COMMAND":        commands,
