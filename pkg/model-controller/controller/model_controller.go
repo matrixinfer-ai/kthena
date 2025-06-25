@@ -318,12 +318,12 @@ func (mc *ModelController) loadConfigFromConfigMap() {
 		return
 	}
 	if modelInferDownloaderImage, ok := cm.Data["model_infer_downloader_image"]; !ok {
-		klog.Errorf("failed to load modelInferDownloaderImage: %w", err)
+		klog.Errorf("failed to load modelInferDownloaderImage: %v", err)
 	} else {
 		config.Config.SetModelInferDownloaderImage(modelInferDownloaderImage)
 	}
 	if modelInferRuntimeImage, ok := cm.Data["model_infer_runtime_image"]; !ok {
-		klog.Errorf("failed to load model_infer_runtime_image: %w", err)
+		klog.Errorf("failed to load model_infer_runtime_image: %v", err)
 	} else {
 		config.Config.SetModelInferRuntimeImage(modelInferRuntimeImage)
 	}
