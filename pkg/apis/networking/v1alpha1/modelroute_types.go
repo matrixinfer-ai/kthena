@@ -26,7 +26,6 @@ type ModelRouteSpec struct {
 	// a virtual model name. This field is used to match scenarios other than model adapter name and
 	// this field could be empty, but it and  `ModelAdapters` can't both be empty.
 	//
-	// +kubebuilder:validation:MinLength=3
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="modelName is immutable"
 	ModelName string `json:"modelName,omitempty"`
 
@@ -43,14 +42,14 @@ type ModelRouteSpec struct {
 	// +kubebuilder:validation:MaxItems=16
 	Rules []*Rule `json:"rules"`
 
-	// Rate limit for `ModelName`
+	// Rate limit for the LLM request based on prompt tokens or output tokens.
+	// There is no limitation if this field is not set.
 	// +optional
 	RateLimit *RateLimit `json:"rateLimit,omitempty"`
 }
 
 type Rule struct {
 	// Rule name
-	// +kubebuilder:validation:MinLength=3
 	Name string `json:"name,omitempty"`
 	// If no `modelMatch` is specified, it will be default route.
 	ModelMatch *ModelMatch `json:"modelMatch,omitempty"`
@@ -85,7 +84,6 @@ type StringMatch struct {
 type TargetModel struct {
 	// ModelServerName is used to specify the correlated modelServer within the same namespace.
 	//
-	// +kubebuilder:validation:MinLength=3
 	// +kubebuilder:validation:required
 	ModelServerName string `json:"modelServerName"`
 	// Weight is used to specify the percentage of traffic should be sent to the target model.
@@ -99,8 +97,9 @@ type TargetModel struct {
 }
 
 type RateLimit struct {
-	TokensPerUnit uint32        `json:"tokensPerUnit"`
-	Unit          RateLimitUnit `json:"unit"`
+	InputTokensPerUnit  *uint32       `json:"inputTokensPerUnit"`
+	OutputTokensPerUnit *uint32       `json:"outputTokensPerUnit"`
+	Unit                RateLimitUnit `json:"unit"`
 }
 
 // +kubebuilder:validation:Enum=second;minute;hour;day;month
