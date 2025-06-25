@@ -2,7 +2,7 @@ package scheduler
 
 import (
 	"fmt"
-	"math"
+	"sort"
 
 	"github.com/sirupsen/logrus"
 
@@ -16,6 +16,11 @@ import (
 
 var (
 	log = logger.NewLogger("scheduler")
+)
+
+const (
+	// Get the top five scoring podinfo
+	topFewPodInfos = 5
 )
 
 type SchedulerImpl struct {
@@ -66,24 +71,26 @@ func NewScheduler(store datastore.Store) Scheduler {
 	}
 }
 
-func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.PodInfo, pdGroup *aiv1alpha1.PDGroup) (*TargetPods, error) {
+func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.PodInfo, pdGroup *aiv1alpha1.PDGroup) ([]*datastore.PodInfo, []*datastore.PodInfo, error) {
 	if len(pods) == 0 {
-		return nil, fmt.Errorf("pods shouldn't be empty")
+		return nil, nil, fmt.Errorf("pods shouldn't be empty")
 	}
 
 	prompt, err := utils.GetPrompt(req)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	ctx := &framework.Context{
-		Model:  req["model"].(string),
-		Prompt: prompt,
+	ctxSlice := make([]*framework.Context, topFewPodInfos)
+	for index := range ctxSlice {
+		ctxSlice[index].Model = req["model"].(string)
+		ctxSlice[index].Prompt = prompt
 	}
 
-	pods, err = s.RunFilterPlugins(pods, ctx)
+	// Since the elements in the ctxSlice have the same model and prompt, it is straightforward to take the first element
+	pods, err = s.RunFilterPlugins(pods, ctxSlice[0])
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	originalPods := make([]*datastore.PodInfo, len(pods))
@@ -97,65 +104,52 @@ func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.P
 		// NOTE: Further optimization can be done on whether to filter out decode pod or prefill pod first,
 		// or even how to select the best PD group.
 		pdFilter = plugins.NewPDFilter(pdGroup.DecodeLabels, pdGroup.PrefillLabels, pdGroup.GroupKey)
-		pods = pdFilter.Filter(ctx, pods)
+		pods = pdFilter.Filter(ctxSlice[0], pods)
 
 		if len(pods) == 0 {
-			return nil, fmt.Errorf("no decode pod found")
+			return nil, nil, fmt.Errorf("no decode pod found")
 		}
 	}
 
 	log.Debugf("Running score plugins for decode pod")
-	scores, err := s.RunScorePlugins(pods, ctx)
+	scores, err := s.RunScorePlugins(pods, ctxSlice[0])
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	maxScore := math.MinInt
-	best := pods[0]
-	for pod, score := range scores {
-		if score > maxScore {
-			maxScore = score
-			best = pod
-		}
+	topNDecodePod := TopNPodInfosByValue(scores, topFewPodInfos)
+	for index := range topNDecodePod {
+		ctxSlice[index].PrefillPod = topNDecodePod[index]
 	}
 
-	ctx.DecodePod = best
-
+	topNPrefillPod := []*datastore.PodInfo{}
 	if pdGroup != nil {
 		// Filter prefill pods if PD disaggregation is enabled.
 		// Also make sure the prefill pod is in the same infer group of decode pod we get before.
-		originalPods = pdFilter.Filter(ctx, originalPods)
+		originalPods = pdFilter.Filter(ctxSlice[0], originalPods)
 
 		if len(originalPods) == 0 {
-			return nil, fmt.Errorf("no prefill pod found")
+			return nil, nil, fmt.Errorf("no prefill pod found")
 		}
 
 		log.Debugf("Running score plugins for prefill pod")
-		scores, err = s.RunScorePlugins(originalPods, ctx)
+		scores, err = s.RunScorePlugins(originalPods, ctxSlice[0])
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
-		maxScore = math.MinInt
-		best = originalPods[0]
-		for pod, score := range scores {
-			if score > maxScore {
-				maxScore = score
-				best = pod
-			}
+		topNPrefillPod = TopNPodInfosByValue(scores, topFewPodInfos)
+		for index := range topNPrefillPod {
+			ctxSlice[index].PrefillPod = topNPrefillPod[index]
 		}
-
-		ctx.PrefillPod = best
 	}
 
 	// TODO: return several best scorred pods to do fallback in case failure.
+	for i := range ctxSlice {
+		s.RunPostHooks(ctxSlice[i])
+	}
 
-	s.RunPostHooks(ctx)
-
-	return &TargetPods{
-		DecodePod:  ctx.DecodePod,
-		PrefillPod: ctx.PrefillPod,
-	}, nil
+	return topNDecodePod, topNPrefillPod, nil
 }
 
 func (s *SchedulerImpl) RunFilterPlugins(pods []*datastore.PodInfo, ctx *framework.Context) ([]*datastore.PodInfo, error) {
@@ -202,4 +196,27 @@ func (s *SchedulerImpl) RunPostHooks(ctx *framework.Context) {
 	for _, hook := range s.postHooks {
 		hook.PostSchedule(ctx)
 	}
+}
+
+func TopNPodInfosByValue(m map[*datastore.PodInfo]int, n int) []*datastore.PodInfo {
+	type podInfoWithValue struct {
+		pod   *datastore.PodInfo
+		score int
+	}
+
+	var list []podInfoWithValue
+	for k, v := range m {
+		list = append(list, podInfoWithValue{pod: k, score: v})
+	}
+
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].score > list[j].score
+	})
+
+	res := []*datastore.PodInfo{}
+	for i := 0; i < n && i < len(list); i++ {
+		res = append(res, list[i].pod)
+	}
+
+	return res
 }

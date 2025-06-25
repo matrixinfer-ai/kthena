@@ -115,8 +115,8 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 			modelRequest["model"] = *model
 		}
 
-		// call scheduler.Schedule
-		targetPods, err := r.scheduler.Schedule(modelRequest, pods, pdGroup)
+		// call scheduler.Schedule. Get top n decode pods and perfill pods
+		dPods, pPods, err := r.scheduler.Schedule(modelRequest, pods, pdGroup)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, fmt.Sprintf("can't schedule to target pod: %v", err))
 			return
@@ -131,85 +131,106 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 			req.Header.Set("x-request-id", requestID)
 		}
 
-		if targetPods.PrefillPod != nil {
-			log.Debugf("prefill pod is %v", targetPods.PrefillPod.Pod.Name)
+		pSchedulingSuccess := false
+		if len(pPods) != 0 {
+			for i := range pPods {
+				log.Debugf("prefill pod is %v", pPods[i].Pod.Name)
 
-			// First request to prefill pod
-			prefillReq := req.Clone(req.Context())
-			prefillBody := make(map[string]interface{})
-			for k, v := range modelRequest {
-				prefillBody[k] = v
+				// First request to prefill pod
+				prefillReq := req.Clone(req.Context())
+				prefillBody := make(map[string]interface{})
+				for k, v := range modelRequest {
+					prefillBody[k] = v
+				}
+				prefillBody["max_tokens"] = 1
+
+				// Remove stream and stream_options headers from prefill request if they exist
+				// This is necessary because prefill request should not be streamed
+				delete(prefillBody, "stream")
+				delete(prefillBody, "stream_options")
+
+				body, err := json.Marshal(prefillBody)
+				if err != nil {
+					c.AbortWithStatusJSON(http.StatusInternalServerError, fmt.Sprintf("marshal prefill body failed: %v", err))
+					return
+				}
+
+				// step 1: change request URL to prefill pod URL.
+				prefillReq.URL.Host = fmt.Sprintf("%s:%d", pPods[i].Pod.Status.PodIP, port)
+				prefillReq.URL.Scheme = "http"
+				prefillReq.Body = io.NopCloser(bytes.NewBuffer(body))
+				prefillReq.ContentLength = int64(len(body))
+
+				// step 2: use http.Transport to do request to prefill pod.
+				transport := http.DefaultTransport
+				resp, err := transport.RoundTrip(prefillReq)
+				if err != nil {
+					log.Errorf("prefill request error: %v", err)
+					// c.AbortWithStatusJSON(http.StatusInternalServerError, "prefill request error")
+					continue
+				}
+				defer resp.Body.Close()
+
+				if resp.StatusCode >= 300 {
+					log.Errorf("perfill http resp error, http code is %d", resp.StatusCode)
+					continue
+				}
+				pSchedulingSuccess = true
+				break
 			}
-			prefillBody["max_tokens"] = 1
+		}
 
-			// Remove stream and stream_options headers from prefill request if they exist
-			// This is necessary because prefill request should not be streamed
-			delete(prefillBody, "stream")
-			delete(prefillBody, "stream_options")
+		if !pSchedulingSuccess {
+			log.Error("Perfill pods schedule all failed")
+			return
+		}
 
-			body, err := json.Marshal(prefillBody)
+		for i := range dPods {
+			body, err := json.Marshal(modelRequest)
 			if err != nil {
-				c.AbortWithStatusJSON(http.StatusInternalServerError, fmt.Sprintf("marshal prefill body failed: %v", err))
+				c.AbortWithStatusJSON(http.StatusInternalServerError, fmt.Sprintf("marshal http body failed: %v", err))
 				return
 			}
 
-			// step 1: change request URL to prefill pod URL.
-			prefillReq.URL.Host = fmt.Sprintf("%s:%d", targetPods.PrefillPod.Pod.Status.PodIP, port)
-			prefillReq.URL.Scheme = "http"
-			prefillReq.Body = io.NopCloser(bytes.NewBuffer(body))
-			prefillReq.ContentLength = int64(len(body))
+			log.Debugf("target/decode pod is %v", dPods[i].Pod.Name)
 
-			// step 2: use http.Transport to do request to prefill pod.
+			// step 1: change request URL to real server URL.
+			req.URL.Host = fmt.Sprintf("%s:%d", dPods[i].Pod.Status.PodIP, port)
+			req.URL.Scheme = "http"
+			req.Body = io.NopCloser(bytes.NewBuffer(body))
+			req.ContentLength = int64(len(body))
+
+			// step 2: use http.Transport to do request to real server.
 			transport := http.DefaultTransport
-			resp, err := transport.RoundTrip(prefillReq)
+			resp, err := transport.RoundTrip(req)
 			if err != nil {
-				log.Errorf("prefill request error: %v", err)
-				c.AbortWithStatusJSON(http.StatusInternalServerError, "prefill request error")
-				return
+				log.Errorf("error: %v", err)
+				continue
 			}
-			resp.Body.Close()
-		}
 
-		body, err := json.Marshal(modelRequest)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, fmt.Sprintf("marshal http body failed: %v", err))
-			return
-		}
-
-		log.Debugf("target/decode pod is %v", targetPods.DecodePod.Pod.Name)
-
-		// step 1: change request URL to real server URL.
-		req.URL.Host = fmt.Sprintf("%s:%d", targetPods.DecodePod.Pod.Status.PodIP, port)
-		req.URL.Scheme = "http"
-		req.Body = io.NopCloser(bytes.NewBuffer(body))
-		req.ContentLength = int64(len(body))
-
-		// step 2: use http.Transport to do request to real server.
-		transport := http.DefaultTransport
-		resp, err := transport.RoundTrip(req)
-		if err != nil {
-			log.Errorf("error: %v", err)
-			c.String(http.StatusInternalServerError, "error")
-			return
-		}
-
-		// step 3: return real server response to downstream.
-		for k, vv := range resp.Header {
-			for _, v := range vv {
-				c.Header(k, v)
+			if resp.StatusCode >= 300 {
+				log.Errorf("perfill http resp error, http code is %d", resp.StatusCode)
+				continue
 			}
-		}
-		defer resp.Body.Close()
 
-		// Maybe we need to read the response to get the tokens for ratelimiting later
-		c.Stream(func(w io.Writer) bool {
-			buf := make([]byte, 512)
-			n, err := resp.Body.Read(buf)
-			if n > 0 {
-				// TODO: add err check
-				_, _ = w.Write(buf[:n])
+			// step 3: return real server response to downstream.
+			for k, vv := range resp.Header {
+				for _, v := range vv {
+					c.Header(k, v)
+				}
 			}
-			return err != io.EOF
-		})
+			defer resp.Body.Close()
+
+			// Maybe we need to read the response to get the tokens for ratelimiting later
+			c.Stream(func(w io.Writer) bool {
+				buf := make([]byte, 512)
+				n, err := resp.Body.Read(buf)
+				if n > 0 {
+					w.Write(buf[:n])
+				}
+				return err != io.EOF
+			})
+			break
+		}
 	}
 }
