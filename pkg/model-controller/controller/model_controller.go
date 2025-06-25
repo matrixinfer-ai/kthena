@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -127,12 +126,6 @@ func (mc *ModelController) deleteModel(obj interface{}) {
 		return
 	}
 	klog.Infof("Delete model: %s", model.Name)
-	if err := mc.store.DeleteModel(types.NamespacedName{
-		Namespace: model.Namespace,
-		Name:      model.Name,
-	}); err != nil {
-		klog.Errorf("failed to delete model %s: %v", model.Name, err)
-	}
 }
 
 // reconcile is part of the main kubernetes reconciliation loop which aims to
