@@ -240,7 +240,8 @@ func NewModelController(kubeClient kubernetes.Interface, modelClient clientset.I
 		modelClient:    modelClient,
 		modelsLister:   modelInformer.Lister(),
 		modelsInformer: modelInformer.Informer(),
-		workqueue:      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Models"),
+		// nolint
+		workqueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Models"),
 	}
 	klog.Info("Set the Model event handler")
 	_, err := modelInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -283,13 +284,13 @@ func (mc *ModelController) updateModelInfer(ctx context.Context, model *registry
 		return err
 	}
 	for _, modelInfer := range modelInfers {
-		oldModelInfer := &workload.ModelInfer{}
 		// Get modelInfer resource version to update it
-		if oldModelInfer, err = mc.modelClient.WorkloadV1alpha1().ModelInfers(modelInfer.Namespace).Get(ctx, modelInfer.Name, metav1.GetOptions{}); err != nil {
-			return err
-		}
-		modelInfer.ResourceVersion = oldModelInfer.ResourceVersion
-		if _, err := mc.modelClient.WorkloadV1alpha1().ModelInfers(model.Namespace).Update(ctx, modelInfer, metav1.UpdateOptions{}); err != nil {
+		if oldModelInfer, err := mc.modelClient.WorkloadV1alpha1().ModelInfers(modelInfer.Namespace).Get(ctx, modelInfer.Name, metav1.GetOptions{}); err == nil {
+			modelInfer.ResourceVersion = oldModelInfer.ResourceVersion
+			if _, err := mc.modelClient.WorkloadV1alpha1().ModelInfers(model.Namespace).Update(ctx, modelInfer, metav1.UpdateOptions{}); err != nil {
+				return err
+			}
+		} else {
 			return err
 		}
 	}
