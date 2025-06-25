@@ -30,8 +30,8 @@ const (
 )
 
 type ModelController struct {
-	// client for k8s
-	kubeClientSet kubernetes.Interface
+	// Client for k8s. Use it to call K8S API
+	kubeClient kubernetes.Interface
 	// client for custom resource
 	modelClient clientset.Interface
 
@@ -235,7 +235,7 @@ func (mc *ModelController) updateModelStatus(ctx context.Context, model *registr
 	return nil
 }
 
-func NewModelController(kubeClientSet kubernetes.Interface, modelClient clientset.Interface) *ModelController {
+func NewModelController(kubeClient kubernetes.Interface, modelClient clientset.Interface) *ModelController {
 	modelInformerFactory := informersv1alpha1.NewSharedInformerFactory(modelClient, 0)
 	modelInformer := modelInformerFactory.Registry().V1alpha1().Models()
 	store, err := datastore.New()
@@ -243,7 +243,7 @@ func NewModelController(kubeClientSet kubernetes.Interface, modelClient clientse
 		klog.Fatal("Unable to create data store")
 	}
 	mc := &ModelController{
-		kubeClientSet:  kubeClientSet,
+		kubeClient:     kubeClient,
 		modelClient:    modelClient,
 		modelsLister:   modelInformer.Lister(),
 		modelsInformer: modelInformer.Informer(),
@@ -312,7 +312,7 @@ func (mc *ModelController) updateModelInfer(ctx context.Context, model *registry
 
 func (mc *ModelController) loadConfigFromConfigMap() {
 	// todo configmap namespace and name is hard-code
-	cm, err := mc.kubeClientSet.CoreV1().ConfigMaps("default").Get(context.Background(), ConfigMapName, metav1.GetOptions{})
+	cm, err := mc.kubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), ConfigMapName, metav1.GetOptions{})
 	if err != nil {
 		klog.Warningf("ConfigMap does not exist. Error: %v", err)
 		return
