@@ -4,11 +4,18 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/sirupsen/logrus"
+
 	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
+)
+
+var (
+	log = logger.NewLogger("scheduler")
 )
 
 type SchedulerImpl struct {
@@ -97,6 +104,7 @@ func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.P
 		}
 	}
 
+	log.Debugf("Running score plugins for decode pod")
 	scores, err := s.RunScorePlugins(pods, ctx)
 	if err != nil {
 		return nil, err
@@ -122,6 +130,7 @@ func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.P
 			return nil, fmt.Errorf("no prefill pod found")
 		}
 
+		log.Debugf("Running score plugins for prefill pod")
 		scores, err = s.RunScorePlugins(originalPods, ctx)
 		if err != nil {
 			return nil, err
@@ -164,11 +173,24 @@ func (s *SchedulerImpl) RunScorePlugins(pods []*datastore.PodInfo, ctx *framewor
 	res := make(map[*datastore.PodInfo]int)
 	for _, scorePlugin := range s.scorePlugins {
 		scores := scorePlugin.plugin.Score(ctx, pods)
+		log.Debugf("ScorePlugin: %s", scorePlugin.plugin.Name())
 		for k, v := range scores {
+			if k.Pod != nil {
+				log.Debugf("  Pod: %s/%s, Score: %d", k.Pod.Namespace, k.Pod.Name, v)
+			}
 			if _, ok := res[k]; !ok {
 				res[k] = v * scorePlugin.weight
 			} else {
 				res[k] += v * scorePlugin.weight
+			}
+		}
+	}
+
+	if log.Logger != nil && log.Logger.IsLevelEnabled(logrus.DebugLevel) {
+		log.Debugf("Final Pod Scores:")
+		for k, v := range res {
+			if k.Pod != nil {
+				log.Debugf("  Pod: %s/%s, Final Score: %d", k.Pod.Namespace, k.Pod.Name, v)
 			}
 		}
 	}
