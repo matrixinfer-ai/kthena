@@ -28,8 +28,10 @@ const (
 )
 
 type ModelController struct {
+	// client for k8s
 	kubeClientSet kubernetes.Interface
-	modelClient   clientset.Interface
+	// client for custom resource
+	modelClient clientset.Interface
 
 	syncHandler    func(ctx context.Context, miKey string) error
 	modelsLister   registryLister.ModelLister
