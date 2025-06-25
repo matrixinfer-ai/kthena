@@ -3,7 +3,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -21,6 +20,7 @@ import (
 	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sync"
 )
 
@@ -140,19 +140,15 @@ func (mc *ModelController) deleteModel(obj interface{}) {
 // reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName string) error {
-	klog.V(4).Info("Started syncing Model")
 	namespace, name, err := cache.SplitMetaNamespaceKey(namespaceAndName)
 	if err != nil {
 		return fmt.Errorf("invalid resource key: %s", err)
 	}
 	model, err := mc.modelsLister.Models(namespace).Get(name)
-	if apierrors.IsNotFound(err) {
-		klog.V(4).Infof("Model %s does not exist anymore", namespaceAndName)
-		return nil
-	}
 	if err != nil {
-		return err
+		return client.IgnoreNotFound(err)
 	}
+	klog.InfoS("Start to process model", "namespace", namespace, "model name", model.Name, "model status", model.Status)
 	if len(model.Status.Conditions) == 0 {
 		klog.Info("model status condition is null, create model infer")
 		if modelInfers, err := utils.BuildModelInferCR(model); err != nil {
