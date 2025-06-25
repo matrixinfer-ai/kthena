@@ -2,15 +2,16 @@ package main
 
 import (
 	"context"
+	"os"
+	"os/signal"
+	"syscall"
+
 	"github.com/spf13/pflag"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/controller"
-	"os"
-	"os/signal"
-	"syscall"
 )
 
 func main() {

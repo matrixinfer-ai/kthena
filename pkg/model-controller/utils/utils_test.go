@@ -1,8 +1,9 @@
 package utils
 
 import (
-	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	"testing"
+
+	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
 
 func TestGetMountPath(t *testing.T) {

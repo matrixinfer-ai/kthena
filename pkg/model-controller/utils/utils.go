@@ -7,6 +7,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"sort"
+	"strconv"
+	"strings"
+
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,9 +18,6 @@ import (
 	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/config"
-	"sort"
-	"strconv"
-	"strings"
 )
 
 const (

@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"testing"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -9,7 +11,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
-	"testing"
 )
 
 // todo fix it

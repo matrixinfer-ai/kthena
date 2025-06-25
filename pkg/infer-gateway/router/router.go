@@ -8,7 +8,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-    "github.com/google/uuid"
+	"github.com/google/uuid"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/filters/ratelimit"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
