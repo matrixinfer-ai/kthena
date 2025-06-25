@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -15,7 +14,6 @@ import (
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
 	informersv1alpha1 "matrixinfer.ai/matrixinfer/client-go/informers/externalversions"
 	registryLister "matrixinfer.ai/matrixinfer/client-go/listers/registry/v1alpha1"
-	workloadLister "matrixinfer.ai/matrixinfer/client-go/listers/workload/v1alpha1"
 	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/datastore"
@@ -37,8 +35,6 @@ type ModelController struct {
 	syncHandler    func(ctx context.Context, miKey string) error
 	modelsLister   registryLister.ModelLister
 	modelsInformer cache.Controller
-
-	modelInfersLister workloadLister.ModelInferLister
 
 	// nolint
 	workqueue workqueue.RateLimitingInterface
@@ -181,14 +177,14 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 
 // isModelInferActive checks all Model Infers that belong to this model are available
 func (mc *ModelController) isModelInferActive(ctx context.Context, model *registryv1alpha1.Model) error {
-	modelInferList, err := mc.listModelInferByLabel(model)
+	modelInferList, err := mc.listModelInferByLabel(ctx, model)
 	if err != nil {
 		return err
 	}
-	if len(modelInferList) != len(model.Spec.Backends) {
+	if len(modelInferList.Items) != len(model.Spec.Backends) {
 		return fmt.Errorf("model infer number not equal to backend number")
 	}
-	for _, modelInfer := range modelInferList {
+	for _, modelInfer := range modelInferList.Items {
 		if !meta.IsStatusConditionPresentAndEqual(modelInfer.Status.Conditions, string(workload.ModelInferSetAvailable), metav1.ConditionTrue) {
 			// requeue until all Model Infers are active
 			klog.InfoS("model infer is not active", "model infer", modelInfer.Name, "namespace", modelInfer.Namespace)
@@ -221,12 +217,12 @@ func newCondition(conditionType string, status metav1.ConditionStatus, reason st
 
 // updateModelStatus updates model status.
 func (mc *ModelController) updateModelStatus(ctx context.Context, model *registryv1alpha1.Model) error {
-	modelInferList, err := mc.listModelInferByLabel(model)
+	modelInferList, err := mc.listModelInferByLabel(ctx, model)
 	if err != nil {
 		return err
 	}
 	var backendStatus []registryv1alpha1.ModelBackendStatus
-	for _, infer := range modelInferList {
+	for _, infer := range modelInferList.Items {
 		backendStatus = append(backendStatus, registryv1alpha1.ModelBackendStatus{
 			Name:     infer.Name,
 			Hash:     "", // todo: get hash
@@ -245,19 +241,17 @@ func (mc *ModelController) updateModelStatus(ctx context.Context, model *registr
 func NewModelController(kubeClientSet kubernetes.Interface, modelClient clientset.Interface) *ModelController {
 	modelInformerFactory := informersv1alpha1.NewSharedInformerFactory(modelClient, 0)
 	modelInformer := modelInformerFactory.Registry().V1alpha1().Models()
-	modelInferInformer := modelInformerFactory.Workload().V1alpha1().ModelInfers()
 	store, err := datastore.New()
 	if err != nil {
 		klog.Fatal("Unable to create data store")
 	}
 	mc := &ModelController{
-		kubeClientSet:     kubeClientSet,
-		modelClient:       modelClient,
-		modelsLister:      modelInformer.Lister(),
-		modelsInformer:    modelInformer.Informer(),
-		modelInfersLister: modelInferInformer.Lister(),
-		workqueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Models"),
-		store:             store,
+		kubeClientSet:  kubeClientSet,
+		modelClient:    modelClient,
+		modelsLister:   modelInformer.Lister(),
+		modelsInformer: modelInformer.Informer(),
+		workqueue:      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Models"),
+		store:          store,
 	}
 	klog.Info("Set the Model event handler")
 	_, err = modelInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -280,11 +274,10 @@ func NewModelController(kubeClientSet kubernetes.Interface, modelClient clientse
 }
 
 // listModelInferByLabel list all model infer which label key is "owner" and label value is model uid
-func (mc *ModelController) listModelInferByLabel(model *registryv1alpha1.Model) ([]*workload.ModelInfer, error) {
-	selector := labels.SelectorFromSet(map[string]string{
-		utils.ModelInferOwnerKey: string(model.UID),
-	})
-	if modelInfers, err := mc.modelInfersLister.ModelInfers(model.Namespace).List(selector); err != nil {
+func (mc *ModelController) listModelInferByLabel(ctx context.Context, model *registryv1alpha1.Model) (*workload.ModelInferList, error) {
+	if modelInfers, err := mc.modelClient.WorkloadV1alpha1().ModelInfers(model.Namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", utils.ModelInferOwnerKey, model.UID),
+	}); err != nil {
 		return nil, err
 	} else {
 		return modelInfers, nil
