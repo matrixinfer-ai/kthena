@@ -97,9 +97,20 @@ type TargetModel struct {
 }
 
 type RateLimit struct {
-	InputTokensPerUnit  *uint32       `json:"inputTokensPerUnit"`
-	OutputTokensPerUnit *uint32       `json:"outputTokensPerUnit"`
-	Unit                RateLimitUnit `json:"unit"`
+	// InputTokensPerUnit is the maximum number of input tokens allowed per unit of time.
+	// If this field is not set, there is no limit on input tokens.
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	InputTokensPerUnit *uint32 `json:"inputTokensPerUnit,omitempty"`
+	// OutputTokensPerUnit is the maximum number of output tokens allowed per unit of time.
+	// If this field is not set, there is no limit on output tokens.
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	OutputTokensPerUnit *uint32 `json:"outputTokensPerUnit,omitempty"`
+	// Unit is the time unit for the rate limit.
+	// +kubebuilder:default=second
+	// +kubebuilder:validation:Enum=second;minute;hour;day;month
+	Unit RateLimitUnit `json:"unit"`
 }
 
 // +kubebuilder:validation:Enum=second;minute;hour;day;month

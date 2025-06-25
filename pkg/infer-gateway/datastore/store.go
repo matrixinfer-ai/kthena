@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
-	"reflect"
 	"regexp"
 	"strings"
 	"sync"
@@ -43,8 +42,9 @@ var (
 type EventType string
 
 const (
-	// EventPodDeleted is triggered when a pod is deleted
-	EventPodDeleted EventType = "PodDeleted"
+	EventAdd    EventType = "add"
+	EventUpdate EventType = "update"
+	EventDelete EventType = "delete"
 	// Add more event types here as needed
 )
 
@@ -52,6 +52,9 @@ const (
 type EventData struct {
 	EventType EventType
 	Pod       types.NamespacedName
+
+	ModelName  string
+	ModelRoute *aiv1alpha1.ModelRoute
 	// Add more fields as needed for other event types
 }
 
@@ -81,8 +84,7 @@ type Store interface {
 	DeleteModelRoute(namespacedName string) error
 
 	// New methods for callback management
-	RegisterCallback(eventType EventType, callback CallbackFunc)
-	UnregisterCallback(eventType EventType, callback CallbackFunc)
+	RegisterCallback(kind string, callback CallbackFunc)
 }
 
 type modelServer struct {
@@ -132,7 +134,7 @@ type store struct {
 	loraRoutes map[string]*aiv1alpha1.ModelRoute
 
 	// New fields for callback management
-	callbacks map[EventType][]CallbackFunc
+	callbacks map[string][]CallbackFunc
 }
 
 func New() Store {
@@ -142,7 +144,7 @@ func New() Store {
 		routeInfo:   make(map[string]*modelRouteInfo),
 		routes:      make(map[string]*aiv1alpha1.ModelRoute),
 		loraRoutes:  make(map[string]*aiv1alpha1.ModelRoute),
-		callbacks:   make(map[EventType][]CallbackFunc),
+		callbacks:   make(map[string][]CallbackFunc),
 	}
 }
 
@@ -303,8 +305,8 @@ func (s *store) DeletePod(podName types.NamespacedName) error {
 	}
 	s.mutex.Unlock()
 
-	s.triggerCallbacks(EventPodDeleted, EventData{
-		EventType: EventPodDeleted,
+	s.triggerCallbacks("Pod", EventData{
+		EventType: EventDelete,
 		Pod:       podName,
 	})
 
@@ -314,8 +316,6 @@ func (s *store) DeletePod(podName types.NamespacedName) error {
 // Model routing methods
 func (s *store) AddOrUpdateModelRoute(mr *aiv1alpha1.ModelRoute) error {
 	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
 	s.routeInfo[mr.Namespace+"/"+mr.Name] = &modelRouteInfo{
 		model: mr.Spec.ModelName,
 		loras: mr.Spec.LoraAdapters,
@@ -328,14 +328,18 @@ func (s *store) AddOrUpdateModelRoute(mr *aiv1alpha1.ModelRoute) error {
 	for _, lora := range mr.Spec.LoraAdapters {
 		s.loraRoutes[lora] = mr
 	}
+	s.mutex.Unlock()
 
+	s.triggerCallbacks("ModelRoute", EventData{
+		EventType:  EventUpdate,
+		ModelName:  mr.Spec.ModelName,
+		ModelRoute: mr,
+	})
 	return nil
 }
 
 func (s *store) DeleteModelRoute(namespacedName string) error {
 	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
 	info := s.routeInfo[namespacedName]
 	if info != nil {
 		delete(s.routes, info.model)
@@ -343,9 +347,14 @@ func (s *store) DeleteModelRoute(namespacedName string) error {
 			delete(s.loraRoutes, lora)
 		}
 	}
-
 	delete(s.routeInfo, namespacedName)
+	s.mutex.Unlock()
 
+	s.triggerCallbacks("ModelRoute", EventData{
+		EventType:  EventDelete,
+		ModelName:  info.model,
+		ModelRoute: nil,
+	})
 	return nil
 }
 
@@ -597,38 +606,23 @@ func updateHistogramMetrics(podinfo *PodInfo, histogramMetrics map[string]*dto.H
 	}
 }
 
-// RegisterCallback registers a callback function for a specific event type
-func (s *store) RegisterCallback(eventType EventType, callback CallbackFunc) {
+// RegisterCallback registers a callback function for a specific resource
+func (s *store) RegisterCallback(kind string, callback CallbackFunc) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	if _, exists := s.callbacks[eventType]; !exists {
-		s.callbacks[eventType] = make([]CallbackFunc, 0)
+	if _, exists := s.callbacks[kind]; !exists {
+		s.callbacks[kind] = make([]CallbackFunc, 0)
 	}
-	s.callbacks[eventType] = append(s.callbacks[eventType], callback)
-}
-
-// UnregisterCallback removes a callback function for a specific event type
-func (s *store) UnregisterCallback(eventType EventType, callback CallbackFunc) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
-	if callbacks, exists := s.callbacks[eventType]; exists {
-		for i, cb := range callbacks {
-			if reflect.ValueOf(cb).Pointer() == reflect.ValueOf(callback).Pointer() {
-				s.callbacks[eventType] = append(callbacks[:i], callbacks[i+1:]...)
-				break
-			}
-		}
-	}
+	s.callbacks[kind] = append(s.callbacks[kind], callback)
 }
 
 // triggerCallbacks executes all registered callbacks for a specific event type
-func (s *store) triggerCallbacks(eventType EventType, data EventData) {
+func (s *store) triggerCallbacks(kind string, data EventData) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	if callbacks, exists := s.callbacks[eventType]; exists {
+	if callbacks, exists := s.callbacks[kind]; exists {
 		for _, callback := range callbacks {
 			go callback(data)
 		}

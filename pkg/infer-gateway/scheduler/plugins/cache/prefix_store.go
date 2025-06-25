@@ -37,14 +37,14 @@ func NewModelPrefixStore(store datastore.Store, hashCapacity, topK int) *ModelPr
 	}
 
 	// Register callback for pod deletion
-	store.RegisterCallback(datastore.EventPodDeleted, s.onPodDeleted)
+	store.RegisterCallback("Pod", s.onPodDeleted)
 
 	return s
 }
 
 // onPodDeleted is called when a pod is deleted
 func (s *ModelPrefixStore) onPodDeleted(data datastore.EventData) {
-	if data.EventType != datastore.EventPodDeleted {
+	if data.EventType != datastore.EventDelete {
 		return
 	}
 

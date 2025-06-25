@@ -62,22 +62,37 @@ spec:
                   There is no limitation if this field is not set.
                 properties:
                   inputTokensPerUnit:
+                    description: |-
+                      InputTokensPerUnit is the maximum number of input tokens allowed per unit of time.
+                      If this field is not set, there is no limit on input tokens.
                     format: int32
+                    minimum: 1
                     type: integer
                   outputTokensPerUnit:
+                    description: |-
+                      OutputTokensPerUnit is the maximum number of output tokens allowed per unit of time.
+                      If this field is not set, there is no limit on output tokens.
                     format: int32
+                    minimum: 1
                     type: integer
                   unit:
-                    enum:
-                    - second
-                    - minute
-                    - hour
-                    - day
-                    - month
+                    allOf:
+                    - enum:
+                      - second
+                      - minute
+                      - hour
+                      - day
+                      - month
+                    - enum:
+                      - second
+                      - minute
+                      - hour
+                      - day
+                      - month
+                    default: second
+                    description: Unit is the time unit for the rate limit.
                     type: string
                 required:
-                - inputTokensPerUnit
-                - outputTokensPerUnit
                 - unit
                 type: object
               rules:
