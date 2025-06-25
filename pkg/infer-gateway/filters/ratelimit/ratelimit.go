@@ -54,12 +54,15 @@ func (r *TokenRateLimiter) RateLimit(model, prompt string) error {
 }
 
 func (r *TokenRateLimiter) AddOrUpdateLimiter(model string, ratelimit *networkingv1alpha1.RateLimit) {
-	if model == "" || ratelimit == nil {
+	if model == "" {
 		return
 	}
 
 	// TODO: only handle input tokens first, add output tokens later
-	if ratelimit.InputTokensPerUnit == nil || *ratelimit.InputTokensPerUnit <= 0 {
+	if ratelimit == nil || ratelimit.InputTokensPerUnit == nil || *ratelimit.InputTokensPerUnit <= 0 {
+		r.mutex.Lock()
+		delete(r.inputLimiter, model)
+		r.mutex.Unlock()
 		return
 	}
 	var unit float64
@@ -94,5 +97,3 @@ func (r *TokenRateLimiter) DeleteLimiter(model string) {
 	defer r.mutex.Unlock()
 	delete(r.inputLimiter, model)
 }
-
-// GetLimiter returns the rate limiter for the given model, or nil if it doesn't exist
