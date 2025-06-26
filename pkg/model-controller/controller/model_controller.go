@@ -343,8 +343,9 @@ func (mc *ModelController) triggerModel(old interface{}, new interface{}) {
 		klog.Error("failed to parse old ModelInfer")
 		return
 	}
-	if ownerRef := metav1.GetControllerOf(newModelInfer); ownerRef != nil && ownerRef.Kind == registryv1alpha1.ModelKind {
-		if model, err := mc.modelsLister.Models(newModelInfer.Namespace).Get(ownerRef.Name); err == nil {
+	if newModelInfer.OwnerReferences != nil {
+		// Find the owner of modelInfer and reconcile the owner to change its status
+		if model, err := mc.modelsLister.Models(newModelInfer.Namespace).Get(newModelInfer.OwnerReferences[0].Name); err == nil {
 			mc.enqueueModel(model)
 		}
 	}
