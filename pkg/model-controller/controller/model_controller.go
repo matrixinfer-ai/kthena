@@ -32,7 +32,7 @@ type ModelController struct {
 	// Client for k8s. Use it to call K8S API
 	kubeClient kubernetes.Interface
 	// client for custom resource
-	modelClient clientset.Interface
+	client clientset.Interface
 
 	syncHandler    func(ctx context.Context, miKey string) error
 	modelsLister   registryLister.ModelLister
@@ -151,7 +151,7 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 		} else {
 			for _, modelInfer := range modelInfers {
 				// modelInfer is owned by model. ModelInfer will be deleted when the model is deleted
-				if _, err := mc.modelClient.WorkloadV1alpha1().ModelInfers(model.Namespace).Create(ctx, modelInfer, metav1.CreateOptions{}); err != nil {
+				if _, err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Create(ctx, modelInfer, metav1.CreateOptions{}); err != nil {
 					klog.Errorf("create modelInfer failed: %v", err)
 					return err
 				}
@@ -227,20 +227,20 @@ func (mc *ModelController) updateModelStatus(ctx context.Context, model *registr
 	}
 	model.Status.BackendStatuses = backendStatus
 	model.Status.ObservedGeneration = model.Generation
-	if _, err := mc.modelClient.RegistryV1alpha1().Models(model.Namespace).UpdateStatus(ctx, model, metav1.UpdateOptions{}); err != nil {
+	if _, err := mc.client.RegistryV1alpha1().Models(model.Namespace).UpdateStatus(ctx, model, metav1.UpdateOptions{}); err != nil {
 		klog.Errorf("update model status failed: %v", err)
 		return err
 	}
 	return nil
 }
 
-func NewModelController(kubeClient kubernetes.Interface, modelClient clientset.Interface) *ModelController {
-	informerFactory := informersv1alpha1.NewSharedInformerFactory(modelClient, 0)
+func NewModelController(kubeClient kubernetes.Interface, client clientset.Interface) *ModelController {
+	informerFactory := informersv1alpha1.NewSharedInformerFactory(client, 0)
 	modelInformer := informerFactory.Registry().V1alpha1().Models()
 	modelInferInformer := informerFactory.Workload().V1alpha1().ModelInfers()
 	mc := &ModelController{
 		kubeClient:          kubeClient,
-		modelClient:         modelClient,
+		client:              client,
 		modelsLister:        modelInformer.Lister(),
 		modelsInformer:      modelInformer.Informer(),
 		modelInfersInformer: modelInferInformer.Informer(),
@@ -271,7 +271,7 @@ func NewModelController(kubeClient kubernetes.Interface, modelClient clientset.I
 
 // listModelInferByLabel list all model infer which label key is "owner" and label value is model uid
 func (mc *ModelController) listModelInferByLabel(ctx context.Context, model *registryv1alpha1.Model) (*workload.ModelInferList, error) {
-	if modelInfers, err := mc.modelClient.WorkloadV1alpha1().ModelInfers(model.Namespace).List(ctx, metav1.ListOptions{
+	if modelInfers, err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", utils.ModelInferOwnerKey, model.UID),
 	}); err != nil {
 		return nil, err
@@ -296,9 +296,9 @@ func (mc *ModelController) updateModelInfer(ctx context.Context, model *registry
 	}
 	for _, modelInfer := range modelInfers {
 		// Get modelInfer resource version to update it
-		if oldModelInfer, err := mc.modelClient.WorkloadV1alpha1().ModelInfers(modelInfer.Namespace).Get(ctx, modelInfer.Name, metav1.GetOptions{}); err == nil {
+		if oldModelInfer, err := mc.client.WorkloadV1alpha1().ModelInfers(modelInfer.Namespace).Get(ctx, modelInfer.Name, metav1.GetOptions{}); err == nil {
 			modelInfer.ResourceVersion = oldModelInfer.ResourceVersion
-			if _, err := mc.modelClient.WorkloadV1alpha1().ModelInfers(model.Namespace).Update(ctx, modelInfer, metav1.UpdateOptions{}); err != nil {
+			if _, err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Update(ctx, modelInfer, metav1.UpdateOptions{}); err != nil {
 				return err
 			}
 		} else {

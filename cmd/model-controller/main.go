@@ -35,12 +35,12 @@ func main() {
 		klog.Fatalf("failed to create k8s client: %v", err)
 	}
 
-	modelClient, err := clientset.NewForConfig(config)
+	client, err := clientset.NewForConfig(config)
 	if err != nil {
 		klog.Fatalf("failed to create Model client: %v", err)
 	}
 	// create Model controller
-	mic := controller.NewModelController(kubeClient, modelClient)
+	mic := controller.NewModelController(kubeClient, client)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
