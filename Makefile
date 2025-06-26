@@ -1,6 +1,7 @@
 # Image URL to use all building/pushing image targets
 IMG_GATEWAY ?= ghcr.io/matrixinfer-ai/infer-gateway:latest
 IMG_MODELINFER ?= ghcr.io/matrixinfer-ai/infer-controller:latest
+IMG_MODELCONTROLLER ?= ghcr.io/matrixinfer-ai/model-controller:latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
@@ -120,6 +121,10 @@ docker-build-gateway: generate## Build docker image with the ai-gateway.
 docker-build-modelinfer: generate## Build docker image with the ai-gateway.
 	$(CONTAINER_TOOL) build -t ${IMG_MODELINFER} -f Dockerfile-modelinfer .
 
+.PHONY: docker-build-modelcontroller
+docker-build-modelcontroller: generate## Build docker image with the model controller.
+	$(CONTAINER_TOOL) build -t ${IMG_MODELCONTROLLER} -f Dockerfile-modelinfer .
+
 .PHONY: docker-push-gateway
 docker-push-gateway: ## Push docker image with the ai-gateway.
 	$(CONTAINER_TOOL) push ${IMG_GATEWAY}
@@ -128,6 +133,9 @@ docker-push-gateway: ## Push docker image with the ai-gateway.
 docker-push-modelinfer: ## Push docker image with the ai-gateway.
 	$(CONTAINER_TOOL) push ${IMG_MODELINFER}
 
+.PHONY: docker-push-modelcontroller
+docker-push-modelcontroller: ## Push docker image with the model controller.
+	$(CONTAINER_TOOL) push ${IMG_MODELCONTROLLER}
 # PLATFORMS defines the target platforms for the ai-gateway image be built to provide support to multiple
 # architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
 # - be able to use docker buildx. More info: https://docs.docker.com/build/buildx/
