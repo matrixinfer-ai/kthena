@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"sync"
@@ -12,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -279,8 +281,15 @@ func (c *ModelInferController) syncModelInfer(ctx context.Context, key string) e
 	if err != nil {
 		return err
 	}
+	// only fields in roles can be modified in rolling updates
+	revision, err := json.Marshal(mi.Spec.Template.Roles)
+	if err != nil {
+		return err
+	}
 
-	err = c.manageReplicas(ctx, mi)
+	newHash := utils.HashRevision(runtime.RawExtension{Raw: revision})
+
+	err = c.manageReplicas(ctx, mi, newHash)
 	if err != nil {
 		return fmt.Errorf("cannot manage inferGroup replicas: %v", err)
 	}
@@ -373,7 +382,7 @@ func (c *ModelInferController) UpdateModelInferStatus(mi *workloadv1alpha1.Model
 	return nil
 }
 
-func (c *ModelInferController) manageReplicas(ctx context.Context, mi *workloadv1alpha1.ModelInfer) error {
+func (c *ModelInferController) manageReplicas(ctx context.Context, mi *workloadv1alpha1.ModelInfer, newHash string) error {
 	inferGroupList, err := c.store.GetInferGroupByModelInfer(utils.GetNamespaceName(mi))
 	if err != nil {
 		return fmt.Errorf("cannot get inferGroup from map: %v", err)
@@ -407,7 +416,7 @@ func (c *ModelInferController) manageReplicas(ctx context.Context, mi *workloadv
 				return fmt.Errorf("store infer group failed: %v", err)
 			}
 			// Create pods for inferGroup
-			err = c.CreatePodsForInferGroup(ctx, mi, idx)
+			err = c.CreatePodsForInferGroup(ctx, mi, idx, newHash)
 			if err != nil {
 				// I think that after create a pod failed, a period of time should pass before joining the coordination queue.
 				return fmt.Errorf("create infer group failed: %v", err)
@@ -420,13 +429,13 @@ func (c *ModelInferController) manageReplicas(ctx context.Context, mi *workloadv
 	return nil
 }
 
-func (c *ModelInferController) CreatePodsForInferGroup(ctx context.Context, mi *workloadv1alpha1.ModelInfer, groupIndex int) error {
+func (c *ModelInferController) CreatePodsForInferGroup(ctx context.Context, mi *workloadv1alpha1.ModelInfer, groupIndex int, newHash string) error {
 	// traverse each role in inferGroup to create entry-worker pod group.
 	roleList := mi.Spec.Template.Roles
 	for _, role := range roleList {
 		// there will be multiple replicas in a role, such as xPyD type
 		for roleIndex := range int(*role.Replicas) {
-			err := c.CreatePodByRole(ctx, role, mi, roleIndex, groupIndex)
+			err := c.CreatePodByRole(ctx, role, mi, roleIndex, groupIndex, newHash)
 			if err != nil {
 				return fmt.Errorf("create role pod failed: %v, role name: %s, role index: %d", err, role.Name, roleIndex)
 			}
@@ -500,10 +509,10 @@ func (c *ModelInferController) DeleteInferGroup(mi *workloadv1alpha1.ModelInfer,
 	}
 }
 
-func (c *ModelInferController) CreatePodByRole(ctx context.Context, role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, roleIndex, groupIndex int) error {
+func (c *ModelInferController) CreatePodByRole(ctx context.Context, role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, roleIndex, groupIndex int, newHash string) error {
 	groupName := utils.GenerateInferGroupName(mi.Name, groupIndex)
 	// Create entry pod
-	entryPod := utils.GenerateEntryPod(role, mi, groupName, roleIndex)
+	entryPod := utils.GenerateEntryPod(role, mi, groupName, roleIndex, newHash)
 	_, err := c.kubeClientSet.CoreV1().Pods(mi.Namespace).Create(ctx, entryPod, metav1.CreateOptions{})
 	if err != nil {
 		if !apierrors.IsAlreadyExists(err) {
@@ -525,7 +534,7 @@ func (c *ModelInferController) CreatePodByRole(ctx context.Context, role workloa
 	}
 	// Create worker pods
 	for podIndex := range int(role.WorkerReplicas) {
-		workerPod := utils.GenerateWorkerPod(role, mi, entryPod, groupName, roleIndex, podIndex+1) // worker-pod sequence number starts from 1, so we use index+1 here.
+		workerPod := utils.GenerateWorkerPod(role, mi, entryPod, groupName, roleIndex, podIndex+1, newHash) // worker-pod sequence number starts from 1, so we use index+1 here.
 		_, err = c.kubeClientSet.CoreV1().Pods(mi.Namespace).Create(ctx, workerPod, metav1.CreateOptions{})
 		if err != nil {
 			if !apierrors.IsAlreadyExists(err) {
