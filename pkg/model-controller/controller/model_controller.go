@@ -37,9 +37,6 @@ type ModelController struct {
 	syncHandler    func(ctx context.Context, miKey string) error
 	modelsLister   registryLister.ModelLister
 	modelsInformer cache.Controller
-
-	modelInfersInformer cache.Controller
-
 	// nolint
 	workqueue workqueue.RateLimitingInterface
 }
@@ -239,11 +236,10 @@ func NewModelController(kubeClient kubernetes.Interface, client clientset.Interf
 	modelInformer := informerFactory.Registry().V1alpha1().Models()
 	modelInferInformer := informerFactory.Workload().V1alpha1().ModelInfers()
 	mc := &ModelController{
-		kubeClient:          kubeClient,
-		client:              client,
-		modelsLister:        modelInformer.Lister(),
-		modelsInformer:      modelInformer.Informer(),
-		modelInfersInformer: modelInferInformer.Informer(),
+		kubeClient:     kubeClient,
+		client:         client,
+		modelsLister:   modelInformer.Lister(),
+		modelsInformer: modelInformer.Informer(),
 		// nolint
 		workqueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Models"),
 	}
