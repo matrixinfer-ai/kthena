@@ -22,7 +22,6 @@ func main() {
 	var workers int
 
 	klog.InitFlags(nil)
-	_ = flag.Set("v", "2")
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 
 	pflag.StringVar(&kubeconfig, "kubeconfig", "", "kubeconfig file path")
