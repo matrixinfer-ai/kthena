@@ -474,6 +474,7 @@ func (mic *ModelInferController) DeleteInferGroup(mi *workloadv1alpha1.ModelInfe
 		klog.Errorf("failed to get service, err:%v", err)
 	}
 	if len(pods) == 0 && len(services) == 0 {
+		klog.V(2).Infof("inferGroup %s has been deleted", groupname)
 		_ = mic.store.DeleteInferGroupOfRunningPodMap(miNamedName, groupname)
 		mic.enqueueModelInfer(mi)
 		return
