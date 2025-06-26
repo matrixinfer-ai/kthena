@@ -9,11 +9,18 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"k8s.io/apimachinery/pkg/types"
+
+	"matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/filters/ratelimit"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
+)
+
+const (
+	decodeModel  = "decode"
+	perfillModel = "perfill"
 )
 
 var (
@@ -52,57 +59,23 @@ type ModelRequest map[string]interface{}
 
 func (r *Router) HandlerFunc() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// implement gin request body reading here
-		bodyBytes, err := io.ReadAll(c.Request.Body)
+		// Step 1: Parse and validate request
+		modelRequest, err := parseModelRequest(c)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, err)
-			return
-		}
-		var modelRequest ModelRequest
-		if err := json.Unmarshal(bodyBytes, &modelRequest); err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, err)
 			return
 		}
 
-		modelName, ok := modelRequest["model"].(string)
-		if !ok {
-			c.AbortWithStatusJSON(http.StatusNotFound, "model not found")
-			return
-		}
-
-		prompt, err := utils.GetPrompt(modelRequest)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusNotFound, "prompt not found")
-			return
-		}
-
-		err = r.loadRateLimiter.RateLimit(modelName, prompt)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusTooManyRequests, "token usage exceeds rate limit")
-			return
-		}
-
-		log.Debugf("model name is %v", modelName)
-
-		// Use datastore to find the corresponding model server
-		modelServerName, is_lora, err := r.store.MatchModelServer(modelName, c.Request)
+		// step 2: Find pods and model server details
+		modelName := modelRequest["model"].(string)
+		modelServerName, isLora, err := r.store.MatchModelServer(modelName, c.Request)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusNotFound, fmt.Sprintf("can't find corresponding model server: %v", err))
 			return
 		}
+		log.Debugf("modelServer is %v, is_lora: %v", modelServerName, isLora)
 
-		log.Debugf("modelServer is %v, is_lora: %v", modelServerName, is_lora)
-
-		// Get endpoints from datastore
-		pods, err := r.store.GetPodsByModelServer(modelServerName)
-		if err != nil || len(pods) == 0 {
-			c.AbortWithStatusJSON(http.StatusNotFound, fmt.Sprintf("can't find target pods of model server: %v, err: %v", modelServerName, err))
-			return
-		}
-
-		// Get PDGroup from datastore
-		modelServer := r.store.GetModelServer(modelServerName)
-		if modelServer == nil {
+		pods, modelServer, err := r.getPodsAndServer(modelServerName)
+		if err != nil {
 			c.AbortWithStatusJSON(http.StatusNotFound, fmt.Sprintf("can't find model server: %v", modelServerName))
 			return
 		}
@@ -110,127 +83,187 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 		model := modelServer.Spec.Model
 		port := modelServer.Spec.WorkloadPort.Port
 
-		// Overwrite model.
-		if model != nil && !is_lora {
+		// step 3: Overwrite model.
+		if model != nil && !isLora {
 			modelRequest["model"] = *model
 		}
 
-		// call scheduler.Schedule. Get top n decode pods and perfill pods
+		// step 4: call scheduler.Schedule. Get top n decode pods and perfill pods
 		dPods, pPods, err := r.scheduler.Schedule(modelRequest, pods, pdGroup)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, fmt.Sprintf("can't schedule to target pod: %v", err))
 			return
 		}
 
+		// step 5: Generate request ID at the beginning
 		req := c.Request
-
-		// Generate request ID at the beginning
 		requestID := uuid.New().String()
 		if req.Header.Get("x-request-id") == "" {
 			// Add x-request-id header to prefill request
 			req.Header.Set("x-request-id", requestID)
 		}
 
-		pSchedulingSuccess := false
-		if len(pPods) != 0 {
-			for i := range pPods {
-				log.Debugf("prefill pod is %v", pPods[i].Pod.Name)
-
-				// First request to prefill pod
-				prefillReq := req.Clone(req.Context())
-				prefillBody := make(map[string]interface{})
-				for k, v := range modelRequest {
-					prefillBody[k] = v
-				}
-				prefillBody["max_tokens"] = 1
-
-				// Remove stream and stream_options headers from prefill request if they exist
-				// This is necessary because prefill request should not be streamed
-				delete(prefillBody, "stream")
-				delete(prefillBody, "stream_options")
-
-				body, err := json.Marshal(prefillBody)
-				if err != nil {
-					c.AbortWithStatusJSON(http.StatusInternalServerError, fmt.Sprintf("marshal prefill body failed: %v", err))
-					return
-				}
-
-				// step 1: change request URL to prefill pod URL.
-				prefillReq.URL.Host = fmt.Sprintf("%s:%d", pPods[i].Pod.Status.PodIP, port)
-				prefillReq.URL.Scheme = "http"
-				prefillReq.Body = io.NopCloser(bytes.NewBuffer(body))
-				prefillReq.ContentLength = int64(len(body))
-
-				// step 2: use http.Transport to do request to prefill pod.
-				transport := http.DefaultTransport
-				resp, err := transport.RoundTrip(prefillReq)
-				if err != nil {
-					log.Errorf("prefill request error: %v", err)
-					// c.AbortWithStatusJSON(http.StatusInternalServerError, "prefill request error")
-					continue
-				}
-				defer resp.Body.Close()
-
-				if resp.StatusCode >= 300 {
-					log.Errorf("perfill http resp error, http code is %d", resp.StatusCode)
-					continue
-				}
-				pSchedulingSuccess = true
-				break
-			}
-		}
-
-		if !pSchedulingSuccess {
+		// step 6: proxy to pods
+		if !r.tryRequestPods(c, req, pPods, modelRequest, port, requestID, perfillModel) {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, "prefill request error")
 			log.Error("Perfill pods schedule all failed")
 			return
 		}
 
-		for i := range dPods {
-			body, err := json.Marshal(modelRequest)
-			if err != nil {
-				c.AbortWithStatusJSON(http.StatusInternalServerError, fmt.Sprintf("marshal http body failed: %v", err))
-				return
-			}
-
-			log.Debugf("target/decode pod is %v", dPods[i].Pod.Name)
-
-			// step 1: change request URL to real server URL.
-			req.URL.Host = fmt.Sprintf("%s:%d", dPods[i].Pod.Status.PodIP, port)
-			req.URL.Scheme = "http"
-			req.Body = io.NopCloser(bytes.NewBuffer(body))
-			req.ContentLength = int64(len(body))
-
-			// step 2: use http.Transport to do request to real server.
-			transport := http.DefaultTransport
-			resp, err := transport.RoundTrip(req)
-			if err != nil {
-				log.Errorf("error: %v", err)
-				continue
-			}
-
-			if resp.StatusCode >= 300 {
-				log.Errorf("perfill http resp error, http code is %d", resp.StatusCode)
-				continue
-			}
-
-			// step 3: return real server response to downstream.
-			for k, vv := range resp.Header {
-				for _, v := range vv {
-					c.Header(k, v)
-				}
-			}
-			defer resp.Body.Close()
-
-			// Maybe we need to read the response to get the tokens for ratelimiting later
-			c.Stream(func(w io.Writer) bool {
-				buf := make([]byte, 512)
-				n, err := resp.Body.Read(buf)
-				if n > 0 {
-					w.Write(buf[:n])
-				}
-				return err != io.EOF
-			})
-			break
+		if !r.tryRequestPods(c, req, dPods, modelRequest, port, requestID, decodeModel) {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, "decode request error")
+			log.Error("Decode pods schedule all failed")
+			return
 		}
 	}
+}
+
+func parseModelRequest(c *gin.Context) (ModelRequest, error) {
+	bodyBytes, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, err)
+		return nil, err
+	}
+	var modelRequest ModelRequest
+	if err := json.Unmarshal(bodyBytes, &modelRequest); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, err)
+		return nil, err
+	}
+
+	modelName, ok := modelRequest["model"].(string)
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusNotFound, "model not found")
+		return nil, fmt.Errorf("model not found")
+	}
+	log.Debugf("model name is %v", modelName)
+
+	return modelRequest, nil
+}
+
+func (r *Router) getPodsAndServer(modelServerName types.NamespacedName) ([]*datastore.PodInfo, *v1alpha1.ModelServer, error) {
+	pods, err := r.store.GetPodsByModelServer(modelServerName)
+	if err != nil || len(pods) == 0 {
+		return nil, nil, fmt.Errorf("can't find target pods of model server: %v, err: %v", modelServerName, err)
+	}
+	modelServer := r.store.GetModelServer(modelServerName)
+	if modelServer == nil {
+		return nil, nil, fmt.Errorf("can't find model server: %v", modelServerName)
+	}
+	return pods, modelServer, nil
+}
+
+func (r *Router) tryRequestPods(
+	c *gin.Context,
+	req *http.Request,
+	Pods []*datastore.PodInfo,
+	modelRequest ModelRequest,
+	port int32,
+	requestID string,
+	model string,
+) bool {
+	if len(Pods) == 0 {
+		return true
+	}
+	for i := range Pods {
+		log.Debugf("prefill pod is %v", Pods[i].Pod.Name)
+		var resp *http.Response
+		var err error
+		if model == perfillModel {
+			resp, err = proxyPrefillPod(req, Pods[i].Pod.Status.PodIP, port, modelRequest)
+			if err != nil {
+				log.Errorf("prefill pod request error: %v", err)
+				continue
+			}
+		} else {
+			resp, err = proxyDecodePod(c, req, Pods[i].Pod.Status.PodIP, port, modelRequest)
+			if err != nil {
+				log.Errorf("decode pod request error: %v", err)
+				continue
+			}
+		}
+		defer resp.Body.Close()
+		return true
+	}
+	return false
+}
+
+// proxyPrefillPod proxies a request to a prefill pod.
+func proxyPrefillPod(
+	req *http.Request,
+	podIP string,
+	port int32,
+	modelRequest ModelRequest,
+) (*http.Response, error) {
+	// Prepare prefill body
+	prefillBody := make(map[string]interface{})
+	for k, v := range modelRequest {
+		prefillBody[k] = v
+	}
+	prefillBody["max_tokens"] = 1
+	delete(prefillBody, "stream")
+	delete(prefillBody, "stream_options")
+
+	resp, err := getResponse(req, podIP, port, prefillBody)
+	if err != nil {
+		return nil, fmt.Errorf("prefill request error: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("prefill http resp error, http code is %d", resp.StatusCode)
+	}
+	return resp, nil
+}
+
+// proxyToDecodePods proxies the request to the decode pods, returns response to downstream.
+func proxyDecodePod(
+	c *gin.Context,
+	req *http.Request,
+	podIP string,
+	port int32,
+	modelRequest ModelRequest,
+) (*http.Response, error) {
+	resp, err := getResponse(req, podIP, port, modelRequest)
+	if err != nil {
+		return nil, fmt.Errorf("decode request error: %w", err)
+	}
+	if resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("decode http resp error, http code is %d", resp.StatusCode)
+	}
+	for k, vv := range resp.Header {
+		for _, v := range vv {
+			c.Header(k, v)
+		}
+	}
+	defer resp.Body.Close()
+	c.Stream(func(w io.Writer) bool {
+		buf := make([]byte, 512)
+		n, err := resp.Body.Read(buf)
+		if n > 0 {
+			w.Write(buf[:n])
+		}
+		return err != io.EOF
+	})
+	return resp, nil
+}
+
+func getResponse(
+	req *http.Request,
+	podIP string,
+	port int32,
+	modelRequest ModelRequest) (*http.Response, error) {
+	body, err := json.Marshal(modelRequest)
+	if err != nil {
+		return nil, fmt.Errorf("marshal body failed: %w", err)
+	}
+
+	// step 1: change request URL to prefill pod URL.
+	prefillReq := req.Clone(req.Context())
+	prefillReq.URL.Host = fmt.Sprintf("%s:%d", podIP, port)
+	prefillReq.URL.Scheme = "http"
+	prefillReq.Body = io.NopCloser(bytes.NewBuffer(body))
+	prefillReq.ContentLength = int64(len(body))
+
+	// step 2: use http.Transport to do request to prefill pod.
+	transport := http.DefaultTransport
+	return transport.RoundTrip(prefillReq)
 }

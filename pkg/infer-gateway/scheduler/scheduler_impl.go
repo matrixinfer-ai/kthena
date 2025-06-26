@@ -81,7 +81,7 @@ func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.P
 		return nil, nil, err
 	}
 
-	ctxSlice := make([]*framework.Context, topFewPodInfos)
+	ctxSlice := make([]*framework.Context, 0, topFewPodInfos)
 	for index := range ctxSlice {
 		ctxSlice[index].Model = req["model"].(string)
 		ctxSlice[index].Prompt = prompt
@@ -117,9 +117,9 @@ func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.P
 		return nil, nil, err
 	}
 
-	topNDecodePod := TopNPodInfosByValue(scores, topFewPodInfos)
+	topNDecodePod := TopNPodInfos(scores, topFewPodInfos)
 	for index := range topNDecodePod {
-		ctxSlice[index].PrefillPod = topNDecodePod[index]
+		ctxSlice[index].DecodePod = topNDecodePod[index]
 	}
 
 	topNPrefillPod := []*datastore.PodInfo{}
@@ -138,7 +138,7 @@ func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.P
 			return nil, nil, err
 		}
 
-		topNPrefillPod = TopNPodInfosByValue(scores, topFewPodInfos)
+		topNPrefillPod = TopNPodInfos(scores, topFewPodInfos)
 		for index := range topNPrefillPod {
 			ctxSlice[index].PrefillPod = topNPrefillPod[index]
 		}
@@ -198,7 +198,7 @@ func (s *SchedulerImpl) RunPostHooks(ctx *framework.Context) {
 	}
 }
 
-func TopNPodInfosByValue(m map[*datastore.PodInfo]int, n int) []*datastore.PodInfo {
+func TopNPodInfos(m map[*datastore.PodInfo]int, n int) []*datastore.PodInfo {
 	type podInfoWithValue struct {
 		pod   *datastore.PodInfo
 		score int
@@ -214,7 +214,7 @@ func TopNPodInfosByValue(m map[*datastore.PodInfo]int, n int) []*datastore.PodIn
 	})
 
 	res := []*datastore.PodInfo{}
-	for i := 0; i < n && i < len(list); i++ {
+	for i := range list {
 		res = append(res, list[i].pod)
 	}
 
