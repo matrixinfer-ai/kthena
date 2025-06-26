@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	workloadLister "matrixinfer.ai/matrixinfer/client-go/listers/workload/v1alpha1"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,9 +35,11 @@ type ModelController struct {
 	// client for custom resource
 	client clientset.Interface
 
-	syncHandler    func(ctx context.Context, miKey string) error
-	modelsLister   registryLister.ModelLister
-	modelsInformer cache.Controller
+	syncHandler         func(ctx context.Context, miKey string) error
+	modelsLister        registryLister.ModelLister
+	modelsInformer      cache.Controller
+	modelInfersLister   workloadLister.ModelInferLister
+	modelInfersInformer cache.Controller
 	// nolint
 	workqueue workqueue.RateLimitingInterface
 }
@@ -47,9 +50,11 @@ func (mc *ModelController) Run(ctx context.Context, workers int) {
 
 	// start informers
 	go mc.modelsInformer.RunWithContext(ctx)
+	go mc.modelInfersInformer.RunWithContext(ctx)
 
 	cache.WaitForCacheSync(ctx.Done(),
 		mc.modelsInformer.HasSynced,
+		mc.modelInfersInformer.HasSynced,
 	)
 
 	klog.Info("start model controller")
@@ -236,10 +241,12 @@ func NewModelController(kubeClient kubernetes.Interface, client clientset.Interf
 	modelInformer := informerFactory.Registry().V1alpha1().Models()
 	modelInferInformer := informerFactory.Workload().V1alpha1().ModelInfers()
 	mc := &ModelController{
-		kubeClient:     kubeClient,
-		client:         client,
-		modelsLister:   modelInformer.Lister(),
-		modelsInformer: modelInformer.Informer(),
+		kubeClient:          kubeClient,
+		client:              client,
+		modelsLister:        modelInformer.Lister(),
+		modelsInformer:      modelInformer.Informer(),
+		modelInfersLister:   modelInferInformer.Lister(),
+		modelInfersInformer: modelInferInformer.Informer(),
 		// nolint
 		workqueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Models"),
 	}
