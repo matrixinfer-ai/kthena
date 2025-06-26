@@ -392,7 +392,6 @@ func (mic *ModelInferController) manageReplicas(ctx context.Context, mi *workloa
 			err = mic.CreatePodsForInferGroup(ctx, mi, idx)
 			if err != nil {
 				// I think that after create a pod failed, a period of time should pass before joining the coordination queue.
-				// TODO: Add a handler that enqueue model infer after an interval time.
 				return fmt.Errorf("create infer group failed: %v", err)
 			}
 		}
@@ -486,10 +485,12 @@ func (mic *ModelInferController) CreatePodByRole(ctx context.Context, role workl
 	groupName := utils.GenerateInferGroupName(mi.Name, groupIndex)
 	// Create entry pod
 	entryPod := utils.GenerateEntryPod(role, mi, groupName, roleIndex)
-	err := mic.createPod(ctx, mi, entryPod)
+	_, err := mic.kubeClientSet.CoreV1().Pods(mi.Namespace).Create(ctx, entryPod, metav1.CreateOptions{})
 	if err != nil {
-		klog.Errorf("create entry pod failed: %v", err)
-		return err
+		if !apierrors.IsAlreadyExists(err) {
+			klog.Errorf("create entry pod failed: %v", err)
+			return err
+		}
 	}
 
 	// Determine whether to create worker pods and headless service
@@ -506,36 +507,12 @@ func (mic *ModelInferController) CreatePodByRole(ctx context.Context, role workl
 	// Create worker pods
 	for podIndex := range int(role.WorkerReplicas) {
 		workerPod := utils.GenerateWorkerPod(role, mi, entryPod, groupName, roleIndex, podIndex+1) // worker-pod sequence number starts from 1, so we use index+1 here.
-		err := mic.createPod(ctx, mi, workerPod)
+		_, err = mic.kubeClientSet.CoreV1().Pods(mi.Namespace).Create(ctx, workerPod, metav1.CreateOptions{})
 		if err != nil {
-			klog.Errorf("create worker pod failed: %v", err)
-			return err
-		}
-	}
-	return nil
-}
-
-func (mic *ModelInferController) createPod(ctx context.Context, mi *workloadv1alpha1.ModelInfer, expectPod *corev1.Pod) error {
-	existPod, err := mic.kubeClientSet.CoreV1().Pods(expectPod.GetNamespace()).Get(ctx, expectPod.GetName(), metav1.GetOptions{})
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			_, err := mic.kubeClientSet.CoreV1().Pods(mi.Namespace).Create(ctx, expectPod, metav1.CreateOptions{})
-			if err != nil && !apierrors.IsNotFound(err) {
-				klog.Errorf("failed to create entry pod %s/%s: %v", expectPod.GetNamespace(), expectPod.GetName(), err)
+			if !apierrors.IsAlreadyExists(err) {
+				klog.Errorf("create worker pod failed: %v", err)
 				return err
 			}
-		} else {
-			klog.Errorf("failed to get pod %s/%s: %v", expectPod.GetNamespace(), expectPod.GetName(), err)
-		}
-	} else {
-		if !reflect.DeepEqual(expectPod.Spec, existPod.Spec) {
-			// This pod needs to be upgraded. Then this infergroups needs to be deleted and rebuilt.
-			groupName, ok := existPod.Labels[workloadv1alpha1.GroupNameLabelKey]
-			if !ok {
-				return fmt.Errorf("failed to find inferGroup name in pod: %s/%s", existPod.GetNamespace(), existPod.GetName())
-			}
-			mic.DeleteInferGroup(mi, groupName)
-			return fmt.Errorf("The pods that exist now don't meet expectations")
 		}
 	}
 	return nil
