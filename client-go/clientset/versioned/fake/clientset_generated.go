@@ -28,6 +28,8 @@ import (
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
 	networkingv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/networking/v1alpha1"
 	fakenetworkingv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/networking/v1alpha1/fake"
+	registryv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/registry/v1alpha1"
+	fakeregistryv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/registry/v1alpha1/fake"
 	workloadv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/workload/v1alpha1"
 	fakeworkloadv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/workload/v1alpha1/fake"
 )
@@ -129,6 +131,11 @@ var (
 // NetworkingV1alpha1 retrieves the NetworkingV1alpha1Client
 func (c *Clientset) NetworkingV1alpha1() networkingv1alpha1.NetworkingV1alpha1Interface {
 	return &fakenetworkingv1alpha1.FakeNetworkingV1alpha1{Fake: &c.Fake}
+}
+
+// RegistryV1alpha1 retrieves the RegistryV1alpha1Client
+func (c *Clientset) RegistryV1alpha1() registryv1alpha1.RegistryV1alpha1Interface {
+	return &fakeregistryv1alpha1.FakeRegistryV1alpha1{Fake: &c.Fake}
 }
 
 // WorkloadV1alpha1 retrieves the WorkloadV1alpha1Client

@@ -1,0 +1,124 @@
+apiVersion: apps/v1
+kind: modelinfer
+metadata: ${MODEL_INFER_TEMPLATE_METADATA}
+spec:
+  recoveryPolicy: InferGroupRestart
+  rolloutStrategy: 
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: InferGroupRollingUpdate
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: DoNotSchedule
+      labelSelector:
+        matchLabels:
+          modelinfer/name: ${MODEL_NAME}
+  replicas: ${BACKEND_REPLICAS}
+  template:
+    restartGracePeriodSeconds: 60
+    networkTopology:
+      mode: hard
+      highestTierAllowed: 2
+    gangScheduling:
+      minMember: 4
+    roles:
+      - name: leader
+        replicas: ${SERVER_REPLICAS}
+        networkTopology:
+          mode: hard
+          highestTierAllowed: 2
+        entryTemplate:
+          metadata: ${SERVER_ENTRY_TEMPLATE_METADATA}
+          spec:
+            initContainers:
+            - args:
+              - --source
+              - ${MODEL_URL}
+              - --output-dir
+              - ${MODEL_DOWNLOAD_PATH}
+              env: ${MODEL_DOWNLOAD_ENV}
+              image: ${MODEL_INFER_DOWNLOADER_IMAGE}
+              name: ${MODEL_NAME}-downloader
+              volumeMounts: ${VOLUME_MOUNTS}
+            terminationGracePeriodSeconds: 300
+            volumes: ${VOLUMES}
+            containers:
+              - name: runtime
+                image: ${MODEL_INFER_RUNTIME_IMAGE}
+                ports:
+                  - containerPort: 8100
+                args:
+                  - --port
+                  - "8100"
+                  - --url
+                  - "http://localhost:8000/metrics"
+                  - --engine
+                  - "vllm"
+                readinessProbe:
+                  httpGet:
+                    path: /health
+                    port: 8100
+                  initialDelaySeconds: 5
+                  periodSeconds: 10
+              - name: engine
+                image: ${ENGINE_SERVER_IMAGE}
+                command: ${ENGINE_SERVER_COMMAND}
+                env: ${ENGINE_ENV}
+                resources: ${ENGINE_SERVER_RESOURCES}
+                volumeMounts: ${VOLUME_MOUNTS}
+                readinessProbe:
+                  failureThreshold: 3
+                  httpGet:
+                    path: /health
+                    port: 8000
+                    scheme: HTTP
+                  initialDelaySeconds: 90
+                  periodSeconds: 5
+                  successThreshold: 1
+                  timeoutSeconds: 1
+                lifecycle:
+                  preStop:
+                    exec:
+                      command:
+                      - /bin/sh
+                      - -c
+                      - |
+                        while true; do
+                          RUNNING=$(curl -s http://localhost:8000/metrics | grep 'vllm:num_requests_running' | grep -v '#' | awk '{print $2}')
+                          WAITING=$(curl -s http://localhost:8000/metrics | grep 'vllm:num_requests_waiting' | grep -v '#' | awk '{print $2}')
+                          if [ "$RUNNING" = "0.0" ] && [ "$WAITING" = "0.0" ]; then
+                            echo "Terminating: No active or waiting requests, safe to terminate" >> /proc/1/fd/1
+                            exit 0
+                          else
+                            echo "Terminating: Running: $RUNNING, Waiting: $WAITING" >> /proc/1/fd/1
+                            sleep 5
+                          fi
+                        done
+        workerReplicas: ${WORKER_REPLICAS}
+        workerTemplate:
+          metadata: ${SERVER_WORKER_TEMPLATE_METADATA}
+          spec:
+            volumes: ${VOLUMES}
+            initContainers:
+            - name: downloader
+              args:
+              - --source
+              - ${MODEL_URL}
+              - --output-dir
+              - ${MODEL_DOWNLOAD_PATH}
+              env: ${MODEL_DOWNLOAD_ENV}
+              image: ${MODEL_INFER_DOWNLOADER_IMAGE}
+              volumeMounts: ${VOLUME_MOUNTS}
+            containers:
+              - name: ${BACKEND_NAME}-${BACKEND_TYPE}-worker
+                image: ${ENGINE_SERVER_IMAGE}
+                command:
+                - bash
+                - "-c"
+                - "chmod u+x /vllm-workspace/vllm/examples/online_serving/multi-node-serving.sh && /vllm-workspace/vllm/examples/online_serving/multi-node-serving.sh worker --ray_address=$(ENTRY_ADDRESS)"
+                env: ${WORKER_ENV}
+                resources: ${ENGINE_SERVER_RESOURCES}
+                volumeMounts: ${VOLUME_MOUNTS}
+                  
