@@ -391,6 +391,7 @@ func (mic *ModelInferController) manageReplicas(ctx context.Context, mi *workloa
 			// Create pods for inferGroup
 			err = mic.CreatePodsForInferGroup(ctx, mi, idx)
 			if err != nil {
+				// I think that after create a pod failed, a period of time should pass before joining the coordination queue.
 				return fmt.Errorf("create infer group failed: %v", err)
 			}
 		}
@@ -487,9 +488,12 @@ func (mic *ModelInferController) CreatePodByRole(ctx context.Context, role workl
 	entryPod := utils.GenerateEntryPod(role, mi, groupName, roleIndex)
 	_, err := mic.kubeClientSet.CoreV1().Pods(mi.Namespace).Create(ctx, entryPod, metav1.CreateOptions{})
 	if err != nil {
-		klog.Errorf("create entry pod failed: %v", err)
-		return err
+		if !apierrors.IsAlreadyExists(err) {
+			klog.Errorf("create entry pod failed: %v", err)
+			return err
+		}
 	}
+
 	// Determine whether to create worker pods and headless service
 	if role.WorkerTemplate == nil {
 		klog.V(4).Info("workerTemplate is nil, no need to create worker pods and headless service")
@@ -506,8 +510,10 @@ func (mic *ModelInferController) CreatePodByRole(ctx context.Context, role workl
 		workerPod := utils.GenerateWorkerPod(role, mi, entryPod, groupName, roleIndex, podIndex+1) // worker-pod sequence number starts from 1, so we use index+1 here.
 		_, err = mic.kubeClientSet.CoreV1().Pods(mi.Namespace).Create(ctx, workerPod, metav1.CreateOptions{})
 		if err != nil {
-			klog.Errorf("create worker pod failed: %v", err)
-			return err
+			if !apierrors.IsAlreadyExists(err) {
+				klog.Errorf("create worker pod failed: %v", err)
+				return err
+			}
 		}
 	}
 	return nil
