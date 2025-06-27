@@ -16,10 +16,10 @@ type Store interface {
 	GetRunningPodByInferGroup(modelInferName types.NamespacedName, inferGroupName string) ([]string, error)
 	GetInferGroupStatus(modelInferName types.NamespacedName, inferGroupName string) InferGroupStatus
 	DeleteModelInfer(modelInferName types.NamespacedName) error
-	DeleteInferGroupOfRunningPodMap(modelInferName types.NamespacedName, inferGroupName string) error
-	AddInferGroupForModelInfer(modelInferName types.NamespacedName, idx int) error
-	AddRunningPodForInferGroup(inferGroupName types.NamespacedName, runningPodName string)
-	DeleteRunningPodForInferGroup(inferGroupName types.NamespacedName, deletePodName string)
+	DeleteInferGroup(modelInferName types.NamespacedName, inferGroupName string) error
+	AddInferGroup(modelInferName types.NamespacedName, idx int) error
+	AddRunningPodToInferGroup(inferGroupName types.NamespacedName, runningPodName string)
+	DeleteRunningPodFromInferGroup(inferGroupName types.NamespacedName, deletePodName string)
 	UpdateInferGroupStatus(modelInferName types.NamespacedName, inferGroupName string, Status InferGroupStatus) error
 }
 
@@ -111,8 +111,8 @@ func (s *store) DeleteModelInfer(modelInferName types.NamespacedName) error {
 	return nil
 }
 
-// DeleteInferGroupOfRunningPodMap delete inferGroup in runningPodOfInferGroup map
-func (s *store) DeleteInferGroupOfRunningPodMap(modelInferName types.NamespacedName, inferGroupName string) error {
+// DeleteInferGroup delete inferGroup in runningPodOfInferGroup map
+func (s *store) DeleteInferGroup(modelInferName types.NamespacedName, inferGroupName string) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -129,8 +129,8 @@ func (s *store) DeleteInferGroupOfRunningPodMap(modelInferName types.NamespacedN
 	return nil
 }
 
-// AddInferGroupForModelInfer add inferGroup item of one modelInfer
-func (s *store) AddInferGroupForModelInfer(modelInferName types.NamespacedName, idx int) error {
+// AddInferGroup add inferGroup item of one modelInfer
+func (s *store) AddInferGroup(modelInferName types.NamespacedName, idx int) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -147,15 +147,15 @@ func (s *store) AddInferGroupForModelInfer(modelInferName types.NamespacedName, 
 	return nil
 }
 
-// AddRunningPodForInferGroup add inferGroup in runningPodOfInferGroup map
-func (s *store) AddRunningPodForInferGroup(inferGroupName types.NamespacedName, runningPodName string) {
+// AddRunningPodToInferGroup add inferGroup in runningPodOfInferGroup map
+func (s *store) AddRunningPodToInferGroup(inferGroupName types.NamespacedName, runningPodName string) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	s.runningPodOfInferGroups[inferGroupName] = append(s.runningPodOfInferGroups[inferGroupName], runningPodName)
 }
 
-// DeleteRunningPodForInferGroup delete runningPod in map
-func (s *store) DeleteRunningPodForInferGroup(inferGroupName types.NamespacedName, deletePodName string) {
+// DeleteRunningPodFromInferGroup delete runningPod in map
+func (s *store) DeleteRunningPodFromInferGroup(inferGroupName types.NamespacedName, deletePodName string) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	s.runningPodOfInferGroups[inferGroupName] = slices.DeleteFunc(s.runningPodOfInferGroups[inferGroupName], func(podName string) bool {
