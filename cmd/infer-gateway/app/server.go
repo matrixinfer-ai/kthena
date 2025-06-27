@@ -16,6 +16,9 @@ func (s *Server) Run(stop <-chan struct{}) {
 	// create store
 	store := datastore.New()
 
+	// Start store's periodic update loop
+	go store.Run(stop)
+
 	go func() {
 		// start controller
 		if err := controller.StartControllers(store); err != nil {
