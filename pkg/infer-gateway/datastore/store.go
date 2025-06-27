@@ -85,6 +85,8 @@ type Store interface {
 
 	// New methods for callback management
 	RegisterCallback(kind string, callback CallbackFunc)
+	// Run to update pod info periodically
+	Run(stop <-chan struct{})
 }
 
 type modelServer struct {
@@ -154,13 +156,21 @@ func (s *store) Run(stop <-chan struct{}) {
 		case <-stop:
 			return
 		default:
-			for _, ms := range s.modelServer {
-				for _, podInfo := range ms.pods {
-					s.updatePodMetrics(podInfo.Pod)
-					s.updatePodModels(podInfo.Pod)
-					time.Sleep(uppdateInterval)
-				}
+			// Only lock when copying pod list
+			s.mutex.RLock()
+			pods := make([]*PodInfo, 0, len(s.pods))
+			for _, podInfo := range s.pods {
+				pods = append(pods, podInfo)
 			}
+			s.mutex.RUnlock()
+
+			// Unlock before updating pods
+			for _, podInfo := range pods {
+				s.updatePodMetrics(podInfo.Pod)
+				s.updatePodModels(podInfo.Pod)
+			}
+
+			time.Sleep(uppdateInterval)
 		}
 	}
 }
