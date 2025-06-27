@@ -154,15 +154,7 @@ func (c *ModelInferController) deleteModelInfer(obj interface{}) {
 		return
 	}
 
-	inferGroupList, err := c.store.GetInferGroupByModelInfer(utils.GetNamespaceName(mi))
-	if err != nil {
-		klog.Errorf("get infer group by model infer failed: %v", err)
-		return
-	}
-	for _, group := range inferGroupList {
-		c.DeleteInferGroup(mi, group.Name)
-	}
-	err = c.store.DeleteModelInfer(types.NamespacedName{
+	err := c.store.DeleteModelInfer(types.NamespacedName{
 		Namespace: mi.Namespace,
 		Name:      mi.Name,
 	})
@@ -547,8 +539,8 @@ func (c *ModelInferController) handleReadyPod(mi *workloadv1alpha1.ModelInfer, i
 	// Add the running pod to the global storage and try to update the inferGroup status
 	c.store.AddRunningPodToInferGroup(types.NamespacedName{
 		Namespace: mi.Namespace,
-		Name:      inferGroupName,
-	}, newPod.Name)
+		Name:      mi.Name,
+	}, inferGroupName, newPod.Name)
 	ready, err := c.checkInferGroupReady(mi, inferGroupName)
 	if err != nil {
 		return fmt.Errorf("failed to check inferGroup status, err: %v", err)
@@ -579,8 +571,8 @@ func (c *ModelInferController) handleErrorPod(mi *workloadv1alpha1.ModelInfer, i
 	c.graceMap.Store(utils.GetNamespaceName(errPod), now)
 	c.store.DeleteRunningPodFromInferGroup(types.NamespacedName{
 		Namespace: mi.Namespace,
-		Name:      inferGroupName,
-	}, errPod.Name)
+		Name:      mi.Name,
+	}, inferGroupName, errPod.Name)
 	// If the inferGroup status is already running, the status needs to be updated
 	if groupStatus := c.store.GetInferGroupStatus(utils.GetNamespaceName(mi), inferGroupName); groupStatus == datastore.InferGroupRunning {
 		err := c.store.UpdateInferGroupStatus(utils.GetNamespaceName(mi), inferGroupName, datastore.InferGroupCreating)

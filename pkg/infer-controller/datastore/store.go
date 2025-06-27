@@ -3,6 +3,7 @@ package datastore
 import (
 	"fmt"
 	"slices"
+	"strings"
 	"sync"
 
 	"k8s.io/apimachinery/pkg/types"
@@ -18,22 +19,23 @@ type Store interface {
 	DeleteModelInfer(modelInferName types.NamespacedName) error
 	DeleteInferGroup(modelInferName types.NamespacedName, inferGroupName string) error
 	AddInferGroup(modelInferName types.NamespacedName, idx int) error
-	AddRunningPodToInferGroup(inferGroupName types.NamespacedName, runningPodName string)
-	DeleteRunningPodFromInferGroup(inferGroupName types.NamespacedName, deletePodName string)
+	AddRunningPodToInferGroup(modelInferName types.NamespacedName, inferGroupName string, pod string)
+	DeleteRunningPodFromInferGroup(modelInferName types.NamespacedName, inferGroupName string, pod string)
 	UpdateInferGroupStatus(modelInferName types.NamespacedName, inferGroupName string, Status InferGroupStatus) error
 }
 
 type store struct {
 	mutex sync.RWMutex
 
-	inferGroup              map[types.NamespacedName][]InferGroup
-	runningPodOfInferGroups map[types.NamespacedName][]string
+	// inferGroup is a map of model infer names to their infer groups
+	// modelInfer -> group name-> InferGroup
+	inferGroup map[types.NamespacedName]map[string]*InferGroup
 }
 
 type InferGroup struct {
-	Name      string
-	Namespace string
-	Status    InferGroupStatus
+	Name        string
+	runningPods []string // List of pod names in this infer group
+	Status      InferGroupStatus
 }
 
 type InferGroupStatus string
@@ -48,34 +50,47 @@ const (
 
 func New() (Store, error) {
 	return &store{
-		inferGroup:              make(map[types.NamespacedName][]InferGroup),
-		runningPodOfInferGroups: make(map[types.NamespacedName][]string),
+		inferGroup: make(map[types.NamespacedName]map[string]*InferGroup),
 	}, nil
 }
 
 // GetInferGroupByModelInfer returns the list of inferGroups and errors
 func (s *store) GetInferGroupByModelInfer(modelInferName types.NamespacedName) ([]InferGroup, error) {
 	s.mutex.RLock()
-	defer s.mutex.RUnlock()
 	inferGroups, ok := s.inferGroup[modelInferName]
 	if !ok {
+		s.mutex.RUnlock()
 		return nil, nil
 	}
-	return inferGroups, nil
+	// sort inferGroups by name
+	inferGroupsSlice := make([]InferGroup, 0, len(inferGroups))
+	for _, inferGroup := range inferGroups {
+		// This is o clone to prevent r/w conflict later
+		inferGroupsSlice = append(inferGroupsSlice, *inferGroup)
+	}
+	s.mutex.RUnlock()
+
+	slices.SortFunc(inferGroupsSlice, func(a, b InferGroup) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+
+	return inferGroupsSlice, nil
 }
 
 // GetRunningPodByInferGroup returns the list of running pods name and errors
 func (s *store) GetRunningPodByInferGroup(modelInferName types.NamespacedName, inferGroupName string) ([]string, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	runningPods, ok := s.runningPodOfInferGroups[types.NamespacedName{
-		Namespace: modelInferName.Namespace,
-		Name:      inferGroupName,
-	}]
+	groups, ok := s.inferGroup[modelInferName]
+	if !ok {
+		return nil, fmt.Errorf("model infer %s not found", modelInferName)
+	}
+
+	group, ok := groups[inferGroupName]
 	if !ok {
 		return nil, nil
 	}
-	return runningPods, nil
+	return group.runningPods, nil
 }
 
 // GetInferGroupStatus returns the status of inferGroup
@@ -83,10 +98,8 @@ func (s *store) GetInferGroupStatus(modelInferName types.NamespacedName, inferGr
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	if inferGroups, exist := s.inferGroup[modelInferName]; exist {
-		for _, inferGroup := range inferGroups {
-			if inferGroup.Name == inferGroupName {
-				return inferGroup.Status
-			}
+		if group, ok := inferGroups[inferGroupName]; ok {
+			return group.Status
 		}
 	}
 	return InferGroupNotFound
@@ -96,17 +109,6 @@ func (s *store) GetInferGroupStatus(modelInferName types.NamespacedName, inferGr
 func (s *store) DeleteModelInfer(modelInferName types.NamespacedName) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	inferGroups, ok := s.inferGroup[modelInferName]
-	if !ok {
-		return nil
-	}
-	for _, groupName := range inferGroups {
-		groupNamedName := types.NamespacedName{
-			Namespace: groupName.Namespace,
-			Name:      groupName.Name,
-		}
-		delete(s.runningPodOfInferGroups, groupNamedName)
-	}
 	delete(s.inferGroup, modelInferName)
 	return nil
 }
@@ -116,16 +118,10 @@ func (s *store) DeleteInferGroup(modelInferName types.NamespacedName, inferGroup
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	groupNamedName := types.NamespacedName{
-		Namespace: modelInferName.Namespace,
-		Name:      inferGroupName,
+	if inferGroups, ok := s.inferGroup[modelInferName]; ok {
+		delete(inferGroups, inferGroupName)
 	}
-	delete(s.runningPodOfInferGroups, groupNamedName)
-	for index, inferGroup := range s.inferGroup[modelInferName] {
-		if inferGroup.Name == inferGroupName {
-			s.inferGroup[modelInferName] = append(s.inferGroup[modelInferName][:index], s.inferGroup[modelInferName][index+1:]...)
-		}
-	}
+
 	return nil
 }
 
@@ -134,33 +130,43 @@ func (s *store) AddInferGroup(modelInferName types.NamespacedName, idx int) erro
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	newGroup := InferGroup{
-		Name:      utils.GenerateInferGroupName(modelInferName.Name, idx),
-		Namespace: modelInferName.Namespace,
-		Status:    InferGroupCreating,
+	newGroup := &InferGroup{
+		Name:   utils.GenerateInferGroupName(modelInferName.Name, idx),
+		Status: InferGroupCreating,
 	}
-	group := s.inferGroup[modelInferName]
-	if idx < 0 || idx > len(group) {
-		return fmt.Errorf("infer group index %d out of range", idx)
+
+	if _, ok := s.inferGroup[modelInferName]; !ok {
+		s.inferGroup[modelInferName] = make(map[string]*InferGroup)
 	}
-	s.inferGroup[modelInferName] = slices.Insert(group, idx, newGroup)
+	s.inferGroup[modelInferName] = map[string]*InferGroup{newGroup.Name: newGroup}
 	return nil
 }
 
 // AddRunningPodToInferGroup add inferGroup in runningPodOfInferGroup map
-func (s *store) AddRunningPodToInferGroup(inferGroupName types.NamespacedName, runningPodName string) {
+func (s *store) AddRunningPodToInferGroup(modelInferName types.NamespacedName, inferGroupName string, runningPodName string) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	s.runningPodOfInferGroups[inferGroupName] = append(s.runningPodOfInferGroups[inferGroupName], runningPodName)
+	if inferGroups, ok := s.inferGroup[modelInferName]; ok {
+		// TODO: what should we do if inferGroupName not exist?
+		if group, ok := inferGroups[inferGroupName]; ok {
+			group.runningPods = append(group.runningPods, runningPodName)
+		}
+	}
 }
 
 // DeleteRunningPodFromInferGroup delete runningPod in map
-func (s *store) DeleteRunningPodFromInferGroup(inferGroupName types.NamespacedName, deletePodName string) {
+func (s *store) DeleteRunningPodFromInferGroup(modelInferName types.NamespacedName, inferGroupName string, pod string) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	s.runningPodOfInferGroups[inferGroupName] = slices.DeleteFunc(s.runningPodOfInferGroups[inferGroupName], func(podName string) bool {
-		return podName == deletePodName
-	})
+
+	if inferGroups, exist := s.inferGroup[modelInferName]; exist {
+		// TODO: what should we do if inferGroupName not exist?
+		if group, ok := inferGroups[inferGroupName]; ok {
+			group.runningPods = slices.DeleteFunc(group.runningPods, func(podName string) bool {
+				return podName == pod
+			})
+		}
+	}
 }
 
 // UpdateInferGroupStatus update status of one inferGroup
@@ -172,10 +178,11 @@ func (s *store) UpdateInferGroupStatus(modelInferName types.NamespacedName, infe
 	if !ok {
 		return fmt.Errorf("failed to find modelInfer %s", modelInferName.Namespace+"/"+modelInferName.Name)
 	}
-	for i := range inferGroups {
-		if inferGroups[i].Name == inferGroupName {
-			inferGroups[i].Status = status
-		}
+	if group, ok := inferGroups[inferGroupName]; ok {
+		group.Status = status
+		inferGroups[inferGroupName] = group
+	} else {
+		return fmt.Errorf("failed to find inferGroup %s in modelInfer %s", inferGroupName, modelInferName.Namespace+"/"+modelInferName.Name)
 	}
 	return nil
 }
