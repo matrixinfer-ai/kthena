@@ -151,21 +151,19 @@ func (s *store) AddRunningPodToInferGroup(modelInferName types.NamespacedName, i
 		s.inferGroup[modelInferName] = make(map[string]*InferGroup)
 	}
 
-	if _, ok := s.inferGroup[modelInferName][inferGroupName]; !ok {
+	group, ok := s.inferGroup[modelInferName][inferGroupName]
+	if !ok {
 		// If inferGroupName not exist, create a new one
-		s.inferGroup[modelInferName][inferGroupName] = &InferGroup{
+		group = &InferGroup{
 			Name:        inferGroupName,
 			runningPods: []string{runningPodName},
 			Status:      InferGroupCreating,
 		}
+		s.inferGroup[modelInferName][inferGroupName] = group
+		return
 	}
 
-	if inferGroups, ok := s.inferGroup[modelInferName]; ok {
-		// TODO: what should we do if inferGroupName not exist?
-		if group, ok := inferGroups[inferGroupName]; ok {
-			group.runningPods = append(group.runningPods, runningPodName)
-		}
-	}
+	group.runningPods = append(group.runningPods, runningPodName)
 }
 
 // DeleteRunningPodFromInferGroup delete runningPod in map

@@ -323,12 +323,6 @@ func (c *ModelInferController) syncAll() {
 		c.addPod(pod)
 	}
 
-	modelInfers, _ := c.modelInfersLister.List(labels.Everything())
-
-	for _, modelInfer := range modelInfers {
-		err := c.syncHandler(context.TODO(), fmt.Sprintf("%s/%s", modelInfer.GetNamespace(), modelInfer.GetName()))
-		klog.Errorf("initial sync modelInfer %s/%s failed: %v", modelInfer.GetNamespace(), modelInfer.GetName(), err)
-	}
 	c.initialSync = true
 }
 
