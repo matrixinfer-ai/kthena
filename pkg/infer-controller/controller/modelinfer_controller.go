@@ -174,6 +174,12 @@ func (c *ModelInferController) updatePod(oldObj, newObj interface{}) {
 		return
 	}
 
+	if newPod.DeletionTimestamp != nil {
+		// If the pod is being deleted, we do not need to handle it.
+		// After deleted，following work will be done in deletePod.
+		return
+	}
+
 	mi, inferGroupName, err := c.getModelInfer(newPod)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
