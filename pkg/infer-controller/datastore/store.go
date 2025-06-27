@@ -146,6 +146,20 @@ func (s *store) AddInferGroup(modelInferName types.NamespacedName, idx int) erro
 func (s *store) AddRunningPodToInferGroup(modelInferName types.NamespacedName, inferGroupName string, runningPodName string) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
+	if _, ok := s.inferGroup[modelInferName]; !ok {
+		// If modelInferName not exist, create a new one
+		s.inferGroup[modelInferName] = make(map[string]*InferGroup)
+	}
+
+	if _, ok := s.inferGroup[modelInferName][inferGroupName]; !ok {
+		// If inferGroupName not exist, create a new one
+		s.inferGroup[modelInferName][inferGroupName] = &InferGroup{
+			Name:        inferGroupName,
+			runningPods: []string{runningPodName},
+			Status:      InferGroupCreating,
+		}
+	}
+
 	if inferGroups, ok := s.inferGroup[modelInferName]; ok {
 		// TODO: what should we do if inferGroupName not exist?
 		if group, ok := inferGroups[inferGroupName]; ok {
@@ -160,7 +174,6 @@ func (s *store) DeleteRunningPodFromInferGroup(modelInferName types.NamespacedNa
 	defer s.mutex.Unlock()
 
 	if inferGroups, exist := s.inferGroup[modelInferName]; exist {
-		// TODO: what should we do if inferGroupName not exist?
 		if group, ok := inferGroups[inferGroupName]; ok {
 			group.runningPods = slices.DeleteFunc(group.runningPods, func(podName string) bool {
 				return podName == pod
