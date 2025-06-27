@@ -315,6 +315,8 @@ func (c *ModelInferController) Run(ctx context.Context, workers int) {
 }
 
 // sync all pods before starting the worker
+// we donot need to sync ModelInfer here, because the ModelInfer controller will sync all ModelInfers after the initial sync.
+// Related inferGroups will be created when syncing pods.
 func (c *ModelInferController) syncAll() {
 	pods, _ := c.podsLister.List(labels.Everything())
 	for _, pod := range pods {
