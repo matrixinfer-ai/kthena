@@ -12,7 +12,7 @@ import (
 
 var (
 	GPUCacheUsage     = "vllm:gpu_cache_usage_perc"
-	RequestWaitingNum = "vllm:num_request_waiting"
+	RequestWaitingNum = "vllm:num_requests_waiting"
 	TPOT              = "vllm:time_per_output_token_seconds"
 	TTFT              = "vllm:time_to_first_token_seconds"
 )

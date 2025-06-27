@@ -23,14 +23,28 @@ var (
 type Router struct {
 	scheduler       scheduler.Scheduler
 	store           datastore.Store
-	loadRateLimiter ratelimit.RateLimit
+	loadRateLimiter *ratelimit.TokenRateLimiter
 }
 
 func NewRouter(store datastore.Store) *Router {
+	loadRateLimiter := ratelimit.NewRateLimiter()
+	store.RegisterCallback("ModelRoute", func(data datastore.EventData) {
+		if data.EventType == datastore.EventAdd || data.EventType == datastore.EventUpdate {
+			if data.ModelRoute == nil || data.ModelRoute.Spec.RateLimit == nil {
+				return
+			}
+			log.Infof("add or update rate limit for model %s", data.ModelName)
+			loadRateLimiter.AddOrUpdateLimiter(data.ModelName, data.ModelRoute.Spec.RateLimit)
+		} else if data.EventType == datastore.EventDelete {
+			log.Infof("delete rate limit for model %s", data.ModelName)
+			loadRateLimiter.DeleteLimiter(data.ModelName)
+		}
+	})
+
 	return &Router{
 		store:           store,
 		scheduler:       scheduler.NewScheduler(store),
-		loadRateLimiter: ratelimit.NewRateLimit(),
+		loadRateLimiter: loadRateLimiter,
 	}
 }
 
@@ -62,7 +76,7 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 			return
 		}
 
-		err = r.loadRateLimiter.RateLimit(prompt)
+		err = r.loadRateLimiter.RateLimit(modelName, prompt)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusTooManyRequests, "token usage exceeds rate limit")
 			return
