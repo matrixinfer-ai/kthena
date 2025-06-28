@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"k8s.io/apimachinery/pkg/types"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/router"
@@ -29,6 +30,20 @@ func startRouter(stop <-chan struct{}, store datastore.Store) {
 		c.JSON(http.StatusOK, gin.H{
 			"message": "ok",
 		})
+	})
+
+	// PodInfo query endpoint
+	engine.GET("/podinfo/namespace/:namespace/pod/:name", func(c *gin.Context) {
+		ns := c.Param("namespace")
+		name := c.Param("name")
+		podName := types.NamespacedName{Namespace: ns, Name: name}
+
+		podInfo, ok := store.GetPodInfo(podName)
+		if !ok {
+			c.JSON(http.StatusNotFound, gin.H{"error": "pod not found"})
+			return
+		}
+		c.JSON(http.StatusOK, podInfo.ToAPIResponse())
 	})
 
 	r := router.NewRouter(store)

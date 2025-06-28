@@ -87,6 +87,9 @@ type Store interface {
 	RegisterCallback(kind string, callback CallbackFunc)
 	// Run to update pod info periodically
 	Run(stop <-chan struct{})
+
+	// GetPodInfo returns the PodInfo for a given pod NamespacedName
+	GetPodInfo(name types.NamespacedName) (*PodInfo, bool)
 }
 
 type modelServer struct {
@@ -636,5 +639,38 @@ func (s *store) triggerCallbacks(kind string, data EventData) {
 		for _, callback := range callbacks {
 			go callback(data)
 		}
+	}
+}
+
+// GetPodInfo returns the PodInfo for a given pod NamespacedName
+func (s *store) GetPodInfo(name types.NamespacedName) (*PodInfo, bool) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	podInfo, ok := s.pods[name]
+	return podInfo, ok
+}
+
+func (p *PodInfo) ToAPIResponse() map[string]interface{} {
+	modelServers := []map[string]string{}
+	for ms := range p.modelServer {
+		modelServers = append(modelServers, map[string]string{
+			"namespace": ms.Namespace,
+			"name":      ms.Name,
+		})
+	}
+	models := []string{}
+	for m := range p.Models {
+		models = append(models, m)
+	}
+	return map[string]interface{}{
+		"namespace":         p.Pod.Namespace,
+		"name":              p.Pod.Name,
+		"backend":           p.backend,
+		"gpuCacheUsage":     p.GPUCacheUsage,
+		"requestWaitingNum": p.RequestWaitingNum,
+		"TPOT":              p.TPOT,
+		"TTFT":              p.TTFT,
+		"models":            models,
+		"modelServers":      modelServers,
 	}
 }
