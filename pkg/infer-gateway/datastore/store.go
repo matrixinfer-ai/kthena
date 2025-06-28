@@ -26,6 +26,7 @@ var (
 	metricsName = []string{
 		utils.GPUCacheUsage,
 		utils.RequestWaitingNum,
+		utils.RequestRunningNum,
 		utils.TPOT,
 		utils.TTFT,
 	}
@@ -103,6 +104,7 @@ type PodInfo struct {
 	// TODO: add metrics here
 	GPUCacheUsage     float64 // GPU KV-cache usage.
 	RequestWaitingNum float64 // Number of requests waiting to be processed.
+	RequestRunningNum float64 // Number of requests running.
 	// for calculating the average value over the time interval, need to store the results of the last query
 	TimeToFirstToken   *dto.Histogram
 	TimePerOutputToken *dto.Histogram
@@ -578,6 +580,9 @@ func updateMetricsInfo(podinfo *PodInfo, metricsInfo map[string]float64) {
 		},
 		utils.RequestWaitingNum: func(f float64) {
 			podinfo.RequestWaitingNum = f
+		},
+		utils.RequestRunningNum: func(f float64) {
+			podinfo.RequestRunningNum = f
 		},
 		utils.TPOT: func(f float64) {
 			if f == float64(0.0) {
