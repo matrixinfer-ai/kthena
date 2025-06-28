@@ -88,9 +88,8 @@ func (engine *vllmEngine) GetHistogramPodMetrics(allMetrics map[string]*dto.Metr
 			histogramMetrics[mapOfMetricsName[metricName]] = metricValue
 			previousMetric := previousHistogram[mapOfMetricsName[metricName]]
 			if previousMetric == nil {
-				currentSum := metricValue.GetSampleSum()
-				currentCount := metricValue.GetSampleCount()
-				wantMetrics[mapOfMetricsName[metricName]] = currentSum / float64(currentCount)
+				// Ignore the effects of history and give each pod a fair chance at the initial.
+				wantMetrics[mapOfMetricsName[metricName]] = float64(0.0)
 			} else {
 				wantMetrics[mapOfMetricsName[metricName]] = metrics.LastPeriodAvg(previousMetric, metricValue)
 			}
