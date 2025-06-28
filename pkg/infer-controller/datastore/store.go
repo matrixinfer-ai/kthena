@@ -14,7 +14,7 @@ import (
 // Store is an interface for storing and retrieving data
 type Store interface {
 	GetInferGroupByModelInfer(modelInferName types.NamespacedName) ([]InferGroup, error)
-	GetRunningPodByInferGroup(modelInferName types.NamespacedName, inferGroupName string) (map[string]struct{}, error)
+	GetRunningPodNumByInferGroup(modelInferName types.NamespacedName, inferGroupName string) (int, error)
 	GetInferGroupStatus(modelInferName types.NamespacedName, inferGroupName string) InferGroupStatus
 	DeleteModelInfer(modelInferName types.NamespacedName) error
 	DeleteInferGroup(modelInferName types.NamespacedName, inferGroupName string) error
@@ -77,20 +77,20 @@ func (s *store) GetInferGroupByModelInfer(modelInferName types.NamespacedName) (
 	return inferGroupsSlice, nil
 }
 
-// GetRunningPodByInferGroup returns the map of running pods name and errors
-func (s *store) GetRunningPodByInferGroup(modelInferName types.NamespacedName, inferGroupName string) (map[string]struct{}, error) {
+// GetRunningPodNumByInferGroup returns the number of running pods and errors
+func (s *store) GetRunningPodNumByInferGroup(modelInferName types.NamespacedName, inferGroupName string) (int, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	groups, ok := s.inferGroup[modelInferName]
 	if !ok {
-		return nil, fmt.Errorf("model infer %s not found", modelInferName)
+		return 0, fmt.Errorf("model infer %s not found", modelInferName)
 	}
 
 	group, ok := groups[inferGroupName]
 	if !ok {
-		return nil, nil
+		return 0, nil
 	}
-	return group.runningPods, nil
+	return len(group.runningPods), nil
 }
 
 // GetInferGroupStatus returns the status of inferGroup
