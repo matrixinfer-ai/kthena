@@ -16,6 +16,8 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/filters/ratelimit"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
 const (
@@ -65,8 +67,18 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 			return
 		}
 
-		// step 2: Find pods and model server details
+		// step 2: Detection of rate limit
 		modelName := modelRequest["model"].(string)
+		prompt, err := utils.GetPrompt(modelRequest)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusNotFound, "prompt not found")
+			return
+		}
+		if err := r.loadRateLimiter.RateLimit(modelName, prompt); err != nil {
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, "token usage exceeds rate limit")
+		}
+
+		// step 3: Find pods and model server details
 		modelServerName, isLora, err := r.store.MatchModelServer(modelName, c.Request)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusNotFound, fmt.Sprintf("can't find corresponding model server: %v", err))
@@ -83,19 +95,19 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 		model := modelServer.Spec.Model
 		port := modelServer.Spec.WorkloadPort.Port
 
-		// step 3: Overwrite model.
+		// step 4: Overwrite model.
 		if model != nil && !isLora {
 			modelRequest["model"] = *model
 		}
 
-		// step 4: call scheduler.Schedule. Get top n decode pods and perfill pods
-		dPods, pPods, err := r.scheduler.Schedule(modelRequest, pods, pdGroup)
+		// step 5: call scheduler.Schedule. Get top n decode pods and perfill pods
+		ctxs, err := r.scheduler.Schedule(modelRequest, pods, pdGroup)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, fmt.Sprintf("can't schedule to target pod: %v", err))
 			return
 		}
 
-		// step 5: Generate request ID at the beginning
+		// step 6: Generate request ID at the beginning
 		req := c.Request
 		requestID := uuid.New().String()
 		if req.Header.Get("x-request-id") == "" {
@@ -103,16 +115,10 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 			req.Header.Set("x-request-id", requestID)
 		}
 
-		// step 6: proxy to pods
-		if !r.tryRequestPods(c, req, pPods, modelRequest, port, requestID, perfillModel) {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, "prefill request error")
-			log.Error("Perfill pods schedule all failed")
-			return
-		}
-
-		if !r.tryRequestPods(c, req, dPods, modelRequest, port, requestID, decodeModel) {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, "decode request error")
-			log.Error("Decode pods schedule all failed")
+		// step 7: proxy to pods
+		if err := r.proxyModelEndpoint(c, req, ctxs, modelRequest, port); err != nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, "model request error")
+			log.Errorf("request failed: %v", err)
 			return
 		}
 	}
@@ -152,39 +158,35 @@ func (r *Router) getPodsAndServer(modelServerName types.NamespacedName) ([]*data
 	return pods, modelServer, nil
 }
 
-func (r *Router) tryRequestPods(
+func (r *Router) proxyModelEndpoint(
 	c *gin.Context,
 	req *http.Request,
-	Pods []*datastore.PodInfo,
+	ctxs []*framework.Context,
 	modelRequest ModelRequest,
 	port int32,
-	requestID string,
-	model string,
-) bool {
-	if len(Pods) == 0 {
-		return true
+) error {
+	if len(ctxs) == 0 {
+		return fmt.Errorf("no pod meets the requirements")
 	}
-	for i := range Pods {
-		log.Debugf("prefill pod is %v", Pods[i].Pod.Name)
-		var resp *http.Response
-		var err error
-		if model == perfillModel {
-			resp, err = proxyPrefillPod(req, Pods[i].Pod.Status.PodIP, port, modelRequest)
-			if err != nil {
-				log.Errorf("prefill pod request error: %v", err)
-				continue
+	for i := range ctxs {
+		if ctxs[i].DecodePod != nil {
+			if ctxs[i].PrefillPod != nil {
+				// PD disaggregated if there is a perfill pod. Dispatch to perfill pod first before dispatching to decode pod.
+				log.Debugf("prefill pod is %v", ctxs[i].PrefillPod.Pod.Name)
+				if err := proxyPrefillPod(req, ctxs[i].PrefillPod.Pod.Status.PodIP, port, modelRequest); err != nil {
+					log.Errorf("prefill pod request error: %v", err)
+					continue
+				}
 			}
-		} else {
-			resp, err = proxyDecodePod(c, req, Pods[i].Pod.Status.PodIP, port, modelRequest)
-			if err != nil {
+			// Request dispatched to the decode pod.
+			if err := proxyDecodePod(c, req, ctxs[i].DecodePod.Pod.Status.PodIP, port, modelRequest); err != nil {
 				log.Errorf("decode pod request error: %v", err)
 				continue
 			}
+			return nil
 		}
-		defer resp.Body.Close()
-		return true
 	}
-	return false
+	return fmt.Errorf("request to all pods failed")
 }
 
 // proxyPrefillPod proxies a request to a prefill pod.
@@ -193,7 +195,7 @@ func proxyPrefillPod(
 	podIP string,
 	port int32,
 	modelRequest ModelRequest,
-) (*http.Response, error) {
+) error {
 	// Prepare prefill body
 	prefillBody := make(map[string]interface{})
 	for k, v := range modelRequest {
@@ -203,15 +205,15 @@ func proxyPrefillPod(
 	delete(prefillBody, "stream")
 	delete(prefillBody, "stream_options")
 
-	resp, err := getResponse(req, podIP, port, prefillBody)
+	resp, err := doRequest(req, podIP, port, prefillBody)
 	if err != nil {
-		return nil, fmt.Errorf("prefill request error: %w", err)
+		return fmt.Errorf("prefill request error: %w", err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("prefill http resp error, http code is %d", resp.StatusCode)
+	if resp.StatusCode < 200 && resp.StatusCode >= 300 {
+		return fmt.Errorf("prefill http resp error, http code is %d", resp.StatusCode)
 	}
-	return resp, nil
+	return nil
 }
 
 // proxyToDecodePods proxies the request to the decode pods, returns response to downstream.
@@ -221,13 +223,13 @@ func proxyDecodePod(
 	podIP string,
 	port int32,
 	modelRequest ModelRequest,
-) (*http.Response, error) {
-	resp, err := getResponse(req, podIP, port, modelRequest)
+) error {
+	resp, err := doRequest(req, podIP, port, modelRequest)
 	if err != nil {
-		return nil, fmt.Errorf("decode request error: %w", err)
+		return fmt.Errorf("decode request error: %w", err)
 	}
-	if resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("decode http resp error, http code is %d", resp.StatusCode)
+	if resp.StatusCode < 200 && resp.StatusCode >= 300 {
+		return fmt.Errorf("decode http resp error, http code is %d", resp.StatusCode)
 	}
 	for k, vv := range resp.Header {
 		for _, v := range vv {
@@ -243,10 +245,10 @@ func proxyDecodePod(
 		}
 		return err != io.EOF
 	})
-	return resp, nil
+	return nil
 }
 
-func getResponse(
+func doRequest(
 	req *http.Request,
 	podIP string,
 	port int32,
@@ -257,13 +259,13 @@ func getResponse(
 	}
 
 	// step 1: change request URL to prefill pod URL.
-	prefillReq := req.Clone(req.Context())
-	prefillReq.URL.Host = fmt.Sprintf("%s:%d", podIP, port)
-	prefillReq.URL.Scheme = "http"
-	prefillReq.Body = io.NopCloser(bytes.NewBuffer(body))
-	prefillReq.ContentLength = int64(len(body))
+	Req := req.Clone(req.Context())
+	Req.URL.Host = fmt.Sprintf("%s:%d", podIP, port)
+	Req.URL.Scheme = "http"
+	Req.Body = io.NopCloser(bytes.NewBuffer(body))
+	Req.ContentLength = int64(len(body))
 
 	// step 2: use http.Transport to do request to prefill pod.
 	transport := http.DefaultTransport
-	return transport.RoundTrip(prefillReq)
+	return transport.RoundTrip(Req)
 }
