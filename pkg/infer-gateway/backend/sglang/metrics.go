@@ -89,7 +89,7 @@ func (engine *sglangEngine) GetHistogramPodMetrics(allMetrics map[string]*dto.Me
 			previousMetric := previousHistogram[mapOfMetricsName[metricName]]
 			if previousMetric == nil {
 				// Ignore the effects of history and give each pod a fair chance at the initial.
-				wantMetrics[mapOfMetricsName[metricName]] = float64(0)
+				wantMetrics[mapOfMetricsName[metricName]] = float64(0.0)
 			} else {
 				wantMetrics[mapOfMetricsName[metricName]] = metrics.LastPeriodAvg(previousMetric, metricValue)
 			}
