@@ -67,7 +67,7 @@ func (engine *vllmEngine) GetCountMetricsInfo(allMetrics map[string]*dto.MetricF
 			continue
 		}
 		for _, metric := range metricInfo.Metric {
-			metricValue := metric.GetCounter().GetValue()
+			metricValue := metric.GetGauge().GetValue()
 			wantMetrics[mapOfMetricsName[metricName]] = metricValue
 		}
 	}
