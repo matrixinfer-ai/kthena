@@ -210,7 +210,7 @@ func proxyPrefillPod(
 		return fmt.Errorf("prefill request error: %w", err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode < 200 && resp.StatusCode >= 300 {
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("prefill http resp error, http code is %d", resp.StatusCode)
 	}
 	return nil
@@ -228,7 +228,7 @@ func proxyDecodePod(
 	if err != nil {
 		return fmt.Errorf("decode request error: %w", err)
 	}
-	if resp.StatusCode < 200 && resp.StatusCode >= 300 {
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("decode http resp error, http code is %d", resp.StatusCode)
 	}
 	for k, vv := range resp.Header {
