@@ -1,0 +1,167 @@
+apiVersion: workload.matrixinfer.ai/v1alpha1
+kind: modelinfer
+metadata:
+  labels:
+    model.uid: randomUID
+  name: test-model-0-vllm-instance
+  namespace: default
+  ownerReferences:
+    - apiVersion: registry.matrixinfer.ai/v1alpha1
+      kind: Model
+      name: test-model
+      uid: randomUID
+spec:
+  recoveryPolicy: InferGroupRestart
+  replicas: 1
+  rolloutStrategy:
+    type: InferGroupRollingUpdate
+  schedulerName: ""
+  template:
+    gangSchedule: {}
+    networkTopology:
+      highestTierAllowed: 2
+      mode: hard
+    restartGracePeriodSeconds: 60
+    roles:
+      - entryTemplate:
+          metadata:
+            labels:
+              model.uid: randomUID
+          spec:
+            containers:
+              - args:
+                  - --port
+                  - "8100"
+                  - --url
+                  - http://localhost:8000/metrics
+                  - --engine
+                  - vllm
+                image: matrixinfer/runtime:latest
+                name: runtime
+                ports:
+                  - containerPort: 8100
+                readinessProbe:
+                  httpGet:
+                    path: /health
+                    port: 8100
+                  initialDelaySeconds: 5
+                  periodSeconds: 10
+                resources: {}
+              - command:
+                  - python
+                  - -m
+                  - vllm.entrypoints.openai.api_server
+                  - --model
+                  - /tmp/test/13a7c4d58031cdc502ca1bb4a592f2b9
+                  - --block-size
+                  - "128"
+                  - --gpu-memory-utilization
+                  - "0.9"
+                  - --max-model-len
+                  - "32768"
+                  - --tensor-parallel-size
+                  - "2"
+                  - --trust-remote-code
+                image: vllm-server:latest
+                lifecycle:
+                  preStop:
+                    exec:
+                      command:
+                        - /bin/sh
+                        - -c
+                        - |
+                          while true; do
+                            RUNNING=$(curl -s http://localhost:8000/metrics | grep 'vllm:num_requests_running' | grep -v '#' | awk '{print $2}')
+                            WAITING=$(curl -s http://localhost:8000/metrics | grep 'vllm:num_requests_waiting' | grep -v '#' | awk '{print $2}')
+                            if [ "$RUNNING" = "0.0" ] && [ "$WAITING" = "0.0" ]; then
+                              echo "Terminating: No active or waiting requests, safe to terminate" >> /proc/1/fd/1
+                              exit 0
+                            else
+                              echo "Terminating: Running: $RUNNING, Waiting: $WAITING" >> /proc/1/fd/1
+                              sleep 5
+                            fi
+                          done
+                name: engine
+                readinessProbe:
+                  failureThreshold: 3
+                  httpGet:
+                    path: /health
+                    port: 8000
+                    scheme: HTTP
+                  initialDelaySeconds: 90
+                  periodSeconds: 5
+                  successThreshold: 1
+                  timeoutSeconds: 1
+                resources:
+                  requests:
+                    cpu: 100m
+                    huawei.com/ascend-1980: "1"
+                    memory: 1Gi
+                volumeMounts:
+                  - mountPath: /tmp/test/13a7c4d58031cdc502ca1bb4a592f2b9
+                    name: backend1-weights
+            initContainers:
+              - args:
+                  - --source
+                  - s3://aios_models/deepseek-ai/DeepSeek-V3-W8A8/vllm-ascend
+                  - --output-dir
+                  - /tmp/test/13a7c4d58031cdc502ca1bb4a592f2b9
+                image: matrixinfer/downloader:latest
+                name: test-model-downloader
+                resources: {}
+                volumeMounts:
+                  - mountPath: /tmp/test/13a7c4d58031cdc502ca1bb4a592f2b9
+                    name: backend1-weights
+            terminationGracePeriodSeconds: 300
+            volumes:
+              - hostPath:
+                  path: /tmp/test
+                name: backend1-weights
+        name: leader
+        networkTopology:
+          highestTierAllowed: 2
+          mode: hard
+        replicas: 0
+        workerReplicas: 0
+        workerTemplate:
+          spec:
+            containers:
+              - command:
+                  - bash
+                  - -c
+                  - chmod u+x /vllm-workspace/vllm/examples/online_serving/multi-node-serving.sh
+                    && /vllm-workspace/vllm/examples/online_serving/multi-node-serving.sh
+                    worker --ray_address=$(ENTRY_ADDRESS)
+                image: vllm-server:latest
+                name: backend1-vllm-worker
+                resources:
+                  requests:
+                    cpu: 100m
+                    huawei.com/ascend-1980: "1"
+                    memory: 1Gi
+                volumeMounts:
+                  - mountPath: /tmp/test/13a7c4d58031cdc502ca1bb4a592f2b9
+                    name: backend1-weights
+            initContainers:
+              - args:
+                  - --source
+                  - s3://aios_models/deepseek-ai/DeepSeek-V3-W8A8/vllm-ascend
+                  - --output-dir
+                  - /tmp/test/13a7c4d58031cdc502ca1bb4a592f2b9
+                image: matrixinfer/downloader:latest
+                name: downloader
+                resources: {}
+                volumeMounts:
+                  - mountPath: /tmp/test/13a7c4d58031cdc502ca1bb4a592f2b9
+                    name: backend1-weights
+            volumes:
+              - hostPath:
+                  path: /tmp/test
+                name: backend1-weights
+  topologySpreadConstraints:
+    - labelSelector:
+        matchLabels:
+          modelinfer/name: test-model
+      maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: DoNotSchedule
