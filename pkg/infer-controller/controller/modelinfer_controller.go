@@ -632,11 +632,11 @@ func (c *ModelInferController) handlePodAfterGraceTime(mi *workloadv1alpha1.Mode
 
 func (c *ModelInferController) checkInferGroupReady(mi *workloadv1alpha1.ModelInfer, inferGroupName string) (bool, error) {
 	// TODO: modify inferGroupReady logic after rolling update functionality is implemented
-	runningPodList, err := c.store.GetRunningPodByInferGroup(utils.GetNamespaceName(mi), inferGroupName)
+	runningPodsNum, err := c.store.GetRunningPodNumByInferGroup(utils.GetNamespaceName(mi), inferGroupName)
 	if err != nil {
 		return false, err
 	}
-	if len(runningPodList) != utils.ExpectedPodNum(mi) {
+	if runningPodsNum != utils.ExpectedPodNum(mi) {
 		// the number of running pods does not reach the expected number
 		return false, nil
 	}
