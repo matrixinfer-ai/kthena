@@ -209,7 +209,7 @@ func (s *store) AddOrUpdateModelServer(name types.NamespacedName, ms *aiv1alpha1
 func (s *store) DeleteModelServer(ms *aiv1alpha1.ModelServer) error {
 	name := utils.GetNamespaceName(ms)
 	s.PodHandlerWhenDeleteModelServer(name)
-	s.mutex.Unlock()
+	s.mutex.Lock()
 	delete(s.modelServer, name)
 	s.mutex.Unlock()
 	return nil
@@ -292,15 +292,20 @@ func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.Model
 }
 
 func (s *store) PodHandlerWhenDeleteModelServer(modelServerName types.NamespacedName) {
-	pods := s.modelServer[modelServerName].pods
-	for podName := range pods {
-		s.mutex.Lock()
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	modelserver, ok := s.modelServer[modelServerName]
+	if !ok {
+		return
+	}
+
+	for podName := range modelserver.pods {
 		s.pods[podName].modelServer.Delete(modelServerName)
 		// if modelServer is nil, pod will delete
 		if s.pods[podName].modelServer.Len() == 0 {
 			delete(s.pods, podName)
 		}
-		s.mutex.Unlock()
 	}
 }
 
