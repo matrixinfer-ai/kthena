@@ -89,7 +89,7 @@ func TestBuildModelInferCR(t *testing.T) {
 					},
 				},
 			},
-			expected: []*workload.ModelInfer{loadTestYAML(t, "../../../test/expectModelInfer.yaml")},
+			expected: []*workload.ModelInfer{loadTestYAML(t, "testdata/expectModelInfer.yaml")},
 		},
 	}
 
