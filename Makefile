@@ -113,8 +113,12 @@ build: generate fmt vet ## Build ai-gateway binary.
 	go build -o bin/infer-gateway cmd/infer-gateway/main.go
 	go build -o bin/model-webhook cmd/model-webhook/main.go
 
+.PHONY: build-modelcontroller
+build-modelcontroller: generate fmt vet
+	go build -o bin/model-controller cmd/model-controller/main.go
+
 .PHONY: build-modelwebhook
-build-modelwebhook: fmt
+build-modelwebhook: generate fmt vet
 	go build -o bin/model-webhook cmd/model-webhook/main.go
 
 # If you wish to build the ai-gateway image targeting other platforms you can use the --platform flag.
@@ -129,11 +133,11 @@ docker-build-modelinfer: generate## Build docker image with the ai-gateway.
 	$(CONTAINER_TOOL) build -t ${IMG_MODELINFER} -f Dockerfile-modelinfer .
 
 .PHONY: docker-build-modelcontroller
-docker-build-modelcontroller: generate## Build docker image with the model controller.
+docker-build-modelcontroller: build-modelcontroller## Build docker image with the model controller.
 	$(CONTAINER_TOOL) build -t ${IMG_MODELCONTROLLER} -f Dockerfile-modelcontroller .
 
 .PHONY: docker-build-modelwebhook
-docker-build-modelwebhook: generate## Build docker image with the model webhook.
+docker-build-modelwebhook: build-modelwebhook## Build docker image with the model webhook.
 	$(CONTAINER_TOOL) build -t ${IMG_MODEL_WEBHOOK} -f Dockerfile-modelwebhook .
 
 .PHONY: docker-push-gateway
@@ -179,6 +183,14 @@ build-installer: generate kustomize ## Generate a consolidated YAML with CRDs an
 ifndef ignore-not-found
   ignore-not-found = false
 endif
+
+.PHONY: install-crd
+install-crd: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
+	$(KUSTOMIZE) build manifests/crd | $(KUBECTL) apply --server-side -f -
+
+.PHONY: uninstall-crd
+uninstall-crd: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+	$(KUSTOMIZE) build manifests/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
 CERT_MANAGER_VERSION ?= v1.18.0
 .PHONY: install-cert-manager

@@ -46,6 +46,11 @@ make undeploy-model-webhook
 3. The webhook deployment mounts this secret
 4. cert-manager injects the CA bundle into the webhook configurations
 
+## Test
+```bash
+kubectl apply -f ./examples/model/model_example.yaml
+```
+
 ## Troubleshooting
 
 If the webhook is not working, check:

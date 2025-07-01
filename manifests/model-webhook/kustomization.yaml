@@ -4,7 +4,6 @@ kind: Kustomization
 namespace: matrixinfer-system
 
 resources:
-- ../crd
 - cert-manager.yaml
 - deployment.yaml
 - service.yaml
