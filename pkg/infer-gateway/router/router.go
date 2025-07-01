@@ -20,11 +20,6 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
-const (
-	decodeModel  = "decode"
-	perfillModel = "perfill"
-)
-
 var (
 	log = logger.NewLogger("router")
 )
@@ -168,18 +163,29 @@ func (r *Router) proxyModelEndpoint(
 	if len(ctxs) == 0 {
 		return fmt.Errorf("no pod meets the requirements")
 	}
+
+	// build request
+	prefillRequest, err := buildPrefillRequest(req, modelRequest)
+	if err != nil {
+		return fmt.Errorf("failed to build request of prefill: %v", err)
+	}
+	decodeRequest, err := buildDecodeRequest(req, modelRequest)
+	if err != nil {
+		return fmt.Errorf("failed to build request of decode: %v", err)
+	}
+
 	for i := range ctxs {
 		if ctxs[i].DecodePod != nil {
 			if ctxs[i].PrefillPod != nil {
 				// PD disaggregated if there is a perfill pod. Dispatch to perfill pod first before dispatching to decode pod.
 				log.Debugf("prefill pod is %v", ctxs[i].PrefillPod.Pod.Name)
-				if err := proxyPrefillPod(req, ctxs[i].PrefillPod.Pod.Status.PodIP, port, modelRequest); err != nil {
+				if err := proxyPrefillPod(prefillRequest, ctxs[i].PrefillPod.Pod.Status.PodIP, port); err != nil {
 					log.Errorf("prefill pod request error: %v", err)
 					continue
 				}
 			}
 			// Request dispatched to the decode pod.
-			if err := proxyDecodePod(c, req, ctxs[i].DecodePod.Pod.Status.PodIP, port, modelRequest); err != nil {
+			if err := proxyDecodePod(c, decodeRequest, ctxs[i].DecodePod.Pod.Status.PodIP, port); err != nil {
 				log.Errorf("decode pod request error: %v", err)
 				continue
 			}
@@ -194,25 +200,12 @@ func proxyPrefillPod(
 	req *http.Request,
 	podIP string,
 	port int32,
-	modelRequest ModelRequest,
 ) error {
-	// Prepare prefill body
-	prefillBody := make(map[string]interface{})
-	for k, v := range modelRequest {
-		prefillBody[k] = v
-	}
-	prefillBody["max_tokens"] = 1
-	delete(prefillBody, "stream")
-	delete(prefillBody, "stream_options")
-
-	resp, err := doRequest(req, podIP, port, prefillBody)
+	resp, err := doRequest(req, podIP, port)
 	if err != nil {
 		return fmt.Errorf("prefill request error: %w", err)
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("prefill http resp error, http code is %d", resp.StatusCode)
-	}
+	resp.Body.Close()
 	return nil
 }
 
@@ -222,14 +215,10 @@ func proxyDecodePod(
 	req *http.Request,
 	podIP string,
 	port int32,
-	modelRequest ModelRequest,
 ) error {
-	resp, err := doRequest(req, podIP, port, modelRequest)
+	resp, err := doRequest(req, podIP, port)
 	if err != nil {
 		return fmt.Errorf("decode request error: %w", err)
-	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("decode http resp error, http code is %d", resp.StatusCode)
 	}
 	for k, vv := range resp.Header {
 		for _, v := range vv {
@@ -252,20 +241,56 @@ func doRequest(
 	req *http.Request,
 	podIP string,
 	port int32,
-	modelRequest ModelRequest) (*http.Response, error) {
-	body, err := json.Marshal(modelRequest)
-	if err != nil {
-		return nil, fmt.Errorf("marshal body failed: %w", err)
-	}
-
+) (*http.Response, error) {
 	// step 1: change request URL to prefill pod URL.
-	Req := req.Clone(req.Context())
-	Req.URL.Host = fmt.Sprintf("%s:%d", podIP, port)
-	Req.URL.Scheme = "http"
-	Req.Body = io.NopCloser(bytes.NewBuffer(body))
-	Req.ContentLength = int64(len(body))
+	req.URL.Host = fmt.Sprintf("%s:%d", podIP, port)
 
 	// step 2: use http.Transport to do request to prefill pod.
 	transport := http.DefaultTransport
-	return transport.RoundTrip(Req)
+	resp, err := transport.RoundTrip(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("http resp error, http code is %d", resp.StatusCode)
+	}
+	return resp, nil
+}
+
+func buildPrefillRequest(req *http.Request, modelRequest ModelRequest) (*http.Request, error) {
+	info := make(map[string]interface{})
+	for k, v := range modelRequest {
+		info[k] = v
+	}
+	info["max_tokens"] = 1
+	delete(info, "steam")
+	delete(info, "stream_options")
+
+	body, err := json.Marshal(info)
+	if err != nil {
+		return nil, err
+	}
+
+	// build request
+	reqCopy := req.Clone(req.Context())
+	reqCopy.URL.Scheme = "http"
+	reqCopy.Body = io.NopCloser(bytes.NewBuffer(body))
+	reqCopy.ContentLength = int64(len(body))
+
+	return reqCopy, nil
+}
+
+func buildDecodeRequest(req *http.Request, modelRequest ModelRequest) (*http.Request, error) {
+	body, err := json.Marshal(modelRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	// build request
+	reqCopy := req.Clone(req.Context())
+	reqCopy.URL.Scheme = "http"
+	reqCopy.Body = io.NopCloser(bytes.NewBuffer(body))
+	reqCopy.ContentLength = int64(len(body))
+
+	return reqCopy, nil
 }

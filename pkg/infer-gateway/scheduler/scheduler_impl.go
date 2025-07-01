@@ -20,7 +20,7 @@ var (
 
 const (
 	// Get the top five scoring podinfo
-	topFewPodInfos = 5
+	topN = 5
 )
 
 type SchedulerImpl struct {
@@ -81,7 +81,7 @@ func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.P
 		return nil, err
 	}
 
-	ctxSlice := make([]*framework.Context, topFewPodInfos)
+	ctxSlice := make([]*framework.Context, topN)
 	for index := range ctxSlice {
 		ctxSlice[index] = &framework.Context{}
 		ctxSlice[index].Model = req["model"].(string)
@@ -118,7 +118,7 @@ func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.P
 		return nil, err
 	}
 
-	topNDecodePod := TopNPodInfos(scores, topFewPodInfos)
+	topNDecodePod := TopNPodInfos(scores, topN)
 	for index := range topNDecodePod {
 		ctxSlice[index].DecodePod = topNDecodePod[index]
 	}

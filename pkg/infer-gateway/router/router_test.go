@@ -52,10 +52,10 @@ func TestProxyModelEndpoint(t *testing.T) {
 					PrefillPod: buildPodInfo("prefill1", "1.1.1.2"),
 				},
 			},
-			decodePatch: *gomonkey.ApplyFunc(proxyDecodePod, func(c *gin.Context, req *http.Request, podIP string, port int32, modelRequest ModelRequest) error {
+			decodePatch: *gomonkey.ApplyFunc(proxyDecodePod, func(c *gin.Context, req *http.Request, podIP string, port int32) error {
 				return nil
 			}),
-			prefillPatch: *gomonkey.ApplyFunc(proxyPrefillPod, func(req *http.Request, podIP string, port int32, modelRequest ModelRequest) error {
+			prefillPatch: *gomonkey.ApplyFunc(proxyPrefillPod, func(req *http.Request, podIP string, port int32) error {
 				return nil
 			}),
 			wantErr: nil,
