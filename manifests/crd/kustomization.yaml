@@ -1,0 +1,10 @@
+# This kustomization.yaml is not intended to be run by itself,
+# since it depends on service name and namespace that are out of this kustomize package.
+# It should be run by folders like manifests/default
+resources:
+- infer-controller/workload.matrixinfer.ai_modelinfers.yaml
+- infer-gateway/networking.matrixinfer.ai_modelroutes.yaml
+- infer-gateway/networking.matrixinfer.ai_modelservers.yaml
+- model-controller/registry.matrixinfer.ai_autoscalingpolicies.yaml
+- model-controller/registry.matrixinfer.ai_models.yaml
+

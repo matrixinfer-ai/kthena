@@ -1,0 +1,21 @@
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: model-webhook-issuer
+  namespace: matrixinfer-system
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: model-webhook-cert
+  namespace: matrixinfer-system
+spec:
+  dnsNames:
+  - model-webhook.matrixinfer-system.svc
+  - model-webhook.matrixinfer-system.svc.cluster.local
+  issuerRef:
+    kind: Issuer
+    name: model-webhook-issuer
+  secretName: model-webhook-certs

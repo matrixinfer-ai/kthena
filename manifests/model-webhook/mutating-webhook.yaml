@@ -1,0 +1,29 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: model-mutating-webhook
+  labels:
+    app: model-webhook
+  annotations:
+    cert-manager.io/inject-ca-from: matrixinfer-system/model-webhook-cert
+webhooks:
+- name: mutate-registry-matrixinfer-ai-v1alpha1-model.matrixinfer.ai
+  admissionReviewVersions: ["v1"]
+  sideEffects: None
+  failurePolicy: Fail
+  timeoutSeconds: 30
+  clientConfig:
+    service:
+      name: model-webhook
+      namespace: matrixinfer-system
+      path: "/mutate-registry-matrixinfer-ai-v1alpha1-model"
+      port: 443
+    caBundle: ""
+  rules:
+  - apiGroups: ["registry.matrixinfer.ai"]
+    apiVersions: ["v1alpha1"]
+    resources: ["models"]
+    operations: ["CREATE", "UPDATE"]
+    scope: "Namespaced"
+  # This ensures the webhook is called before validation
+  reinvocationPolicy: IfNeeded

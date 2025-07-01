@@ -2,6 +2,7 @@
 IMG_GATEWAY ?= ghcr.io/matrixinfer-ai/infer-gateway:latest
 IMG_MODELINFER ?= ghcr.io/matrixinfer-ai/infer-controller:latest
 IMG_MODELCONTROLLER ?= ghcr.io/matrixinfer-ai/model-controller:latest
+IMG_MODEL_WEBHOOK ?= ghcr.io/matrixinfer-ai/model-webhook:latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
@@ -110,6 +111,11 @@ lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 .PHONY: build
 build: generate fmt vet ## Build ai-gateway binary.
 	go build -o bin/infer-gateway cmd/infer-gateway/main.go
+	go build -o bin/model-webhook cmd/model-webhook/main.go
+
+.PHONY: build-modelwebhook
+build-modelwebhook: fmt
+	go build -o bin/model-webhook cmd/model-webhook/main.go
 
 # If you wish to build the ai-gateway image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
@@ -124,7 +130,11 @@ docker-build-modelinfer: generate## Build docker image with the ai-gateway.
 
 .PHONY: docker-build-modelcontroller
 docker-build-modelcontroller: generate## Build docker image with the model controller.
-	$(CONTAINER_TOOL) build -t ${IMG_MODELCONTROLLER} -f Dockerfile-modelinfer .
+	$(CONTAINER_TOOL) build -t ${IMG_MODELCONTROLLER} -f Dockerfile-modelcontroller .
+
+.PHONY: docker-build-modelwebhook
+docker-build-modelwebhook: generate## Build docker image with the model webhook.
+	$(CONTAINER_TOOL) build -t ${IMG_MODEL_WEBHOOK} -f Dockerfile-modelwebhook .
 
 .PHONY: docker-push-gateway
 docker-push-gateway: ## Push docker image with the ai-gateway.
@@ -137,6 +147,10 @@ docker-push-modelinfer: ## Push docker image with the ai-gateway.
 .PHONY: docker-push-modelcontroller
 docker-push-modelcontroller: ## Push docker image with the model controller.
 	$(CONTAINER_TOOL) push ${IMG_MODELCONTROLLER}
+
+.PHONY: docker-push-modelwebhook
+docker-push-modelwebhook: ## Push docker image with the model webhook.
+	$(CONTAINER_TOOL) push ${IMG_MODEL_WEBHOOK}
 # PLATFORMS defines the target platforms for the ai-gateway image be built to provide support to multiple
 # architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
 # - be able to use docker buildx. More info: https://docs.docker.com/build/buildx/
@@ -165,6 +179,20 @@ build-installer: generate kustomize ## Generate a consolidated YAML with CRDs an
 ifndef ignore-not-found
   ignore-not-found = false
 endif
+
+CERT_MANAGER_VERSION ?= v1.18.0
+.PHONY: install-cert-manager
+install-cert-manager:
+	$(KUBECTL) apply -f https://github.com/cert-manager/cert-manager/releases/download/$(CERT_MANAGER_VERSION)/cert-manager.yaml
+
+.PHONY: deploy-model-webhook
+deploy-model-webhook: kustomize ## Deploy model webhook to the K8s cluster specified in ~/.kube/config.
+	cd manifests/model-webhook && $(KUSTOMIZE) edit set image model-webhook=${IMG_MODEL_WEBHOOK}
+	$(KUSTOMIZE) build manifests/model-webhook | $(KUBECTL) apply -f -
+
+.PHONY: undeploy-model-webhook
+undeploy-model-webhook: kustomize ## Deploy model webhook to the K8s cluster specified in ~/.kube/config.
+	$(KUSTOMIZE) build manifests/model-webhook | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
 ##@ Dependencies
 
