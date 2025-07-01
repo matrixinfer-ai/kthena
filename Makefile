@@ -1,7 +1,7 @@
 # Image URL to use all building/pushing image targets
 IMG_GATEWAY ?= ghcr.io/matrixinfer-ai/infer-gateway:latest
 IMG_MODELINFER ?= ghcr.io/matrixinfer-ai/infer-controller:latest
-IMG_MODELCONTROLLER ?= ghcr.io/matrixinfer-ai/model-controller:latest
+IMG_MODEL_CONTROLLER ?= ghcr.io/matrixinfer-ai/model-controller:latest
 IMG_MODEL_WEBHOOK ?= ghcr.io/matrixinfer-ai/model-webhook:latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0
@@ -113,12 +113,12 @@ build: generate fmt vet ## Build ai-gateway binary.
 	go build -o bin/infer-gateway cmd/infer-gateway/main.go
 	go build -o bin/model-webhook cmd/model-webhook/main.go
 
-.PHONY: build-modelcontroller
-build-modelcontroller: generate fmt vet
+.PHONY: build-model-controller
+build-model-controller: generate fmt vet
 	go build -o bin/model-controller cmd/model-controller/main.go
 
-.PHONY: build-modelwebhook
-build-modelwebhook: generate fmt vet
+.PHONY: build-model-webhook
+build-model-webhook: generate fmt vet
 	go build -o bin/model-webhook cmd/model-webhook/main.go
 
 # If you wish to build the ai-gateway image targeting other platforms you can use the --platform flag.
@@ -132,13 +132,13 @@ docker-build-gateway: generate## Build docker image with the ai-gateway.
 docker-build-modelinfer: generate## Build docker image with the ai-gateway.
 	$(CONTAINER_TOOL) build -t ${IMG_MODELINFER} -f Dockerfile-modelinfer .
 
-.PHONY: docker-build-modelcontroller
-docker-build-modelcontroller: build-modelcontroller## Build docker image with the model controller.
-	$(CONTAINER_TOOL) build -t ${IMG_MODELCONTROLLER} -f Dockerfile-modelcontroller .
+.PHONY: docker-build-model-controller
+docker-build-model-controller: build-model-controller## Build docker image with the model controller.
+	$(CONTAINER_TOOL) build -t ${IMG_MODEL_CONTROLLER} -f Dockerfile-model-controller .
 
-.PHONY: docker-build-modelwebhook
-docker-build-modelwebhook: build-modelwebhook## Build docker image with the model webhook.
-	$(CONTAINER_TOOL) build -t ${IMG_MODEL_WEBHOOK} -f Dockerfile-modelwebhook .
+.PHONY: docker-build-model-webhook
+docker-build-model-webhook: build-model-webhook## Build docker image with the model webhook.
+	$(CONTAINER_TOOL) build -t ${IMG_MODEL_WEBHOOK} -f Dockerfile-model-webhook .
 
 .PHONY: docker-push-gateway
 docker-push-gateway: ## Push docker image with the ai-gateway.
@@ -148,12 +148,12 @@ docker-push-gateway: ## Push docker image with the ai-gateway.
 docker-push-modelinfer: ## Push docker image with the ai-gateway.
 	$(CONTAINER_TOOL) push ${IMG_MODELINFER}
 
-.PHONY: docker-push-modelcontroller
-docker-push-modelcontroller: ## Push docker image with the model controller.
-	$(CONTAINER_TOOL) push ${IMG_MODELCONTROLLER}
+.PHONY: docker-push-model-controller
+docker-push-model-controller: ## Push docker image with the model controller.
+	$(CONTAINER_TOOL) push ${IMG_MODEL_CONTROLLER}
 
-.PHONY: docker-push-modelwebhook
-docker-push-modelwebhook: ## Push docker image with the model webhook.
+.PHONY: docker-push-model-webhook
+docker-push-model-webhook: ## Push docker image with the model webhook.
 	$(CONTAINER_TOOL) push ${IMG_MODEL_WEBHOOK}
 # PLATFORMS defines the target platforms for the ai-gateway image be built to provide support to multiple
 # architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
