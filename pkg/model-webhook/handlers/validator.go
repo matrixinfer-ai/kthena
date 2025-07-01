@@ -109,12 +109,12 @@ func (v *ModelValidator) validateModel(model *registryv1alpha1.Model) (bool, str
 	allErrs = append(allErrs, validateBackendWorkerTypes(model)...)
 
 	if len(allErrs) > 0 {
-		// Convert field errors to a single error message
+		// Convert field errors to a formatted multi-line error message
 		var messages []string
 		for _, err := range allErrs {
-			messages = append(messages, err.Error())
+			messages = append(messages, fmt.Sprintf("  - %s", err.Error()))
 		}
-		return false, fmt.Sprintf("validation failed: %v", messages)
+		return false, fmt.Sprintf("validation failed:\n%s", strings.Join(messages, "\n"))
 	}
 	return true, ""
 }
