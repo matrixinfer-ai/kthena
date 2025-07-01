@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/spf13/pflag"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -23,9 +24,19 @@ var (
 	webhookTimeout int
 )
 
+func init() {
+	pflag.StringVar(&kubeconfig, "kubeconfig", "", "Path to a kubeconfig. Only required if out-of-cluster.")
+	pflag.StringVar(&masterURL, "master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
+	pflag.StringVar(&tlsCertFile, "tls-cert-file", "/etc/webhook/certs/tls.crt", "File containing the x509 Certificate for HTTPS.")
+	pflag.StringVar(&tlsPrivateKey, "tls-private-key-file", "/etc/webhook/certs/tls.key", "File containing the x509 private key to --tls-cert-file.")
+	pflag.IntVar(&port, "port", 8443, "Secure port that the webhook listens on")
+	pflag.IntVar(&webhookTimeout, "webhook-timeout", 30, "Timeout for webhook operations in seconds")
+}
+
 func main() {
 	klog.InitFlags(nil)
-	flag.Parse()
+	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
+	pflag.Parse()
 
 	// Set up signals so we handle the first shutdown signal gracefully
 	stopCh := setupSignalHandler()
@@ -64,15 +75,6 @@ func main() {
 
 	<-stopCh
 	klog.Info("Shutting down webhook server")
-}
-
-func init() {
-	flag.StringVar(&kubeconfig, "kubeconfig", "", "Path to a kubeconfig. Only required if out-of-cluster.")
-	flag.StringVar(&masterURL, "master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
-	flag.StringVar(&tlsCertFile, "tls-cert-file", "/etc/webhook/certs/tls.crt", "File containing the x509 Certificate for HTTPS.")
-	flag.StringVar(&tlsPrivateKey, "tls-private-key-file", "/etc/webhook/certs/tls.key", "File containing the x509 private key to --tls-cert-file.")
-	flag.IntVar(&port, "port", 8443, "Secure port that the webhook listens on")
-	flag.IntVar(&webhookTimeout, "webhook-timeout", 30, "Timeout for webhook operations in seconds")
 }
 
 func getConfig() (*rest.Config, error) {
