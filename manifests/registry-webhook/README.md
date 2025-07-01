@@ -21,24 +21,6 @@ This directory contains the Kubernetes manifests for deploying the registry-webh
 - **ValidatingWebhookConfiguration**: Configures the validating webhook
 - **MutatingWebhookConfiguration**: Configures the mutating webhook
 
-## Deployment
-
-If the cert-manager is not installed yet, install it first. 
-
-```bash
-make install-cert-manager
-```
-
-Deploy webhook
-```bash
-make deploy-registry-webhook
-```
-
-Undeploy webhook
-```bash
-make undeploy-registry-webhook
-```
-
 ## How It Works
 
 1. cert-manager creates a self-signed CA and issues a certificate for the webhook server
@@ -46,9 +28,17 @@ make undeploy-registry-webhook
 3. The webhook deployment mounts this secret
 4. cert-manager injects the CA bundle into the webhook configurations
 
-## Test
+## Test Workflow
 ```bash
+make install-cert-manager # optional
+make install-crd # optional
+
+make deploy-registry-webhook
 kubectl apply -f ./examples/model/model_example.yaml
+make undeploy-registry-webhook
+
+make uninstall-crd # optional
+make uninstall-cert-manager # optional
 ```
 
 ## Troubleshooting
