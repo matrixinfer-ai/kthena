@@ -10,7 +10,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
-	"matrixinfer.ai/matrixinfer/pkg/model-webhook/handlers"
+	"matrixinfer.ai/matrixinfer/pkg/registry-webhook/handlers"
 )
 
 // WebhookServer contains the server configuration

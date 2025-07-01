@@ -6,29 +6,29 @@ metadata:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: model-webhook
+  name: registry-webhook
   namespace: matrixinfer-system
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: model-webhook
+  name: registry-webhook
   namespace: matrixinfer-system
   labels:
-    app: model-webhook
+    app: registry-webhook
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: model-webhook
+      app: registry-webhook
   template:
     metadata:
       labels:
-        app: model-webhook
+        app: registry-webhook
     spec:
       containers:
       - name: webhook
-        image: model-webhook:latest
+        image: registry-webhook:latest
         imagePullPolicy: IfNotPresent
         args:
         - --port=8443
@@ -65,4 +65,4 @@ spec:
       volumes:
       - name: webhook-certs
         secret:
-          secretName: model-webhook-certs
+          secretName: registry-webhook-certs

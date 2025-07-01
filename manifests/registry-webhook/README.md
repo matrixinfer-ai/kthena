@@ -1,6 +1,6 @@
-# Model Webhook with cert-manager Integration
+# Registry Webhook with cert-manager Integration
 
-This directory contains the Kubernetes manifests for deploying the model-webhook with cert-manager integration for TLS certificate management.
+This directory contains the Kubernetes manifests for deploying the registry-webhook with cert-manager integration for TLS certificate management.
 
 ## Prerequisites
 
@@ -12,7 +12,7 @@ This directory contains the Kubernetes manifests for deploying the model-webhook
 ### cert-manager Resources
 
 - **Issuer**: A self-signed certificate issuer in the `matrixinfer-system` namespace
-- **Certificate**: Generates a TLS certificate for the webhook server and stores it in the `model-webhook-certs` secret
+- **Certificate**: Generates a TLS certificate for the webhook server and stores it in the `registry-webhook-certs` secret
 
 ### Webhook Resources
 
@@ -31,18 +31,18 @@ make install-cert-manager
 
 Deploy webhook
 ```bash
-make deploy-model-webhook
+make deploy-registry-webhook
 ```
 
 Undeploy webhook
 ```bash
-make undeploy-model-webhook
+make undeploy-registry-webhook
 ```
 
 ## How It Works
 
 1. cert-manager creates a self-signed CA and issues a certificate for the webhook server
-2. The certificate is stored in the `model-webhook-certs` secret
+2. The certificate is stored in the `registry-webhook-certs` secret
 3. The webhook deployment mounts this secret
 4. cert-manager injects the CA bundle into the webhook configurations
 
@@ -62,16 +62,16 @@ kubectl get pods -n cert-manager
 
 2. Certificate is ready:
 ```bash
-kubectl get certificate -n matrixinfer-system model-webhook-cert
+kubectl get certificate -n matrixinfer-system registry-webhook-cert
 ```
 
 3. Secret exists:
 ```bash
-kubectl get secret -n matrixinfer-system model-webhook-certs
+kubectl get secret -n matrixinfer-system registry-webhook-certs
 ```
 
 4. Webhook configurations have the CA bundle injected:
 ```bash
-kubectl get validatingwebhookconfiguration model-validating-webhook -o yaml
-kubectl get mutatingwebhookconfiguration model-mutating-webhook -o yaml
+kubectl get validatingwebhookconfiguration registry-validating-webhook -o yaml
+kubectl get mutatingwebhookconfiguration registry-mutating-webhook -o yaml
 ```

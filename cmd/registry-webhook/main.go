@@ -12,7 +12,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
-	"matrixinfer.ai/matrixinfer/pkg/model-webhook/server"
+	"matrixinfer.ai/matrixinfer/pkg/registry-webhook/server"
 )
 
 var (

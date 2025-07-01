@@ -1,11 +1,11 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: model-mutating-webhook
+  name: registry-mutating-webhook
   labels:
-    app: model-webhook
+    app: registry-webhook
   annotations:
-    cert-manager.io/inject-ca-from: matrixinfer-system/model-webhook-cert
+    cert-manager.io/inject-ca-from: matrixinfer-system/registry-webhook-cert
 webhooks:
 - name: mutate-registry-matrixinfer-ai-v1alpha1-model.matrixinfer.ai
   admissionReviewVersions: ["v1"]
@@ -14,7 +14,7 @@ webhooks:
   timeoutSeconds: 30
   clientConfig:
     service:
-      name: model-webhook
+      name: registry-webhook
       namespace: matrixinfer-system
       path: "/mutate-registry-matrixinfer-ai-v1alpha1-model"
       port: 443

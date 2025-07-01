@@ -2,7 +2,7 @@
 IMG_GATEWAY ?= ghcr.io/matrixinfer-ai/infer-gateway:latest
 IMG_MODELINFER ?= ghcr.io/matrixinfer-ai/infer-controller:latest
 IMG_MODEL_CONTROLLER ?= ghcr.io/matrixinfer-ai/model-controller:latest
-IMG_MODEL_WEBHOOK ?= ghcr.io/matrixinfer-ai/model-webhook:latest
+IMG_REGISTRY_WEBHOOK ?= ghcr.io/matrixinfer-ai/registry-webhook:latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
@@ -111,15 +111,15 @@ lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 .PHONY: build
 build: generate fmt vet ## Build ai-gateway binary.
 	go build -o bin/infer-gateway cmd/infer-gateway/main.go
-	go build -o bin/model-webhook cmd/model-webhook/main.go
+	go build -o bin/registry-webhook cmd/registry-webhook/main.go
 
 .PHONY: build-model-controller
 build-model-controller: generate fmt vet
 	go build -o bin/model-controller cmd/model-controller/main.go
 
-.PHONY: build-model-webhook
-build-model-webhook: generate fmt vet
-	go build -o bin/model-webhook cmd/model-webhook/main.go
+.PHONY: build-registry-webhook
+build-registry-webhook: generate fmt vet
+	go build -o bin/registry-webhook cmd/registry-webhook/main.go
 
 # If you wish to build the ai-gateway image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
@@ -136,9 +136,9 @@ docker-build-modelinfer: generate## Build docker image with the ai-gateway.
 docker-build-model-controller: build-model-controller## Build docker image with the model controller.
 	$(CONTAINER_TOOL) build -t ${IMG_MODEL_CONTROLLER} -f Dockerfile-model-controller .
 
-.PHONY: docker-build-model-webhook
-docker-build-model-webhook: build-model-webhook## Build docker image with the model webhook.
-	$(CONTAINER_TOOL) build -t ${IMG_MODEL_WEBHOOK} -f Dockerfile-model-webhook .
+.PHONY: docker-build-registry-webhook
+docker-build-registry-webhook: build-registry-webhook## Build docker image with the model webhook.
+	$(CONTAINER_TOOL) build -t ${IMG_REGISTRY_WEBHOOK} -f Dockerfile-registry-webhook .
 
 .PHONY: docker-push-gateway
 docker-push-gateway: ## Push docker image with the ai-gateway.
@@ -152,9 +152,9 @@ docker-push-modelinfer: ## Push docker image with the ai-gateway.
 docker-push-model-controller: ## Push docker image with the model controller.
 	$(CONTAINER_TOOL) push ${IMG_MODEL_CONTROLLER}
 
-.PHONY: docker-push-model-webhook
-docker-push-model-webhook: ## Push docker image with the model webhook.
-	$(CONTAINER_TOOL) push ${IMG_MODEL_WEBHOOK}
+.PHONY: docker-push-registry-webhook
+docker-push-registry-webhook: ## Push docker image with the model webhook.
+	$(CONTAINER_TOOL) push ${IMG_REGISTRY_WEBHOOK}
 # PLATFORMS defines the target platforms for the ai-gateway image be built to provide support to multiple
 # architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
 # - be able to use docker buildx. More info: https://docs.docker.com/build/buildx/
@@ -197,14 +197,14 @@ CERT_MANAGER_VERSION ?= v1.18.0
 install-cert-manager:
 	$(KUBECTL) apply -f https://github.com/cert-manager/cert-manager/releases/download/$(CERT_MANAGER_VERSION)/cert-manager.yaml
 
-.PHONY: deploy-model-webhook
-deploy-model-webhook: kustomize ## Deploy model webhook to the K8s cluster specified in ~/.kube/config.
-	cd manifests/model-webhook && $(KUSTOMIZE) edit set image model-webhook=${IMG_MODEL_WEBHOOK}
-	$(KUSTOMIZE) build manifests/model-webhook | $(KUBECTL) apply -f -
+.PHONY: deploy-registry-webhook
+deploy-registry-webhook: kustomize ## Deploy model webhook to the K8s cluster specified in ~/.kube/config.
+	cd manifests/registry-webhook && $(KUSTOMIZE) edit set image registry-webhook=${IMG_REGISTRY_WEBHOOK}
+	$(KUSTOMIZE) build manifests/registry-webhook | $(KUBECTL) apply -f -
 
-.PHONY: undeploy-model-webhook
-undeploy-model-webhook: kustomize ## Deploy model webhook to the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build manifests/model-webhook | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+.PHONY: undeploy-registry-webhook
+undeploy-registry-webhook: kustomize ## Deploy model webhook to the K8s cluster specified in ~/.kube/config.
+	$(KUSTOMIZE) build manifests/registry-webhook | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
 ##@ Dependencies
 

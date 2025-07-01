@@ -12,6 +12,6 @@ resources:
 
 # Replace the image placeholder with the actual image
 images:
-- name: model-webhook
-  newName: ghcr.io/matrixinfer-ai/model-webhook
+- name: registry-webhook
+  newName: ghcr.io/matrixinfer-ai/registry-webhook
   newTag: latest

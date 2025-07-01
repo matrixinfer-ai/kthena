@@ -1,11 +1,11 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
-  name: model-validating-webhook
+  name: registry-validating-webhook
   labels:
-    app: model-webhook
+    app: registry-webhook
   annotations:
-    cert-manager.io/inject-ca-from: matrixinfer-system/model-webhook-cert
+    cert-manager.io/inject-ca-from: matrixinfer-system/registry-webhook-cert
 webhooks:
 - name: validate-registry-matrixinfer-ai-v1alpha1-model.matrixinfer.ai
   admissionReviewVersions: ["v1"]
@@ -14,7 +14,7 @@ webhooks:
   timeoutSeconds: 30
   clientConfig:
     service:
-      name: model-webhook
+      name: registry-webhook
       namespace: matrixinfer-system
       path: "/validate-registry-matrixinfer-ai-v1alpha1-model"
       port: 443

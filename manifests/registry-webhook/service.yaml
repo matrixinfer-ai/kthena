@@ -1,14 +1,14 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: model-webhook
+  name: registry-webhook
   namespace: matrixinfer-system
   labels:
-    app: model-webhook
+    app: registry-webhook
 spec:
   ports:
   - port: 443
     targetPort: 8443
     name: https
   selector:
-    app: model-webhook
+    app: registry-webhook
