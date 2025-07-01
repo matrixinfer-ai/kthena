@@ -23,11 +23,11 @@ func TestValidateModel_ErrorFormatting(t *testing.T) {
 			CostExpansionRatePercent: &[]int32{50}[0], // This should trigger error when autoscaling is not set
 			Backends: []registryv1alpha1.ModelBackend{
 				{
-					Name:        "backend1",
-					Type:        registryv1alpha1.ModelBackendTypeVLLM,
-					MinReplicas: 1,
-					MaxReplicas: 3, // This should trigger error: minReplicas and maxReplicas must be equal when no autoscaling
-					Cost:        1, // This should trigger error when autoscaling is not set
+					Name:                   "backend1",
+					Type:                   registryv1alpha1.ModelBackendTypeVLLM,
+					MinReplicas:            1,
+					MaxReplicas:            3,                               // This should trigger error: minReplicas and maxReplicas must be equal when no autoscaling
+					Cost:                   1,                               // This should trigger error when autoscaling is not set
 					ScaleToZeroGracePeriod: &metav1.Duration{Duration: 300}, // This should trigger error when autoscaling is not set
 					Workers: []registryv1alpha1.ModelWorker{
 						{
@@ -38,11 +38,11 @@ func TestValidateModel_ErrorFormatting(t *testing.T) {
 					},
 				},
 				{
-					Name:        "backend2",
-					Type:        registryv1alpha1.ModelBackendTypeVLLM,
-					MinReplicas: 0,
-					MaxReplicas: 3, // This should trigger error: minReplicas and maxReplicas must be equal when no autoscaling
-					Cost:        2, // This should trigger error when autoscaling is not set
+					Name:                   "backend2",
+					Type:                   registryv1alpha1.ModelBackendTypeVLLM,
+					MinReplicas:            0,
+					MaxReplicas:            3,                               // This should trigger error: minReplicas and maxReplicas must be equal when no autoscaling
+					Cost:                   2,                               // This should trigger error when autoscaling is not set
 					ScaleToZeroGracePeriod: &metav1.Duration{Duration: 600}, // This should trigger error when autoscaling is not set
 					Workers: []registryv1alpha1.ModelWorker{
 						{
@@ -72,7 +72,7 @@ func TestValidateModel_ErrorFormatting(t *testing.T) {
 	// Check that each error line (except the first) starts with "  - "
 	for i := 1; i < len(lines); i++ {
 		if strings.TrimSpace(lines[i]) != "" { // Skip empty lines
-			assert.True(t, strings.HasPrefix(lines[i], "  - "), 
+			assert.True(t, strings.HasPrefix(lines[i], "  - "),
 				"Each error line should start with '  - ', but got: %q", lines[i])
 		}
 	}
