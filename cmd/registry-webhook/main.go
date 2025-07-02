@@ -9,7 +9,6 @@ import (
 	"github.com/spf13/pflag"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
 	"matrixinfer.ai/matrixinfer/pkg/registry-webhook/server"
@@ -17,7 +16,6 @@ import (
 
 var (
 	masterURL      string
-	kubeconfig     string
 	tlsCertFile    string
 	tlsPrivateKey  string
 	port           int
@@ -25,7 +23,6 @@ var (
 )
 
 func init() {
-	pflag.StringVar(&kubeconfig, "kubeconfig", "", "Path to a kubeconfig. Only required if out-of-cluster.")
 	pflag.StringVar(&masterURL, "master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
 	pflag.StringVar(&tlsCertFile, "tls-cert-file", "/etc/webhook/certs/tls.crt", "File containing the x509 Certificate for HTTPS.")
 	pflag.StringVar(&tlsPrivateKey, "tls-private-key-file", "/etc/webhook/certs/tls.key", "File containing the x509 private key to --tls-cert-file.")
@@ -41,7 +38,7 @@ func main() {
 	// Set up signals so we handle the first shutdown signal gracefully
 	stopCh := setupSignalHandler()
 
-	cfg, err := getConfig()
+	cfg, err := rest.InClusterConfig()
 	if err != nil {
 		klog.Fatalf("Error building kubeconfig: %s", err.Error())
 	}
@@ -75,13 +72,6 @@ func main() {
 
 	<-stopCh
 	klog.Info("Shutting down webhook server")
-}
-
-func getConfig() (*rest.Config, error) {
-	if len(kubeconfig) > 0 {
-		return clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
-	}
-	return rest.InClusterConfig()
 }
 
 func setupSignalHandler() <-chan struct{} {
