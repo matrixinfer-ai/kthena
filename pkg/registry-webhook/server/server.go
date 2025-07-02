@@ -55,7 +55,9 @@ func (ws *WebhookServer) Start(stopCh <-chan struct{}) error {
 	mux.HandleFunc("/mutate-registry-matrixinfer-ai-v1alpha1-model", modelMutator.Handle)
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok"))
+		if _, err := w.Write([]byte("ok")); err != nil {
+			klog.Errorf("Failed to write health check response: %v", err)
+		}
 	})
 
 	// Create server

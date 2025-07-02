@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -36,7 +36,7 @@ func NewModelValidator(kubeClient kubernetes.Interface, matrixinferClient client
 func (v *ModelValidator) Handle(w http.ResponseWriter, r *http.Request) {
 	var body []byte
 	if r.Body != nil {
-		if data, err := ioutil.ReadAll(r.Body); err == nil {
+		if data, err := io.ReadAll(r.Body); err == nil {
 			body = data
 		}
 	}
@@ -93,7 +93,9 @@ func (v *ModelValidator) Handle(w http.ResponseWriter, r *http.Request) {
 
 	klog.V(4).Infof("Sending response: %s", string(resp))
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(resp)
+	if _, err := w.Write(resp); err != nil {
+		klog.Errorf("Failed to write response: %v", err)
+	}
 }
 
 // validateModel validates the Model resource

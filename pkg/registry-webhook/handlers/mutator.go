@@ -3,7 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"time"
 
@@ -33,7 +33,7 @@ func NewModelMutator(kubeClient kubernetes.Interface, matrixinferClient clientse
 func (m *ModelMutator) Handle(w http.ResponseWriter, r *http.Request) {
 	var body []byte
 	if r.Body != nil {
-		if data, err := ioutil.ReadAll(r.Body); err == nil {
+		if data, err := io.ReadAll(r.Body); err == nil {
 			body = data
 		}
 	}
@@ -98,7 +98,9 @@ func (m *ModelMutator) Handle(w http.ResponseWriter, r *http.Request) {
 
 	klog.V(4).Infof("Sending response: %s", string(resp))
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(resp)
+	if _, err := w.Write(resp); err != nil {
+		klog.Errorf("Failed to write response: %v", err)
+	}
 }
 
 // mutateModel applies mutations to the Model resource
@@ -214,7 +216,7 @@ func createJSONPatch(path string, original, modified interface{}) []interface{} 
 
 		// Process each key in original
 		for key, value := range originalValue {
-			newPath := path
+			var newPath string
 			if path == "" {
 				newPath = "/" + key
 			} else {
@@ -237,7 +239,7 @@ func createJSONPatch(path string, original, modified interface{}) []interface{} 
 		for key, value := range modifiedValue {
 			if _, ok := originalValue[key]; !ok {
 				// Key added in modified
-				newPath := path
+				var newPath string
 				if path == "" {
 					newPath = "/" + key
 				} else {
