@@ -29,6 +29,7 @@ spec:
       containers:
         - name: model-controller
           image: ghcr.io/matrixinfer-ai/model-controller:latest  # todo replace this
+          args: [ "--leader-elect","true" ]
           imagePullPolicy: IfNotPresent
           resources:
             limits:
