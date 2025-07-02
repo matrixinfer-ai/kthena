@@ -1,5 +1,5 @@
 area:
-  - model-infer
+  - modelInfer
   - gateway
 
 kind:

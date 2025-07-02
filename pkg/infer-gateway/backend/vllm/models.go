@@ -23,12 +23,12 @@ func (engine *vllmEngine) GetPodModels(pod *corev1.Pod) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	var modelList ModelList
 	err = json.Unmarshal(body, &modelList)

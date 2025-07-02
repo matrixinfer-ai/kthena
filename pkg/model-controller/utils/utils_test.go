@@ -1,6 +1,9 @@
 package utils
 
 import (
+	"os"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -8,8 +11,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
-	"os"
-	"testing"
 
 	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )

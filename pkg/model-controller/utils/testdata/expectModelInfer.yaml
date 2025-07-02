@@ -98,7 +98,7 @@ spec:
                     huawei.com/ascend-1980: "1"
                     memory: 1Gi
                 volumeMounts:
-                  - mountPath: /tmp/test/13a7c4d58031cdc502ca1bb4a592f2b9
+                  - mountPath: /tmp/test
                     name: backend1-weights
             initContainers:
               - args:
@@ -110,12 +110,13 @@ spec:
                 name: test-model-downloader
                 resources: {}
                 volumeMounts:
-                  - mountPath: /tmp/test/13a7c4d58031cdc502ca1bb4a592f2b9
+                  - mountPath: /tmp/test
                     name: backend1-weights
             terminationGracePeriodSeconds: 300
             volumes:
               - hostPath:
                   path: /tmp/test
+                  type: DirectoryOrCreate
                 name: backend1-weights
         name: leader
         networkTopology:
@@ -140,7 +141,7 @@ spec:
                     huawei.com/ascend-1980: "1"
                     memory: 1Gi
                 volumeMounts:
-                  - mountPath: /tmp/test/13a7c4d58031cdc502ca1bb4a592f2b9
+                  - mountPath: /tmp/test
                     name: backend1-weights
             initContainers:
               - args:
@@ -152,11 +153,12 @@ spec:
                 name: downloader
                 resources: {}
                 volumeMounts:
-                  - mountPath: /tmp/test/13a7c4d58031cdc502ca1bb4a592f2b9
+                  - mountPath: /tmp/test
                     name: backend1-weights
             volumes:
               - hostPath:
                   path: /tmp/test
+                  type: DirectoryOrCreate
                 name: backend1-weights
   topologySpreadConstraints:
     - labelSelector:
