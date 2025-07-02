@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
@@ -16,6 +16,7 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/controller"
 	"os"
 	"os/signal"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -35,6 +36,7 @@ func main() {
 	var master string
 	var workers int
 	var enableLeaderElection bool
+	var startedLeading atomic.Bool
 
 	pflag.StringVar(&kubeconfig, "kubeconfig", "", "kubeconfig file path")
 	pflag.StringVar(&master, "master", "", "master URL")
@@ -49,78 +51,57 @@ func main() {
 		klog.Fatalf("build client config: %v", err)
 	}
 
-	kubeClient, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		klog.Fatalf("failed to create k8s client: %v", err)
-	}
-
-	client, err := clientset.NewForConfig(config)
-	if err != nil {
-		klog.Fatalf("failed to create Model client: %v", err)
-	}
+	kubeClient := kubernetes.NewForConfigOrDie(config)
+	client := clientset.NewForConfigOrDie(config)
 	// create Model controller
 	mc := controller.NewModelController(kubeClient, client)
 
-	var leaderElector *leaderelection.LeaderElector
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-ch
+		klog.Info("Received termination, signaling shutdown")
+		cancel()
+	}()
 	if enableLeaderElection {
-		leaderElector, err = initLeaderElector(config, leaderElector, mc, workers)
+		lock, err := newResourceLock(kubeClient)
 		if err != nil {
-			klog.Error(err)
-			return
+			panic(err)
 		}
+		leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
+			Lock:          lock,
+			LeaseDuration: defaultLeaseDuration,
+			RenewDeadline: defaultRenewDeadline,
+			RetryPeriod:   defaultRetryPeriod,
+			Callbacks: leaderelection.LeaderCallbacks{
+				OnStartedLeading: func(ctx context.Context) {
+					// become leader, start controller
+					startedLeading.Store(true)
+					go mc.Run(ctx, workers)
+					klog.Info("Started Model controller")
+				},
+				OnStoppedLeading: func() {
+					// become follower, do cleanup if lead before
+					if startedLeading.Load() {
+						klog.Info("Performing cleanup")
+					} else {
+						klog.Info("No need to cleanup")
+					}
+					os.Exit(0)
+				},
+			},
+			ReleaseOnCancel: false,
+			Name:            leaderElectionId,
+		})
+	} else {
+		go mc.Run(ctx, workers)
 	}
-	// Start the leader election and all required runnable
-	{
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		if leaderElector != nil {
-			// Start the leader elector process
-			leaderElector.Run(ctx)
-			<-ctx.Done()
-		} else {
-			// Normal start, not use elector
-			go mc.Run(ctx, workers)
-			klog.Info("Started Model controller")
-		}
-	}
-	// Wait for interrupt signal
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-	<-sigCh
-	klog.Info("existing")
 }
 
-func initLeaderElector(config *rest.Config, leaderElector *leaderelection.LeaderElector, mc *controller.ModelController,
-	workers int) (*leaderelection.LeaderElector, error) {
-	resourceLock, err := newResourceLock(config)
-	if err != nil {
-		return nil, err
-	}
-	leaderElector, err = leaderelection.NewLeaderElector(leaderelection.LeaderElectionConfig{
-		Lock:          resourceLock,
-		LeaseDuration: defaultLeaseDuration,
-		RenewDeadline: defaultRenewDeadline,
-		RetryPeriod:   defaultRetryPeriod,
-		Callbacks: leaderelection.LeaderCallbacks{
-			OnStartedLeading: func(ctx context.Context) {
-				// become leader
-				go mc.Run(ctx, workers)
-			},
-			OnStoppedLeading: func() {
-				// become follower
-				klog.Error("leader election lost")
-			},
-		},
-		ReleaseOnCancel: false,
-		Name:            leaderElectionId,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return leaderElector, nil
-}
-
-func newResourceLock(config *rest.Config) (resourcelock.Interface, error) {
+func newResourceLock(client kubernetes.Interface) (*resourcelock.LeaseLock, error) {
 	namespace, err := getInClusterNameSpace()
 	if err != nil {
 		return nil, err
@@ -131,11 +112,16 @@ func newResourceLock(config *rest.Config) (resourcelock.Interface, error) {
 		return nil, err
 	}
 	id = id + "_" + string(uuid.NewUUID())
-	return resourcelock.NewFromKubeconfig(resourcelock.LeasesResourceLock, namespace, leaderElectionId,
-		resourcelock.ResourceLockConfig{
+	return &resourcelock.LeaseLock{
+		LeaseMeta: metav1.ObjectMeta{
+			Name:      "lease-lock-name",
+			Namespace: namespace,
+		},
+		Client: client.CoordinationV1(),
+		LockConfig: resourcelock.ResourceLockConfig{
 			Identity: id,
-		}, config, defaultRenewDeadline,
-	)
+		},
+	}, nil
 }
 
 func getInClusterNameSpace() (string, error) {
