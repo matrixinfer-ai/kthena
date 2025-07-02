@@ -135,7 +135,7 @@ func buildVllmModelInfer(model *registry.Model, backendIdx int) (*workload.Model
 		},
 		"VOLUME_MOUNTS": []corev1.VolumeMount{{
 			Name:      cacheVolume.Name,
-			MountPath: weightsPath,
+			MountPath: getCachePath(backend.CacheURI),
 		}},
 		"MODEL_URL":                    backend.ModelURI,
 		"MODEL_DOWNLOAD_PATH":          weightsPath,
@@ -189,6 +189,7 @@ func buildCacheVolume(backend *registry.ModelBackend) (*corev1.Volume, error) {
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: getCachePath(backend.CacheURI),
+					Type: func() *corev1.HostPathType { typ := corev1.HostPathDirectoryOrCreate; return &typ }(),
 				},
 			},
 		}, nil

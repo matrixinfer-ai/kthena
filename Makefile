@@ -124,7 +124,7 @@ docker-build-modelinfer: generate## Build docker image with the ai-gateway.
 
 .PHONY: docker-build-modelcontroller
 docker-build-modelcontroller: generate## Build docker image with the model controller.
-	$(CONTAINER_TOOL) build -t ${IMG_MODELCONTROLLER} -f Dockerfile-modelinfer .
+	$(CONTAINER_TOOL) build -t ${IMG_MODELCONTROLLER} -f Dockerfile-modelcontroller .
 
 .PHONY: docker-push-gateway
 docker-push-gateway: ## Push docker image with the ai-gateway.
