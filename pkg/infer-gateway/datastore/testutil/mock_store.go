@@ -12,32 +12,32 @@ import (
 
 // MockStore implements datastore.Store for testing
 type MockStore struct {
-	callbacks map[datastore.EventType][]datastore.CallbackFunc
+	callbacks map[string][]datastore.CallbackFunc
 }
+
+var _ datastore.Store = &MockStore{}
 
 // NewMockStore creates a new MockStore instance
 func NewMockStore() *MockStore {
 	return &MockStore{
-		callbacks: make(map[datastore.EventType][]datastore.CallbackFunc),
+		callbacks: make(map[string][]datastore.CallbackFunc),
 	}
+}
+
+func (m *MockStore) Run(stop <-chan struct{}) {
 }
 
 // RegisterCallback registers a callback function for a specific event type
-func (m *MockStore) RegisterCallback(eventType datastore.EventType, callback datastore.CallbackFunc) {
-	if _, exists := m.callbacks[eventType]; !exists {
-		m.callbacks[eventType] = make([]datastore.CallbackFunc, 0)
+func (m *MockStore) RegisterCallback(kind string, callback datastore.CallbackFunc) {
+	if _, exists := m.callbacks[kind]; !exists {
+		m.callbacks[kind] = make([]datastore.CallbackFunc, 0)
 	}
-	m.callbacks[eventType] = append(m.callbacks[eventType], callback)
-}
-
-// UnregisterCallback removes a callback function for a specific event type
-func (m *MockStore) UnregisterCallback(eventType datastore.EventType, callback datastore.CallbackFunc) {
-	// Not needed for tests
+	m.callbacks[kind] = append(m.callbacks[kind], callback)
 }
 
 // TriggerCallback triggers all registered callbacks for a specific event type
-func (m *MockStore) TriggerCallback(eventType datastore.EventType, data datastore.EventData) {
-	if callbacks, exists := m.callbacks[eventType]; exists {
+func (m *MockStore) TriggerCallback(kind string, data datastore.EventData) {
+	if callbacks, exists := m.callbacks[kind]; exists {
 		for _, callback := range callbacks {
 			callback(data)
 		}

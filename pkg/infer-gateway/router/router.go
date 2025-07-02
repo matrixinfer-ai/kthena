@@ -206,7 +206,8 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 			buf := make([]byte, 512)
 			n, err := resp.Body.Read(buf)
 			if n > 0 {
-				w.Write(buf[:n])
+				// TODO: add err check
+				_, _ = w.Write(buf[:n])
 			}
 			return err != io.EOF
 		})
