@@ -16,7 +16,6 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/controller"
 	"os"
 	"os/signal"
-	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -36,7 +35,6 @@ func main() {
 	var master string
 	var workers int
 	var enableLeaderElection bool
-	var startedLeading atomic.Bool
 
 	pflag.StringVar(&kubeconfig, "kubeconfig", "", "kubeconfig file path")
 	pflag.StringVar(&master, "master", "", "master URL")
@@ -66,39 +64,53 @@ func main() {
 		klog.Info("Received termination, signaling shutdown")
 		cancel()
 	}()
+	var leaderElector *leaderelection.LeaderElector
 	if enableLeaderElection {
-		lock, err := newResourceLock(kubeClient)
+		leaderElector, err = initLeaderElector(kubeClient, mc, workers)
 		if err != nil {
-			panic(err)
+			klog.Error(err)
+			return
 		}
-		leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
-			Lock:          lock,
-			LeaseDuration: defaultLeaseDuration,
-			RenewDeadline: defaultRenewDeadline,
-			RetryPeriod:   defaultRetryPeriod,
-			Callbacks: leaderelection.LeaderCallbacks{
-				OnStartedLeading: func(ctx context.Context) {
-					// become leader, start controller
-					startedLeading.Store(true)
-					go mc.Run(ctx, workers)
-					klog.Info("Started Model controller")
-				},
-				OnStoppedLeading: func() {
-					// become follower, do cleanup if lead before
-					if startedLeading.Load() {
-						klog.Info("Performing cleanup")
-					} else {
-						klog.Info("No need to cleanup")
-					}
-					os.Exit(0)
-				},
-			},
-			ReleaseOnCancel: false,
-			Name:            leaderElectionId,
-		})
-	} else {
-		go mc.Run(ctx, workers)
 	}
+	if leaderElector != nil {
+		// Start the leader elector process
+		leaderElector.Run(ctx)
+		<-ctx.Done()
+	} else {
+		// Normal start, not use elector
+		go mc.Run(ctx, workers)
+		klog.Info("Started Model controller")
+	}
+}
+
+func initLeaderElector(kubeClient kubernetes.Interface, mc *controller.ModelController, workers int) (*leaderelection.LeaderElector, error) {
+	resourceLock, err := newResourceLock(kubeClient)
+	if err != nil {
+		return nil, err
+	}
+	leaderElector, err := leaderelection.NewLeaderElector(leaderelection.LeaderElectionConfig{
+		Lock:          resourceLock,
+		LeaseDuration: defaultLeaseDuration,
+		RenewDeadline: defaultRenewDeadline,
+		RetryPeriod:   defaultRetryPeriod,
+		Callbacks: leaderelection.LeaderCallbacks{
+			OnStartedLeading: func(ctx context.Context) {
+				// become leader
+				go mc.Run(ctx, workers)
+				klog.Info("Started Model controller as leader")
+			},
+			OnStoppedLeading: func() {
+				// become follower
+				klog.Error("leader election lost")
+			},
+		},
+		ReleaseOnCancel: false,
+		Name:            leaderElectionId,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return leaderElector, nil
 }
 
 func newResourceLock(client kubernetes.Interface) (*resourcelock.LeaseLock, error) {
