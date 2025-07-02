@@ -87,7 +87,7 @@ func buildVllmModelInfer(model *registry.Model, backendIdx int) (*workload.Model
 		return nil, err
 	}
 
-	weightsPath := getCachePath(backend.CacheURI) + getMountPath(backend)
+	weightsPath := getCachePath(backend.CacheURI) + getMountPath(backend.ModelURI)
 	commands := []string{"python", "-m", "vllm.entrypoints.openai.api_server", "--model", weightsPath}
 	args, err := parseArgs(&backend.Config)
 	if err != nil {
@@ -156,9 +156,9 @@ func buildVllmModelInfer(model *registry.Model, backendIdx int) (*workload.Model
 }
 
 // getMountPath returns the mount path for the given ModelBackend in the format "/<backend.Name>".
-func getMountPath(backend *registry.ModelBackend) string {
+func getMountPath(modelURI string) string {
 	h := md5.New()
-	h.Write([]byte(backend.ModelURI))
+	h.Write([]byte(modelURI))
 	hashBytes := h.Sum(nil)
 	hashHex := hex.EncodeToString(hashBytes)
 	return "/" + hashHex
