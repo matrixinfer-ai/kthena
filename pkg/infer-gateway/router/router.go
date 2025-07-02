@@ -96,7 +96,7 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 		}
 
 		// step 5: call scheduler.Schedule. Get top n decode pods and perfill pods
-		ctxs, err := r.scheduler.Schedule(modelRequest, pods, pdGroup)
+		ctx, err := r.scheduler.Schedule(modelRequest, pods, pdGroup)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, fmt.Sprintf("can't schedule to target pod: %v", err))
 			return
@@ -111,8 +111,8 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 		}
 
 		// step 7: proxy to pods
-		if err := r.proxyModelEndpoint(c, req, ctxs, modelRequest, port); err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, "model request error")
+		if err := r.proxyModelEndpoint(c, req, ctx, modelRequest, port); err != nil {
+			c.AbortWithStatusJSON(http.StatusNotFound, "model server not found")
 			log.Errorf("request failed: %v", err)
 			return
 		}
@@ -156,39 +156,51 @@ func (r *Router) getPodsAndServer(modelServerName types.NamespacedName) ([]*data
 func (r *Router) proxyModelEndpoint(
 	c *gin.Context,
 	req *http.Request,
-	ctxs []*framework.Context,
+	ctx *framework.Context,
 	modelRequest ModelRequest,
 	port int32,
 ) error {
-	if len(ctxs) == 0 {
+	if len(ctx.DecodePods) == 0 {
 		return fmt.Errorf("no pod meets the requirements")
 	}
 
 	// build request
-	prefillRequest, err := buildPrefillRequest(req, modelRequest)
-	if err != nil {
-		return fmt.Errorf("failed to build request of prefill: %v", err)
-	}
-	decodeRequest, err := buildDecodeRequest(req, modelRequest)
-	if err != nil {
-		return fmt.Errorf("failed to build request of decode: %v", err)
+	var decodeRequest, prefillRequest *http.Request
+	var err error
+	// If the first docode pod is not empty, then a request is necessarily Required to make a request
+	if ctx.DecodePods[0] != nil {
+		decodeRequest, err = buildDecodeRequest(req, modelRequest)
+		if err != nil {
+			return fmt.Errorf("failed to build request of decode: %v", err)
+		}
+
+		if ctx.PrefillPods[0] != nil {
+			prefillRequest, err = buildPrefillRequest(req, modelRequest)
+			if err != nil {
+				return fmt.Errorf("failed to build request of prefill: %v", err)
+			}
+		}
+	} else {
+		return fmt.Errorf("no decode pod meets the requirements")
 	}
 
-	for i := range ctxs {
-		if ctxs[i].DecodePod != nil {
-			if ctxs[i].PrefillPod != nil {
+	for i := range ctx.DecodePods {
+		if ctx.DecodePods[i] != nil {
+			if ctx.PrefillPods[i] != nil {
 				// PD disaggregated if there is a perfill pod. Dispatch to perfill pod first before dispatching to decode pod.
-				log.Debugf("prefill pod is %v", ctxs[i].PrefillPod.Pod.Name)
-				if err := proxyPrefillPod(prefillRequest, ctxs[i].PrefillPod.Pod.Status.PodIP, port); err != nil {
+				log.Debugf("prefill pod is %v", ctx.PrefillPods[i].Pod.Name)
+				if err := proxyPrefillPod(prefillRequest, ctx.PrefillPods[i].Pod.Status.PodIP, port); err != nil {
 					log.Errorf("prefill pod request error: %v", err)
 					continue
 				}
 			}
 			// Request dispatched to the decode pod.
-			if err := proxyDecodePod(c, decodeRequest, ctxs[i].DecodePod.Pod.Status.PodIP, port); err != nil {
+			if err := proxyDecodePod(c, decodeRequest, ctx.DecodePods[i].Pod.Status.PodIP, port); err != nil {
 				log.Errorf("decode pod request error: %v", err)
 				continue
 			}
+			// recoder in prefix cache
+			r.scheduler.RunPostHooks(ctx, i)
 			return nil
 		}
 	}
@@ -230,7 +242,8 @@ func proxyDecodePod(
 		buf := make([]byte, 512)
 		n, err := resp.Body.Read(buf)
 		if n > 0 {
-			w.Write(buf[:n])
+			// add error check
+			_, _ = w.Write(buf[:n])
 		}
 		return err != io.EOF
 	})
@@ -263,7 +276,7 @@ func buildPrefillRequest(req *http.Request, modelRequest ModelRequest) (*http.Re
 		info[k] = v
 	}
 	info["max_tokens"] = 1
-	delete(info, "steam")
+	delete(info, "stream")
 	delete(info, "stream_options")
 
 	body, err := json.Marshal(info)

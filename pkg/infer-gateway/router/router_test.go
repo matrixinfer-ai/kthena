@@ -35,22 +35,22 @@ func TestProxyModelEndpoint(t *testing.T) {
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 	req, _ := http.NewRequest("POST", "/", nil)
 	modelReq := ModelRequest{"model": "test"}
-	r := &Router{}
+	r := NewRouter(datastore.New())
 
 	tests := []struct {
 		name         string
-		ctxs         []*framework.Context
+		ctx          *framework.Context
 		decodePatch  gomonkey.Patches
 		prefillPatch gomonkey.Patches
 		wantErr      error
 	}{
 		{
 			name: "PD Separation, request success",
-			ctxs: []*framework.Context{
-				{
-					DecodePod:  buildPodInfo("decode1", "1.1.1.1"),
-					PrefillPod: buildPodInfo("prefill1", "1.1.1.2"),
-				},
+			ctx: &framework.Context{
+				Model:       "test",
+				Prompt:      "it's test",
+				DecodePods:  []*datastore.PodInfo{buildPodInfo("decode1", "1.1.1.1")},
+				PrefillPods: []*datastore.PodInfo{buildPodInfo("prefill1", "1.1.1.2")},
 			},
 			decodePatch: *gomonkey.ApplyFunc(proxyDecodePod, func(c *gin.Context, req *http.Request, podIP string, port int32) error {
 				return nil
@@ -63,7 +63,7 @@ func TestProxyModelEndpoint(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := r.proxyModelEndpoint(c, req, tt.ctxs, modelReq, int32(8080))
+			err := r.proxyModelEndpoint(c, req, tt.ctx, modelReq, int32(8080))
 			assert.Equal(t, tt.wantErr, err)
 		})
 	}

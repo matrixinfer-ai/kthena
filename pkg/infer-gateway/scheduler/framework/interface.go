@@ -11,8 +11,9 @@ type Context struct {
 
 	Hashes []uint64
 
-	DecodePod  *datastore.PodInfo
-	PrefillPod *datastore.PodInfo
+	PDIndex     int
+	DecodePods  []*datastore.PodInfo
+	PrefillPods []*datastore.PodInfo
 }
 
 // FilterPlugin is an interface that is used to filter valid pods that can be sent request to.
@@ -29,7 +30,7 @@ type ScorePlugin interface {
 }
 
 // PostHook is an interface that is executed after the scheduling is complete.
-type PostHook interface {
+type ScheduleHook interface {
 	Name() string
-	PostSchedule(ctx *Context)
+	PostSchedule(ctx *Context, index int)
 }

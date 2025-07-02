@@ -132,15 +132,15 @@ func (p *PrefixCache) Score(ctx *framework.Context, pods []*datastore.PodInfo) m
 	return scoreResults
 }
 
-func (p *PrefixCache) PostSchedule(ctx *framework.Context) {
-	if ctx.DecodePod != nil && len(ctx.Hashes) > 0 {
+func (p *PrefixCache) PostSchedule(ctx *framework.Context, index int) {
+	if ctx.DecodePods[index] != nil && len(ctx.Hashes) > 0 {
 		// Add the selected pod and its hashes to the cache
-		p.store.Add(ctx.Model, ctx.Hashes, ctx.DecodePod)
+		p.store.Add(ctx.Model, ctx.Hashes, ctx.DecodePods[index])
 	}
 
-	if ctx.PrefillPod != nil && len(ctx.Hashes) > 0 {
+	if ctx.PrefillPods[index] != nil && len(ctx.Hashes) > 0 {
 		// Add the selected pod and its hashes to the cache
-		p.store.Add(ctx.Model, ctx.Hashes, ctx.PrefillPod)
+		p.store.Add(ctx.Model, ctx.Hashes, ctx.PrefillPods[index])
 	}
 }
 
