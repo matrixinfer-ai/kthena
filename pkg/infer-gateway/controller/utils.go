@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
+	"sigs.k8s.io/yaml"
 )
 
 const ConfigMapPath = "/etc/config/schedulerConfiguration.yaml"
@@ -33,12 +33,12 @@ func loadSchedulerConfig() {
 	}
 	var kubeSchedulerConfiguration conf.KubeSchedulerConfiguration
 	if err := yaml.Unmarshal(data, &kubeSchedulerConfiguration); err != nil {
-		log.Error("failed to Unmarshal schedulerConfiguration: %v", err)
+		log.Errorf("failed to Unmarshal schedulerConfiguration: %v", err)
 		return
 	}
 
 	if err = unmarshalPluginsConfig(&kubeSchedulerConfiguration); err != nil {
-		log.Error("failed to Unmarshal PluginsConfig: %v", err)
+		log.Errorf("failed to Unmarshal PluginsConfig: %v", err)
 		return
 	}
 }
