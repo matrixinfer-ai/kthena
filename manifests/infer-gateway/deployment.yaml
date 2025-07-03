@@ -52,6 +52,14 @@ spec:
             port: 8080
           initialDelaySeconds: 1
           periodSeconds: 5
+        volumeMounts:
+          - name: scheduler-config
+            mountPath: /etc/config/schedulerConfiguration.yaml
+            subPath: schedulerConfiguration
+      volumes:
+        - name: scheduler-config
+          configMap:
+            name: infer-gateway-config
       serviceAccountName: infer-gateway  
 ---
 apiVersion: v1
@@ -69,3 +77,45 @@ spec:
     targetPort: 8080
     name: http
   type: LoadBalancer
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: infer-gateway-config
+  namespace: matrixinfer-system
+data:
+  schedulerConfiguration: |-
+    apiVersion: scheduler.config.k8s.io/v1
+    kind: KubeSchedulerConfiguration
+    profiles:
+      - schedulerName: default-scheduler
+        pluginConfig:
+          - name: least-request
+            args: 
+              maxWaitingRequests: 10
+          - name: least-latency
+            args:
+              maxScore: 100.0
+              TTFTTPOTWeightFactor: 0.5
+          - name: prefix-cache
+            args:
+              blockSizeToHash: 64
+              maxBlocksToMatch: 128
+              maxHashCacheSize: 50000
+        plugins:
+          preFilter:
+            enabled:
+              - name: least-request
+            disable:
+              - name: lora-affinity
+              - name: pd-filter
+          preScore:
+            enabled:
+              - name: least-request
+                weight: 1
+              - name: kv-cache
+                weight: 1
+              - name: least-latency
+                weight: 1
+              - name: prefix-cache
+                weight: 1
