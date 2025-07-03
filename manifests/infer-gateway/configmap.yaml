@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: $title$
+data:
+  # kv format
+  $key$: "$value$"
+  $actual-config-file$: "$name$.properties"
+
+  # file format
+  $name$.properties: |
+    $field$=$value1$,$value2$
+$END$
