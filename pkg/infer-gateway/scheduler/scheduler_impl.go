@@ -11,6 +11,7 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
@@ -21,49 +22,57 @@ var (
 type SchedulerImpl struct {
 	store datastore.Store
 
-	filterPlugins []framework.FilterPlugin
+	filterPlugins []framework.Plugin
 	scorePlugins  []*scorePlugin
 
 	postHooks []framework.PostHook
 }
 
 type scorePlugin struct {
-	plugin framework.ScorePlugin
+	plugin framework.Plugin
 	weight int
 }
 
 func NewScheduler(store datastore.Store) Scheduler {
 	prefixCache := plugins.NewPrefixCache(store)
 	return &SchedulerImpl{
-		store: store,
-		filterPlugins: []framework.FilterPlugin{
-			// TODO: enable lora affinity when models from metrics are available.
-			// plugins.NewLoraAffinity(),
-			plugins.NewLeastRequest(),
-		},
-		scorePlugins: []*scorePlugin{
-			// TODO: set the weight of each plugin properly.
-			{
-				plugin: plugins.NewLeastRequest(),
-				weight: 1,
-			},
-			{
-				plugin: plugins.NewGPUCacheUsage(),
-				weight: 1,
-			},
-			{
-				plugin: plugins.NewLeastLatency(),
-				weight: 1,
-			},
-			{
-				plugin: prefixCache,
-				weight: 1,
-			},
-		},
+		store:         store,
+		filterPlugins: ParseFilterPlugin(),
+		scorePlugins:  GetScorePlugin(prefixCache),
 		postHooks: []framework.PostHook{
 			prefixCache,
 		},
 	}
+}
+
+func ParseFilterPlugin() []framework.Plugin {
+	var list []framework.Plugin
+	// TODO: enable lora affinity when models from metrics are available.
+	for _, plugin := range conf.FilterPlugins {
+		list = append(list, framework.GetPluginBuilder(plugin))
+	}
+	return list
+}
+
+// TODO: set the weight of each plugin properly.
+func GetScorePlugin(prefixCache *plugins.PrefixCache) []*scorePlugin {
+	var list []*scorePlugin
+	var plugin scorePlugin
+	for key, value := range conf.ScorePluginMap {
+		if key == plugins.PrefixCachePluginName {
+			plugin = scorePlugin{
+				plugin: prefixCache,
+				weight: value,
+			}
+		} else {
+			plugin = scorePlugin{
+				plugin: framework.GetPluginBuilder(key),
+				weight: value,
+			}
+		}
+		list = append(list, &plugin)
+	}
+	return list
 }
 
 func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.PodInfo, pdGroup *aiv1alpha1.PDGroup) (*TargetPods, error) {
@@ -89,7 +98,7 @@ func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.P
 	originalPods := make([]*datastore.PodInfo, len(pods))
 	copy(originalPods, pods)
 
-	var pdFilter framework.FilterPlugin
+	var pdFilter framework.Plugin
 	if pdGroup != nil {
 		// Initialize PDFilter plugin if PD disaggregation is enabled.
 

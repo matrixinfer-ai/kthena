@@ -66,8 +66,9 @@ func unmarshalPluginsConfig(schedulerConfig *conf.KubeSchedulerConfiguration) er
 
 		if profiles.Plugins.PreFilter != nil && len(profiles.Plugins.PreFilter.Enabled) > 0 {
 			for _, plugin := range profiles.Plugins.PreFilter.Enabled {
-				conf.FilterPlugin = append(conf.FilterPlugin, plugin.Name)
+				conf.FilterPlugins = append(conf.FilterPlugins, plugin.Name)
 			}
 		}
 	}
+	return nil
 }

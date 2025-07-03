@@ -62,20 +62,21 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/cache"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 )
 
 const PrefixCachePluginName = "prefix-cache"
 
-const (
+var (
 	// Default token block size of vLLM is 16, and a good guess of average characters per token is 4.
 	// So we use 64 as the default block size.
-	BlockSizeToHash = 64
+	BlockSizeToHash = conf.PluginsArgs[PrefixCachePluginName].BlockSizeToHash
 	// TODO: make these parameters configurable.
-	MaxBlocksToMatch = 128
-	MaxHashCacheSize = 50000
+	MaxBlocksToMatch = conf.PluginsArgs[PrefixCachePluginName].MaxBlocksToMatch
+	MaxHashCacheSize = conf.PluginsArgs[PrefixCachePluginName].MaxHashCacheSize
 )
 
-var _ framework.ScorePlugin = &PrefixCache{}
+var _ framework.Plugin = &PrefixCache{}
 
 type PrefixCache struct {
 	name string
@@ -184,4 +185,8 @@ func (p *PrefixCache) hashPrompt(model string, prompt string) []uint64 {
 	}
 
 	return res
+}
+
+func (p *PrefixCache) Filter(ctx *framework.Context, pods []*datastore.PodInfo) []*datastore.PodInfo {
+	return nil
 }

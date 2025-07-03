@@ -2,7 +2,7 @@ package conf
 
 var (
 	ScorePluginMap = make(map[string]int)
-	FilterPlugin   []string
+	FilterPlugins  []string
 	PluginsArgs    = make(map[string]PluginArgs)
 )
 
@@ -47,7 +47,7 @@ type PluginConfig struct {
 
 type PluginArgs struct {
 	MaxWaitingRequests   int     `yaml:"maxWaitingRequests,omitempty"`
-	MaxScore             int     `yaml:"maxScore,omitempty"`
+	MaxScore             float64 `yaml:"maxScore,omitempty"`
 	TTFTTPOTWeightFactor float64 `yaml:"TTFTTPOTWeightFactor,omitempty"`
 	BlockSizeToHash      int     `yaml:"blockSizeToHash,omitempty"`
 	MaxBlocksToMatch     int     `yaml:"maxBlocksToMatch,omitempty"`
