@@ -26,6 +26,7 @@ const (
 	defaultRetryPeriod     = 2 * time.Second
 	leaderElectionId       = "matrixinfer.model-controller"
 	inClusterNamespacePath = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+	leaseName              = "lease.matrixinfer.model-controller"
 )
 
 // main starts model controller.
@@ -77,12 +78,13 @@ func main() {
 		leaderElector.Run(ctx)
 		<-ctx.Done()
 	} else {
-		// Normal start, not use elector
+		// Normal start, not use leader elector
 		go mc.Run(ctx, workers)
-		klog.Info("Started Model controller")
+		klog.Info("Started model controller without leader election")
 	}
 }
 
+// initLeaderElector inits a leader elector for leader election
 func initLeaderElector(kubeClient kubernetes.Interface, mc *controller.ModelController, workers int) (*leaderelection.LeaderElector, error) {
 	resourceLock, err := newResourceLock(kubeClient)
 	if err != nil {
@@ -95,12 +97,10 @@ func initLeaderElector(kubeClient kubernetes.Interface, mc *controller.ModelCont
 		RetryPeriod:   defaultRetryPeriod,
 		Callbacks: leaderelection.LeaderCallbacks{
 			OnStartedLeading: func(ctx context.Context) {
-				// become leader
 				go mc.Run(ctx, workers)
-				klog.Info("Started Model controller as leader")
+				klog.Info("Started model controller as leader")
 			},
 			OnStoppedLeading: func() {
-				// become follower
 				klog.Error("leader election lost")
 			},
 		},
@@ -113,6 +113,7 @@ func initLeaderElector(kubeClient kubernetes.Interface, mc *controller.ModelCont
 	return leaderElector, nil
 }
 
+// newResourceLock returns a lease lock which is used to elect leader
 func newResourceLock(client kubernetes.Interface) (*resourcelock.LeaseLock, error) {
 	namespace, err := getInClusterNameSpace()
 	if err != nil {
@@ -126,7 +127,7 @@ func newResourceLock(client kubernetes.Interface) (*resourcelock.LeaseLock, erro
 	id = id + "_" + string(uuid.NewUUID())
 	return &resourcelock.LeaseLock{
 		LeaseMeta: metav1.ObjectMeta{
-			Name:      "lease-lock-name",
+			Name:      leaseName,
 			Namespace: namespace,
 		},
 		Client: client.CoordinationV1(),
@@ -136,6 +137,7 @@ func newResourceLock(client kubernetes.Interface) (*resourcelock.LeaseLock, erro
 	}, nil
 }
 
+// getInClusterNameSpace gets the namespace of model controller
 func getInClusterNameSpace() (string, error) {
 	if _, err := os.Stat(inClusterNamespacePath); errors.IsNotFound(err) {
 		return "", fmt.Errorf("not running in-cluster, please specify namespace")
