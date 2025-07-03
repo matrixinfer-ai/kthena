@@ -69,8 +69,7 @@ func main() {
 	if enableLeaderElection {
 		leaderElector, err = initLeaderElector(kubeClient, mc, workers)
 		if err != nil {
-			klog.Error(err)
-			return
+			panic(err)
 		}
 	}
 	if leaderElector != nil {
