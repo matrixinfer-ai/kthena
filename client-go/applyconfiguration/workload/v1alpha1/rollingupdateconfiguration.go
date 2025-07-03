@@ -26,6 +26,7 @@ import (
 type RollingUpdateConfigurationApplyConfiguration struct {
 	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable,omitempty"`
 	MaxSurge       *intstr.IntOrString `json:"maxSurge,omitempty"`
+	Partition      *int32              `json:"partition,omitempty"`
 }
 
 // RollingUpdateConfigurationApplyConfiguration constructs a declarative configuration of the RollingUpdateConfiguration type for use with
@@ -47,5 +48,13 @@ func (b *RollingUpdateConfigurationApplyConfiguration) WithMaxUnavailable(value 
 // If called multiple times, the MaxSurge field is set to the value of the last call.
 func (b *RollingUpdateConfigurationApplyConfiguration) WithMaxSurge(value intstr.IntOrString) *RollingUpdateConfigurationApplyConfiguration {
 	b.MaxSurge = &value
+	return b
+}
+
+// WithPartition sets the Partition field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the Partition field is set to the value of the last call.
+func (b *RollingUpdateConfigurationApplyConfiguration) WithPartition(value int32) *RollingUpdateConfigurationApplyConfiguration {
+	b.Partition = &value
 	return b
 }

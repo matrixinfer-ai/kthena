@@ -87,6 +87,14 @@ spec:
                           This can not be 0 if MaxSurge is 0.
                           By default, a fixed value of 1 is used.
                         x-kubernetes-int-or-string: true
+                      partition:
+                        description: |-
+                          Partition indicates the ordinal at which the ModelInfer should be partitioned
+                          for updates. During a rolling update, all inferGroups from ordinal Replicas-1 to
+                          Partition are updated. All inferGroups from ordinal Partition-1 to 0 remain untouched.
+                          The default value is 0.
+                        format: int32
+                        type: integer
                     type: object
                   type:
                     default: InferGroupRollingUpdate

@@ -70,7 +70,8 @@ func GenerateEntryPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfe
 	entryPod := createBasePod(role, mi, entryPodName, groupName, newHash)
 	entryPod.ObjectMeta.Labels[workloadv1alpha1.EntryLabelKey] = Entry
 	addPodLabelAndAnnotation(entryPod, role.EntryTemplate.Metadata)
-	entryPod.Spec = role.EntryTemplate.Spec
+	// Deep copy the spec to avoid modifying the original role
+	entryPod.Spec = *role.EntryTemplate.Spec.DeepCopy()
 	entryPod.Spec.Hostname = entryPodName
 	entryPod.Spec.Subdomain = entryPodName
 	// Build environment variables into each container of all pod
@@ -83,7 +84,8 @@ func GenerateWorkerPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInf
 	workerPodName := generateWorkerPodName(groupName, role.Name, roleIndex, podIndex)
 	workerPod := createBasePod(role, mi, workerPodName, groupName, newHash)
 	addPodLabelAndAnnotation(workerPod, role.WorkerTemplate.Metadata)
-	workerPod.Spec = role.WorkerTemplate.Spec
+	// Deep copy the spec to avoid modifying the original role
+	workerPod.Spec = *role.WorkerTemplate.Spec.DeepCopy()
 	// Build environment variables into each container of all pod
 	envVars := createCommonEnvVars(role, mi, entryPod, podIndex)
 	addPodEnvVars(workerPod, envVars...)
