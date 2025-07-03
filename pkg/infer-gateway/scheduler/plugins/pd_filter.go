@@ -5,7 +5,9 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
 )
 
-var _ framework.FilterPlugin = &PDFilter{}
+const pdFilterPluginName = "pd-filter"
+
+var _ framework.Plugin = &PDFilter{}
 
 type PDFilter struct {
 	name string
@@ -17,7 +19,7 @@ type PDFilter struct {
 
 func NewPDFilter(decodeLabels map[string]string, prefillLabels map[string]string, pdGroupKey string) *PDFilter {
 	return &PDFilter{
-		name:          "pd-filter",
+		name:          pdFilterPluginName,
 		decodeLabels:  decodeLabels,
 		prefillLabels: prefillLabels,
 		pdGroupKey:    pdGroupKey,
@@ -85,4 +87,8 @@ func (p *PDFilter) Filter(ctx *framework.Context, pods []*datastore.PodInfo) []*
 	}
 
 	return filtered
+}
+
+func (p *PDFilter) Score(ctx *framework.Context, pods []*datastore.PodInfo) map[*datastore.PodInfo]int {
+	return nil
 }
