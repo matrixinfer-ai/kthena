@@ -121,8 +121,8 @@ func buildVllmModelInfer(model *registry.Model, backendIdx int) (*workload.Model
 		"BACKEND_NAME":     strings.ToLower(backend.Name),
 		"BACKEND_REPLICAS": backend.MinReplicas, // todo: backend replicas
 		"BACKEND_TYPE":     strings.ToLower(string(backend.Type)),
-		"ENGINE_ENV":       backend.GetEnvValueOrDefault("ENDPOINT", ""),
-		"WORKER_ENV":       backend.GetEnvValueOrDefault("ENDPOINT", ""),
+		"ENGINE_ENV":       backend.GetEnvVarOrDefault("ENDPOINT", ""),
+		"WORKER_ENV":       backend.GetEnvVarOrDefault("ENDPOINT", ""),
 		"SERVER_REPLICAS":  workersMap[registry.ModelWorkerTypeServer].Replicas,
 		"SERVER_ENTRY_TEMPLATE_METADATA": &metav1.ObjectMeta{
 			Labels: map[string]string{
@@ -139,7 +139,7 @@ func buildVllmModelInfer(model *registry.Model, backendIdx int) (*workload.Model
 		}},
 		"MODEL_URL":                    backend.ModelURI,
 		"MODEL_DOWNLOAD_PATH":          weightsPath,
-		"MODEL_DOWNLOAD_ENV":           backend.GetEnvValueOrDefault("ENDPOINT", ""),
+		"MODEL_DOWNLOAD_ENV":           backend.GetEnvVarOrDefault("ENDPOINT", ""),
 		"MODEL_DOWNLOAD_ENVFROM":       backend.EnvFrom,
 		"MODEL_INFER_DOWNLOADER_IMAGE": config.Config.GetModelInferDownloaderImage(),
 		"MODEL_INFER_RUNTIME_IMAGE":    config.Config.GetModelInferRuntimeImage(),

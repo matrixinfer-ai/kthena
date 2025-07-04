@@ -188,7 +188,19 @@ const (
 	ModelStatusConditionTypeFailed       ModelStatusConditionType = "Failed"
 )
 
-// GetEnvValueOrDefault gets value of specific env, if env does not exist, return default value
+// GetEnvVarOrDefault gets EnvVar of specific env, if env does not exist, return default value
+func (backend *ModelBackend) GetEnvVarOrDefault(name string, defaultValue string) []corev1.EnvVar {
+	for _, env := range backend.Env {
+		if env.Name == name {
+			return []corev1.EnvVar{env}
+		}
+	}
+	return []corev1.EnvVar{
+		{Name: name, Value: defaultValue},
+	}
+}
+
+// GetEnvValueOrDefault gets string value of specific env, if env does not exist, return default value
 func (backend *ModelBackend) GetEnvValueOrDefault(name string, defaultValue string) string {
 	for _, env := range backend.Env {
 		if env.Name == name {
