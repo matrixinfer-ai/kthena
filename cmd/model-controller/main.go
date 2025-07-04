@@ -72,11 +72,11 @@ func main() {
 		}
 		// Start the leader elector process
 		leaderElector.Run(ctx)
-		<-ctx.Done()
 	} else {
 		go mc.Run(ctx, workers)
 		klog.Info("Started model controller without leader election")
 	}
+	<-ctx.Done()
 }
 
 // initLeaderElector inits a leader elector for leader election
