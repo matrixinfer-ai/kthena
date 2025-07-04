@@ -104,12 +104,6 @@ lint: golangci-lint ## Run golangci-lint linter
 lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 	$(GOLANGCI_LINT) run --fix
 
-##@ Build
-
-.PHONY: build
-build: generate fmt vet ## Build ai-gateway binary.
-	go build -o bin/infer-gateway cmd/infer-gateway/main.go
-
 
 IMG_MODELINFER ?= ${HUB}/infer-controller:${TAG}
 IMG_MODELCONTROLLER ?= ${HUB}/model-controller:${TAG}
@@ -117,16 +111,21 @@ IMG_GATEWAY ?= ${HUB}/infer-gateway:${TAG}
 
 .PHONY: docker-build-gateway
 docker-build-gateway: generate
-	$(CONTAINER_TOOL) build -t ${IMG_GATEWAY} -f Dockerfile.gateway .
+	$(CONTAINER_TOOL) build -t ${IMG_GATEWAY} -f docker/Dockerfile.gateway .
 
 .PHONY: docker-build-modelinfer
 docker-build-modelinfer: generate 
-	$(CONTAINER_TOOL) build -t -t ${IMG_MODELINFER} -f Dockerfile.modelinfer .
+	$(CONTAINER_TOOL) build -t ${IMG_MODELINFER} -f docker/Dockerfile.modelinfer .
 
 .PHONY: docker-build-modelcontroller
 docker-build-modelcontroller: generate
-	$(CONTAINER_TOOL) build -t ${IMG_MODELCONTROLLER} -f Dockerfile.modelcontroller .
+	$(CONTAINER_TOOL) build -t ${IMG_MODELCONTROLLER} -f docker/Dockerfile.modelcontroller .
 
+.PHONY: docker-push
+docker-push: docker-build-gateway docker-build-modelinfer docker-build-modelcontroller ## Push all images to the registry.
+	$(CONTAINER_TOOL) push ${IMG_GATEWAY}
+	$(CONTAINER_TOOL) push ${IMG_MODELINFER}
+	$(CONTAINER_TOOL) push ${IMG_MODELCONTROLLER}
 
 # PLATFORMS defines the target platforms for the images be built to provide support to multiple
 # architectures.
@@ -135,7 +134,7 @@ PLATFORMS ?= linux/arm64,linux/amd64
 docker-buildx: ## Build and push docker image for cross-platform support
 	$(CONTAINER_TOOL) buildx build \
 		--platform ${PLATFORMS} \
-		-t ${IMG_MODELINFER} \
+		-t ${IMG_GATEWAY} \
 		-f Dockerfile.gateway \
 		--push .
 	$(CONTAINER_TOOL) buildx build \
