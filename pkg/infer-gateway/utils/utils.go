@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"os"
 
-	"gopkg.in/yaml.v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
+	"sigs.k8s.io/yaml"
 )
 
 var (
@@ -119,9 +119,7 @@ func unmarshalPluginsConfig(schedulerConfig *conf.KubeSchedulerConfiguration) er
 		}
 
 		if profiles.Plugins.PreFilter != nil && len(profiles.Plugins.PreFilter.Enabled) > 0 {
-			for _, pluginName := range profiles.Plugins.PreFilter.Enabled {
-				conf.FilterPlugins = append(conf.FilterPlugins, pluginName)
-			}
+			conf.FilterPlugins = profiles.Plugins.PreFilter.Enabled
 		}
 	}
 	return nil
