@@ -33,4 +33,4 @@ jobs:
     - name: Build matrixinfer
       shell: bash
       run: |
-        make build
+        make generate
