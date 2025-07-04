@@ -54,7 +54,12 @@ gen-crd: controller-gen
 .PHONY: generate
 generate: controller-gen code-generator gen-crd ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	go mod tidy
 	./hack/update-codegen.sh
+
+.PHONY: gen-check
+gen-check: generate
+	git diff --exit-code
 
 # Use same code-generator version as k8s.io/api
 CODEGEN_VERSION := $(shell go list -m -f '{{.Version}}' k8s.io/api)
