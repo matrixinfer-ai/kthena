@@ -140,6 +140,7 @@ func buildVllmModelInfer(model *registry.Model, backendIdx int) (*workload.Model
 		"MODEL_URL":                    backend.ModelURI,
 		"MODEL_DOWNLOAD_PATH":          weightsPath,
 		"MODEL_DOWNLOAD_ENV":           backend.Env,
+		"MODEL_DOWNLOAD_ENVFROM":       backend.EnvFrom,
 		"MODEL_INFER_DOWNLOADER_IMAGE": config.Config.GetModelInferDownloaderImage(),
 		"MODEL_INFER_RUNTIME_IMAGE":    config.Config.GetModelInferRuntimeImage(),
 		"MODEL_INFER_RUNTIME_PORT":     "8100",                          // todo
