@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
 	"reflect"
 	"sync"
 	"time"
@@ -13,9 +14,9 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/rand"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -287,7 +288,9 @@ func (c *ModelInferController) syncModelInfer(ctx context.Context, key string) e
 		return err
 	}
 
-	newHash := utils.HashRevision(runtime.RawExtension{Raw: revision})
+	hasher := fnv.New32()
+	utils.DeepHashObject(hasher, revision)
+	newHash := rand.SafeEncodeString(fmt.Sprint(hasher.Sum32()))
 
 	err = c.manageReplicas(ctx, mi, newHash)
 	if err != nil {
