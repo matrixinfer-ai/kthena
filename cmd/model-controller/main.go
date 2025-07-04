@@ -65,19 +65,15 @@ func main() {
 		klog.Info("Received termination, signaling shutdown")
 		cancel()
 	}()
-	var leaderElector *leaderelection.LeaderElector
 	if enableLeaderElection {
-		leaderElector, err = initLeaderElector(kubeClient, mc, workers)
+		leaderElector, err := initLeaderElector(kubeClient, mc, workers)
 		if err != nil {
 			panic(err)
 		}
-	}
-	if leaderElector != nil {
 		// Start the leader elector process
 		leaderElector.Run(ctx)
 		<-ctx.Done()
 	} else {
-		// Normal start, not use leader elector
 		go mc.Run(ctx, workers)
 		klog.Info("Started model controller without leader election")
 	}
