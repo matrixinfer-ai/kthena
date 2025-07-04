@@ -188,6 +188,16 @@ const (
 	ModelStatusConditionTypeFailed       ModelStatusConditionType = "Failed"
 )
 
+// GetEnvValueOrDefault gets value of specific env, if env does not exist, return default value
+func (backend *ModelBackend) GetEnvValueOrDefault(name string, defaultValue string) string {
+	for _, env := range backend.Env {
+		if env.Name == name {
+			return env.Value
+		}
+	}
+	return defaultValue
+}
+
 // ModelBackendStatus defines the status of a model backend.
 type ModelBackendStatus struct {
 	// Name is the name of the backend.

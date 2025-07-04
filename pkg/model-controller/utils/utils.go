@@ -121,8 +121,8 @@ func buildVllmModelInfer(model *registry.Model, backendIdx int) (*workload.Model
 		"BACKEND_NAME":     strings.ToLower(backend.Name),
 		"BACKEND_REPLICAS": backend.MinReplicas, // todo: backend replicas
 		"BACKEND_TYPE":     strings.ToLower(string(backend.Type)),
-		"ENGINE_ENV":       backend.Env,
-		"WORKER_ENV":       backend.Env,
+		"ENGINE_ENV":       backend.GetEnvValueOrDefault("ENDPOINT", ""),
+		"WORKER_ENV":       backend.GetEnvValueOrDefault("ENDPOINT", ""),
 		"SERVER_REPLICAS":  workersMap[registry.ModelWorkerTypeServer].Replicas,
 		"SERVER_ENTRY_TEMPLATE_METADATA": &metav1.ObjectMeta{
 			Labels: map[string]string{
@@ -139,12 +139,12 @@ func buildVllmModelInfer(model *registry.Model, backendIdx int) (*workload.Model
 		}},
 		"MODEL_URL":                    backend.ModelURI,
 		"MODEL_DOWNLOAD_PATH":          weightsPath,
-		"MODEL_DOWNLOAD_ENV":           backend.Env,
+		"MODEL_DOWNLOAD_ENV":           backend.GetEnvValueOrDefault("ENDPOINT", ""),
 		"MODEL_DOWNLOAD_ENVFROM":       backend.EnvFrom,
 		"MODEL_INFER_DOWNLOADER_IMAGE": config.Config.GetModelInferDownloaderImage(),
 		"MODEL_INFER_RUNTIME_IMAGE":    config.Config.GetModelInferRuntimeImage(),
-		"MODEL_INFER_RUNTIME_PORT":     "8100",                          // todo
-		"MODEL_INFER_RUNTIME_URL":      "http://localhost:8000/metrics", // todo
+		"MODEL_INFER_RUNTIME_PORT":     backend.GetEnvValueOrDefault("RUNTIME_PORT", "8100"),
+		"MODEL_INFER_RUNTIME_URL":      backend.GetEnvValueOrDefault("RUNTIME_URL", "http://localhost:8000/metrics"),
 		"MODEL_INFER_RUNTIME_ENGINE":   strings.ToLower(string(backend.Type)),
 		"ENGINE_SERVER_RESOURCES":      workersMap[registry.ModelWorkerTypeServer].Resources,
 		"ENGINE_SERVER_IMAGE":          workersMap[registry.ModelWorkerTypeServer].Image,
