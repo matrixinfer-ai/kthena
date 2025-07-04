@@ -25,7 +25,7 @@ func (g *GPUCacheUsage) Name() string {
 func (g *GPUCacheUsage) Score(ctx *framework.Context, pods []*datastore.PodInfo) map[*datastore.PodInfo]int {
 	scoreResults := make(map[*datastore.PodInfo]int)
 	for _, info := range pods {
-		score := int(100 - info.GPUCacheUsage)
+		score := int((1.0 - info.GPUCacheUsage) * 100)
 		scoreResults[info] = score
 	}
 
