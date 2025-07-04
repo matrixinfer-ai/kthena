@@ -139,7 +139,7 @@ func newResourceLock(client kubernetes.Interface) (*resourcelock.LeaseLock, erro
 
 // getInClusterNameSpace gets the namespace of model controller
 func getInClusterNameSpace() (string, error) {
-	if _, err := os.Stat(inClusterNamespacePath); errors.IsNotFound(err) {
+	if _, err := os.Stat(inClusterNamespacePath); os.IsNotExist(err) {
 		return "", fmt.Errorf("not running in-cluster, please specify namespace")
 	} else if err != nil {
 		return "", fmt.Errorf("error checking namespace file: %v", err)
