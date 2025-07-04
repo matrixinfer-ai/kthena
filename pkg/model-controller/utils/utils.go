@@ -142,6 +142,9 @@ func buildVllmModelInfer(model *registry.Model, backendIdx int) (*workload.Model
 		"MODEL_DOWNLOAD_ENV":           backend.Env,
 		"MODEL_INFER_DOWNLOADER_IMAGE": config.Config.GetModelInferDownloaderImage(),
 		"MODEL_INFER_RUNTIME_IMAGE":    config.Config.GetModelInferRuntimeImage(),
+		"MODEL_INFER_RUNTIME_PORT":     "8100",                          // todo
+		"MODEL_INFER_RUNTIME_URL":      "http://localhost:8000/metrics", // todo
+		"MODEL_INFER_RUNTIME_ENGINE":   strings.ToLower(string(backend.Type)),
 		"ENGINE_SERVER_RESOURCES":      workersMap[registry.ModelWorkerTypeServer].Resources,
 		"ENGINE_SERVER_IMAGE":          workersMap[registry.ModelWorkerTypeServer].Image,
 		"ENGINE_SERVER_COMMAND":        commands,
