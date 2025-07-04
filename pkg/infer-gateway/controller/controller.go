@@ -42,8 +42,6 @@ func StartControllers(store datastore.Store) error {
 		return err
 	}
 
-	loadSchedulerConfig()
-
 	mrc := NewModelRouteController(mgr, store)
 	if err := mrc.SetupWithManager(mgr); err != nil {
 		log.Errorf("Unable to start Model Route Controller: %v", err)
