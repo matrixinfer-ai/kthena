@@ -85,11 +85,9 @@ metadata:
   namespace: matrixinfer-system
 data:
   schedulerConfiguration: |-
-    apiVersion: scheduler.config.k8s.io/v1
     kind: KubeSchedulerConfiguration
     profiles:
-      - schedulerName: default-scheduler
-        pluginConfig:
+      - pluginConfig:
           - name: least-request
             args: 
               maxWaitingRequests: 10
@@ -103,13 +101,13 @@ data:
               maxBlocksToMatch: 128
               maxHashCacheSize: 50000
         plugins:
-          preFilter:
+          Filter:
             enabled:
               - name: least-request
-            disable:
+            disabled:
               - name: lora-affinity
               - name: pd-filter
-          preScore:
+          Score:
             enabled:
               - name: least-request
                 weight: 1

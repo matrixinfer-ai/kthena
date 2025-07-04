@@ -17,7 +17,7 @@ type Context struct {
 
 type Plugin interface {
 	Name() string
-	// Filteris a method that is used to filter valid pods that can be sent request to.
+	// Filter is a method that is used to filter valid pods that can be sent request to.
 	Filter(ctx *Context, pods []*datastore.PodInfo) []*datastore.PodInfo
 	// Score is a method that is used to rank pods that have passed the filter plugins.
 	// Note each plugin should generate score for a pod within [0, 100]

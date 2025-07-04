@@ -33,5 +33,5 @@ func (g *GPUCacheUsage) Score(ctx *framework.Context, pods []*datastore.PodInfo)
 }
 
 func (g *GPUCacheUsage) Filter(ctx *framework.Context, pods []*datastore.PodInfo) []*datastore.PodInfo {
-	return nil
+	return pods
 }

@@ -90,5 +90,11 @@ func (p *PDFilter) Filter(ctx *framework.Context, pods []*datastore.PodInfo) []*
 }
 
 func (p *PDFilter) Score(ctx *framework.Context, pods []*datastore.PodInfo) map[*datastore.PodInfo]int {
-	return nil
+	scoreResults := make(map[*datastore.PodInfo]int)
+
+	// Initialize all pods with score 0
+	for _, pod := range pods {
+		scoreResults[pod] = 0
+	}
+	return scoreResults
 }

@@ -2,17 +2,25 @@ package utils
 
 import (
 	"fmt"
+	"os"
 
+	"gopkg.in/yaml.v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 )
 
 var (
+	log = logger.NewLogger("utils")
+
 	GPUCacheUsage     = "gpu_usage"
 	RequestWaitingNum = "request_waiting_num"
 	TPOT              = "TPOT"
 	TTFT              = "TTFT"
 )
+
+const ConfigMapPath = "/etc/config/schedulerConfiguration.yaml"
 
 func GetNamespaceName(obj metav1.Object) types.NamespacedName {
 	return types.NamespacedName{
@@ -70,4 +78,51 @@ func GetPrompt(body map[string]interface{}) (string, error) {
 	}
 
 	return "", fmt.Errorf("prompt or messages not found in request body")
+}
+
+func LoadSchedulerConfig() {
+	data, err := os.ReadFile(ConfigMapPath)
+	if err != nil {
+		log.Fatalf("Failed to read file: %v", err)
+	}
+	var kubeSchedulerConfiguration conf.KubeSchedulerConfiguration
+	if err := yaml.Unmarshal(data, &kubeSchedulerConfiguration); err != nil {
+		log.Errorf("failed to Unmarshal schedulerConfiguration: %v", err)
+		return
+	}
+
+	if err = unmarshalPluginsConfig(&kubeSchedulerConfiguration); err != nil {
+		log.Errorf("failed to Unmarshal PluginsConfig: %v", err)
+		return
+	}
+}
+
+func unmarshalPluginsConfig(schedulerConfig *conf.KubeSchedulerConfiguration) error {
+	if len(schedulerConfig.Profiles) == 0 {
+		return fmt.Errorf("profiles is empty")
+	}
+	for _, profiles := range schedulerConfig.Profiles {
+		if len(profiles.PluginConfig) > 0 {
+			for _, pluginConfig := range profiles.PluginConfig {
+				conf.PluginsArgs[pluginConfig.Name] = pluginConfig.Args
+			}
+		}
+
+		if profiles.Plugins == nil {
+			continue
+		}
+
+		if profiles.Plugins.PreScore != nil && len(profiles.Plugins.PreScore.Enabled) > 0 {
+			for _, plugin := range profiles.Plugins.PreScore.Enabled {
+				conf.ScorePluginMap[plugin.Name] = plugin.Weight
+			}
+		}
+
+		if profiles.Plugins.PreFilter != nil && len(profiles.Plugins.PreFilter.Enabled) > 0 {
+			for _, pluginName := range profiles.Plugins.PreFilter.Enabled {
+				conf.FilterPlugins = append(conf.FilterPlugins, pluginName)
+			}
+		}
+	}
+	return nil
 }

@@ -34,6 +34,7 @@ type scorePlugin struct {
 }
 
 func NewScheduler(store datastore.Store) Scheduler {
+	utils.LoadSchedulerConfig()
 	prefixCache := plugins.NewPrefixCache(store)
 	return &SchedulerImpl{
 		store:         store,
@@ -57,20 +58,18 @@ func ParseFilterPlugin() []framework.Plugin {
 // TODO: set the weight of each plugin properly.
 func GetScorePlugin(prefixCache *plugins.PrefixCache) []*scorePlugin {
 	var list []*scorePlugin
-	var plugin scorePlugin
 	for key, value := range conf.ScorePluginMap {
 		if key == plugins.PrefixCachePluginName {
-			plugin = scorePlugin{
+			list = append(list, &scorePlugin{
 				plugin: prefixCache,
 				weight: value,
-			}
+			})
 		} else {
-			plugin = scorePlugin{
+			list = append(list, &scorePlugin{
 				plugin: framework.GetPluginBuilder(key),
 				weight: value,
-			}
+			})
 		}
-		list = append(list, &plugin)
 	}
 	return list
 }

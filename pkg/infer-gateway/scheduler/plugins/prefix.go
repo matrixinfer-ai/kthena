@@ -188,5 +188,5 @@ func (p *PrefixCache) hashPrompt(model string, prompt string) []uint64 {
 }
 
 func (p *PrefixCache) Filter(ctx *framework.Context, pods []*datastore.PodInfo) []*datastore.PodInfo {
-	return nil
+	return pods
 }

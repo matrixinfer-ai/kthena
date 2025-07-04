@@ -7,15 +7,13 @@ var (
 )
 
 type KubeSchedulerConfiguration struct {
-	APIVersion string    `yaml:"apiVersion"`
-	Kind       string    `yaml:"kind"`
-	Profiles   []Profile `yaml:"profiles"`
+	Kind     string    `yaml:"kind"`
+	Profiles []Profile `yaml:"profiles"`
 }
 
 type Profile struct {
-	SchedulerName string         `yaml:"schedulerName"`
-	PluginConfig  []PluginConfig `yaml:"pluginConfig"`
-	Plugins       *Plugins       `yaml:"plugins"`
+	PluginConfig []PluginConfig `yaml:"pluginConfig"`
+	Plugins      *Plugins       `yaml:"plugins"`
 }
 
 type Plugins struct {
@@ -24,15 +22,11 @@ type Plugins struct {
 }
 
 type PreFilter struct {
-	Enabled []PluginName `yaml:"enabled"`
+	Enabled []string `yaml:"enabled"`
 }
 
 type PreScore struct {
 	Enabled []PluginWithWeight `yaml:"enabled"`
-}
-
-type PluginName struct {
-	Name string `yaml:"name"`
 }
 
 type PluginWithWeight struct {
