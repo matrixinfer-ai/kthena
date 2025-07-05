@@ -1,3 +1,19 @@
+/*
+Copyright MatrixInfer-AI Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package sglang
 
 import (
@@ -88,9 +104,8 @@ func (engine *sglangEngine) GetHistogramPodMetrics(allMetrics map[string]*dto.Me
 			histogramMetrics[mapOfMetricsName[metricName]] = metricValue
 			previousMetric := previousHistogram[mapOfMetricsName[metricName]]
 			if previousMetric == nil {
-				currentSum := metricValue.GetSampleSum()
-				currentCount := metricValue.GetSampleCount()
-				wantMetrics[mapOfMetricsName[metricName]] = currentSum / float64(currentCount)
+				// Ignore the effects of history and give each pod a fair chance at the initial.
+				wantMetrics[mapOfMetricsName[metricName]] = float64(0.0)
 			} else {
 				wantMetrics[mapOfMetricsName[metricName]] = metrics.LastPeriodAvg(previousMetric, metricValue)
 			}
@@ -98,4 +113,9 @@ func (engine *sglangEngine) GetHistogramPodMetrics(allMetrics map[string]*dto.Me
 	}
 
 	return wantMetrics, histogramMetrics
+}
+
+// TODO： Methods to get Models from sglang
+func (engine *sglangEngine) GetPodModels(pod *corev1.Pod) ([]string, error) {
+	return nil, nil
 }

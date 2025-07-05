@@ -1,5 +1,6 @@
 # Image URL to use all building/pushing image targets
-IMG ?= ghcr.io/matrixinfer-ai/infer-gateway:latest
+HUB ?= ghcr.io/matrixinfer-ai
+TAG ?= latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
@@ -45,14 +46,20 @@ help: ## Display this help.
 
 ##@ Development
 
-.PHONY: manifests
-manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) crd paths="./..." output:crd:artifacts:config=manifests/crd/bases
-
+.PHONY: gen-crd
+gen-crd: controller-gen 
+	$(CONTROLLER_GEN) crd paths="./pkg/apis/networking/..." output:crd:artifacts:config=manifests/crd/infer-gateway
+	$(CONTROLLER_GEN) crd paths="./pkg/apis/workload/..." output:crd:artifacts:config=manifests/crd/infer-controller
+	$(CONTROLLER_GEN) crd paths="./pkg/apis/registry/..." output:crd:artifacts:config=manifests/crd/model-controller
 .PHONY: generate
-generate: controller-gen code-generator manifests ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+generate: controller-gen code-generator gen-crd ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	go mod tidy
 	./hack/update-codegen.sh
+
+.PHONY: gen-check
+gen-check: generate
+	git diff --exit-code
 
 # Use same code-generator version as k8s.io/api
 CODEGEN_VERSION := $(shell go list -m -f '{{.Version}}' k8s.io/api)
@@ -74,7 +81,7 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 .PHONY: test
-test: manifests generate fmt vet envtest ## Run tests.
+test: generate fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
 
 # TODO(user): To use a different vendor for e2e tests, modify the setup under 'tests/e2e'.
@@ -83,7 +90,7 @@ test: manifests generate fmt vet envtest ## Run tests.
 # - PROMETHEUS_INSTALL_SKIP=true
 # - CERT_MANAGER_INSTALL_SKIP=true
 .PHONY: test-e2e
-test-e2e: manifests generate fmt vet ## Run the e2e tests. Expected an isolated environment using Kind.
+test-e2e: generate fmt vet ## Run the e2e tests. Expected an isolated environment using Kind.
 	@command -v kind >/dev/null 2>&1 || { \
 		echo "Kind is not installed. Please install Kind manually."; \
 		exit 1; \
@@ -102,42 +109,52 @@ lint: golangci-lint ## Run golangci-lint linter
 lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 	$(GOLANGCI_LINT) run --fix
 
-##@ Build
 
-.PHONY: build
-build: manifests generate fmt vet ## Build ai-gateway binary.
-	go build -o bin/infer-gateway cmd/infer-gateway/main.go
+IMG_MODELINFER ?= ${HUB}/infer-controller:${TAG}
+IMG_MODELCONTROLLER ?= ${HUB}/model-controller:${TAG}
+IMG_GATEWAY ?= ${HUB}/infer-gateway:${TAG}
 
-# If you wish to build the ai-gateway image targeting other platforms you can use the --platform flag.
-# (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
-# More info: https://docs.docker.com/develop/develop-images/build_enhancements/
-.PHONY: docker-build
-docker-build: generate## Build docker image with the ai-gateway.
-	$(CONTAINER_TOOL) build -t ${IMG} .
+.PHONY: docker-build-gateway
+docker-build-gateway: generate
+	$(CONTAINER_TOOL) build -t ${IMG_GATEWAY} -f docker/Dockerfile.gateway .
+
+.PHONY: docker-build-modelinfer
+docker-build-modelinfer: generate 
+	$(CONTAINER_TOOL) build -t ${IMG_MODELINFER} -f docker/Dockerfile.modelinfer .
+
+.PHONY: docker-build-modelcontroller
+docker-build-modelcontroller: generate
+	$(CONTAINER_TOOL) build -t ${IMG_MODELCONTROLLER} -f docker/Dockerfile.modelcontroller .
 
 .PHONY: docker-push
-docker-push: ## Push docker image with the ai-gateway.
-	$(CONTAINER_TOOL) push ${IMG}
+docker-push: docker-build-gateway docker-build-modelinfer docker-build-modelcontroller ## Push all images to the registry.
+	$(CONTAINER_TOOL) push ${IMG_GATEWAY}
+	$(CONTAINER_TOOL) push ${IMG_MODELINFER}
+	$(CONTAINER_TOOL) push ${IMG_MODELCONTROLLER}
 
-# PLATFORMS defines the target platforms for the ai-gateway image be built to provide support to multiple
-# architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
-# - be able to use docker buildx. More info: https://docs.docker.com/build/buildx/
-# - have enabled BuildKit. More info: https://docs.docker.com/develop/develop-images/build_enhancements/
-# - be able to push the image to your registry (i.e. if you do not set a valid value via IMG=<myregistry/image:<tag>> then the export will fail)
-# To adequately provide solutions that are compatible with multiple platforms, you should consider using this option.
-PLATFORMS ?= linux/arm64,linux/amd64,linux/s390x,linux/ppc64le
+# PLATFORMS defines the target platforms for the images be built to provide support to multiple
+# architectures.
+PLATFORMS ?= linux/arm64,linux/amd64
 .PHONY: docker-buildx
-docker-buildx: ## Build and push docker image for the ai-gateway for cross-platform support
-	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
-	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
-	- $(CONTAINER_TOOL) buildx create --name aiengine-builder
-	$(CONTAINER_TOOL) buildx use aiengine-builder
-	- $(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) --tag ${IMG} -f Dockerfile.cross .
-	- $(CONTAINER_TOOL) buildx rm aiengine-builder
-	rm Dockerfile.cross
+docker-buildx: ## Build and push docker image for cross-platform support
+	$(CONTAINER_TOOL) buildx build \
+		--platform ${PLATFORMS} \
+		-t ${IMG_GATEWAY} \
+		-f Dockerfile.gateway \
+		--push .
+	$(CONTAINER_TOOL) buildx build \
+		--platform ${PLATFORMS}\
+		-t ${IMG_MODELINFER} \
+		-f Dockerfile.modelinfer \
+		--push .
+	$(CONTAINER_TOOL) buildx build \
+		--platform ${PLATFORMS} \
+		-t ${IMG_MODELCONTROLLER} \
+		-f Dockerfile.modelcontroller \
+		--push .
 
 .PHONY: build-installer
-build-installer: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
+build-installer: generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
 	mkdir -p dist
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default > dist/install.yaml
@@ -147,23 +164,6 @@ build-installer: manifests generate kustomize ## Generate a consolidated YAML wi
 ifndef ignore-not-found
   ignore-not-found = false
 endif
-
-.PHONY: install
-install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | $(KUBECTL) apply -f -
-
-.PHONY: uninstall
-uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
-
-.PHONY: deploy
-deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
-
-.PHONY: undeploy
-undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
 ##@ Dependencies
 

@@ -1,5 +1,5 @@
 /*
-Copyright 2025.
+Copyright MatrixInfer-AI Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,25 +18,7 @@ package v1alpha1
 
 import (
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-// InferGroupSpec defines the specification of the InferGroup.
-type InferGroupSpec struct {
-	// RestartGracePeriodSeconds defines the grace time for the controller to rebuild the infergroup when an error occurs
-	// Defaults to 0 (infergroup will be rebuilt immediately after an error)
-	// +optional
-	RestartGracePeriodSeconds *int64 `json:"restartGracePeriodSeconds,omitempty"`
-
-	// NetworkTopology defines the NetworkTopology config, this field works in conjunction with network topology feature and hyperNode CRD.
-	// +optional
-	NetworkTopology *NetworkTopologySpec `json:"networkTopology,omitempty"`
-
-	// GangSchedule defines the GangSchedule config.
-	// +optional
-	GangSchedule GangSchedule `json:"gangSchedule,omitempty"`
-	Roles        []Role       `json:"roles"`
-}
 
 // GangSchedule defines the gang scheduling configuration.
 type GangSchedule struct {
@@ -50,6 +32,8 @@ type GangSchedule struct {
 // Role defines the specific pod instance role that performs the inference task.
 type Role struct {
 	// The name of a role. Name must be unique within an infergroup
+	// +kubebuilder:validation:MaxLength=12
+	// +kubebuilder:validation:Pattern=^[a-zA-Z0-9]([-a-zA-Z0-9]*[a-zA-Z0-9])?$
 	Name string `json:"name"`
 
 	// The number of a certain role.
@@ -66,15 +50,41 @@ type Role struct {
 
 	// EntryTemplate defines the template for the entry pod of a role.
 	// Required: Currently, a role must have only one entry-pod.
-	EntryTemplate corev1.PodTemplateSpec `json:"entryTemplate"`
+	EntryTemplate PodTemplateSpec `json:"entryTemplate"`
 
 	// WorkerReplicas defines the number for the worker pod of a role.
-	// +optional
-	WorkerReplicas *int32 `json:"workerReplicas,omitempty"`
+	// Required: Need to set the number of worker-pod replicas.
+	WorkerReplicas int32 `json:"workerReplicas"`
 
 	// WorkerTemplate defines the template for the worker pod of a role.
 	// +optional
-	WorkerTemplate *corev1.PodTemplateSpec `json:"workerTemplate,omitempty"`
+	WorkerTemplate *PodTemplateSpec `json:"workerTemplate,omitempty"`
+}
+
+// PodTemplateSpec describes the data a pod should have when created from a template
+type PodTemplateSpec struct {
+	// Object's metadata.
+	// +optional
+	Metadata *Metadata `json:"metadata,omitempty"`
+	// Specification of the desired behavior of the pod.
+	// +optional
+	Spec corev1.PodSpec `json:"spec,omitempty"`
+}
+
+// Metadata is a simplified version of ObjectMeta in Kubernetes.
+type Metadata struct {
+	// Map of string keys and values that can be used to organize and categorize
+	// (scope and select) objects. May match selectors of replication controllers
+	// and services.
+	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels
+	// +optional
+	Labels map[string]string `json:"labels,omitempty"`
+	// Annotations is an unstructured key value map stored with a resource that may be
+	// set by external tools to store and retrieve arbitrary metadata. They are not
+	// queryable and should be preserved when modifying objects.
+	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations
+	// +optional
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 type NetworkTopologySpec struct {
@@ -102,6 +112,21 @@ const (
 
 // InferGroup is the smallest unit to complete the inference task
 type InferGroup struct {
-	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              InferGroupSpec `json:"spec,omitempty"`
+	// RestartGracePeriodSeconds defines the grace time for the controller to rebuild the infergroup when an error occurs
+	// Defaults to 0 (infergroup will be rebuilt immediately after an error)
+	// +optional
+	// +kubebuilder:default=0
+	RestartGracePeriodSeconds *int64 `json:"restartGracePeriodSeconds,omitempty"`
+
+	// NetworkTopology defines the NetworkTopology config, this field works in conjunction with network topology feature and hyperNode CRD.
+	// +optional
+	NetworkTopology *NetworkTopologySpec `json:"networkTopology,omitempty"`
+
+	// GangSchedule defines the GangSchedule config.
+	// +optional
+	GangSchedule GangSchedule `json:"gangSchedule,omitempty"`
+	// +kubebuilder:validation:MaxItems=4
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:XValidation:rule="self.all(x, self.exists_one(y, y.name == x.name))", message="roles name must be unique"
+	Roles []Role `json:"roles"`
 }

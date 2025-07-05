@@ -1,5 +1,5 @@
 /*
-Copyright 2025.
+Copyright MatrixInfer-AI Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,6 +28,8 @@ const (
 	GroupNameLabelKey = "modelinfer.matrixinfer.ai/group-name"
 	// RoleLabelKey is the pod label key for the role.
 	RoleLabelKey = "modelinfer.matrixinfer.ai/role"
+	// EntryLabelKey is the entry pod label key.
+	EntryLabelKey = "modelinfer.matrixinfer.ai/entry"
 
 	// RevisionLabelKey is the revision label for the model infer.
 	RevisionLabelKey = "modelinfer.matrixinfer.ai/revision"
@@ -64,7 +66,7 @@ type ModelInferSpec struct {
 	// +kubebuilder:default=InferGroupRestart
 	// +kubebuilder:validation:Enum={InferGroupRestart,None}
 	// +optional
-	RecoveryPolicy            RecoveryPolicy             `json:"recoveryPolicy"`
+	RecoveryPolicy            RecoveryPolicy             `json:"recoveryPolicy,omitempty"`
 	TopologySpreadConstraints []TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
 }
 
@@ -141,6 +143,21 @@ type TopologySpreadConstraint struct {
 	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty"`
 }
 
+type ModelInferSetConditionType string
+
+// There is a condition type of a modelInfer
+const (
+	// ModelInferSetAvailable means the modelInfer is available,
+	// at least the minimum available groups are up and running.
+	ModelInferSetAvailable ModelInferSetConditionType = "Available"
+
+	// The ModelInfer enters the ModelInferSetProgressing state whenever there are ongoing changes,
+	// such as the creation of new groups or the scaling of pods within a group.
+	// A group remains in the progressing state until all its pods become ready.
+	// As long as at least one group is progressing, the entire ModelInferSet is also considered progressing.
+	ModelInferSetProgressing ModelInferSetConditionType = "Progressing"
+)
+
 // ModelInferStatus defines the observed state of ModelInfer
 type ModelInferStatus struct {
 	// Replicas track the total number of InferGroup that have been created (updated or not, ready or not)
@@ -150,7 +167,7 @@ type ModelInferStatus struct {
 	UpdatedReplicas int32 `json:"updatedReplicas,omitempty"`
 
 	// AvailableReplicas track the number of InferGroup that are in ready state (updated or not).
-	AvailableReplicas int32 `json:"availableReplicas,omitempty"`
+	AvailableReplicas int32 `json:"availableReplicas"`
 
 	// Conditions track the condition of the ModelInfer.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`

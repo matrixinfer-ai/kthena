@@ -1,3 +1,19 @@
+/*
+Copyright MatrixInfer-AI Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package backend
 
 import (
@@ -17,6 +33,7 @@ var (
 
 type MetricsProvider interface {
 	GetPodMetrics(pod *corev1.Pod) (map[string]*dto.MetricFamily, error)
+	GetPodModels(pod *corev1.Pod) ([]string, error)
 	GetCountMetricsInfo(allMetrics map[string]*dto.MetricFamily) map[string]float64
 	GetHistogramPodMetrics(allMetrics map[string]*dto.MetricFamily, previousHistogram map[string]*dto.Histogram) (map[string]float64, map[string]*dto.Histogram)
 }
@@ -56,4 +73,14 @@ func GetMetricsProvider(engine string) (MetricsProvider, error) {
 		return provider, nil
 	}
 	return nil, fmt.Errorf("unsupported engine: %s", engine)
+}
+
+func GetPodModels(engine string, pod *corev1.Pod) ([]string, error) {
+	provider, err := GetMetricsProvider(engine)
+	if err != nil {
+		log.Errorf("Failed to get inference engine: %v", err)
+		return nil, nil
+	}
+
+	return provider.GetPodModels(pod)
 }

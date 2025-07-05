@@ -1,3 +1,19 @@
+/*
+Copyright MatrixInfer-AI Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package app
 
 import (
@@ -16,8 +32,9 @@ var log = logger.NewLogger("")
 
 // Starts router
 func startRouter(stop <-chan struct{}, store datastore.Store) {
-	// Your application logic here
-	engine := gin.Default()
+	engine := gin.New()
+	engine.Use(gin.LoggerWithWriter(gin.DefaultWriter, "/healthz"), gin.Recovery())
+
 	// TODO: add middle ware
 	// engine.Use()
 
@@ -32,8 +49,8 @@ func startRouter(stop <-chan struct{}, store datastore.Store) {
 
 	r := router.NewRouter(store)
 
-	// vllm use /v1 prefix, not sure other frameworks
-	engine.Any("/v1/:path", r.HandlerFunc())
+	// Handle all paths under /v1/
+	engine.Any("/v1/*path", r.HandlerFunc())
 
 	server := &http.Server{
 		Addr:    ":8080",

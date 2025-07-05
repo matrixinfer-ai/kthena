@@ -1,3 +1,19 @@
+/*
+Copyright MatrixInfer-AI Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package testutil
 
 import (
@@ -12,32 +28,32 @@ import (
 
 // MockStore implements datastore.Store for testing
 type MockStore struct {
-	callbacks map[datastore.EventType][]datastore.CallbackFunc
+	callbacks map[string][]datastore.CallbackFunc
 }
+
+var _ datastore.Store = &MockStore{}
 
 // NewMockStore creates a new MockStore instance
 func NewMockStore() *MockStore {
 	return &MockStore{
-		callbacks: make(map[datastore.EventType][]datastore.CallbackFunc),
+		callbacks: make(map[string][]datastore.CallbackFunc),
 	}
+}
+
+func (m *MockStore) Run(stop <-chan struct{}) {
 }
 
 // RegisterCallback registers a callback function for a specific event type
-func (m *MockStore) RegisterCallback(eventType datastore.EventType, callback datastore.CallbackFunc) {
-	if _, exists := m.callbacks[eventType]; !exists {
-		m.callbacks[eventType] = make([]datastore.CallbackFunc, 0)
+func (m *MockStore) RegisterCallback(kind string, callback datastore.CallbackFunc) {
+	if _, exists := m.callbacks[kind]; !exists {
+		m.callbacks[kind] = make([]datastore.CallbackFunc, 0)
 	}
-	m.callbacks[eventType] = append(m.callbacks[eventType], callback)
-}
-
-// UnregisterCallback removes a callback function for a specific event type
-func (m *MockStore) UnregisterCallback(eventType datastore.EventType, callback datastore.CallbackFunc) {
-	// Not needed for tests
+	m.callbacks[kind] = append(m.callbacks[kind], callback)
 }
 
 // TriggerCallback triggers all registered callbacks for a specific event type
-func (m *MockStore) TriggerCallback(eventType datastore.EventType, data datastore.EventData) {
-	if callbacks, exists := m.callbacks[eventType]; exists {
+func (m *MockStore) TriggerCallback(kind string, data datastore.EventData) {
+	if callbacks, exists := m.callbacks[kind]; exists {
 		for _, callback := range callbacks {
 			callback(data)
 		}

@@ -1,5 +1,5 @@
 /*
-Copyright 2024.
+Copyright MatrixInfer-AI Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -100,7 +100,7 @@ type WorkloadPort struct {
 type TrafficPolicy struct {
 	// The request timeout for the inference request.
 	// By default, there is no timeout.
-	// +kubebuilder:required
+	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 	// The retry policy for the inference request.
 	// +optional
@@ -111,7 +111,7 @@ type TrafficPolicy struct {
 
 type Retry struct {
 	// The maximum number of times an individual inference request to a model server should be retried.
-	// If the maximum number of retries is exceeded without a successgful response, the request will be considered failed.
+	// If the maximum number of retries has been done without a successgful response, the request will be considered failed.
 	// +optional
 	Attempts int32 `json:"attempts"`
 	// RetryInterval is the interval between retries.

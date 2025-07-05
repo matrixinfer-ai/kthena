@@ -1,10 +1,25 @@
+/*
+Copyright MatrixInfer-AI Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package datastore
 
 import (
 	"fmt"
 	"math/rand"
 	"net/http"
-	"reflect"
 	"regexp"
 	"strings"
 	"sync"
@@ -43,8 +58,9 @@ var (
 type EventType string
 
 const (
-	// EventPodDeleted is triggered when a pod is deleted
-	EventPodDeleted EventType = "PodDeleted"
+	EventAdd    EventType = "add"
+	EventUpdate EventType = "update"
+	EventDelete EventType = "delete"
 	// Add more event types here as needed
 )
 
@@ -52,6 +68,9 @@ const (
 type EventData struct {
 	EventType EventType
 	Pod       types.NamespacedName
+
+	ModelName  string
+	ModelRoute *aiv1alpha1.ModelRoute
 	// Add more fields as needed for other event types
 }
 
@@ -81,8 +100,9 @@ type Store interface {
 	DeleteModelRoute(namespacedName string) error
 
 	// New methods for callback management
-	RegisterCallback(eventType EventType, callback CallbackFunc)
-	UnregisterCallback(eventType EventType, callback CallbackFunc)
+	RegisterCallback(kind string, callback CallbackFunc)
+	// Run to update pod info periodically
+	Run(stop <-chan struct{})
 }
 
 type modelServer struct {
@@ -104,7 +124,7 @@ type PodInfo struct {
 	TimePerOutputToken *dto.Histogram
 	TPOT               float64
 	TTFT               float64
-	Models             map[string]struct{}            // running lora adapaters.
+	Models             sets.Set[string]               // running models. Including base model and lora adapaters.
 	modelServer        sets.Set[types.NamespacedName] // The modelservers this pod belongs to
 }
 
@@ -132,7 +152,7 @@ type store struct {
 	loraRoutes map[string]*aiv1alpha1.ModelRoute
 
 	// New fields for callback management
-	callbacks map[EventType][]CallbackFunc
+	callbacks map[string][]CallbackFunc
 }
 
 func New() Store {
@@ -142,7 +162,7 @@ func New() Store {
 		routeInfo:   make(map[string]*modelRouteInfo),
 		routes:      make(map[string]*aiv1alpha1.ModelRoute),
 		loraRoutes:  make(map[string]*aiv1alpha1.ModelRoute),
-		callbacks:   make(map[EventType][]CallbackFunc),
+		callbacks:   make(map[string][]CallbackFunc),
 	}
 }
 
@@ -152,12 +172,21 @@ func (s *store) Run(stop <-chan struct{}) {
 		case <-stop:
 			return
 		default:
-			for _, ms := range s.modelServer {
-				for _, podInfo := range ms.pods {
-					s.updatePodMetrics(podInfo.Pod)
-					time.Sleep(uppdateInterval)
-				}
+			// Only lock when copying pod list
+			s.mutex.RLock()
+			pods := make([]*PodInfo, 0, len(s.pods))
+			for _, podInfo := range s.pods {
+				pods = append(pods, podInfo)
 			}
+			s.mutex.RUnlock()
+
+			// Unlock before updating pods
+			for _, podInfo := range pods {
+				s.updatePodMetrics(podInfo.Pod)
+				s.updatePodModels(podInfo.Pod)
+			}
+
+			time.Sleep(uppdateInterval)
 		}
 	}
 }
@@ -183,7 +212,7 @@ func (s *store) AddOrUpdateModelServer(name types.NamespacedName, ms *aiv1alpha1
 			s.pods[podName] = &PodInfo{
 				Pod:         pod,
 				backend:     string(ms.Spec.InferenceEngine),
-				Models:      make(map[string]struct{}),
+				Models:      sets.New[string](),
 				modelServer: sets.New[types.NamespacedName](name),
 			}
 		}
@@ -196,7 +225,7 @@ func (s *store) AddOrUpdateModelServer(name types.NamespacedName, ms *aiv1alpha1
 func (s *store) DeleteModelServer(ms *aiv1alpha1.ModelServer) error {
 	name := utils.GetNamespaceName(ms)
 	s.PodHandlerWhenDeleteModelServer(name)
-	s.mutex.Unlock()
+	s.mutex.Lock()
 	delete(s.modelServer, name)
 	s.mutex.Unlock()
 	return nil
@@ -242,6 +271,7 @@ func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.Model
 	newPodInfo := &PodInfo{
 		Pod:         pod,
 		modelServer: sets.Set[types.NamespacedName]{},
+		Models:      sets.New[string](),
 	}
 
 	modelServerNames := []types.NamespacedName{}
@@ -272,20 +302,26 @@ func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.Model
 	s.mutex.Unlock()
 
 	s.updatePodMetrics(pod)
+	s.updatePodModels(pod)
 
 	return nil
 }
 
 func (s *store) PodHandlerWhenDeleteModelServer(modelServerName types.NamespacedName) {
-	pods := s.modelServer[modelServerName].pods
-	for podName := range pods {
-		s.mutex.Lock()
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	modelserver, ok := s.modelServer[modelServerName]
+	if !ok {
+		return
+	}
+
+	for podName := range modelserver.pods {
 		s.pods[podName].modelServer.Delete(modelServerName)
 		// if modelServer is nil, pod will delete
 		if s.pods[podName].modelServer.Len() == 0 {
 			delete(s.pods, podName)
 		}
-		s.mutex.Unlock()
 	}
 }
 
@@ -300,8 +336,8 @@ func (s *store) DeletePod(podName types.NamespacedName) error {
 	}
 	s.mutex.Unlock()
 
-	s.triggerCallbacks(EventPodDeleted, EventData{
-		EventType: EventPodDeleted,
+	s.triggerCallbacks("Pod", EventData{
+		EventType: EventDelete,
 		Pod:       podName,
 	})
 
@@ -311,8 +347,6 @@ func (s *store) DeletePod(podName types.NamespacedName) error {
 // Model routing methods
 func (s *store) AddOrUpdateModelRoute(mr *aiv1alpha1.ModelRoute) error {
 	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
 	s.routeInfo[mr.Namespace+"/"+mr.Name] = &modelRouteInfo{
 		model: mr.Spec.ModelName,
 		loras: mr.Spec.LoraAdapters,
@@ -325,14 +359,18 @@ func (s *store) AddOrUpdateModelRoute(mr *aiv1alpha1.ModelRoute) error {
 	for _, lora := range mr.Spec.LoraAdapters {
 		s.loraRoutes[lora] = mr
 	}
+	s.mutex.Unlock()
 
+	s.triggerCallbacks("ModelRoute", EventData{
+		EventType:  EventUpdate,
+		ModelName:  mr.Spec.ModelName,
+		ModelRoute: mr,
+	})
 	return nil
 }
 
 func (s *store) DeleteModelRoute(namespacedName string) error {
 	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
 	info := s.routeInfo[namespacedName]
 	if info != nil {
 		delete(s.routes, info.model)
@@ -340,9 +378,14 @@ func (s *store) DeleteModelRoute(namespacedName string) error {
 			delete(s.loraRoutes, lora)
 		}
 	}
-
 	delete(s.routeInfo, namespacedName)
+	s.mutex.Unlock()
 
+	s.triggerCallbacks("ModelRoute", EventData{
+		EventType:  EventDelete,
+		ModelName:  info.model,
+		ModelRoute: nil,
+	})
 	return nil
 }
 
@@ -503,6 +546,36 @@ func (s *store) updatePodMetrics(pod *corev1.Pod) {
 	}
 }
 
+func (s *store) updatePodModels(pod *corev1.Pod) {
+	podName := utils.GetNamespaceName(pod)
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	podInfo, exist := s.pods[podName]
+	if !exist {
+		log.Errorf("failed to get podInfo of pod %s/%s", pod.GetNamespace(), pod.GetName())
+		return
+	}
+
+	if podInfo.backend == "" {
+		log.Error("failed to find backend in pod")
+		return
+	}
+
+	models, err := backend.GetPodModels(podInfo.backend, pod)
+	if err != nil {
+		log.Errorf("failed to get models of pod %s/%s", pod.GetNamespace(), pod.GetName())
+	}
+
+	for i := range models {
+		podInfo.Models.Insert(models[i])
+	}
+
+	for ms := range podInfo.modelServer {
+		s.modelServer[ms].pods[podName] = podInfo
+	}
+}
+
 func getPreviousHistogram(podinfo *PodInfo) map[string]*dto.Histogram {
 	previousHistogram := make(map[string]*dto.Histogram)
 	if podinfo.TimePerOutputToken != nil {
@@ -564,38 +637,23 @@ func updateHistogramMetrics(podinfo *PodInfo, histogramMetrics map[string]*dto.H
 	}
 }
 
-// RegisterCallback registers a callback function for a specific event type
-func (s *store) RegisterCallback(eventType EventType, callback CallbackFunc) {
+// RegisterCallback registers a callback function for a specific resource
+func (s *store) RegisterCallback(kind string, callback CallbackFunc) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	if _, exists := s.callbacks[eventType]; !exists {
-		s.callbacks[eventType] = make([]CallbackFunc, 0)
+	if _, exists := s.callbacks[kind]; !exists {
+		s.callbacks[kind] = make([]CallbackFunc, 0)
 	}
-	s.callbacks[eventType] = append(s.callbacks[eventType], callback)
-}
-
-// UnregisterCallback removes a callback function for a specific event type
-func (s *store) UnregisterCallback(eventType EventType, callback CallbackFunc) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
-	if callbacks, exists := s.callbacks[eventType]; exists {
-		for i, cb := range callbacks {
-			if reflect.ValueOf(cb).Pointer() == reflect.ValueOf(callback).Pointer() {
-				s.callbacks[eventType] = append(callbacks[:i], callbacks[i+1:]...)
-				break
-			}
-		}
-	}
+	s.callbacks[kind] = append(s.callbacks[kind], callback)
 }
 
 // triggerCallbacks executes all registered callbacks for a specific event type
-func (s *store) triggerCallbacks(eventType EventType, data EventData) {
+func (s *store) triggerCallbacks(kind string, data EventData) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	if callbacks, exists := s.callbacks[eventType]; exists {
+	if callbacks, exists := s.callbacks[kind]; exists {
 		for _, callback := range callbacks {
 			go callback(data)
 		}

@@ -1,7 +1,22 @@
+/*
+Copyright MatrixInfer-AI Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package router
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -9,10 +24,12 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-
+	"github.com/google/uuid"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/filters/ratelimit"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
 var (
@@ -20,14 +37,30 @@ var (
 )
 
 type Router struct {
-	scheduler scheduler.Scheduler
-	store     datastore.Store
+	scheduler       scheduler.Scheduler
+	store           datastore.Store
+	loadRateLimiter *ratelimit.TokenRateLimiter
 }
 
 func NewRouter(store datastore.Store) *Router {
+	loadRateLimiter := ratelimit.NewRateLimiter()
+	store.RegisterCallback("ModelRoute", func(data datastore.EventData) {
+		if data.EventType == datastore.EventAdd || data.EventType == datastore.EventUpdate {
+			if data.ModelRoute == nil || data.ModelRoute.Spec.RateLimit == nil {
+				return
+			}
+			log.Infof("add or update rate limit for model %s", data.ModelName)
+			loadRateLimiter.AddOrUpdateLimiter(data.ModelName, data.ModelRoute.Spec.RateLimit)
+		} else if data.EventType == datastore.EventDelete {
+			log.Infof("delete rate limit for model %s", data.ModelName)
+			loadRateLimiter.DeleteLimiter(data.ModelName)
+		}
+	})
+
 	return &Router{
-		store:     store,
-		scheduler: scheduler.NewScheduler(store),
+		store:           store,
+		scheduler:       scheduler.NewScheduler(store),
+		loadRateLimiter: loadRateLimiter,
 	}
 }
 
@@ -50,6 +83,18 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 		modelName, ok := modelRequest["model"].(string)
 		if !ok {
 			c.AbortWithStatusJSON(http.StatusNotFound, "model not found")
+			return
+		}
+
+		prompt, err := utils.GetPrompt(modelRequest)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusNotFound, "prompt not found")
+			return
+		}
+
+		err = r.loadRateLimiter.RateLimit(modelName, prompt)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, "token usage exceeds rate limit")
 			return
 		}
 
@@ -95,6 +140,13 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 
 		req := c.Request
 
+		// Generate request ID at the beginning
+		requestID := uuid.New().String()
+		if req.Header.Get("x-request-id") == "" {
+			// Add x-request-id header to prefill request
+			req.Header.Set("x-request-id", requestID)
+		}
+
 		if targetPods.PrefillPod != nil {
 			log.Debugf("prefill pod is %v", targetPods.PrefillPod.Pod.Name)
 
@@ -105,6 +157,11 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 				prefillBody[k] = v
 			}
 			prefillBody["max_tokens"] = 1
+
+			// Remove stream and stream_options headers from prefill request if they exist
+			// This is necessary because prefill request should not be streamed
+			delete(prefillBody, "stream")
+			delete(prefillBody, "stream_options")
 
 			body, err := json.Marshal(prefillBody)
 			if err != nil {
@@ -159,7 +216,16 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 			}
 		}
 		defer resp.Body.Close()
+
 		// Maybe we need to read the response to get the tokens for ratelimiting later
-		_, _ = bufio.NewReader(resp.Body).WriteTo(c.Writer)
+		c.Stream(func(w io.Writer) bool {
+			buf := make([]byte, 512)
+			n, err := resp.Body.Read(buf)
+			if n > 0 {
+				// TODO: add err check
+				_, _ = w.Write(buf[:n])
+			}
+			return err != io.EOF
+		})
 	}
 }
