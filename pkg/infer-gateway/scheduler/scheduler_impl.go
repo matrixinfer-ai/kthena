@@ -75,6 +75,10 @@ func NewScheduler(store datastore.Store) Scheduler {
 				plugin: prefixCache,
 				weight: 1,
 			},
+			{
+				plugin: plugins.NewBasicVTCRouter(),
+				weight: 1,
+			},
 		},
 		postHooks: []framework.PostHook{
 			prefixCache,
@@ -91,13 +95,11 @@ func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.P
 	if err != nil {
 		return nil, err
 	}
-	if userStr, ok := req["user"].(string); ok {
-        ctx.User = &userStr 
-    }
 
 	ctx := &framework.Context{
 		Model:  req["model"].(string),
 		Prompt: prompt,
+		UserIp: req["client_ip"].(string),
 	}
 
 	pods, err = s.RunFilterPlugins(pods, ctx)
@@ -221,4 +223,18 @@ func (s *SchedulerImpl) RunPostHooks(ctx *framework.Context) {
 	for _, hook := range s.postHooks {
 		hook.PostSchedule(ctx)
 	}
+}
+
+func (s *SchedulerImpl) UpdateTokenUsage(userIp string, inputTokens, outputTokens float64) {
+	tokenPluginsFound := false
+	for _, plugin := range s.scorePlugins {
+        // 类型断言：检查插件是否实现了TokenCountablePlugin接口
+        if countable, ok := plugin.plugin.(framework.TokenCountablePlugin); ok {
+            countable.UpdateTokenCount(userIp, inputTokens, outputTokens)
+			tokenPluginsFound = true
+        }
+    }
+	if !tokenPluginsFound {
+        log.Warnf("No plugins found to handle token counting for user %s", userIp)
+    }
 }

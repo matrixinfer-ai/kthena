@@ -51,22 +51,22 @@ func NewRateLimiter() *TokenRateLimiter {
 	}
 }
 
-func (r *TokenRateLimiter) RateLimit(model, prompt string) error {
+func (r *TokenRateLimiter) RateLimit(model, prompt string) (int, error) {
 	r.mutex.RLock()
 	limiter, exists := r.inputLimiter[model]
 	r.mutex.RUnlock()
 	if !exists {
-		return nil
+		return 0,nil
 	}
 
 	size, err := r.tokenizer.CalculateTokenNum(prompt)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	if limiter.AllowN(time.Now(), size) {
-		return nil
+		return size, nil
 	}
-	return &RateLimitExceededError{}
+	return size, &RateLimitExceededError{}
 }
 
 func (r *TokenRateLimiter) AddOrUpdateLimiter(model string, ratelimit *networkingv1alpha1.RateLimit) {

@@ -24,6 +24,7 @@ import (
 
 type Scheduler interface {
 	Schedule(req map[string]interface{}, pods []*datastore.PodInfo, pdGroup *aiv1alpha1.PDGroup) (*TargetPods, error)
+	UpdateTokenUsage(userIp string, inputTokens, outputTokens float64)
 }
 
 type TargetPods struct {

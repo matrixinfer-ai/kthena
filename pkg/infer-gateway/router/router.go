@@ -22,11 +22,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sync/atomic"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/filters/ratelimit"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/handlers"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
@@ -79,7 +81,9 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusBadRequest, err)
 			return
 		}
-
+		// add client IP to modelRequest
+        clientIP := c.ClientIP()  // 获取客户端 IP (处理代理头)
+        modelRequest["client_ip"] = clientIP  // 添加到请求 map
 		modelName, ok := modelRequest["model"].(string)
 		if !ok {
 			c.AbortWithStatusJSON(http.StatusNotFound, "model not found")
@@ -91,8 +95,9 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusNotFound, "prompt not found")
 			return
 		}
-
-		err = r.loadRateLimiter.RateLimit(modelName, prompt)
+		var inputTokens int
+		// 1. inputTokens count
+		inputTokens, err = r.loadRateLimiter.RateLimit(modelName, prompt)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusTooManyRequests, "token usage exceeds rate limit")
 			return
@@ -216,16 +221,33 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 			}
 		}
 		defer resp.Body.Close()
-
 		// Maybe we need to read the response to get the tokens for ratelimiting later
+		var outputTokens int32
 		c.Stream(func(w io.Writer) bool {
 			buf := make([]byte, 512)
 			n, err := resp.Body.Read(buf)
 			if n > 0 {
 				// TODO: add err check
+				// 提取Token数
 				_, _ = w.Write(buf[:n])
+				go func(chunk []byte) {
+					tokens, err := handlers.ExtractTokensFromChunk(chunk)
+					if err != nil {
+						log.Warningf("解析Token失败: %v", err)
+						return
+					}
+					
+					// 3. outputToken count
+					if tokens.CompletionTokens > 0 {
+						atomic.AddInt32(&outputTokens, int32(tokens.CompletionTokens))
+
+					}
+				}(buf[:n])
 			}
 			return err != io.EOF
 		})
+
+		r.scheduler.UpdateTokenUsage(clientIP, float64(inputTokens), float64( outputTokens))
+
 	}
 }

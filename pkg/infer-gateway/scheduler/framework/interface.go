@@ -22,8 +22,8 @@ import (
 
 // Context stores information which maybe useful in Filter or Score plugins.
 type Context struct {
-	Model string
-	User *string
+	Model  string
+	UserIp string // Client IP address, useful for vtc plugins
 	Prompt string
 
 	Hashes []uint64
@@ -44,7 +44,11 @@ type ScorePlugin interface {
 	Name() string
 	Score(ctx *Context, pods []*datastore.PodInfo) map[*datastore.PodInfo]int
 }
-
+// TokenCountablePlugin 扩展原有接口，添加Token计数功能
+type TokenCountablePlugin interface {
+    ScorePlugin
+    UpdateTokenCount(userIp string, inputTokens, outputTokens float64)
+}
 // PostHook is an interface that is executed after the scheduling is complete.
 type PostHook interface {
 	Name() string

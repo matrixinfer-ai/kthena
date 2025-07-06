@@ -52,7 +52,7 @@ func (unit TimeUnit) toTimestamp(t time.Time) int64 {
 type TokenTracker interface {
 	GetTokenCount(user string) (float64, error)
 
-	UpdateTokenCount(user string, inputTokens, outputTokens float64) error
+	UpdateTokenCount(userIp string, inputTokens, outputTokens float64) error
 
 	GetMinTokenCount() (float64, error)
 
@@ -228,7 +228,6 @@ func (t *InMemorySlidingWindowTokenTracker) GetMinTokenCount() (float64, error) 
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
-	// Return default min if no active users (minTrackedToken is still at initialization value)
 	if t.minTrackedToken == math.MaxFloat64 {
 		return TokenTrackerMinTokens, nil
 	}
@@ -247,7 +246,6 @@ func (t *InMemorySlidingWindowTokenTracker) GetMaxTokenCount() (float64, error) 
 	return t.maxTrackedToken, nil
 }
 
-// Time: Avg O(1) (amortized), Worst O(B_u) where B_u = buckets for user u | Space: O(1)
 func (t *InMemorySlidingWindowTokenTracker) UpdateTokenCount(user string, inputTokens, outputTokens float64) error {
 	if user == "" {
 		return fmt.Errorf("user ID cannot be empty")

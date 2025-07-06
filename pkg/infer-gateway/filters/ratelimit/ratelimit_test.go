@@ -37,14 +37,14 @@ func TestTokenRateLimiter_Basic(t *testing.T) {
 
 	// Should allow up to 10 tokens immediately
 	for i := 0; i < 3; i++ {
-		err := rl.RateLimit(model, prompt)
+		_, err := rl.RateLimit(model, prompt)
 		if err != nil {
 			t.Fatalf("unexpected error on allowed request: %v, %d", err, i)
 		}
 	}
 
 	// 4th request should be rate limited
-	err := rl.RateLimit(model, prompt)
+	_, err := rl.RateLimit(model, prompt)
 	if err == nil {
 		t.Fatalf("expected rate limit error, got nil")
 	}
@@ -53,7 +53,7 @@ func TestTokenRateLimiter_Basic(t *testing.T) {
 func TestTokenRateLimiter_NoLimiter(t *testing.T) {
 	rl := NewRateLimiter()
 	// No limiter added, should always allow
-	err := rl.RateLimit("unknown-model", "test")
+	_, err := rl.RateLimit("unknown-model", "test")
 	if err != nil {
 		t.Fatalf("expected nil error for unknown model, got %v", err)
 	}
@@ -73,20 +73,20 @@ func TestTokenRateLimiter_ResetAfterTime(t *testing.T) {
 
 	// Use up tokens
 	for i := 0; i < 3; i++ {
-		err := rl.RateLimit(model, prompt)
+		_, err := rl.RateLimit(model, prompt)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	}
 	// Should be rate limited now
-	err := rl.RateLimit(model, prompt)
+	_, err := rl.RateLimit(model, prompt)
 	if err == nil {
 		t.Fatalf("expected rate limit error, got nil")
 	}
 
 	// Wait for refill
 	time.Sleep(1100 * time.Millisecond)
-	err = rl.RateLimit(model, prompt)
+	_, err = rl.RateLimit(model, prompt)
 	if err != nil {
 		t.Fatalf("expected nil after refill, got %v", err)
 	}

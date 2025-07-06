@@ -7,14 +7,11 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/vtc"
 )
 
-
 const (
 	defaultMaxPodLoad        = 100.0
 	defaultFairnessWeight    = 1.0
 	defaultUtilizationWeight = 1.0
 )
-
-
 
 var (
 	maxPodLoad        = defaultMaxPodLoad
@@ -22,49 +19,39 @@ var (
 	utilizationWeight = defaultUtilizationWeight
 )
 
-
 var _ framework.ScorePlugin = &BasicVTCRouter{}
 
 const BasicVTCRouterPluginName = "Basic VTC Router"
 
-
-
-
-
 // BasicVTCRouter implements the VTC routing algorithm
 type BasicVTCRouter struct {
-	name string
+	name           string
 	tokenTracker   vtc.TokenTracker
-	tokenEstimator vtc.TokenEstimator
 }
-
 
 func NewBasicVTCRouter() *BasicVTCRouter {
 	return &BasicVTCRouter{
-		name: BasicVTCRouterPluginName,
-		tokenEstimator: vtc.NewSimpleTokenEstimator(),
-		tokenTracker:   vtc.NewInMemorySlidingWindowTokenTracker(),
+		name:         BasicVTCRouterPluginName,
+		tokenTracker: vtc.NewInMemorySlidingWindowTokenTracker(),
 	}
 }
 
 func (v *BasicVTCRouter) Name() string {
 	return v.name
 }
-func (v *BasicVTCRouter) Score(pods []*datastore.PodInfo, ctx *framework.Context) map[*datastore.PodInfo]int {
+func (v *BasicVTCRouter) Score(ctx *framework.Context, pods []*datastore.PodInfo) map[*datastore.PodInfo]int {
 	// Stores the computed score for each pod
 	scoreResults := make(map[*datastore.PodInfo]int)
 	// Handle edge case: empty pod list
 	if len(pods) == 0 {
 		return scoreResults
 	}
-	user := ctx.User
-	if user == nil {
+	userIp := ctx.UserIp
+	if userIp == "" {
 		return scoreResults
 	}
-	inputTokens := v.tokenEstimator.EstimateInputTokens(ctx.Message)
-	outputTokens := v.tokenEstimator.EstimateOutputTokens(ctx.Message)
 
-	userTokens, err := v.tokenTracker.GetTokenCount(*user)
+	userTokens, _ := v.tokenTracker.GetTokenCount(userIp)
 	minTokens, err := v.tokenTracker.GetMinTokenCount()
 	if err != nil {
 		minTokens = vtc.TokenTrackerMinTokens // Use the configured default minimum token count
@@ -85,10 +72,9 @@ func (v *BasicVTCRouter) Score(pods []*datastore.PodInfo, ctx *framework.Context
 
 		fairnessScore := math.Abs(float64(i) - normalizedTokens)
 
-
 		// 2. Get pod load for utilization score
 
-		var podLoad float64 = float64(info.RequestRunningNum)
+		var podLoad float64 = float64(info.RequestWaitingNum)
 
 		// 3. Calculate utilization score (normalized between 0-1)
 		utilizationScore := min(podLoad/maxPodLoad, 1.0)
@@ -99,11 +85,11 @@ func (v *BasicVTCRouter) Score(pods []*datastore.PodInfo, ctx *framework.Context
 		// 5. Calculate combined score (lower is better) - using configurable weights for fairness and utilization
 		score := (fairnessWeight * fairnessScore) + (utilizationWeight * utilizationScore) + randomFactor
 		scoreResults[info] = int(score)
-		if *user != "" {
-		v.tokenTracker.UpdateTokenCount( *user, inputTokens, outputTokens)
-	}
 	}
 	return scoreResults
 }
 
-
+// 实现TokenCountablePlugin接口
+func (v *BasicVTCRouter) UpdateTokenCount(userIp string, inputTokens, outputTokens float64) {
+    v.tokenTracker.UpdateTokenCount(userIp, inputTokens, outputTokens)
+}
