@@ -2,9 +2,7 @@ package controller
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"hash/fnv"
 	"reflect"
 	"sync"
 	"time"
@@ -16,7 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/rand"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -283,14 +280,7 @@ func (c *ModelInferController) syncModelInfer(ctx context.Context, key string) e
 		return err
 	}
 	// only fields in roles can be modified in rolling updates
-	revision, err := json.Marshal(mi.Spec.Template.Roles)
-	if err != nil {
-		return err
-	}
-
-	hasher := fnv.New32()
-	utils.DeepHashObject(hasher, revision)
-	newHash := rand.SafeEncodeString(fmt.Sprint(hasher.Sum32()))
+	newHash := utils.HashModelInferRevision(mi.Spec.Template.Roles)
 
 	err = c.manageReplicas(ctx, mi, newHash)
 	if err != nil {
@@ -564,9 +554,16 @@ func (c *ModelInferController) manageRollingUpdate(mi *workloadv1alpha1.ModelInf
 	if err != nil {
 		return fmt.Errorf("cannot get inferGroupList from store, err:%v", err)
 	}
+	// In monotonic mode, only all of the inferGroups are Ready, then we can consider termination when rollupdate.
+	for _, inferGroup := range inferGroupList {
+		if inferGroup.Status != datastore.InferGroupRunning {
+			klog.V(4).Infof("inferGroup %s not ready, cannot rolling update", inferGroup.Name)
+			return nil
+		}
+	}
 	// we terminate the inferGroup with the largest ordinal that does not match the update revision.
 	for target := len(inferGroupList) - 1; target >= updateMin; target-- {
-		if !c.checkInferGroupUpdated(inferGroupList[target], mi, newHash) {
+		if c.checkNotUpdatedInferGroup(inferGroupList[target], mi, newHash) {
 			klog.V(2).Infof("inferGroup %s will be terminating for update", inferGroupList[target].Name)
 			c.DeleteInferGroup(mi, inferGroupList[target].Name)
 			return nil
@@ -682,33 +679,33 @@ func (c *ModelInferController) checkInferGroupReady(mi *workloadv1alpha1.ModelIn
 	return true, nil
 }
 
-func (c *ModelInferController) checkInferGroupUpdated(group datastore.InferGroup, mi *workloadv1alpha1.ModelInfer, newHash string) bool {
+func (c *ModelInferController) checkNotUpdatedInferGroup(group datastore.InferGroup, mi *workloadv1alpha1.ModelInfer, newHash string) bool {
 	// Find the pods corresponding to infergroup
 	req, err := labels.NewRequirement(workloadv1alpha1.GroupNameLabelKey, selection.Equals, []string{group.Name})
 	if err != nil {
 		klog.Errorf("cannot create label selector,err: %v", err)
-		return false
+		return true
 	}
 	selector := labels.NewSelector().Add(*req)
 	pods, err := c.podsLister.Pods(mi.Namespace).List(selector)
 	if err != nil {
 		klog.Errorf("cannot list pod when check group updated,err: %v", err)
-		return false
+		return true
 	}
 	if len(pods) == 0 {
 		klog.V(2).Infof("pod of inferGroup %s cannot been find ", group.Name)
-		return false
+		return true
 	}
 	// get pod revision
 	revision, ok := pods[0].Labels[workloadv1alpha1.RevisionLabelKey]
 	if !ok {
 		klog.V(2).Infof("pod of inferGroup %s cannot been find revision label", group.Name)
-		return false
+		return true
 	}
 	if revision != newHash {
-		return false
+		return true
 	}
-	return true
+	return false
 }
 
 func (c *ModelInferController) getModelInfer(pod *corev1.Pod) (*workloadv1alpha1.ModelInfer, string, error) {
