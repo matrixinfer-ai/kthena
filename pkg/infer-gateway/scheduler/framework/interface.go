@@ -40,6 +40,12 @@ type Plugin interface {
 	Score(ctx *Context, pods []*datastore.PodInfo) map[*datastore.PodInfo]int
 }
 
+type FilterPlugin interface {
+	Name() string
+	// Filter is a method that is used to filter valid pods that can be sent request to.
+	Filter(ctx *Context, pods []*datastore.PodInfo) []*datastore.PodInfo
+}
+
 // PostHook is an interface that is executed after the scheduling is complete.
 type PostHook interface {
 	Name() string

@@ -66,7 +66,11 @@ func ParseFilterPlugin() []framework.Plugin {
 	var list []framework.Plugin
 	// TODO: enable lora affinity when models from metrics are available.
 	for _, plugin := range conf.FilterPlugins {
-		list = append(list, framework.GetPluginBuilder(plugin))
+		if pb, exist := framework.GetPluginBuilder(plugin); !exist {
+			log.Errorf("Failed to get plugin %s.", pb)
+		} else {
+			list = append(list, pb)
+		}
 	}
 	return list
 }
@@ -81,10 +85,14 @@ func GetScorePlugin(prefixCache *plugins.PrefixCache) []*scorePlugin {
 				weight: value,
 			})
 		} else {
-			list = append(list, &scorePlugin{
-				plugin: framework.GetPluginBuilder(key),
-				weight: value,
-			})
+			if pb, exist := framework.GetPluginBuilder(key); !exist {
+				log.Errorf("Failed to get plugin %s.", pb)
+			} else {
+				list = append(list, &scorePlugin{
+					plugin: pb,
+					weight: value,
+				})
+			}
 		}
 	}
 	return list
