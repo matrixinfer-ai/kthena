@@ -109,6 +109,14 @@ lint: golangci-lint ## Run golangci-lint linter
 lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 	$(GOLANGCI_LINT) run --fix
 
+##@ Build
+
+.PHONY: build
+build: generate fmt vet
+	go build -o bin/infer-controller cmd/infer-controller/main.go
+	go build -o bin/infer-gateway cmd/infer-gateway/main.go
+	go build -o bin/model-controller cmd/model-controller/main.go
+	go build -o bin/registry-webhook cmd/registry-webhook/main.go
 
 IMG_MODELINFER ?= ${HUB}/infer-controller:${TAG}
 IMG_MODELCONTROLLER ?= ${HUB}/model-controller:${TAG}
