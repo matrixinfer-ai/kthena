@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"time"
 
@@ -32,34 +31,11 @@ func NewModelMutator(kubeClient kubernetes.Interface, matrixinferClient clientse
 
 // Handle handles admission requests for Model resources
 func (m *ModelMutator) Handle(w http.ResponseWriter, r *http.Request) {
-	var body []byte
-	if r.Body != nil {
-		if data, err := io.ReadAll(r.Body); err == nil {
-			body = data
-		}
-	}
-
-	// Verify the content type is accurate
-	contentType := r.Header.Get("Content-Type")
-	if contentType != "application/json" {
-		klog.Errorf("Content-Type=%s, expected application/json", contentType)
-		http.Error(w, "invalid Content-Type, expected application/json", http.StatusUnsupportedMediaType)
-		return
-	}
-
-	// Parse the AdmissionReview request
-	var admissionReview admissionv1.AdmissionReview
-	if err := json.Unmarshal(body, &admissionReview); err != nil {
-		klog.Errorf("Failed to decode body: %v", err)
-		http.Error(w, "could not decode body", http.StatusBadRequest)
-		return
-	}
-
-	// Get the Model from the request
-	var model registryv1alpha1.Model
-	if err := json.Unmarshal(admissionReview.Request.Object.Raw, &model); err != nil {
-		klog.Errorf("Failed to decode Model: %v", err)
-		http.Error(w, "could not decode Model", http.StatusBadRequest)
+	// Parse the admission request
+	admissionReview, model, err := parseAdmissionRequest(r)
+	if err != nil {
+		klog.Errorf("Failed to parse admission request: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -70,7 +46,7 @@ func (m *ModelMutator) Handle(w http.ResponseWriter, r *http.Request) {
 	m.mutateModel(mutatedModel)
 
 	// Create the patch
-	patch, err := createPatch(&model, mutatedModel)
+	patch, err := createPatch(model, mutatedModel)
 	if err != nil {
 		klog.Errorf("Failed to create patch: %v", err)
 		http.Error(w, fmt.Sprintf("could not create patch: %v", err), http.StatusInternalServerError)
@@ -90,17 +66,10 @@ func (m *ModelMutator) Handle(w http.ResponseWriter, r *http.Request) {
 	admissionReview.Response = &admissionResponse
 
 	// Send the response
-	resp, err := json.Marshal(admissionReview)
-	if err != nil {
-		klog.Errorf("Failed to encode response: %v", err)
-		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
+	if err := sendAdmissionResponse(w, admissionReview); err != nil {
+		klog.Errorf("Failed to send admission response: %v", err)
+		http.Error(w, fmt.Sprintf("could not send response: %v", err), http.StatusInternalServerError)
 		return
-	}
-
-	klog.V(4).Infof("Sending response: %s", string(resp))
-	w.Header().Set("Content-Type", "application/json")
-	if _, err := w.Write(resp); err != nil {
-		klog.Errorf("Failed to write response: %v", err)
 	}
 }
 
