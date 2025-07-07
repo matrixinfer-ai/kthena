@@ -126,7 +126,7 @@ func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.P
 
 	if pdGroup != nil {
 		prefillPods := make([]*datastore.PodInfo, len(topNDecodePods))
-		for i := range topNDecodePods {
+		for i := range ctx.DecodePods {
 			ctx.PDIndex = i
 			// Filter prefill pods if PD disaggregation is enabled.
 			// Also make sure the prefill pod is in the same infer group of decode pod we get before.

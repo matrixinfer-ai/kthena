@@ -112,7 +112,6 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 
 		// step 7: proxy to pods
 		if err := r.proxyModelEndpoint(c, req, ctx, modelRequest, port); err != nil {
-			c.AbortWithStatusJSON(http.StatusNotFound, "model server not found")
 			log.Errorf("request failed: %v", err)
 			return
 		}
@@ -160,33 +159,30 @@ func (r *Router) proxyModelEndpoint(
 	modelRequest ModelRequest,
 	port int32,
 ) error {
-	if len(ctx.DecodePods) == 0 {
-		return fmt.Errorf("no pod meets the requirements")
-	}
-
 	// build request
 	var decodeRequest, prefillRequest *http.Request
 	var err error
-	// If the first docode pod is not empty, then a request is necessarily Required to make a request
-	if ctx.DecodePods[0] != nil {
+	if ctx.DecodePods == nil {
+		c.AbortWithStatusJSON(http.StatusNotFound, "no pod meets the requirements")
+		return fmt.Errorf("no pod meets the requirements")
+	} else {
 		decodeRequest, err = buildDecodeRequest(req, modelRequest)
 		if err != nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, fmt.Sprintf("failed to build request of decode: %v", err))
 			return fmt.Errorf("failed to build request of decode: %v", err)
 		}
-
-		if ctx.PrefillPods[0] != nil {
-			prefillRequest, err = buildPrefillRequest(req, modelRequest)
-			if err != nil {
-				return fmt.Errorf("failed to build request of prefill: %v", err)
-			}
+	}
+	if ctx.PrefillPods != nil {
+		prefillRequest, err = buildPrefillRequest(req, modelRequest)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, fmt.Sprintf("failed to build request of prefill: %v", err))
+			return fmt.Errorf("failed to build request of prefill: %v", err)
 		}
-	} else {
-		return fmt.Errorf("no decode pod meets the requirements")
 	}
 
 	for i := range ctx.DecodePods {
 		if ctx.DecodePods[i] != nil {
-			if ctx.PrefillPods[i] != nil {
+			if ctx.PrefillPods != nil && len(ctx.PrefillPods) > i {
 				// PD disaggregated if there is a perfill pod. Dispatch to perfill pod first before dispatching to decode pod.
 				log.Debugf("prefill pod is %v", ctx.PrefillPods[i].Pod.Name)
 				if err := proxyPrefillPod(prefillRequest, ctx.PrefillPods[i].Pod.Status.PodIP, port); err != nil {
@@ -204,6 +200,7 @@ func (r *Router) proxyModelEndpoint(
 			return nil
 		}
 	}
+	c.AbortWithStatusJSON(http.StatusNotFound, "request to all pods failed")
 	return fmt.Errorf("request to all pods failed")
 }
 
