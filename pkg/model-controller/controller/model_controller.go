@@ -1,3 +1,19 @@
+/*
+Copyright MatrixInfer-AI Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package controller
 
 import (
@@ -119,7 +135,7 @@ func (mc *ModelController) updateModel(old interface{}, new interface{}) {
 		klog.Error("failed to parse old Model when updateModel")
 		return
 	}
-	// When observed generation not equal to generation, trigger reconciles
+	// When observed generation not equal to generation, reconcile model
 	if oldModel.Status.ObservedGeneration != newModel.Generation {
 		mc.enqueueModel(newModel)
 	}
@@ -153,7 +169,7 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 			return err
 		} else {
 			for _, modelInfer := range modelInfers {
-				// modelInfer is owned by model. ModelInfer will be deleted when the model is deleted
+				// modelInfer is owned by the model. ModelInfer will be deleted when the model is deleted
 				if _, err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Create(ctx, modelInfer, metav1.CreateOptions{}); err != nil {
 					klog.Errorf("create modelInfer failed: %v", err)
 					return err

@@ -1,3 +1,19 @@
+/*
+Copyright MatrixInfer-AI Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package utils
 
 import (
@@ -18,22 +34,22 @@ import (
 func TestGetMountPath(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    *registry.ModelBackend
+		input    string
 		expected string
 	}{
 		{
 			name:     "normal case",
-			input:    &registry.ModelBackend{ModelURI: "models/llama-2-7b"},
+			input:    "models/llama-2-7b",
 			expected: "/8590cc9fef9361779a5bd7862eb82b6d",
 		},
 		{
 			name:     "empty modelURI",
-			input:    &registry.ModelBackend{ModelURI: ""},
+			input:    "",
 			expected: "/d41d8cd98f00b204e9800998ecf8427e",
 		},
 		{
 			name:     "special characters",
-			input:    &registry.ModelBackend{ModelURI: "model_@#$"},
+			input:    "model_@#$",
 			expected: "/1f8d57abec22d679835ba0c38f634b06",
 		},
 	}
@@ -72,6 +88,25 @@ func TestBuildModelInferCR(t *testing.T) {
 							MinReplicas: 1,
 							ModelURI:    "s3://aios_models/deepseek-ai/DeepSeek-V3-W8A8/vllm-ascend",
 							CacheURI:    "hostpath:///tmp/test",
+							Env: []corev1.EnvVar{
+								{
+									Name:  "ENDPOINT",
+									Value: "https://obs.test.com",
+								},
+								{
+									Name:  "RUNTIME_PORT",
+									Value: "8900",
+								},
+							},
+							EnvFrom: []corev1.EnvFromSource{
+								{
+									SecretRef: &corev1.SecretEnvSource{
+										LocalObjectReference: corev1.LocalObjectReference{
+											Name: "test-secret",
+										},
+									},
+								},
+							},
 							Workers: []registry.ModelWorker{
 								{
 									Type:  registry.ModelWorkerTypeServer,
@@ -100,6 +135,8 @@ func TestBuildModelInferCR(t *testing.T) {
 			if tt.expectErrMsg != "" {
 				assert.Contains(t, err.Error(), tt.expectErrMsg)
 				return
+			} else {
+				assert.Nil(t, err)
 			}
 			assert.Equal(t, tt.expected, got)
 		})

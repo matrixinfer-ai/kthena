@@ -12,6 +12,14 @@ spec:
       type: "vLLM"
       modelURI: s3://matrixinfer/Qwen/Qwen2.5-Coder-32B-Instruct
       cacheURI: hostpath:///cache/
+      envFrom:
+        - secretRef:
+            name: your-secrets
+      env:
+        - name: "RUNTIME_PORT"  # default 8100
+          value: "8200"
+        - name: "RUNTIME_URL"   # default http://localhost:8000/metrics
+          value: "http://localhost:8100/metrics"
       minReplicas: 1
       maxReplicas: 2
       workers:
