@@ -34,3 +34,9 @@ jobs:
       shell: bash
       run: |
         make generate
+
+  check-copyright:
+    runs-on: ubuntu-22.04
+    steps:
+    - run: make add-copyright
+    - run: git diff --exit-code
