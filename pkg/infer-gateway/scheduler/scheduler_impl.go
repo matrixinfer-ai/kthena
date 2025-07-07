@@ -113,7 +113,7 @@ func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.P
 	originalPods := make([]*datastore.PodInfo, len(pods))
 	copy(originalPods, pods)
 
-	var pdFilter framework.Plugin
+	var pdFilter framework.FilterPlugin
 	if pdGroup != nil {
 		// Initialize PDFilter plugin if PD disaggregation is enabled.
 

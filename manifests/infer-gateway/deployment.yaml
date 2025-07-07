@@ -85,7 +85,6 @@ metadata:
   namespace: matrixinfer-system
 data:
   schedulerConfiguration: |-
-    kind: KubeSchedulerConfiguration
     profiles:
       - pluginConfig:
           - name: least-request
@@ -106,7 +105,6 @@ data:
               - name: least-request
             disabled:
               - name: lora-affinity
-              - name: pd-filter
           Score:
             enabled:
               - name: least-request

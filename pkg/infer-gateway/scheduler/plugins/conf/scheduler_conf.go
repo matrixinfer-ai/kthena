@@ -7,7 +7,6 @@ var (
 )
 
 type KubeSchedulerConfiguration struct {
-	Kind     string    `yaml:"kind"`
 	Profiles []Profile `yaml:"profiles"`
 }
 
