@@ -345,7 +345,7 @@ func (s *store) AddOrUpdateModelRoute(mr *aiv1alpha1.ModelRoute) error {
 	for _, lora := range mr.Spec.LoraAdapters {
 		s.loraRoutes[lora] = mr
 	}
-	s.mutex.Unlock()
+	s.routeMutex.Unlock()
 
 	s.triggerCallbacks("ModelRoute", EventData{
 		EventType:  EventUpdate,
@@ -358,7 +358,9 @@ func (s *store) AddOrUpdateModelRoute(mr *aiv1alpha1.ModelRoute) error {
 func (s *store) DeleteModelRoute(namespacedName string) error {
 	s.routeMutex.Lock()
 	info := s.routeInfo[namespacedName]
+	var modelName string
 	if info != nil {
+		modelName = info.model
 		delete(s.routes, info.model)
 		for _, lora := range info.loras {
 			delete(s.loraRoutes, lora)
@@ -369,7 +371,7 @@ func (s *store) DeleteModelRoute(namespacedName string) error {
 
 	s.triggerCallbacks("ModelRoute", EventData{
 		EventType:  EventDelete,
-		ModelName:  info.model,
+		ModelName:  modelName,
 		ModelRoute: nil,
 	})
 	return nil
