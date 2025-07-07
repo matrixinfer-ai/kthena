@@ -184,32 +184,6 @@ ifndef ignore-not-found
   ignore-not-found = false
 endif
 
-CERT_MANAGER_VERSION ?= v1.18.0
-.PHONY: install-cert-manager
-install-cert-manager:
-	$(KUBECTL) apply -f https://github.com/cert-manager/cert-manager/releases/download/$(CERT_MANAGER_VERSION)/cert-manager.yaml
-
-.PHONY: uninstall-cert-manager
-uninstall-cert-manager:
-	$(KUBECTL) delete -f https://github.com/cert-manager/cert-manager/releases/download/$(CERT_MANAGER_VERSION)/cert-manager.yaml
-
-.PHONY: install-crd
-install-crd: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build manifests/crd | $(KUBECTL) apply --server-side -f -
-
-.PHONY: uninstall-crd
-uninstall-crd: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build manifests/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
-
-.PHONY: deploy-registry-webhook
-deploy-registry-webhook: kustomize ## Deploy model webhook to the K8s cluster specified in ~/.kube/config.
-	cd manifests/registry-webhook && $(KUSTOMIZE) edit set image registry-webhook=${IMG_REGISTRY_WEBHOOK}
-	$(KUSTOMIZE) build manifests/registry-webhook | $(KUBECTL) apply -f -
-
-.PHONY: undeploy-registry-webhook
-undeploy-registry-webhook: kustomize ## Deploy model webhook to the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build manifests/registry-webhook | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
-
 ##@ Dependencies
 
 ## Location to install dependencies to
