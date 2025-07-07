@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"gomodules.xyz/jsonpatch/v2"
 	admissionv1 "k8s.io/api/admission/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -136,9 +137,8 @@ func createPatch(original, mutated *registryv1alpha1.Model) ([]byte, error) {
 		return nil, fmt.Errorf("failed to marshal mutated: %v", err)
 	}
 
-	// Create a JSON patch
-	jp := &jsonpatch{}
-	patch, err := jp.CreatePatch(originalJSON, mutatedJSON)
+	// Create a JSON patch using the jsonpatch library
+	patch, err := jsonpatch.CreatePatch(originalJSON, mutatedJSON)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create patch: %v", err)
 	}
@@ -150,158 +150,4 @@ func createPatch(original, mutated *registryv1alpha1.Model) ([]byte, error) {
 	}
 
 	return patchBytes, nil
-}
-
-// jsonpatch is a simple implementation of JSON patch
-type jsonpatch struct{}
-
-// CreatePatch creates a JSON patch between two JSON documents
-func (jsonpatch) CreatePatch(original, modified []byte) ([]interface{}, error) {
-	var originalObj, modifiedObj interface{}
-
-	if err := json.Unmarshal(original, &originalObj); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal original: %v", err)
-	}
-
-	if err := json.Unmarshal(modified, &modifiedObj); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal modified: %v", err)
-	}
-
-	// Create a patch
-	patch := createJSONPatch("", originalObj, modifiedObj)
-	return patch, nil
-}
-
-// createJSONPatch recursively creates a JSON patch between two objects
-func createJSONPatch(path string, original, modified interface{}) []interface{} {
-	var patch []interface{}
-
-	// Handle nil values
-	if original == nil && modified == nil {
-		return patch
-	}
-
-	if original == nil {
-		// Add operation
-		patch = append(patch, map[string]interface{}{
-			"op":    "add",
-			"path":  path,
-			"value": modified,
-		})
-		return patch
-	}
-
-	if modified == nil {
-		// Remove operation
-		patch = append(patch, map[string]interface{}{
-			"op":   "remove",
-			"path": path,
-		})
-		return patch
-	}
-
-	// Handle different types
-	switch originalValue := original.(type) {
-	case map[string]interface{}:
-		modifiedValue, ok := modified.(map[string]interface{})
-		if !ok {
-			// Replace operation
-			patch = append(patch, map[string]interface{}{
-				"op":    "replace",
-				"path":  path,
-				"value": modified,
-			})
-			return patch
-		}
-
-		// Process each key in original
-		for key, value := range originalValue {
-			var newPath string
-			if path == "" {
-				newPath = "/" + key
-			} else {
-				newPath = path + "/" + key
-			}
-
-			if modifiedValue, ok := modifiedValue[key]; ok {
-				// Key exists in both, recurse
-				patch = append(patch, createJSONPatch(newPath, value, modifiedValue)...)
-			} else {
-				// Key removed in modified
-				patch = append(patch, map[string]interface{}{
-					"op":   "remove",
-					"path": newPath,
-				})
-			}
-		}
-
-		// Process keys added in modified
-		for key, value := range modifiedValue {
-			if _, ok := originalValue[key]; !ok {
-				// Key added in modified
-				var newPath string
-				if path == "" {
-					newPath = "/" + key
-				} else {
-					newPath = path + "/" + key
-				}
-				patch = append(patch, map[string]interface{}{
-					"op":    "add",
-					"path":  newPath,
-					"value": value,
-				})
-			}
-		}
-
-	case []interface{}:
-		modifiedValue, ok := modified.([]interface{})
-		if !ok {
-			// Replace operation
-			patch = append(patch, map[string]interface{}{
-				"op":    "replace",
-				"path":  path,
-				"value": modified,
-			})
-			return patch
-		}
-
-		// For arrays, we'll just replace the entire array
-		if !equalArrays(originalValue, modifiedValue) {
-			patch = append(patch, map[string]interface{}{
-				"op":    "replace",
-				"path":  path,
-				"value": modified,
-			})
-		}
-
-	default:
-		// For primitive types, just compare values
-		if !equalValues(original, modified) {
-			patch = append(patch, map[string]interface{}{
-				"op":    "replace",
-				"path":  path,
-				"value": modified,
-			})
-		}
-	}
-
-	return patch
-}
-
-// equalArrays checks if two arrays are equal
-func equalArrays(a, b []interface{}) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if !equalValues(a[i], b[i]) {
-			return false
-		}
-	}
-	return true
-}
-
-// equalValues checks if two values are equal
-func equalValues(a, b interface{}) bool {
-	return fmt.Sprintf("%v", a) == fmt.Sprintf("%v", b)
 }
