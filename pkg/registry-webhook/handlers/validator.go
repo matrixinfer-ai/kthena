@@ -36,9 +36,13 @@ func NewModelValidator(kubeClient kubernetes.Interface, matrixinferClient client
 func (v *ModelValidator) Handle(w http.ResponseWriter, r *http.Request) {
 	var body []byte
 	if r.Body != nil {
-		if data, err := io.ReadAll(r.Body); err == nil {
-			body = data
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			klog.Errorf("Failed to read request body: %v", err)
+			http.Error(w, "could not read request body", http.StatusBadRequest)
+			return
 		}
+		body = data
 	}
 
 	// Verify the content type is accurate
