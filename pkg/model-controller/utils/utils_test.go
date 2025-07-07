@@ -88,6 +88,25 @@ func TestBuildModelInferCR(t *testing.T) {
 							MinReplicas: 1,
 							ModelURI:    "s3://aios_models/deepseek-ai/DeepSeek-V3-W8A8/vllm-ascend",
 							CacheURI:    "hostpath:///tmp/test",
+							Env: []corev1.EnvVar{
+								{
+									Name:  "ENDPOINT",
+									Value: "https://obs.test.com",
+								},
+								{
+									Name:  "RUNTIME_PORT",
+									Value: "8900",
+								},
+							},
+							EnvFrom: []corev1.EnvFromSource{
+								{
+									SecretRef: &corev1.SecretEnvSource{
+										LocalObjectReference: corev1.LocalObjectReference{
+											Name: "test-secret",
+										},
+									},
+								},
+							},
 							Workers: []registry.ModelWorker{
 								{
 									Type:  registry.ModelWorkerTypeServer,
@@ -116,6 +135,8 @@ func TestBuildModelInferCR(t *testing.T) {
 			if tt.expectErrMsg != "" {
 				assert.Contains(t, err.Error(), tt.expectErrMsg)
 				return
+			} else {
+				assert.Nil(t, err)
 			}
 			assert.Equal(t, tt.expected, got)
 		})

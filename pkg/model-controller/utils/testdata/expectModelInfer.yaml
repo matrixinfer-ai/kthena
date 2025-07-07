@@ -31,7 +31,7 @@ spec:
             containers:
               - args:
                   - --port
-                  - "8100"
+                  - "8900"
                   - --url
                   - http://localhost:8000/metrics
                   - --engine
@@ -82,6 +82,9 @@ spec:
                             fi
                           done
                 name: engine
+                env:
+                  - name: "ENDPOINT"
+                    value: "https://obs.test.com"
                 readinessProbe:
                   failureThreshold: 3
                   httpGet:
@@ -107,6 +110,12 @@ spec:
                   - --output-dir
                   - /tmp/test/13a7c4d58031cdc502ca1bb4a592f2b9
                 image: matrixinfer/downloader:latest
+                env:
+                  - name: "ENDPOINT"
+                    value: "https://obs.test.com"
+                envfrom:
+                  - secretRef:
+                      name: "test-secret"
                 name: test-model-downloader
                 resources: {}
                 volumeMounts:
@@ -133,6 +142,9 @@ spec:
                   - chmod u+x /vllm-workspace/vllm/examples/online_serving/multi-node-serving.sh
                     && /vllm-workspace/vllm/examples/online_serving/multi-node-serving.sh
                     worker --ray_address=$(ENTRY_ADDRESS)
+                env:
+                  - name: "ENDPOINT"
+                    value: "https://obs.test.com"
                 image: vllm-server:latest
                 name: backend1-vllm-worker
                 resources:
@@ -149,6 +161,9 @@ spec:
                   - s3://aios_models/deepseek-ai/DeepSeek-V3-W8A8/vllm-ascend
                   - --output-dir
                   - /tmp/test/13a7c4d58031cdc502ca1bb4a592f2b9
+                env:
+                  - name: "ENDPOINT"
+                    value: "https://obs.test.com"
                 image: matrixinfer/downloader:latest
                 name: downloader
                 resources: {}

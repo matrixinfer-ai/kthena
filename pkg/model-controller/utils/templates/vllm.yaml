@@ -39,6 +39,7 @@ spec:
               - --output-dir
               - ${MODEL_DOWNLOAD_PATH}
               env: ${MODEL_DOWNLOAD_ENV}
+              envFrom: ${MODEL_DOWNLOAD_ENVFROM}
               image: ${MODEL_INFER_DOWNLOADER_IMAGE}
               name: ${MODEL_NAME}-downloader
               volumeMounts: ${VOLUME_MOUNTS}
@@ -51,11 +52,11 @@ spec:
                   - containerPort: 8100
                 args:
                   - --port
-                  - "8100"
+                  - ${MODEL_INFER_RUNTIME_PORT}
                   - --url
-                  - "http://localhost:8000/metrics"
+                  - ${MODEL_INFER_RUNTIME_URL}
                   - --engine
-                  - "vllm"
+                  - ${MODEL_INFER_RUNTIME_ENGINE}
                 readinessProbe:
                   httpGet:
                     path: /health
