@@ -106,13 +106,6 @@ type Store interface {
 	Run(stop <-chan struct{})
 }
 
-type modelServer struct {
-	mutex sync.RWMutex
-
-	modelServer *aiv1alpha1.ModelServer
-	pods        map[types.NamespacedName]*PodInfo
-}
-
 type PodInfo struct {
 	Pod *corev1.Pod
 	// Name of AI inference engine
@@ -126,8 +119,11 @@ type PodInfo struct {
 	TimePerOutputToken *dto.Histogram
 	TPOT               float64
 	TTFT               float64
-	Models             sets.Set[string]               // running models. Including base model and lora adapaters.
-	modelServer        sets.Set[types.NamespacedName] // The modelservers this pod belongs to
+
+	mutex sync.RWMutex // Protects concurrent access to Models and modelServer fields
+	// Protected fields - use accessor methods for thread-safe access
+	models      sets.Set[string]               // running models. Including base model and lora adapaters.
+	modelServer sets.Set[types.NamespacedName] // The modelservers this pod belongs to
 }
 
 // modelRouteInfo stores the mapping between a ModelRoute resource and its associated models.
@@ -143,11 +139,11 @@ type modelRouteInfo struct {
 }
 
 type store struct {
-	mutex sync.RWMutex
-
+	mutex       sync.RWMutex
 	modelServer map[types.NamespacedName]*modelServer
 	pods        map[types.NamespacedName]*PodInfo
 
+	routeMutex sync.RWMutex
 	// Model routing fields
 	routeInfo  map[string]*modelRouteInfo
 	routes     map[string]*aiv1alpha1.ModelRoute
@@ -184,8 +180,8 @@ func (s *store) Run(stop <-chan struct{}) {
 
 			// Unlock before updating pods
 			for _, podInfo := range pods {
-				s.updatePodMetrics(podInfo.Pod)
-				s.updatePodModels(podInfo.Pod)
+				s.updatePodMetrics(podInfo)
+				s.updatePodModels(podInfo)
 			}
 
 			time.Sleep(uppdateInterval)
@@ -214,7 +210,7 @@ func (s *store) AddOrUpdateModelServer(name types.NamespacedName, ms *aiv1alpha1
 			s.pods[podName] = &PodInfo{
 				Pod:         pod,
 				backend:     string(ms.Spec.InferenceEngine),
-				Models:      sets.New[string](),
+				models:      sets.New[string](),
 				modelServer: sets.New[types.NamespacedName](name),
 			}
 		}
@@ -226,7 +222,21 @@ func (s *store) AddOrUpdateModelServer(name types.NamespacedName, ms *aiv1alpha1
 
 func (s *store) DeleteModelServer(ms *aiv1alpha1.ModelServer) error {
 	name := utils.GetNamespaceName(ms)
-	s.PodHandlerWhenDeleteModelServer(name)
+	modelserver, ok := s.modelServer[name]
+	if !ok {
+		return nil
+	}
+
+	// first delete the model server from all pod info
+	for _, pod := range modelserver.getPods() {
+		pod.RemoveModelServer(name)
+		if pod.GetModelServerCount() == 0 {
+			s.mutex.Lock()
+			delete(s.pods, utils.GetNamespaceName(pod.Pod))
+			s.mutex.Unlock()
+		}
+	}
+	// delete the model server from the store
 	s.mutex.Lock()
 	delete(s.modelServer, name)
 	s.mutex.Unlock()
@@ -248,47 +258,38 @@ func (s *store) GetPodsByModelServer(name types.NamespacedName) ([]*PodInfo, err
 	s.mutex.RLock()
 	ms, ok := s.modelServer[name]
 	s.mutex.RUnlock()
-
 	if !ok {
 		return nil, fmt.Errorf("model server not found: %v", name)
 	}
 
-	ms.mutex.RLock()
-	defer ms.mutex.RUnlock()
-
-	pods := []*PodInfo{}
-
-	for key := range ms.pods {
-		pod := ms.pods[key]
-		pods = append(pods, pod)
-	}
-
-	return pods, nil
+	return ms.getPods(), nil
 }
 
 func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.ModelServer) error {
-	s.mutex.Lock()
 
 	podName := utils.GetNamespaceName(pod)
+	// TODO: check if pod is already in the store, use the existing PodInfo if exists
 	newPodInfo := &PodInfo{
 		Pod:         pod,
 		modelServer: sets.Set[types.NamespacedName]{},
-		Models:      sets.New[string](),
+		models:      sets.New[string](),
 	}
 
 	modelServerNames := []types.NamespacedName{}
 	for _, modelServer := range modelServers {
 		modelServerName := utils.GetNamespaceName(modelServer)
 		modelServerNames = append(modelServerNames, modelServerName)
-		newPodInfo.modelServer.Insert(modelServerName)
+		newPodInfo.AddModelServer(modelServerName)
 		// NOTE: even if a pod belongs to multiple model servers, the backend should be the same
 		newPodInfo.backend = string(modelServer.Spec.InferenceEngine)
 	}
 
+	s.mutex.Lock()
 	// if already have podinfo, need to delete old pod in modelserver
 	if podInfo, ok := s.pods[podName]; ok {
-		for name := range podInfo.modelServer {
-			delete(s.modelServer[name].pods, podName)
+		oldModelServers := podInfo.GetModelServers()
+		for name := range oldModelServers {
+			s.modelServer[name].deletePod(podName)
 		}
 	}
 
@@ -299,40 +300,22 @@ func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.Model
 				pods: make(map[types.NamespacedName]*PodInfo),
 			}
 		}
-		s.modelServer[modelServerName].pods[podName] = newPodInfo
+		s.modelServer[modelServerName].addPod(newPodInfo)
 	}
 	s.mutex.Unlock()
 
-	s.updatePodMetrics(pod)
-	s.updatePodModels(pod)
+	s.updatePodMetrics(newPodInfo)
+	s.updatePodModels(newPodInfo)
 
 	return nil
-}
-
-func (s *store) PodHandlerWhenDeleteModelServer(modelServerName types.NamespacedName) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
-	modelserver, ok := s.modelServer[modelServerName]
-	if !ok {
-		return
-	}
-
-	for podName := range modelserver.pods {
-		s.pods[podName].modelServer.Delete(modelServerName)
-		// if modelServer is nil, pod will delete
-		if s.pods[podName].modelServer.Len() == 0 {
-			delete(s.pods, podName)
-		}
-	}
 }
 
 func (s *store) DeletePod(podName types.NamespacedName) error {
 	s.mutex.Lock()
 	if pod, ok := s.pods[podName]; ok {
-		modelServers := pod.modelServer
+		modelServers := pod.GetModelServers()
 		for modelServerName := range modelServers {
-			delete(s.modelServer[modelServerName].pods, podName)
+			s.modelServer[modelServerName].deletePod(podName)
 		}
 		delete(s.pods, podName)
 	}
@@ -348,8 +331,9 @@ func (s *store) DeletePod(podName types.NamespacedName) error {
 
 // Model routing methods
 func (s *store) AddOrUpdateModelRoute(mr *aiv1alpha1.ModelRoute) error {
-	s.mutex.Lock()
-	s.routeInfo[mr.Namespace+"/"+mr.Name] = &modelRouteInfo{
+	s.routeMutex.Lock()
+	key := mr.Namespace + "/" + mr.Name
+	s.routeInfo[key] = &modelRouteInfo{
 		model: mr.Spec.ModelName,
 		loras: mr.Spec.LoraAdapters,
 	}
@@ -372,7 +356,7 @@ func (s *store) AddOrUpdateModelRoute(mr *aiv1alpha1.ModelRoute) error {
 }
 
 func (s *store) DeleteModelRoute(namespacedName string) error {
-	s.mutex.Lock()
+	s.routeMutex.Lock()
 	info := s.routeInfo[namespacedName]
 	if info != nil {
 		delete(s.routes, info.model)
@@ -381,7 +365,7 @@ func (s *store) DeleteModelRoute(namespacedName string) error {
 		}
 	}
 	delete(s.routeInfo, namespacedName)
-	s.mutex.Unlock()
+	s.routeMutex.Unlock()
 
 	s.triggerCallbacks("ModelRoute", EventData{
 		EventType:  EventDelete,
@@ -392,8 +376,8 @@ func (s *store) DeleteModelRoute(namespacedName string) error {
 }
 
 func (s *store) MatchModelServer(model string, req *http.Request) (types.NamespacedName, bool, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
+	s.routeMutex.RLock()
+	defer s.routeMutex.RUnlock()
 
 	var is_lora bool
 	mr, ok := s.routes[model]
@@ -522,60 +506,38 @@ func selectFromWeightedSlice(weights []uint32) int {
 	return 0
 }
 
-func (s *store) updatePodMetrics(pod *corev1.Pod) {
-	podName := utils.GetNamespaceName(pod)
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+func (s *store) getPodInfo(podName types.NamespacedName) (*PodInfo, bool) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 
 	podInfo, exist := s.pods[podName]
-	if !exist {
-		log.Errorf("failed to get podInfo of pod %s/%s", pod.GetNamespace(), pod.GetName())
-		return
-	}
-
-	if podInfo.backend == "" {
-		log.Error("failed to find backend in pod")
-		return
-	}
-
-	previousHistogram := getPreviousHistogram(podInfo)
-	metricsInfo, histogramMetrics := backend.GetPodMetrics(podInfo.backend, pod, previousHistogram)
-	updateMetricsInfo(podInfo, metricsInfo)
-	updateHistogramMetrics(podInfo, histogramMetrics)
-
-	for ms := range podInfo.modelServer {
-		s.modelServer[ms].pods[podName] = podInfo
-	}
+	return podInfo, exist
 }
 
-func (s *store) updatePodModels(pod *corev1.Pod) {
-	podName := utils.GetNamespaceName(pod)
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
-	podInfo, exist := s.pods[podName]
-	if !exist {
-		log.Errorf("failed to get podInfo of pod %s/%s", pod.GetNamespace(), pod.GetName())
+func (s *store) updatePodMetrics(pod *PodInfo) {
+	if pod.backend == "" {
+		log.Error("failed to find backend in pod")
 		return
 	}
 
+	previousHistogram := getPreviousHistogram(pod)
+	gaugeMetrics, histogramMetrics := backend.GetPodMetrics(pod.backend, pod.Pod, previousHistogram)
+	updateGaugeMetricsInfo(pod, gaugeMetrics)
+	updateHistogramMetrics(pod, histogramMetrics)
+}
+
+func (s *store) updatePodModels(podInfo *PodInfo) {
 	if podInfo.backend == "" {
 		log.Error("failed to find backend in pod")
 		return
 	}
 
-	models, err := backend.GetPodModels(podInfo.backend, pod)
+	models, err := backend.GetPodModels(podInfo.backend, podInfo.Pod)
 	if err != nil {
-		log.Errorf("failed to get models of pod %s/%s", pod.GetNamespace(), pod.GetName())
+		log.Errorf("failed to get models of pod %s/%s", podInfo.Pod.GetNamespace(), podInfo.Pod.GetName())
 	}
 
-	for i := range models {
-		podInfo.Models.Insert(models[i])
-	}
-
-	for ms := range podInfo.modelServer {
-		s.modelServer[ms].pods[podName] = podInfo
-	}
+	podInfo.UpdateModels(models)
 }
 
 func getPreviousHistogram(podinfo *PodInfo) map[string]*dto.Histogram {
@@ -589,7 +551,7 @@ func getPreviousHistogram(podinfo *PodInfo) map[string]*dto.Histogram {
 	return previousHistogram
 }
 
-func updateMetricsInfo(podinfo *PodInfo, metricsInfo map[string]float64) {
+func updateGaugeMetricsInfo(podinfo *PodInfo, metricsInfo map[string]float64) {
 	updateFuncs := map[string]func(float64){
 		utils.GPUCacheUsage: func(f float64) {
 			podinfo.GPUCacheUsage = f
@@ -643,10 +605,8 @@ func updateHistogramMetrics(podinfo *PodInfo, histogramMetrics map[string]*dto.H
 }
 
 // RegisterCallback registers a callback function for a specific resource
+// Note this can only be called during bootstrapping.
 func (s *store) RegisterCallback(kind string, callback CallbackFunc) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
 	if _, exists := s.callbacks[kind]; !exists {
 		s.callbacks[kind] = make([]CallbackFunc, 0)
 	}
@@ -655,12 +615,114 @@ func (s *store) RegisterCallback(kind string, callback CallbackFunc) {
 
 // triggerCallbacks executes all registered callbacks for a specific event type
 func (s *store) triggerCallbacks(kind string, data EventData) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-
 	if callbacks, exists := s.callbacks[kind]; exists {
 		for _, callback := range callbacks {
 			go callback(data)
 		}
 	}
+}
+
+// PodInfo methods for thread-safe access to models and modelServer fields
+
+// GetModels returns a copy of the models set
+func (p *PodInfo) GetModels() sets.Set[string] {
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+
+	result := sets.New[string]()
+	for model := range p.models {
+		result.Insert(model)
+	}
+	return result
+}
+
+// UpdateModels updates the models set with a new list of models
+func (p *PodInfo) UpdateModels(models []string) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	p.models = sets.New[string](models...)
+}
+
+// RemoveModel removes a model from the models set
+func (p *PodInfo) RemoveModel(model string) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	if p.models != nil {
+		p.models.Delete(model)
+	}
+}
+
+// GetModelServers returns a copy of the modelServer set
+func (p *PodInfo) GetModelServers() sets.Set[types.NamespacedName] {
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+
+	result := sets.New[types.NamespacedName]()
+	for ms := range p.modelServer {
+		result.Insert(ms)
+	}
+	return result
+}
+
+// AddModelServer adds a model server to the modelServer set
+func (p *PodInfo) AddModelServer(ms types.NamespacedName) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	if p.modelServer == nil {
+		p.modelServer = sets.New[types.NamespacedName]()
+	}
+	p.modelServer.Insert(ms)
+}
+
+// RemoveModelServer removes a model server from the modelServer set
+func (p *PodInfo) RemoveModelServer(ms types.NamespacedName) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	if p.modelServer != nil {
+		p.modelServer.Delete(ms)
+	}
+}
+
+// HasModelServer checks if a model server exists in the modelServer set
+func (p *PodInfo) HasModelServer(ms types.NamespacedName) bool {
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+
+	return p.modelServer != nil && p.modelServer.Contains(ms)
+}
+
+// GetModelServerCount returns the number of model servers
+func (p *PodInfo) GetModelServerCount() int {
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+
+	if p.modelServer == nil {
+		return 0
+	}
+	return p.modelServer.Len()
+}
+
+// GetModelsList returns all models as a slice
+func (p *PodInfo) GetModelsList() []string {
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+
+	if p.models == nil {
+		return nil
+	}
+	return p.models.UnsortedList()
+}
+
+// GetModelServersList returns all model servers as a slice
+func (p *PodInfo) GetModelServersList() []types.NamespacedName {
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+
+	if p.modelServer == nil {
+		return nil
+	}
+	return p.modelServer.UnsortedList()
 }

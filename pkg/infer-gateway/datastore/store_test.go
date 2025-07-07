@@ -133,7 +133,7 @@ func TestStoreUpdatePodMetrics(t *testing.T) {
 	sum2 := float64(2)
 	count2 := uint64(2)
 	podinfo := PodInfo{
-		backend: "vllm",
+		backend: "vLLM",
 		TimePerOutputToken: &dto.Histogram{
 			SampleSum:   &sum1,
 			SampleCount: &count1,
@@ -195,12 +195,7 @@ func TestStoreUpdatePodMetrics(t *testing.T) {
 	})
 	defer patch.Reset()
 
-	s.updatePodMetrics(&corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "default",
-			Name:      "pod1",
-		},
-	})
+	s.updatePodMetrics(&podinfo)
 
 	name := types.NamespacedName{
 		Namespace: "default",
