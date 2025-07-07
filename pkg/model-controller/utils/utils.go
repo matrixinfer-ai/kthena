@@ -121,8 +121,8 @@ func buildVllmModelInfer(model *registry.Model, backendIdx int) (*workload.Model
 		"BACKEND_NAME":     strings.ToLower(backend.Name),
 		"BACKEND_REPLICAS": backend.MinReplicas, // todo: backend replicas
 		"BACKEND_TYPE":     strings.ToLower(string(backend.Type)),
-		"ENGINE_ENV":       backend.GetEnvVarOrDefault("ENDPOINT", ""),
-		"WORKER_ENV":       backend.GetEnvVarOrDefault("ENDPOINT", ""),
+		"ENGINE_ENV":       getEnvVarOrDefault(backend, "ENDPOINT", ""),
+		"WORKER_ENV":       getEnvVarOrDefault(backend, "ENDPOINT", ""),
 		"SERVER_REPLICAS":  workersMap[registry.ModelWorkerTypeServer].Replicas,
 		"SERVER_ENTRY_TEMPLATE_METADATA": &metav1.ObjectMeta{
 			Labels: map[string]string{
@@ -139,12 +139,12 @@ func buildVllmModelInfer(model *registry.Model, backendIdx int) (*workload.Model
 		}},
 		"MODEL_URL":                    backend.ModelURI,
 		"MODEL_DOWNLOAD_PATH":          weightsPath,
-		"MODEL_DOWNLOAD_ENV":           backend.GetEnvVarOrDefault("ENDPOINT", ""),
+		"MODEL_DOWNLOAD_ENV":           getEnvVarOrDefault(backend, "ENDPOINT", ""),
 		"MODEL_DOWNLOAD_ENVFROM":       backend.EnvFrom,
 		"MODEL_INFER_DOWNLOADER_IMAGE": config.Config.GetModelInferDownloaderImage(),
 		"MODEL_INFER_RUNTIME_IMAGE":    config.Config.GetModelInferRuntimeImage(),
-		"MODEL_INFER_RUNTIME_PORT":     backend.GetEnvValueOrDefault("RUNTIME_PORT", "8100"),
-		"MODEL_INFER_RUNTIME_URL":      backend.GetEnvValueOrDefault("RUNTIME_URL", "http://localhost:8000/metrics"),
+		"MODEL_INFER_RUNTIME_PORT":     getEnvValueOrDefault(backend, "RUNTIME_PORT", "8100"),
+		"MODEL_INFER_RUNTIME_URL":      getEnvValueOrDefault(backend, "RUNTIME_URL", "http://localhost:8000/metrics"),
 		"MODEL_INFER_RUNTIME_ENGINE":   strings.ToLower(string(backend.Type)),
 		"ENGINE_SERVER_RESOURCES":      workersMap[registry.ModelWorkerTypeServer].Resources,
 		"ENGINE_SERVER_IMAGE":          workersMap[registry.ModelWorkerTypeServer].Image,
@@ -210,6 +210,28 @@ func getCachePath(path string) string {
 
 func getVolumeName(backendName string) string {
 	return backendName + "-weights"
+}
+
+// getEnvVarOrDefault gets EnvVar of specific env, if env does not exist, return default value
+func getEnvVarOrDefault(backend *registry.ModelBackend, name string, defaultValue string) []corev1.EnvVar {
+	for _, env := range backend.Env {
+		if env.Name == name {
+			return []corev1.EnvVar{env}
+		}
+	}
+	return []corev1.EnvVar{
+		{Name: name, Value: defaultValue},
+	}
+}
+
+// getEnvValueOrDefault gets string value of specific env, if env does not exist, return default value
+func getEnvValueOrDefault(backend *registry.ModelBackend, name string, defaultValue string) string {
+	for _, env := range backend.Env {
+		if env.Name == name {
+			return env.Value
+		}
+	}
+	return defaultValue
 }
 
 //go:embed templates/*
