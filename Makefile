@@ -109,10 +109,19 @@ lint: golangci-lint ## Run golangci-lint linter
 lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 	$(GOLANGCI_LINT) run --fix
 
+##@ Build
+
+.PHONY: build
+build: generate fmt vet
+	go build -o bin/infer-controller cmd/infer-controller/main.go
+	go build -o bin/infer-gateway cmd/infer-gateway/main.go
+	go build -o bin/model-controller cmd/model-controller/main.go
+	go build -o bin/registry-webhook cmd/registry-webhook/main.go
 
 IMG_MODELINFER ?= ${HUB}/infer-controller:${TAG}
 IMG_MODELCONTROLLER ?= ${HUB}/model-controller:${TAG}
 IMG_GATEWAY ?= ${HUB}/infer-gateway:${TAG}
+IMG_REGISTRY_WEBHOOK ?= ${HUB}/registry-webhook:${TAG}
 
 .PHONY: docker-build-gateway
 docker-build-gateway: generate
@@ -126,11 +135,16 @@ docker-build-modelinfer: generate
 docker-build-modelcontroller: generate
 	$(CONTAINER_TOOL) build -t ${IMG_MODELCONTROLLER} -f docker/Dockerfile.modelcontroller .
 
+.PHONY: docker-build-registry-webhook
+docker-build-registry-webhook: generate
+	$(CONTAINER_TOOL) build -t ${IMG_REGISTRY_WEBHOOK} -f docker/Dockerfile.registry.webhook .
+
 .PHONY: docker-push
 docker-push: docker-build-gateway docker-build-modelinfer docker-build-modelcontroller ## Push all images to the registry.
 	$(CONTAINER_TOOL) push ${IMG_GATEWAY}
 	$(CONTAINER_TOOL) push ${IMG_MODELINFER}
 	$(CONTAINER_TOOL) push ${IMG_MODELCONTROLLER}
+	$(CONTAINER_TOOL) push ${IMG_REGISTRY_WEBHOOK}
 
 # PLATFORMS defines the target platforms for the images be built to provide support to multiple
 # architectures.
@@ -151,6 +165,11 @@ docker-buildx: ## Build and push docker image for cross-platform support
 		--platform ${PLATFORMS} \
 		-t ${IMG_MODELCONTROLLER} \
 		-f Dockerfile.modelcontroller \
+		--push .
+	$(CONTAINER_TOOL) buildx build \
+		--platform ${PLATFORMS} \
+		-t ${IMG_REGISTRY_WEBHOOK} \
+		-f Dockerfile.registry.webhook \
 		--push .
 
 .PHONY: build-installer

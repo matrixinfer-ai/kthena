@@ -135,7 +135,7 @@ func (mc *ModelController) updateModel(old interface{}, new interface{}) {
 		klog.Error("failed to parse old Model when updateModel")
 		return
 	}
-	// When observed generation not equal to generation, trigger reconciles
+	// When observed generation not equal to generation, reconcile model
 	if oldModel.Status.ObservedGeneration != newModel.Generation {
 		mc.enqueueModel(newModel)
 	}
@@ -169,7 +169,7 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 			return err
 		} else {
 			for _, modelInfer := range modelInfers {
-				// modelInfer is owned by model. ModelInfer will be deleted when the model is deleted
+				// modelInfer is owned by the model. ModelInfer will be deleted when the model is deleted
 				if _, err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Create(ctx, modelInfer, metav1.CreateOptions{}); err != nil {
 					klog.Errorf("create modelInfer failed: %v", err)
 					return err
