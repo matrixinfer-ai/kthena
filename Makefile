@@ -1,8 +1,6 @@
 # Image URL to use all building/pushing image targets
-IMG_GATEWAY ?= ghcr.io/matrixinfer-ai/infer-gateway:latest
-IMG_MODELINFER ?= ghcr.io/matrixinfer-ai/infer-controller:latest
-IMG_MODEL_CONTROLLER ?= ghcr.io/matrixinfer-ai/model-controller:latest
-IMG_REGISTRY_WEBHOOK ?= ghcr.io/matrixinfer-ai/registry-webhook:latest
+HUB ?= ghcr.io/matrixinfer-ai
+TAG ?= latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
@@ -56,7 +54,12 @@ gen-crd: controller-gen
 .PHONY: generate
 generate: controller-gen code-generator gen-crd ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	go mod tidy
 	./hack/update-codegen.sh
+
+.PHONY: gen-check
+gen-check: generate
+	git diff --exit-code
 
 # Use same code-generator version as k8s.io/api
 CODEGEN_VERSION := $(shell go list -m -f '{{.Version}}' k8s.io/api)
@@ -106,71 +109,49 @@ lint: golangci-lint ## Run golangci-lint linter
 lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 	$(GOLANGCI_LINT) run --fix
 
-##@ Build
 
-.PHONY: build
-build: generate fmt vet ## Build ai-gateway binary.
-	go build -o bin/infer-gateway cmd/infer-gateway/main.go
-	go build -o bin/registry-webhook cmd/registry-webhook/main.go
+IMG_MODELINFER ?= ${HUB}/infer-controller:${TAG}
+IMG_MODELCONTROLLER ?= ${HUB}/model-controller:${TAG}
+IMG_GATEWAY ?= ${HUB}/infer-gateway:${TAG}
 
-.PHONY: build-model-controller
-build-model-controller: generate fmt vet
-	go build -o bin/model-controller cmd/model-controller/main.go
-
-.PHONY: build-registry-webhook
-build-registry-webhook: generate fmt vet
-	go build -o bin/registry-webhook cmd/registry-webhook/main.go
-
-# If you wish to build the ai-gateway image targeting other platforms you can use the --platform flag.
-# (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
-# More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 .PHONY: docker-build-gateway
-docker-build-gateway: generate## Build docker image with the ai-gateway.
-	$(CONTAINER_TOOL) build -t ${IMG_GATEWAY} -f Dockerfile-gateway .
+docker-build-gateway: generate
+	$(CONTAINER_TOOL) build -t ${IMG_GATEWAY} -f docker/Dockerfile.gateway .
 
 .PHONY: docker-build-modelinfer
-docker-build-modelinfer: generate## Build docker image with the ai-gateway.
-	$(CONTAINER_TOOL) build -t ${IMG_MODELINFER} -f Dockerfile-modelinfer .
+docker-build-modelinfer: generate 
+	$(CONTAINER_TOOL) build -t ${IMG_MODELINFER} -f docker/Dockerfile.modelinfer .
 
-.PHONY: docker-build-model-controller
-docker-build-model-controller: build-model-controller## Build docker image with the model controller.
-	$(CONTAINER_TOOL) build -t ${IMG_MODEL_CONTROLLER} -f Dockerfile-model-controller .
+.PHONY: docker-build-modelcontroller
+docker-build-modelcontroller: generate
+	$(CONTAINER_TOOL) build -t ${IMG_MODELCONTROLLER} -f docker/Dockerfile.modelcontroller .
 
-.PHONY: docker-build-registry-webhook
-docker-build-registry-webhook: build-registry-webhook## Build docker image with the model webhook.
-	$(CONTAINER_TOOL) build -t ${IMG_REGISTRY_WEBHOOK} -f Dockerfile-registry-webhook .
-
-.PHONY: docker-push-gateway
-docker-push-gateway: ## Push docker image with the ai-gateway.
+.PHONY: docker-push
+docker-push: docker-build-gateway docker-build-modelinfer docker-build-modelcontroller ## Push all images to the registry.
 	$(CONTAINER_TOOL) push ${IMG_GATEWAY}
-
-.PHONY: docker-push-modelinfer
-docker-push-modelinfer: ## Push docker image with the ai-gateway.
 	$(CONTAINER_TOOL) push ${IMG_MODELINFER}
+	$(CONTAINER_TOOL) push ${IMG_MODELCONTROLLER}
 
-.PHONY: docker-push-model-controller
-docker-push-model-controller: ## Push docker image with the model controller.
-	$(CONTAINER_TOOL) push ${IMG_MODEL_CONTROLLER}
-
-.PHONY: docker-push-registry-webhook
-docker-push-registry-webhook: ## Push docker image with the model webhook.
-	$(CONTAINER_TOOL) push ${IMG_REGISTRY_WEBHOOK}
-# PLATFORMS defines the target platforms for the ai-gateway image be built to provide support to multiple
-# architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
-# - be able to use docker buildx. More info: https://docs.docker.com/build/buildx/
-# - have enabled BuildKit. More info: https://docs.docker.com/develop/develop-images/build_enhancements/
-# - be able to push the image to your registry (i.e. if you do not set a valid value via IMG=<myregistry/image:<tag>> then the export will fail)
-# To adequately provide solutions that are compatible with multiple platforms, you should consider using this option.
-PLATFORMS ?= linux/arm64,linux/amd64,linux/s390x,linux/ppc64le
+# PLATFORMS defines the target platforms for the images be built to provide support to multiple
+# architectures.
+PLATFORMS ?= linux/arm64,linux/amd64
 .PHONY: docker-buildx
-docker-buildx: ## Build and push docker image for the ai-gateway for cross-platform support
-	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
-	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
-	- $(CONTAINER_TOOL) buildx create --name aiengine-builder
-	$(CONTAINER_TOOL) buildx use aiengine-builder
-	- $(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) --tag ${IMG} -f Dockerfile.cross .
-	- $(CONTAINER_TOOL) buildx rm aiengine-builder
-	rm Dockerfile.cross
+docker-buildx: ## Build and push docker image for cross-platform support
+	$(CONTAINER_TOOL) buildx build \
+		--platform ${PLATFORMS} \
+		-t ${IMG_GATEWAY} \
+		-f Dockerfile.gateway \
+		--push .
+	$(CONTAINER_TOOL) buildx build \
+		--platform ${PLATFORMS}\
+		-t ${IMG_MODELINFER} \
+		-f Dockerfile.modelinfer \
+		--push .
+	$(CONTAINER_TOOL) buildx build \
+		--platform ${PLATFORMS} \
+		-t ${IMG_MODELCONTROLLER} \
+		-f Dockerfile.modelcontroller \
+		--push .
 
 .PHONY: build-installer
 build-installer: generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
