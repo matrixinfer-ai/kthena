@@ -17,11 +17,13 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"k8s.io/klog/v2"
 	"matrixinfer.ai/matrixinfer/cmd/infer-gateway/app"
 )
 
@@ -30,14 +32,12 @@ const gracefulShutdownTimeout = 15 * time.Second
 func main() {
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)
-
-	stopCh := make(chan struct{})
-	app.NewServer().Run(stopCh)
-
+	ctx, cancel := context.WithCancel(context.Background())
 	// Wait for a signal
-	<-signalCh
-	close(stopCh)
-
-	// Give some timne for the gateway server to finish processing requests
-	time.Sleep(gracefulShutdownTimeout)
+	go func() {
+		<-signalCh
+		klog.Info("Received termination, signaling shutdown")
+		cancel()
+	}()
+	app.NewServer().Run(ctx)
 }

@@ -28,10 +28,16 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/router"
 )
 
+const gracefulShutdownTimeout = 15 * time.Second
+
 var log = logger.NewLogger("")
 
+func NewRouter(store datastore.Store) *router.Router {
+	return router.NewRouter(store)
+}
+
 // Starts router
-func startRouter(stop <-chan struct{}, store datastore.Store) {
+func startRouter(ctx context.Context, router *router.Router) {
 	engine := gin.New()
 	engine.Use(gin.LoggerWithWriter(gin.DefaultWriter, "/healthz"), gin.Recovery())
 
@@ -48,10 +54,8 @@ func startRouter(stop <-chan struct{}, store datastore.Store) {
 		})
 	})
 
-	r := router.NewRouter(store)
-
 	// Handle all paths under /v1/
-	engine.Any("/v1/*path", r.HandlerFunc())
+	engine.Any("/v1/*path", router.HandlerFunc())
 
 	server := &http.Server{
 		Addr:    ":8080",
@@ -64,17 +68,13 @@ func startRouter(stop <-chan struct{}, store datastore.Store) {
 		}
 	}()
 
-	<-stop
-
+	<-ctx.Done()
 	// graceful shutdown
 	log.Info("Shutting down HTTP server ...")
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), gracefulShutdownTimeout)
 	defer cancel()
 	if err := server.Shutdown(ctx); err != nil {
 		log.Info("Server Shutdown:", err)
 	}
-	// catching ctx.Done(). timeout of 5 seconds.
-	<-ctx.Done()
-	log.Info("timeout of 5 seconds.")
-	log.Info("HTTP server exiting")
+	log.Info("HTTP server exited")
 }

@@ -17,12 +17,14 @@ limitations under the License.
 package datastore
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"net/http"
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	dto "github.com/prometheus/client_model/go"
@@ -103,7 +105,7 @@ type Store interface {
 	// New methods for callback management
 	RegisterCallback(kind string, callback CallbackFunc)
 	// Run to update pod info periodically
-	Run(stop <-chan struct{})
+	Run(context.Context)
 }
 
 type PodInfo struct {
@@ -151,6 +153,7 @@ type store struct {
 
 	// New fields for callback management
 	callbacks map[string][]CallbackFunc
+	initiated *atomic.Bool
 }
 
 func New() Store {
@@ -161,13 +164,15 @@ func New() Store {
 		routes:      make(map[string]*aiv1alpha1.ModelRoute),
 		loraRoutes:  make(map[string]*aiv1alpha1.ModelRoute),
 		callbacks:   make(map[string][]CallbackFunc),
+		initiated:   &atomic.Bool{},
 	}
 }
 
-func (s *store) Run(stop <-chan struct{}) {
+func (s *store) Run(ctx context.Context) {
+	s.initiated.Store(true)
 	for {
 		select {
-		case <-stop:
+		case <-ctx.Done():
 			return
 		default:
 			// Only lock when copying pod list
@@ -609,6 +614,11 @@ func updateHistogramMetrics(podinfo *PodInfo, histogramMetrics map[string]*dto.H
 // RegisterCallback registers a callback function for a specific resource
 // Note this can only be called during bootstrapping.
 func (s *store) RegisterCallback(kind string, callback CallbackFunc) {
+	if s.initiated.Load() {
+		log.Error("Cannot register callback after store is initiated")
+		return
+	}
+
 	if _, exists := s.callbacks[kind]; !exists {
 		s.callbacks[kind] = make([]CallbackFunc, 0)
 	}
@@ -636,6 +646,14 @@ func (p *PodInfo) GetModels() sets.Set[string] {
 		result.Insert(model)
 	}
 	return result
+}
+
+// GetModels returns a copy of the models set
+func (p *PodInfo) Contains(model string) bool {
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+
+	return p.models != nil && p.models.Contains(model)
 }
 
 // UpdateModels updates the models set with a new list of models
