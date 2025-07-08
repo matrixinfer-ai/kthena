@@ -38,6 +38,7 @@ func NewRouter(store datastore.Store) *router.Router {
 
 // Starts router
 func startRouter(ctx context.Context, router *router.Router) {
+	gin.SetMode(gin.ReleaseMode)
 	engine := gin.New()
 	engine.Use(gin.LoggerWithWriter(gin.DefaultWriter, "/healthz"), gin.Recovery())
 
