@@ -44,15 +44,6 @@ func (m *modelServer) getPods() []*PodInfo {
 	return podInfos
 }
 
-func (m *modelServer) getPodInfo(podName types.NamespacedName) *PodInfo {
-	if m == nil {
-		return nil
-	}
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-	return m.pods[podName]
-}
-
 func (m *modelServer) addPod(pod *PodInfo) {
 	if m == nil {
 		return

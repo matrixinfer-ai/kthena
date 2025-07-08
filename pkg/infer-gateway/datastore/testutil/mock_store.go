@@ -17,6 +17,7 @@ limitations under the License.
 package testutil
 
 import (
+	"context"
 	"net/http"
 
 	corev1 "k8s.io/api/core/v1"
@@ -40,7 +41,7 @@ func NewMockStore() *MockStore {
 	}
 }
 
-func (m *MockStore) Run(stop <-chan struct{}) {
+func (m *MockStore) Run(ctx context.Context) {
 }
 
 // RegisterCallback registers a callback function for a specific event type

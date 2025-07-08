@@ -271,7 +271,6 @@ func (s *store) GetPodsByModelServer(name types.NamespacedName) ([]*PodInfo, err
 }
 
 func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.ModelServer) error {
-
 	podName := utils.GetNamespaceName(pod)
 	// TODO: check if pod is already in the store, use the existing PodInfo if exists
 	newPodInfo := &PodInfo{
@@ -511,14 +510,6 @@ func selectFromWeightedSlice(weights []uint32) int {
 	}
 
 	return 0
-}
-
-func (s *store) getPodInfo(podName types.NamespacedName) (*PodInfo, bool) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-
-	podInfo, exist := s.pods[podName]
-	return podInfo, exist
 }
 
 func (s *store) updatePodMetrics(pod *PodInfo) {

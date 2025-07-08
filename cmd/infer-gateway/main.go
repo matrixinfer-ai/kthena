@@ -21,13 +21,10 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"k8s.io/klog/v2"
 	"matrixinfer.ai/matrixinfer/cmd/infer-gateway/app"
 )
-
-const gracefulShutdownTimeout = 15 * time.Second
 
 func main() {
 	signalCh := make(chan os.Signal, 1)
