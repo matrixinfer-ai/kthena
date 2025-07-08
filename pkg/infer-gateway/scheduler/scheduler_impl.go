@@ -38,14 +38,14 @@ var (
 type SchedulerImpl struct {
 	store datastore.Store
 
-	filterPlugins []framework.Plugin
+	filterPlugins []framework.FilterPlugin
 	scorePlugins  []*scorePlugin
 
 	postHooks []framework.PostHook
 }
 
 type scorePlugin struct {
-	plugin framework.Plugin
+	plugin framework.ScorePlugin
 	weight int
 }
 
@@ -62,11 +62,11 @@ func NewScheduler(store datastore.Store) Scheduler {
 	}
 }
 
-func ParseFilterPlugin() []framework.Plugin {
-	var list []framework.Plugin
+func ParseFilterPlugin() []framework.FilterPlugin {
+	var list []framework.FilterPlugin
 	// TODO: enable lora affinity when models from metrics are available.
 	for _, plugin := range conf.FilterPlugins {
-		if pb, exist := framework.GetPluginBuilder(plugin); !exist {
+		if pb, exist := framework.GetFilterPluginBuilder(plugin); !exist {
 			log.Errorf("Failed to get plugin %s.", pb)
 		} else {
 			list = append(list, pb)
@@ -85,7 +85,7 @@ func GetScorePlugin(prefixCache *plugins.PrefixCache) []*scorePlugin {
 				weight: value,
 			})
 		} else {
-			if pb, exist := framework.GetPluginBuilder(key); !exist {
+			if pb, exist := framework.GetScorePluginBuilder(key); !exist {
 				log.Errorf("Failed to get plugin %s.", pb)
 			} else {
 				list = append(list, &scorePlugin{

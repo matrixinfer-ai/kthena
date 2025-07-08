@@ -24,7 +24,7 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 )
 
-var _ framework.Plugin = &LeastLatency{}
+var _ framework.ScorePlugin = &LeastLatency{}
 
 const LeastLatencyPluginName = "least-latency"
 
@@ -109,8 +109,4 @@ func calculateMinMaxMetrics(pods []*datastore.PodInfo) (minTTFT, maxTTFT, minTPO
 	}
 
 	return minTTFT, maxTTFT, minTPOT, maxTPOT
-}
-
-func (l *LeastLatency) Filter(ctx *framework.Context, pods []*datastore.PodInfo) []*datastore.PodInfo {
-	return pods
 }

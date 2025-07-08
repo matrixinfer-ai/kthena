@@ -31,10 +31,8 @@ type Context struct {
 	PrefillPod *datastore.PodInfo
 }
 
-type Plugin interface {
+type ScorePlugin interface {
 	Name() string
-	// Filter is a method that is used to filter valid pods that can be sent request to.
-	Filter(ctx *Context, pods []*datastore.PodInfo) []*datastore.PodInfo
 	// Score is a method that is used to rank pods that have passed the filter plugins.
 	// Note each plugin should generate score for a pod within [0, 100]
 	Score(ctx *Context, pods []*datastore.PodInfo) map[*datastore.PodInfo]int

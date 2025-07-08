@@ -25,7 +25,8 @@ import (
 
 const LeastRequestPluginName = "least-request"
 
-var _ framework.Plugin = &LeastRequest{}
+var _ framework.ScorePlugin = &LeastRequest{}
+var _ framework.FilterPlugin = &LeastRequest{}
 
 type LeastRequest struct {
 	name              string

@@ -28,7 +28,7 @@ type LoraAffinity struct {
 	name string
 }
 
-var _ framework.Plugin = &LoraAffinity{}
+var _ framework.FilterPlugin = &LoraAffinity{}
 
 func NewLoraAffinity() *LoraAffinity {
 	return &LoraAffinity{
@@ -46,14 +46,4 @@ func (l *LoraAffinity) Filter(ctx *framework.Context, pods []*datastore.PodInfo)
 		_, ok := info.Models[ctx.Model]
 		return ok
 	})
-}
-
-func (l *LoraAffinity) Score(ctx *framework.Context, pods []*datastore.PodInfo) map[*datastore.PodInfo]int {
-	scoreResults := make(map[*datastore.PodInfo]int)
-
-	// Initialize all pods with score 0
-	for _, pod := range pods {
-		scoreResults[pod] = 0
-	}
-	return scoreResults
 }

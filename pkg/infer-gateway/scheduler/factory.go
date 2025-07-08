@@ -6,10 +6,14 @@ import (
 )
 
 func init() {
-	framework.RegisterPluginBuilder(plugins.KVCachePluginName, plugins.NewGPUCacheUsage())
-	framework.RegisterPluginBuilder(plugins.LeastLatencyPluginName, plugins.NewLeastLatency())
-	framework.RegisterPluginBuilder(plugins.LeastRequestPluginName, plugins.NewLeastRequest())
-	framework.RegisterPluginBuilder(plugins.LoraAffinityPluginName, plugins.NewLoraAffinity())
+	// scorePlugin
+	framework.RegisterScorePluginBuilder(plugins.KVCachePluginName, plugins.NewGPUCacheUsage())
+	framework.RegisterScorePluginBuilder(plugins.LeastLatencyPluginName, plugins.NewLeastLatency())
+	framework.RegisterScorePluginBuilder(plugins.LeastRequestPluginName, plugins.NewLeastRequest())
 	// The prefix-cache type is handled separately
-	framework.RegisterPluginBuilder(plugins.PrefixCachePluginName, nil)
+	framework.RegisterScorePluginBuilder(plugins.PrefixCachePluginName, nil)
+
+	// filterPlugin
+	framework.RegisterFilterPluginBuilder(plugins.LeastRequestPluginName, plugins.NewLeastRequest())
+	framework.RegisterFilterPluginBuilder(plugins.LoraAffinityPluginName, plugins.NewLoraAffinity())
 }

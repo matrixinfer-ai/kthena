@@ -21,7 +21,7 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
 )
 
-var _ framework.Plugin = &GPUCacheUsage{}
+var _ framework.ScorePlugin = &GPUCacheUsage{}
 
 const KVCachePluginName = "kv-cache"
 
@@ -46,8 +46,4 @@ func (g *GPUCacheUsage) Score(ctx *framework.Context, pods []*datastore.PodInfo)
 	}
 
 	return scoreResults
-}
-
-func (g *GPUCacheUsage) Filter(ctx *framework.Context, pods []*datastore.PodInfo) []*datastore.PodInfo {
-	return pods
 }

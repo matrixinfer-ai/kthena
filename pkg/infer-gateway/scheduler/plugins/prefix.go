@@ -92,7 +92,7 @@ var (
 	MaxHashCacheSize = conf.PluginsArgs[PrefixCachePluginName].MaxHashCacheSize
 )
 
-var _ framework.Plugin = &PrefixCache{}
+var _ framework.ScorePlugin = &PrefixCache{}
 
 type PrefixCache struct {
 	name string
@@ -201,8 +201,4 @@ func (p *PrefixCache) hashPrompt(model string, prompt string) []uint64 {
 	}
 
 	return res
-}
-
-func (p *PrefixCache) Filter(ctx *framework.Context, pods []*datastore.PodInfo) []*datastore.PodInfo {
-	return pods
 }
