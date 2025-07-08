@@ -41,6 +41,7 @@ func startRouter(stop <-chan struct{}, store datastore.Store) {
 	// engine.Use(auth.Authenticate)
 	// engine.Use(auth.Authorize)
 
+	// TODO: return healthy after the controller has been synced
 	engine.GET("/healthz", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"message": "ok",
@@ -67,7 +68,7 @@ func startRouter(stop <-chan struct{}, store datastore.Store) {
 
 	// graceful shutdown
 	log.Info("Shutting down HTTP server ...")
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	if err := server.Shutdown(ctx); err != nil {
 		log.Info("Server Shutdown:", err)

@@ -17,24 +17,17 @@ limitations under the License.
 package main
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
-
-	"github.com/spf13/pflag"
+	"time"
 
 	"matrixinfer.ai/matrixinfer/cmd/infer-gateway/app"
 )
 
-var myFlag string
+const gracefulShutdownTimeout = 15 * time.Second
 
 func main() {
-	pflag.StringVar(&myFlag, "myFlag", "defaultValue", "Description of my flag")
-	pflag.Parse()
-
-	fmt.Println("myFlag:", myFlag)
-
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)
 
@@ -44,4 +37,7 @@ func main() {
 	// Wait for a signal
 	<-signalCh
 	close(stopCh)
+
+	// Give some timne for the gateway server to finish processing requests
+	time.Sleep(gracefulShutdownTimeout)
 }

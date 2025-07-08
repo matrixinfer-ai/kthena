@@ -36,12 +36,12 @@ func (s *Server) Run(stop <-chan struct{}) {
 	go store.Run(stop)
 
 	go func() {
-		// start controller
-		if err := controller.StartControllers(store); err != nil {
-			log.Fatal("Unable to start controllers")
-		}
+		// start router
+		startRouter(stop, store)
 	}()
 
-	// start router
-	startRouter(stop, store)
+	// start controller
+	if err := controller.StartControllers(store); err != nil {
+		log.Fatal("Unable to start controllers")
+	}
 }
