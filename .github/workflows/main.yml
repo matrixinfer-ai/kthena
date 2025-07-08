@@ -22,6 +22,14 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: generate copyright
+      shell: bash
+      run: |
+        make add-copyright
+    - name: check diff
+      shell: bash
+      run: |
+        git diff --exit-code
     - name: Setup Go
       uses: actions/setup-go@v4.0.0
       with:
@@ -34,16 +42,3 @@ jobs:
       shell: bash
       run: |
         make generate
-
-  check-copyright:
-    runs-on: ubuntu-22.04
-    steps:
-    - uses: actions/checkout@v3
-    - name: generate copyright
-      shell: bash
-      run: |
-        make add-copyright
-    - name: check diff
-      shell: bash
-      run: |
-        git diff --exit-code
