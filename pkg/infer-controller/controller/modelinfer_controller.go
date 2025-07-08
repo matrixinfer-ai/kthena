@@ -433,7 +433,7 @@ func (c *ModelInferController) CreatePodsForInferGroup(ctx context.Context, mi *
 	for _, role := range roleList {
 		// there will be multiple replicas in a role, such as xPyD type
 		for roleIndex := range int(*role.Replicas) {
-			err := c.CreatePodByRole(ctx, role, mi, roleIndex, groupIndex, newHash)
+			err := c.CreatePodByRole(ctx, *role.DeepCopy(), mi, roleIndex, groupIndex, newHash)
 			if err != nil {
 				return fmt.Errorf("create role pod failed: %v, role name: %s, role index: %d", err, role.Name, roleIndex)
 			}
@@ -556,15 +556,13 @@ func (c *ModelInferController) manageRollingUpdate(mi *workloadv1alpha1.ModelInf
 	}
 	// we terminate the inferGroup with the largest ordinal that does not match the update revision.
 	for target := len(inferGroupList) - 1; target >= updateMin; target-- {
-		if !c.checkNotUpdatedInferGroup(inferGroupList[target], mi, newHash) && inferGroupList[target].Status == datastore.InferGroupRunning {
-			// target inferGroup is already the latest version and running, processing the rolling update of the next group
-			continue
-		} else if c.checkNotUpdatedInferGroup(inferGroupList[target], mi, newHash) {
+		if c.isInferGroupOutdated(inferGroupList[target], mi.Namespace, newHash) {
 			// target inferGroup is not the latest version, needs to be updated
 			klog.V(2).Infof("inferGroup %s will be terminating for update", inferGroupList[target].Name)
 			c.DeleteInferGroup(mi, inferGroupList[target].Name)
 			return nil
-		} else {
+		}
+		if inferGroupList[target].Status != datastore.InferGroupRunning {
 			// target inferGroup is the latest version, but not running. We need to wait for the status to change to running.
 			// If the group fails after rolling, it will automatically be deleted and rebuilt when detecting the pod failure.
 			// If the group still pending due to reasons such as being unable to be scheduled, rolling update process will stop
@@ -572,6 +570,7 @@ func (c *ModelInferController) manageRollingUpdate(mi *workloadv1alpha1.ModelInf
 			klog.V(4).Infof("waiting for the infergroup %s status become running", inferGroupList[target].Name)
 			return nil
 		}
+		// target inferGroup is already the latest version and running, processing the rolling update of the next group.
 	}
 	klog.V(2).Infof("all target groups of modelInfer %s have been updated", mi.Name)
 	return nil
@@ -683,7 +682,7 @@ func (c *ModelInferController) checkInferGroupReady(mi *workloadv1alpha1.ModelIn
 	return true, nil
 }
 
-func (c *ModelInferController) checkNotUpdatedInferGroup(group datastore.InferGroup, mi *workloadv1alpha1.ModelInfer, newHash string) bool {
+func (c *ModelInferController) isInferGroupOutdated(group datastore.InferGroup, namespace string, newHash string) bool {
 	// Find the pods corresponding to infergroup
 	req, err := labels.NewRequirement(workloadv1alpha1.GroupNameLabelKey, selection.Equals, []string{group.Name})
 	if err != nil {
@@ -691,7 +690,7 @@ func (c *ModelInferController) checkNotUpdatedInferGroup(group datastore.InferGr
 		return true
 	}
 	selector := labels.NewSelector().Add(*req)
-	pods, err := c.podsLister.Pods(mi.Namespace).List(selector)
+	pods, err := c.podsLister.Pods(namespace).List(selector)
 	if err != nil {
 		klog.Errorf("cannot list pod when check group updated,err: %v", err)
 		return true
@@ -700,14 +699,16 @@ func (c *ModelInferController) checkNotUpdatedInferGroup(group datastore.InferGr
 		klog.V(2).Infof("pod of inferGroup %s cannot be found", group.Name)
 		return true
 	}
-	// get pod revision
-	revision, ok := pods[0].Labels[workloadv1alpha1.RevisionLabelKey]
-	if !ok {
-		klog.V(2).Infof("pod of inferGroup %s cannot find revision label", group.Name)
-		return true
-	}
-	if revision != newHash {
-		return true
+	// Check all pods match the newHash
+	for _, pod := range pods {
+		revision, ok := pod.Labels[workloadv1alpha1.RevisionLabelKey]
+		if !ok {
+			klog.V(2).Infof("pod of inferGroup %s cannot find revision label", group.Name)
+			return true
+		}
+		if revision != newHash {
+			return true
+		}
 	}
 	return false
 }

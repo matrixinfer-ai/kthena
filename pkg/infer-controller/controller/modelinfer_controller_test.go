@@ -1,3 +1,16 @@
+/*
+Copyright MatrixInfer-AI Authors.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package controller
 
 import (
@@ -33,7 +46,7 @@ func newTestControllerWithPods(pods []*corev1.Pod, namespace string) *ModelInfer
 	}
 }
 
-func TestCheckNotUpdatedInferGroup(t *testing.T) {
+func TestIsInferGroupOutdated(t *testing.T) {
 	ns := "test-ns"
 	groupName := "test-group"
 	group := datastore.InferGroup{Name: groupName}
@@ -42,7 +55,7 @@ func TestCheckNotUpdatedInferGroup(t *testing.T) {
 
 	t.Run("no pods", func(t *testing.T) {
 		c := newTestControllerWithPods([]*corev1.Pod{}, ns)
-		if !c.checkNotUpdatedInferGroup(group, mi, newHash) {
+		if !c.isInferGroupOutdated(group, mi.Namespace, newHash) {
 			t.Errorf("expected true when no pods")
 		}
 	})
@@ -58,7 +71,7 @@ func TestCheckNotUpdatedInferGroup(t *testing.T) {
 			},
 		}
 		c := newTestControllerWithPods([]*corev1.Pod{pod}, ns)
-		if !c.checkNotUpdatedInferGroup(group, mi, newHash) {
+		if !c.isInferGroupOutdated(group, mi.Namespace, newHash) {
 			t.Errorf("expected true when pod has no revision label")
 		}
 	})
@@ -75,7 +88,7 @@ func TestCheckNotUpdatedInferGroup(t *testing.T) {
 			},
 		}
 		c := newTestControllerWithPods([]*corev1.Pod{pod}, ns)
-		if !c.checkNotUpdatedInferGroup(group, mi, newHash) {
+		if !c.isInferGroupOutdated(group, mi.Namespace, newHash) {
 			t.Errorf("expected true when revision not match")
 		}
 	})
@@ -92,7 +105,7 @@ func TestCheckNotUpdatedInferGroup(t *testing.T) {
 			},
 		}
 		c := newTestControllerWithPods([]*corev1.Pod{pod}, ns)
-		if c.checkNotUpdatedInferGroup(group, mi, newHash) {
+		if c.isInferGroupOutdated(group, mi.Namespace, newHash) {
 			t.Errorf("expected false when revision matches")
 		}
 	})
