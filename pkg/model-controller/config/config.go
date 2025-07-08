@@ -16,6 +16,11 @@ limitations under the License.
 
 package config
 
+var (
+	ConfigMapNameSpace string
+	ConfigMapName      string
+)
+
 const (
 	DefaultModelInferDownloaderImage = "matrixinfer/downloader:latest"
 	DefaultModelInferRuntimeImage    = "matrixinfer/runtime:latest"

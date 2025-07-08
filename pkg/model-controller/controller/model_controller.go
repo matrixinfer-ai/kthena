@@ -43,7 +43,6 @@ const (
 	ModelInitsReason    = "ModelInits"
 	ModelUpdatingReason = "ModelUpdating"
 	ModelActiveReason   = "ModelActive"
-	ConfigMapName       = "model-config-map"
 )
 
 type ModelController struct {
@@ -328,8 +327,9 @@ func (mc *ModelController) updateModelInfer(ctx context.Context, model *registry
 }
 
 func (mc *ModelController) loadConfigFromConfigMap() {
-	// todo configmap namespace and name is hard-code
-	cm, err := mc.kubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), ConfigMapName, metav1.GetOptions{})
+	cm, err := mc.kubeClient.CoreV1().ConfigMaps(config.ConfigMapNameSpace).Get(context.Background(),
+		config.ConfigMapName,
+		metav1.GetOptions{})
 	if err != nil {
 		klog.Warningf("ConfigMap does not exist. Error: %v", err)
 		return
