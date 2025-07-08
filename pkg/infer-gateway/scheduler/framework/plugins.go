@@ -17,10 +17,10 @@ func RegisterPluginBuilder(name string, p Plugin) {
 	pluginBuilders[name] = p
 }
 
-func GetPluginBuilder(name string) Plugin {
+func GetPluginBuilder(name string) (Plugin, bool) {
 	pluginMutex.Lock()
 	defer pluginMutex.Unlock()
 
-	p := pluginBuilders[name]
-	return p
+	p, exist := pluginBuilders[name]
+	return p, exist
 }
