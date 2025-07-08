@@ -57,13 +57,12 @@ type ModelController struct {
 	modelsInformer      cache.Controller
 	modelInfersLister   workloadLister.ModelInferLister
 	modelInfersInformer cache.Controller
-	// nolint
-	workqueue workqueue.RateLimitingInterface
+	workQueue           workqueue.TypedRateLimitingInterface[any]
 }
 
 func (mc *ModelController) Run(ctx context.Context, workers int) {
 	defer utilruntime.HandleCrash()
-	defer mc.workqueue.ShutDown()
+	defer mc.workQueue.ShutDown()
 
 	// start informers
 	go mc.modelsInformer.RunWithContext(ctx)
@@ -88,20 +87,20 @@ func (mc *ModelController) worker(ctx context.Context) {
 }
 
 func (mc *ModelController) processNextWorkItem(ctx context.Context) bool {
-	key, quit := mc.workqueue.Get()
+	key, quit := mc.workQueue.Get()
 	if quit {
 		return false
 	}
-	defer mc.workqueue.Done(key)
+	defer mc.workQueue.Done(key)
 
 	err := mc.syncHandler(ctx, key.(string))
 	if err == nil {
-		mc.workqueue.Forget(key)
+		mc.workQueue.Forget(key)
 		return true
 	}
 
 	utilruntime.HandleError(fmt.Errorf("sync %q failed with %v", key, err))
-	mc.workqueue.AddRateLimited(key)
+	mc.workQueue.AddRateLimited(key)
 
 	return true
 }
@@ -120,7 +119,7 @@ func (mc *ModelController) enqueueModel(model *registryv1alpha1.Model) {
 	if key, err := cache.MetaNamespaceKeyFunc(model); err != nil {
 		utilruntime.HandleError(err)
 	} else {
-		mc.workqueue.Add(key)
+		mc.workQueue.Add(key)
 	}
 }
 
@@ -264,8 +263,8 @@ func NewModelController(kubeClient kubernetes.Interface, client clientset.Interf
 		modelsInformer:      modelInformer.Informer(),
 		modelInfersLister:   modelInferInformer.Lister(),
 		modelInfersInformer: modelInferInformer.Informer(),
-		// nolint
-		workqueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Models"),
+		workQueue: workqueue.NewTypedRateLimitingQueueWithConfig(workqueue.DefaultTypedControllerRateLimiter[any](),
+			workqueue.TypedRateLimitingQueueConfig[any]{}),
 	}
 	klog.Info("Set the Model event handler")
 	_, err := modelInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
