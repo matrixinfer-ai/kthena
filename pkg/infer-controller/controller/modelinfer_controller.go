@@ -554,22 +554,26 @@ func (c *ModelInferController) manageRollingUpdate(mi *workloadv1alpha1.ModelInf
 	if err != nil {
 		return fmt.Errorf("cannot get inferGroupList from store, err:%v", err)
 	}
-	// In monotonic mode, only all of the inferGroups are Ready, then we can consider termination when rollupdate.
-	for _, inferGroup := range inferGroupList {
-		if inferGroup.Status != datastore.InferGroupRunning {
-			klog.V(4).Infof("inferGroup %s not ready, cannot rolling update", inferGroup.Name)
-			return nil
-		}
-	}
 	// we terminate the inferGroup with the largest ordinal that does not match the update revision.
 	for target := len(inferGroupList) - 1; target >= updateMin; target-- {
-		if c.checkNotUpdatedInferGroup(inferGroupList[target], mi, newHash) {
+		if !c.checkNotUpdatedInferGroup(inferGroupList[target], mi, newHash) && inferGroupList[target].Status == datastore.InferGroupRunning {
+			// target inferGroup is already the latest version and running, processing the rolling update of the next group
+			continue
+		} else if c.checkNotUpdatedInferGroup(inferGroupList[target], mi, newHash) {
+			// target inferGroup is not the latest version, needs to be updated
 			klog.V(2).Infof("inferGroup %s will be terminating for update", inferGroupList[target].Name)
 			c.DeleteInferGroup(mi, inferGroupList[target].Name)
 			return nil
+		} else {
+			// target inferGroup is the latest version, but not running. We need to wait for the status to change to running.
+			// If the group fails after rolling, it will automatically be deleted and rebuilt when detecting the pod failure.
+			// If the group still pending due to reasons such as being unable to be scheduled, rolling update process will stop
+			// to avoid affecting other groups that are running normally.
+			klog.V(4).Infof("waiting for the infergroup %s status become running", inferGroupList[target].Name)
+			return nil
 		}
 	}
-	klog.V(4).Infof("all groups of modelInfer %s have been updated", mi.Name)
+	klog.V(2).Infof("all target groups of modelInfer %s have been updated", mi.Name)
 	return nil
 }
 
@@ -693,13 +697,13 @@ func (c *ModelInferController) checkNotUpdatedInferGroup(group datastore.InferGr
 		return true
 	}
 	if len(pods) == 0 {
-		klog.V(2).Infof("pod of inferGroup %s cannot been find ", group.Name)
+		klog.V(2).Infof("pod of inferGroup %s cannot be found", group.Name)
 		return true
 	}
 	// get pod revision
 	revision, ok := pods[0].Labels[workloadv1alpha1.RevisionLabelKey]
 	if !ok {
-		klog.V(2).Infof("pod of inferGroup %s cannot been find revision label", group.Name)
+		klog.V(2).Infof("pod of inferGroup %s cannot find revision label", group.Name)
 		return true
 	}
 	if revision != newHash {

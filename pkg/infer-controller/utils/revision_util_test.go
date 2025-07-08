@@ -50,11 +50,11 @@ func TestHashModelInferRevision(t *testing.T) {
 	hash2 := HashModelInferRevision(role2)
 	hash3 := HashModelInferRevision(role3)
 
-	if hash1 != hash2 {
-		t.Errorf("Hash should be equal for identical objects, got %s and %s", hash1, hash2)
-	}
-	if hash1 == hash3 {
+	if hash1 == hash2 {
 		t.Errorf("Hash should be different for different objects, got %s and %s", hash1, hash3)
+	}
+	if hash1 != hash3 {
+		t.Errorf("Hash should be equal for identical objects, got %s and %s", hash1, hash2)
 	}
 }
 
