@@ -27,7 +27,6 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
@@ -60,22 +59,25 @@ type podInfoWithValue struct {
 }
 
 func NewScheduler(store datastore.Store) Scheduler {
-	utils.LoadSchedulerConfig()
+	scorePluginMap, filterPluginMap, err := utils.LoadSchedulerConfig()
+	if err != nil {
+		log.Errorf("failed toLoad Scheduler: %v", err)
+	}
 	prefixCache := plugins.NewPrefixCache(store)
 	return &SchedulerImpl{
 		store:         store,
-		filterPlugins: ParseFilterPlugin(),
-		scorePlugins:  GetScorePlugin(prefixCache),
+		filterPlugins: ParseFilterPlugin(filterPluginMap),
+		scorePlugins:  GetScorePlugin(prefixCache, scorePluginMap),
 		ScheduleHooks: []framework.ScheduleHook{
 			prefixCache,
 		},
 	}
 }
 
-func ParseFilterPlugin() []framework.FilterPlugin {
+func ParseFilterPlugin(filterPluginMap []string) []framework.FilterPlugin {
 	var list []framework.FilterPlugin
 	// TODO: enable lora affinity when models from metrics are available.
-	for _, plugin := range conf.FilterPlugins {
+	for _, plugin := range filterPluginMap {
 		if pb, exist := framework.GetFilterPluginBuilder(plugin); !exist {
 			log.Errorf("Failed to get plugin %s.", pb)
 		} else {
@@ -86,9 +88,9 @@ func ParseFilterPlugin() []framework.FilterPlugin {
 }
 
 // TODO: set the weight of each plugin properly.
-func GetScorePlugin(prefixCache *plugins.PrefixCache) []*scorePlugin {
+func GetScorePlugin(prefixCache *plugins.PrefixCache, scorePluginMap map[string]int) []*scorePlugin {
 	var list []*scorePlugin
-	for key, value := range conf.ScorePluginMap {
+	for key, value := range scorePluginMap {
 		if key == plugins.PrefixCachePluginName {
 			list = append(list, &scorePlugin{
 				plugin: prefixCache,

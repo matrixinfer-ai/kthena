@@ -1,11 +1,5 @@
 package conf
 
-var (
-	ScorePluginMap = make(map[string]int)
-	FilterPlugins  []string
-	PluginsArgs    = make(map[string]PluginArgs)
-)
-
 type KubeSchedulerConfiguration struct {
 	Profiles []Profile `yaml:"profiles"`
 }

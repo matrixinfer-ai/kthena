@@ -21,7 +21,7 @@ import (
 
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
 var _ framework.ScorePlugin = &LeastLatency{}
@@ -30,8 +30,8 @@ const LeastLatencyPluginName = "least-latency"
 
 var (
 	// MaxScore is the highest possible score a pod can receive
-	MaxScore             = conf.PluginsArgs[LeastLatencyPluginName].MaxScore
-	TTFTTPOTWeightFactor = conf.PluginsArgs[LeastLatencyPluginName].TTFTTPOTWeightFactor
+	MaxScore             = utils.GetPluginArg(LeastLatencyPluginName).MaxScore
+	TTFTTPOTWeightFactor = utils.GetPluginArg(LeastLatencyPluginName).TTFTTPOTWeightFactor
 )
 
 type LeastLatency struct {
