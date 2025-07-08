@@ -45,10 +45,10 @@ func (p *PDFilter) Name() string {
 }
 
 func (p *PDFilter) Filter(ctx *framework.Context, pods []*datastore.PodInfo) []*datastore.PodInfo {
-	if ctx.DecodePod != nil {
+	if ctx.DecodePods != nil {
 		// Filter out prefill pods if decode pod is not nil.
 
-		pdGroupValue := ctx.DecodePod.Pod.Labels[p.pdGroupKey]
+		pdGroupValue := ctx.DecodePods[ctx.PDIndex].Pod.Labels[p.pdGroupKey]
 
 		filtered := make([]*datastore.PodInfo, 0, len(pods))
 		for _, pod := range pods {
@@ -75,7 +75,6 @@ func (p *PDFilter) Filter(ctx *framework.Context, pods []*datastore.PodInfo) []*
 		}
 		return filtered
 	}
-
 	filtered := make([]*datastore.PodInfo, 0, len(pods))
 	for _, pod := range pods {
 		if pod.Pod.Labels == nil {
