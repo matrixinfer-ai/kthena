@@ -81,9 +81,9 @@ func generateWorkerPodName(groupName, roleName string, roleIndex, podIndex int) 
 	return groupName + "-" + roleName + "-" + strconv.Itoa(roleIndex) + "-" + strconv.Itoa(podIndex)
 }
 
-func GenerateEntryPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, groupName string, roleIndex int) *corev1.Pod {
+func GenerateEntryPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, groupName string, roleIndex int, newHash string) *corev1.Pod {
 	entryPodName := generateEntryPodName(groupName, role.Name, roleIndex)
-	entryPod := createBasePod(role, mi, entryPodName, groupName)
+	entryPod := createBasePod(role, mi, entryPodName, groupName, newHash)
 	entryPod.ObjectMeta.Labels[workloadv1alpha1.EntryLabelKey] = Entry
 	addPodLabelAndAnnotation(entryPod, role.EntryTemplate.Metadata)
 	entryPod.Spec = role.EntryTemplate.Spec
@@ -95,9 +95,9 @@ func GenerateEntryPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfe
 	return entryPod
 }
 
-func GenerateWorkerPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, entryPod *corev1.Pod, groupName string, roleIndex, podIndex int) *corev1.Pod {
+func GenerateWorkerPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, entryPod *corev1.Pod, groupName string, roleIndex, podIndex int, newHash string) *corev1.Pod {
 	workerPodName := generateWorkerPodName(groupName, role.Name, roleIndex, podIndex)
-	workerPod := createBasePod(role, mi, workerPodName, groupName)
+	workerPod := createBasePod(role, mi, workerPodName, groupName, newHash)
 	addPodLabelAndAnnotation(workerPod, role.WorkerTemplate.Metadata)
 	workerPod.Spec = role.WorkerTemplate.Spec
 	// Build environment variables into each container of all pod
@@ -106,7 +106,7 @@ func GenerateWorkerPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInf
 	return workerPod
 }
 
-func createBasePod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, name, groupName string) *corev1.Pod {
+func createBasePod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, name, groupName, newHash string) *corev1.Pod {
 	return &corev1.Pod{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Pod",
@@ -119,6 +119,7 @@ func createBasePod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, 
 				workloadv1alpha1.ModelInferNameLabelKey: mi.Name,
 				workloadv1alpha1.GroupNameLabelKey:      groupName,
 				workloadv1alpha1.RoleLabelKey:           role.Name,
+				workloadv1alpha1.RevisionLabelKey:       newHash,
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				newModelInferOwnerRef(mi),

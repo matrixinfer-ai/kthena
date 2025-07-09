@@ -124,6 +124,12 @@ type RollingUpdateConfiguration struct {
 	// +kubebuilder:validation:XIntOrString
 	// +kubebuilder:default=0
 	MaxSurge intstr.IntOrString `json:"maxSurge,omitempty"`
+	// Partition indicates the ordinal at which the ModelInfer should be partitioned
+	// for updates. During a rolling update, all inferGroups from ordinal Replicas-1 to
+	// Partition are updated. All inferGroups from ordinal Partition-1 to 0 remain untouched.
+	// The default value is 0.
+	// +optional
+	Partition *int32 `json:"partition,omitempty"`
 }
 
 // TopologySpreadConstraint defines the topology spread constraint.
