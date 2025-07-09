@@ -134,14 +134,14 @@ func unmarshalPluginsConfig(schedulerConfig *conf.KubeSchedulerConfiguration) (m
 			continue
 		}
 
-		if profiles.Plugins.PreScore != nil && len(profiles.Plugins.PreScore.Enabled) > 0 {
-			for _, plugin := range profiles.Plugins.PreScore.Enabled {
+		if profiles.Plugins.Score != nil && len(profiles.Plugins.Score.Enabled) > 0 {
+			for _, plugin := range profiles.Plugins.Score.Enabled {
 				scorePluginMap[plugin.Name] = plugin.Weight
 			}
 		}
 
-		if profiles.Plugins.PreFilter != nil && len(profiles.Plugins.PreFilter.Enabled) > 0 {
-			filterPlugins = profiles.Plugins.PreFilter.Enabled
+		if profiles.Plugins.Filter != nil && len(profiles.Plugins.Filter.Enabled) > 0 {
+			filterPlugins = profiles.Plugins.Filter.Enabled
 		}
 	}
 	return scorePluginMap, filterPlugins, nil

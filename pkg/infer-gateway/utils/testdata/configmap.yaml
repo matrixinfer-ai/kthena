@@ -1,0 +1,30 @@
+profiles:
+  - pluginConfig:
+    - name: least-request
+      args: 
+        maxWaitingRequests: 12
+    - name: least-latency
+      args:
+        maxScore: 100.0
+        TTFTTPOTWeightFactor: 0.5
+    - name: prefix-cache
+      args:
+        blockSizeToHash: 64
+        maxBlocksToMatch: 128
+        maxHashCacheSize: 50000
+    plugins:
+      Filter:
+        enabled:
+          - least-request
+        disabled:
+          - lora-affinity
+      Score:
+        enabled:
+          - name: least-request
+            weight: 1
+          - name: kv-cache
+            weight: 1
+          - name: least-latency
+            weight: 1
+          - name: prefix-cache
+            weight: 1

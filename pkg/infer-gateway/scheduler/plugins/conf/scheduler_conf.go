@@ -10,16 +10,18 @@ type Profile struct {
 }
 
 type Plugins struct {
-	PreFilter *PreFilter `yaml:"preFilter"`
-	PreScore  *PreScore  `yaml:"preScore"`
+	Filter *Filter `yaml:"Filter"`
+	Score  *Score  `yaml:"Score"`
 }
 
-type PreFilter struct {
-	Enabled []string `yaml:"enabled"`
+type Filter struct {
+	Enabled  []string `yaml:"enabled"`
+	Disabled []string `yaml:"disabled"`
 }
 
-type PreScore struct {
-	Enabled []PluginWithWeight `yaml:"enabled"`
+type Score struct {
+	Enabled  []PluginWithWeight `yaml:"enabled"`
+	Disabled []PluginWithWeight `yaml:"disabled"`
 }
 
 type PluginWithWeight struct {
