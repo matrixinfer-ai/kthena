@@ -105,6 +105,9 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 		"MODEL_DOWNLOAD_PATH":          weightsPath,
 		"MODEL_INFER_DOWNLOADER_IMAGE": config.Config.GetModelInferDownloaderImage(),
 		"MODEL_INFER_RUNTIME_IMAGE":    config.Config.GetModelInferRuntimeImage(),
+		"MODEL_INFER_RUNTIME_PORT":     getEnvValueOrDefault(backend, "RUNTIME_PORT", "8100"),
+		"MODEL_INFER_RUNTIME_URL":      getEnvValueOrDefault(backend, "RUNTIME_URL", "http://localhost:8000/metrics"),
+		"MODEL_INFER_RUNTIME_ENGINE":   strings.ToLower(string(backend.Type)),
 		"ENGINE_DECODE_RESOURCES":      workersMap[registry.ModelWorkerTypeDecode].Resources,
 		"ENGINE_DECODE_IMAGE":          workersMap[registry.ModelWorkerTypeDecode].Image,
 		"ENGINE_PREFILL_RESOURCES":     workersMap[registry.ModelWorkerTypePrefill].Resources,
@@ -120,18 +123,15 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 	if workersMap[registry.ModelWorkerTypeServer] == nil {
 		return nil, fmt.Errorf("server worker not found in backend: %s", backend.Name)
 	}
-
 	cacheVolume, err := buildCacheVolume(backend)
 	if err != nil {
 		return nil, err
 	}
-
 	weightsPath := getCachePath(backend.CacheURI) + getMountPath(backend.ModelURI)
 	commands, err := buildCommands(backend, weightsPath, workersMap)
 	if err != nil {
 		return nil, err
 	}
-
 	data := map[string]interface{}{
 		"MODEL_INFER_TEMPLATE_METADATA": &metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-%d-%s-instance", model.Name, idx, strings.ToLower(string(backend.Type))),

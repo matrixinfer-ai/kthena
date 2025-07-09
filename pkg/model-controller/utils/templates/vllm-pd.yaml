@@ -39,11 +39,11 @@ spec:
                   - containerPort: 8100
                 args:
                   - --port
-                  - "8100"
-                  - --engine
-                  - vllm
+                  - ${MODEL_INFER_RUNTIME_PORT}
                   - --url
-                  - "http://localhost:8000/metrics"
+                  - ${MODEL_INFER_RUNTIME_URL}
+                  - --engine
+                  - ${MODEL_INFER_RUNTIME_ENGINE}
               - name: vllm
                 image: ${ENGINE_PREFILL_IMAGE}
                 ports:
