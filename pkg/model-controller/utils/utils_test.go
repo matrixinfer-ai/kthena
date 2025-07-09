@@ -26,9 +26,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/yaml"
-	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
-
 	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
+	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 )
 
 func TestGetMountPath(t *testing.T) {
@@ -126,6 +125,77 @@ func TestBuildModelInferCR(t *testing.T) {
 				},
 			},
 			expected: []*workload.ModelInfer{loadTestYAML(t, "testdata/expectModelInfer.yaml")},
+		},
+		{
+			name: "pd disaggregation",
+			input: &registry.Model{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "ds-r1-qwen-7b-pd",
+					Namespace: "demo",
+					UID:       "randomUID",
+				},
+				Spec: registry.ModelSpec{
+					Name:  "ds-r1-qwen-7b-pd",
+					Owner: "example",
+					Backends: []registry.ModelBackend{
+						{
+							Name: "ds-r1-qwen-7b-pd",
+							Type: registry.ModelBackendTypeVLLMDisaggregated,
+							Config: apiextensionsv1.JSON{
+								Raw: []byte(`{"max-model-len": 1024, "trust-remote-code": "", "tensor-parallel-size": 16, "gpu-memory-utilization": 0.95}`),
+							},
+							ModelURI: "s3://aios_models/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
+							CacheURI: "hostpath:///cache",
+							EnvFrom: []corev1.EnvFromSource{
+								{
+									SecretRef: &corev1.SecretEnvSource{
+										LocalObjectReference: corev1.LocalObjectReference{
+											Name: "downloader-secrets",
+										},
+									},
+								},
+							},
+							Env: []corev1.EnvVar{
+								{
+									Name:  "ENDPOINT",
+									Value: "https://obs.test.com",
+								},
+							},
+							MinReplicas: 1,
+							MaxReplicas: 1,
+							Workers: []registry.ModelWorker{
+								{
+									Type:     registry.ModelWorkerTypePrefill,
+									Pods:     1,
+									Replicas: 1,
+									Image:    "vllm-prefill:latest",
+									Resources: corev1.ResourceRequirements{
+										Requests: corev1.ResourceList{
+											corev1.ResourceCPU:                            resource.MustParse("100m"),
+											corev1.ResourceMemory:                         resource.MustParse("1Gi"),
+											corev1.ResourceName("huawei.com/ascend-1980"): resource.MustParse("1"),
+										},
+									},
+								},
+								{
+									Type:     registry.ModelWorkerTypeDecode,
+									Pods:     1,
+									Replicas: 1,
+									Image:    "vllm-decode:latest",
+									Resources: corev1.ResourceRequirements{
+										Requests: corev1.ResourceList{
+											corev1.ResourceCPU:                            resource.MustParse("100m"),
+											corev1.ResourceMemory:                         resource.MustParse("1Gi"),
+											corev1.ResourceName("huawei.com/ascend-1980"): resource.MustParse("1"),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: []*workload.ModelInfer{loadTestYAML(t, "testdata/expectModelInferDisaggregation.yaml")},
 		},
 	}
 
