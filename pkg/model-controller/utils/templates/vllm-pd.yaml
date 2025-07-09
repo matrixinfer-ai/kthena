@@ -68,7 +68,7 @@ spec:
                     path: /health
                     port: 8000
                 livenessProbe:
-                  initialDelaySeconds: 900
+                  initialDelaySeconds: 90
                   periodSeconds: 5
                   failureThreshold: 3
                   httpGet:
@@ -140,7 +140,7 @@ spec:
                     path: /health
                     port: 8000
                 livenessProbe:
-                  initialDelaySeconds: 900
+                  initialDelaySeconds: 90
                   periodSeconds: 5
                   failureThreshold: 3
                   httpGet:
