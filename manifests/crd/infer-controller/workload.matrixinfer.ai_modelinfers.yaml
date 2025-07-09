@@ -16832,6 +16832,12 @@ spec:
                   - type
                   type: object
                 type: array
+              currentReplicas:
+                description: |-
+                  CurrentReplicas is the number of InferGroup created by the ModelInfer controller from the ModelInfer version
+                  indicated by currentRevision.
+                format: int32
+                type: integer
               replicas:
                 description: Replicas track the total number of InferGroup that have
                   been created (updated or not, ready or not)
@@ -16842,8 +16848,6 @@ spec:
                   been updated (ready or not).
                 format: int32
                 type: integer
-            required:
-            - availableReplicas
             type: object
         type: object
     served: true

@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"sync"
@@ -366,10 +367,8 @@ func (c *ModelInferController) UpdateModelInferStatus(mi *workloadv1alpha1.Model
 		return err
 	}
 
-	available := 0
-	updated := 0
-	progressingGroups := []int{}
-	updatedGroups := []int{}
+	available, updated, current := 0, 0, 0
+	progressingGroups, updatedGroups, currentGroups := []int{}, []int{}, []int{}
 	for index := range groups {
 		if groups[index].Status != datastore.InferGroupRunning {
 			progressingGroups = append(progressingGroups, index)
@@ -380,14 +379,21 @@ func (c *ModelInferController) UpdateModelInferStatus(mi *workloadv1alpha1.Model
 		if groups[index].Revision == revision {
 			updated = updated + 1
 			updatedGroups = append(updatedGroups, index)
+		} else {
+			current = current + 1
+			currentGroups = append(currentGroups, index)
 		}
 	}
 
-	shouldUpdate := utils.SetCondition(mi, progressingGroups, updatedGroups)
+	shouldUpdate := utils.SetCondition(mi, progressingGroups, updatedGroups, currentGroups)
 	copy := mi.DeepCopy()
-	copy.Status.Replicas = int32(len(groups))
-	copy.Status.AvailableReplicas = int32(available)
-	copy.Status.UpdatedReplicas = int32(updated)
+	if copy.Status.Replicas != int32(len(groups)) || copy.Status.AvailableReplicas != int32(available) || copy.Status.UpdatedReplicas != int32(updated) || copy.Status.CurrentReplicas != int32(current) {
+		shouldUpdate = true
+		copy.Status.Replicas = int32(len(groups))
+		copy.Status.AvailableReplicas = int32(available)
+		copy.Status.UpdatedReplicas = int32(updated)
+		copy.Status.CurrentReplicas = int32(current)
+	}
 
 	if shouldUpdate {
 		_, err := c.modelInferClient.WorkloadV1alpha1().ModelInfers(mi.GetNamespace()).UpdateStatus(context.TODO(), copy, metav1.UpdateOptions{})
@@ -401,8 +407,8 @@ func (c *ModelInferController) UpdateModelInferStatus(mi *workloadv1alpha1.Model
 
 func (c *ModelInferController) manageReplicas(ctx context.Context, mi *workloadv1alpha1.ModelInfer, newRevision string) error {
 	inferGroupList, err := c.store.GetInferGroupByModelInfer(utils.GetNamespaceName(mi))
-	if err != nil {
-		return fmt.Errorf("cannot get inferGroup from map: %v", err)
+	if err != nil && !errors.Is(err, datastore.ErrInferGroupNotFound) {
+		return fmt.Errorf("cannot get inferGroup of modelInfer: %s from map: %v", mi.GetName(), err)
 	}
 	expectedCount := int(*mi.Spec.Replicas)
 	curReplicas := len(inferGroupList)
@@ -563,7 +569,7 @@ func (c *ModelInferController) CreatePodByRole(ctx context.Context, role workloa
 func (c *ModelInferController) manageRollingUpdate(mi *workloadv1alpha1.ModelInfer, newHash string) error {
 	// we compute the minimum ordinal of the target sequence for a destructive update based on the strategy.
 	updateMin := 0
-	if mi.Spec.RolloutStrategy.RollingUpdateConfiguration != nil && mi.Spec.RolloutStrategy.RollingUpdateConfiguration.Partition != nil {
+	if mi.Spec.RolloutStrategy != nil && mi.Spec.RolloutStrategy.RollingUpdateConfiguration.Partition != nil {
 		updateMin = int(*mi.Spec.RolloutStrategy.RollingUpdateConfiguration.Partition)
 	}
 	inferGroupList, err := c.store.GetInferGroupByModelInfer(utils.GetNamespaceName(mi))

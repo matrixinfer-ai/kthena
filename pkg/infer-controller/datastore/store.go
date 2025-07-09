@@ -17,6 +17,7 @@ limitations under the License.
 package datastore
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -65,6 +66,8 @@ const (
 	InferGroupNotFound InferGroupStatus = "NotFound"
 )
 
+var ErrInferGroupNotFound = errors.New("infer group not found")
+
 func New() (Store, error) {
 	return &store{
 		inferGroup: make(map[types.NamespacedName]map[string]*InferGroup),
@@ -77,7 +80,7 @@ func (s *store) GetInferGroupByModelInfer(modelInferName types.NamespacedName) (
 	inferGroups, ok := s.inferGroup[modelInferName]
 	if !ok {
 		s.mutex.RUnlock()
-		return nil, fmt.Errorf("failed to found group of model infer %s", modelInferName)
+		return nil, ErrInferGroupNotFound
 	}
 	// sort inferGroups by name
 	inferGroupsSlice := make([]InferGroup, 0, len(inferGroups))
@@ -148,6 +151,7 @@ func (s *store) AddInferGroup(modelInferName types.NamespacedName, idx int, revi
 		Name:        utils.GenerateInferGroupName(modelInferName.Name, idx),
 		runningPods: make(map[string]struct{}),
 		Status:      InferGroupCreating,
+		Revision:    revision,
 	}
 
 	if _, ok := s.inferGroup[modelInferName]; !ok {

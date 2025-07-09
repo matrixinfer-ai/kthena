@@ -36,8 +36,9 @@ const (
 	Entry = "true"
 
 	// condition status of ModelInferStatus
-	AllGroupsIsReady        = "All infer groups are ready"
-	SomeGroupsIsProgressing = "Some groups is progressing"
+	AllGroupsIsReady         = "All infer groups are ready"
+	SomeGroupsAreProgressing = "Some groups is progressing"
+	SomeGroupsAreUpdated     = "Updated Groups are"
 )
 
 func GetNamespaceName(obj metav1.Object) types.NamespacedName {
@@ -329,6 +330,9 @@ func newCondition(condType workloadv1alpha1.ModelInferSetConditionType, message 
 	case workloadv1alpha1.ModelInferSetProgressing:
 		conditionType = string(workloadv1alpha1.ModelInferSetProgressing)
 		reason = "GroupProgressing"
+	case workloadv1alpha1.ModelInferSetUpdateInProgerss:
+		conditionType = string(workloadv1alpha1.ModelInferSetUpdateInProgerss)
+		reason = "GroupsUpdating"
 	}
 
 	return metav1.Condition{
@@ -340,17 +344,29 @@ func newCondition(condType workloadv1alpha1.ModelInferSetConditionType, message 
 	}
 }
 
-func SetCondition(mi *workloadv1alpha1.ModelInfer, progressingGroups, updatedGreoups []int) bool {
+func SetCondition(mi *workloadv1alpha1.ModelInfer, progressingGroups, updatedGreoups, currentGroups []int) bool {
 	var newCond metav1.Condition
 	found := false
-	updated := false
+	shouldUpdate := false
+
+	partition := 0
+	if mi.Spec.RolloutStrategy != nil && mi.Spec.RolloutStrategy.RollingUpdateConfiguration.Partition != nil {
+		partition = int(*mi.Spec.RolloutStrategy.RollingUpdateConfiguration.Partition)
+	}
 
 	if len(progressingGroups) == 0 {
 		newCond = newCondition(workloadv1alpha1.ModelInferSetAvailable, AllGroupsIsReady)
 	} else {
 		strOfProgressingGroups := fmt.Sprintf("%v", progressingGroups)
-		message := SomeGroupsIsProgressing + ": " + strOfProgressingGroups
-		newCond = newCondition(workloadv1alpha1.ModelInferSetProgressing, message)
+		message := SomeGroupsAreProgressing + ": " + strOfProgressingGroups
+		// If currentGroups big than Partition, modelInfer is still in updating
+		if len(currentGroups) > partition {
+			strUpdatedGroups := fmt.Sprintf("%v", updatedGreoups)
+			message = message + ", " + SomeGroupsAreUpdated + ": " + strUpdatedGroups
+			newCond = newCondition(workloadv1alpha1.ModelInferSetUpdateInProgerss, message)
+		} else {
+			newCond = newCondition(workloadv1alpha1.ModelInferSetProgressing, message)
+		}
 	}
 
 	newCond.LastTransitionTime = metav1.Now()
@@ -358,19 +374,37 @@ func SetCondition(mi *workloadv1alpha1.ModelInfer, progressingGroups, updatedGre
 		if newCond.Type == curCondition.Type {
 			if newCond.Status != curCondition.Status {
 				mi.Status.Conditions[i] = newCond
-				updated = true
+				shouldUpdate = true
 			}
 			found = true
 		} else {
-			mi.Status.Conditions[i].Status = metav1.ConditionFalse
-			updated = true
+			// Available and progreaaaing/updateInprogress are not allowd to be true at the same time.
+			if exclusiveConditionTypes(curCondition, newCond) && curCondition.Status == metav1.ConditionTrue && newCond.Status == metav1.ConditionTrue {
+				mi.Status.Conditions[i].Status = metav1.ConditionFalse
+				shouldUpdate = true
+			}
 		}
 	}
 
 	if newCond.Status == metav1.ConditionTrue && !found {
 		mi.Status.Conditions = append(mi.Status.Conditions, newCond)
-		updated = true
+		shouldUpdate = true
 	}
 
-	return updated
+	return shouldUpdate
+}
+
+// This function is refer to https://github.com/kubernetes-sigs/lws/blob/main/pkg/controllers/leaderworkerset_controller.go#L840
+func exclusiveConditionTypes(condition1 metav1.Condition, condition2 metav1.Condition) bool {
+	if (condition1.Type == string(workloadv1alpha1.ModelInferSetAvailable) && condition2.Type == string(workloadv1alpha1.ModelInferSetProgressing)) ||
+		(condition1.Type == string(workloadv1alpha1.ModelInferSetProgressing) && condition2.Type == string(workloadv1alpha1.ModelInferSetAvailable)) {
+		return true
+	}
+
+	if (condition1.Type == string(workloadv1alpha1.ModelInferSetAvailable) && condition2.Type == string(workloadv1alpha1.ModelInferSetUpdateInProgerss)) ||
+		(condition1.Type == string(workloadv1alpha1.ModelInferSetUpdateInProgerss) && condition2.Type == string(workloadv1alpha1.ModelInferSetAvailable)) {
+		return true
+	}
+
+	return false
 }
