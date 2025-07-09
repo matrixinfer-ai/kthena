@@ -327,7 +327,7 @@ func (mc *ModelController) updateModelInfer(ctx context.Context, model *registry
 }
 
 func (mc *ModelController) loadConfigFromConfigMap() {
-	cm, err := mc.kubeClient.CoreV1().ConfigMaps(config.ConfigMapNameSpace).Get(context.Background(),
+	cm, err := mc.kubeClient.CoreV1().ConfigMaps(config.ConfigMapNamespace).Get(context.Background(),
 		config.ConfigMapName,
 		metav1.GetOptions{})
 	if err != nil {
