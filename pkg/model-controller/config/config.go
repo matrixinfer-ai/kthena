@@ -17,7 +17,7 @@ limitations under the License.
 package config
 
 var (
-	ConfigMapNameSpace string
+	ConfigMapNamespace string
 	ConfigMapName      string
 )
 
