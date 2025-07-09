@@ -52,9 +52,27 @@ func (l *LeastRequest) Filter(ctx *framework.Context, pods []*datastore.PodInfo)
 
 func (l *LeastRequest) Score(ctx *framework.Context, pods []*datastore.PodInfo) map[*datastore.PodInfo]int {
 	scoreResults := make(map[*datastore.PodInfo]int)
-	for _, info := range pods {
-		score := int((float64(l.maxWaitingRequest) - info.RequestWaitingNum) * 100 / float64(l.maxWaitingRequest))
-		scoreResults[info] = score
+	if len(pods) == 0 {
+		return scoreResults
 	}
+
+	// 1. Calculate the base score (running reqs + 100 * waiting reqs) for each pod
+	baseScores := make(map[*datastore.PodInfo]float64)
+	maxScore := 0.0
+	for _, info := range pods {
+		// The weight of waiting requests is 100. It's a magic number just to sinificantly lower the score of the pod when there are waiting reqs.
+		base := info.RequestRunningNum + 100*info.RequestWaitingNum
+		baseScores[info] = base
+		if base > maxScore {
+			maxScore = base
+		}
+	}
+
+	// 2. Calculate the score for each pod as a percentage of the max base score
+	for _, info := range pods {
+		score := ((maxScore - baseScores[info]) / maxScore) * 100
+		scoreResults[info] = int(score)
+	}
+
 	return scoreResults
 }
