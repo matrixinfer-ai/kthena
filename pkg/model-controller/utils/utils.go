@@ -74,19 +74,13 @@ func BuildModelInferCR(model *registry.Model) ([]*workload.ModelInfer, error) {
 }
 
 // buildVllmDisaggregatedModelInfer handles VLLM disaggregated backend creation.
-func buildVllmDisaggregatedModelInfer(model *registry.Model, backendIdx int) (*workload.ModelInfer,
-	error) {
-	backend := &model.Spec.Backends[backendIdx]
-	workersMap := make(map[registry.ModelWorkerType]*registry.ModelWorker, len(backend.Workers))
-	for _, worker := range backend.Workers {
-		workersMap[worker.Type] = &worker
-	}
-
+func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, error) {
+	backend := &model.Spec.Backends[idx]
+	workersMap := mapWorkers(backend.Workers)
 	weightsPath := getCachePath(backend.CacheURI) + getMountPath(backend.ModelURI)
-
 	data := map[string]interface{}{
 		"MODEL_INFER_TEMPLATE_METADATA": &metav1.ObjectMeta{
-			Name:      strings.ToLower(string(backend.Type)),
+			Name:      fmt.Sprintf("%s-%d-%s-instance", model.Name, idx, strings.ToLower(string(backend.Type))),
 			Namespace: model.Namespace,
 			Labels: map[string]string{
 				ModelInferOwnerKey: string(model.UID),
@@ -110,11 +104,7 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, backendIdx int) (*w
 		"ENGINE_PREFILL_RESOURCES":     workersMap[registry.ModelWorkerTypePrefill].Resources,
 		"ENGINE_PREFILL_IMAGE":         workersMap[registry.ModelWorkerTypePrefill].Image,
 	}
-	modelInfer, err := loadModelInferTemplate(VllmDisaggregatedTemplatePath, &data)
-	if err != nil {
-		return nil, err
-	}
-	return modelInfer, nil
+	return loadModelInferTemplate(VllmDisaggregatedTemplatePath, &data)
 }
 
 // buildVllmModelInfer handles VLLM backend creation.
