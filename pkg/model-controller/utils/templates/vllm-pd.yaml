@@ -9,16 +9,16 @@ spec:
       maxUnavailable: 25%
     type: InferGroupRollingUpdate
   schedulerName: volcano
-  replicas: 1
+  replicas: ${BACKEND_REPLICAS}
   template:
     restartGracePeriodSeconds: 60
     roles:
       - name: prefill
-        replicas: 1
+        replicas: ${PREFILL_REPLICAS}
         entryTemplate:
           spec:
             initContainers:
-              - name: downloader
+              - name: ${MODEL_NAME}-downloader
                 imagePullPolicy: Always
                 image: ${MODEL_INFER_DOWNLOADER_IMAGE}
                 args:
@@ -26,12 +26,8 @@ spec:
                   - ${MODEL_URL}
                   - --output-dir
                   - ${MODEL_DOWNLOAD_PATH}
-                envFrom:
-                  - secretRef:
-                      name: downloader-secrets
-                volumeMounts:
-                  - name: models
-                    mountPath: ${MODEL_DOWNLOAD_PATH}
+                envFrom: ${MODEL_DOWNLOAD_ENVFROM}
+                volumeMounts: ${VOLUME_MOUNTS}
             containers:
               - name: runtime
                 image: ${MODEL_INFER_RUNTIME_IMAGE}
@@ -61,26 +57,7 @@ spec:
                     value: eth0
                   - name: HCCL_SOCKET_IFNAME
                     value: eth0
-                command:
-                  - "python"
-                  - "-m"
-                  - "vllm.entrypoints.openai.api_server"
-                  - "--model"
-                  - ${MODEL_DOWNLOAD_PATH}
-                  - "--served-model-name"
-                  - ${MODEL_NAME}
-                  - "--tensor-parallel-size"
-                  - "16"
-                  - "--gpu-memory-utilization"
-                  - "0.95"
-                  - "--disable-frontend-multiprocessing"
-                  - "--max-model-len"
-                  - "1024"
-                  - "--trust-remote-code"
-                  - "--quantization"
-                  - "ascend"
-                  - "--kv-transfer-config"
-                  - '{"kv_rank":0, "kv_connector":"AscendSimpleConnector","kv_buffer_device":"npu","kv_role":"kv_producer", "kv_parallel_size":2,"kv_connector_extra_config":{"prefill_device_ips": ["214.71.150.137", "214.71.173.73", "214.71.230.168", "214.71.161.230", "214.71.128.255", "214.71.130.82", "214.71.160.69", "214.71.189.91", "214.71.251.142", "214.71.149.222", "214.71.245.25", "214.71.153.236", "214.71.148.108", "214.71.154.164", "214.71.234.231", "214.71.167.204"],"decode_device_ips": ["214.71.227.226", "214.71.186.209", "214.71.208.127", "214.71.196.104", "214.71.128.44", "214.71.174.225", "214.71.221.13", "214.71.225.152", "214.71.151.147", "214.71.200.47", "214.71.239.51", "214.71.203.53", "214.71.190.45", "214.71.145.113", "214.71.166.79", "214.71.142.27"]}}'
+                command: ${ENGINE_PREFILL_COMMAND}
                 imagePullPolicy: IfNotPresent
                 resources: ${ENGINE_PREFILL_RESOURCES}
                 readinessProbe:
@@ -97,15 +74,8 @@ spec:
                   httpGet:
                     path: /health
                     port: 8000
-                volumeMounts:
-                  - name: models
-                    mountPath: ${MODEL_DOWNLOAD_PATH}
-                    readOnly: true
-            volumes:
-              - name: models
-                hostPath:
-                  path: ${MODEL_DOWNLOAD_PATH}
-                  type: DirectoryOrCreate
+                volumeMounts: ${VOLUME_MOUNTS}
+            volumes: ${VOLUMES}
             affinity:
               nodeAffinity:
                 requiredDuringSchedulingIgnoredDuringExecution:
@@ -120,7 +90,7 @@ spec:
           spec:
             containers: []
       - name: decode
-        replicas: 1
+        replicas: ${DECODE_REPLICAS}
         entryTemplate:
           spec:
             initContainers:
@@ -132,12 +102,8 @@ spec:
                   - ${MODEL_URL}
                   - --output-dir
                   - ${MODEL_DOWNLOAD_PATH}
-                envFrom:
-                  - secretRef:
-                      name: downloader-secrets
-                volumeMounts:
-                  - name: models
-                    mountPath: ${MODEL_DOWNLOAD_PATH}
+                envFrom: ${MODEL_DOWNLOAD_ENVFROM}
+                volumeMounts: ${VOLUME_MOUNTS}
             containers:
               - name: runtime
                 image: ${MODEL_INFER_RUNTIME_IMAGE}
@@ -145,11 +111,11 @@ spec:
                   - containerPort: 8100
                 args:
                   - --port
-                  - "8100"
-                  - --engine
-                  - vllm
+                  - ${MODEL_INFER_RUNTIME_PORT}
                   - --url
-                  - "http://localhost:8000/metrics"
+                  - ${MODEL_INFER_RUNTIME_URL}
+                  - --engine
+                  - ${MODEL_INFER_RUNTIME_ENGINE}
               - name: vllm
                 image: ${ENGINE_DECODE_IMAGE}
                 ports:
@@ -163,26 +129,7 @@ spec:
                     value: eth0
                   - name: HCCL_SOCKET_IFNAME
                     value: eth0
-                command:
-                  - "python"
-                  - "-m"
-                  - "vllm.entrypoints.openai.api_server"
-                  - "--model"
-                  - ${MODEL_DOWNLOAD_PATH}
-                  - "--served-model-name"
-                  - ${MODEL_NAME}
-                  - "--tensor-parallel-size"
-                  - "16"
-                  - "--gpu-memory-utilization"
-                  - "0.95"
-                  - "--disable-frontend-multiprocessing"
-                  - "--max-model-len"
-                  - "1024"
-                  - "--trust-remote-code"
-                  - "--quantization"
-                  - "ascend"
-                  - "--kv-transfer-config"
-                  - '{"kv_rank":1, "kv_connector":"AscendSimpleConnector","kv_buffer_device":"npu","kv_role":"kv_consumer", "kv_parallel_size":2,"kv_connector_extra_config":{"prefill_device_ips": ["214.71.150.137", "214.71.173.73", "214.71.230.168", "214.71.161.230", "214.71.128.255", "214.71.130.82", "214.71.160.69", "214.71.189.91", "214.71.251.142", "214.71.149.222", "214.71.245.25", "214.71.153.236", "214.71.148.108", "214.71.154.164", "214.71.234.231", "214.71.167.204"],"decode_device_ips": ["214.71.227.226", "214.71.186.209", "214.71.208.127", "214.71.196.104", "214.71.128.44", "214.71.174.225", "214.71.221.13", "214.71.225.152", "214.71.151.147", "214.71.200.47", "214.71.239.51", "214.71.203.53", "214.71.190.45", "214.71.145.113", "214.71.166.79", "214.71.142.27"]}}'
+                command: ${ENGINE_DECODE_COMMAND}
                 imagePullPolicy: IfNotPresent
                 resources: ${ENGINE_DECODE_RESOURCES}
                 readinessProbe:
@@ -199,10 +146,7 @@ spec:
                   httpGet:
                     path: /health
                     port: 8000
-                volumeMounts:
-                  - name: models
-                    mountPath: ${MODEL_DOWNLOAD_PATH}
-                    readOnly: true
+                volumeMounts: ${VOLUME_MOUNTS}
             affinity:
               nodeAffinity:
                 requiredDuringSchedulingIgnoredDuringExecution:
@@ -212,11 +156,7 @@ spec:
                           operator: In
                           values:
                             - f0189bcc-1479-11f0-8512-0255ac100079
-            volumes:
-              - name: models
-                hostPath:
-                  path: ${MODEL_DOWNLOAD_PATH}
-                  type: DirectoryOrCreate
+            volumes: ${VOLUMES}
         workerReplicas: 0
         workerTemplate:
           spec:

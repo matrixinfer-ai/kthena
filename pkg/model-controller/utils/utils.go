@@ -83,7 +83,15 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 	if workersMap[registry.ModelWorkerTypeDecode] == nil {
 		return nil, fmt.Errorf("decode worker not found in backend: %s", backend.Name)
 	}
+	cacheVolume, err := buildCacheVolume(backend)
+	if err != nil {
+		return nil, err
+	}
 	weightsPath := getCachePath(backend.CacheURI) + getMountPath(backend.ModelURI)
+	commands, err := buildCommands(backend, weightsPath, workersMap)
+	if err != nil {
+		return nil, err
+	}
 	data := map[string]interface{}{
 		"MODEL_INFER_TEMPLATE_METADATA": &metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-%d-%s-instance", model.Name, idx, strings.ToLower(string(backend.Type))),
@@ -100,14 +108,27 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 				},
 			},
 		},
+		"VOLUME_MOUNTS": []corev1.VolumeMount{{
+			Name:      cacheVolume.Name,
+			MountPath: getCachePath(backend.CacheURI),
+		}},
+		"VOLUMES": []*corev1.Volume{
+			cacheVolume,
+		},
 		"MODEL_NAME":                   model.Name,
 		"MODEL_URL":                    backend.ModelURI,
+		"BACKEND_REPLICAS":             backend.MinReplicas, // todo: backend replicas
+		"MODEL_DOWNLOAD_ENVFROM":       backend.EnvFrom,
+		"ENGINE_PREFILL_COMMAND":       commands,
+		"ENGINE_DECODE_COMMAND":        commands,
 		"MODEL_DOWNLOAD_PATH":          weightsPath,
 		"MODEL_INFER_DOWNLOADER_IMAGE": config.Config.GetModelInferDownloaderImage(),
 		"MODEL_INFER_RUNTIME_IMAGE":    config.Config.GetModelInferRuntimeImage(),
 		"MODEL_INFER_RUNTIME_PORT":     getEnvValueOrDefault(backend, "RUNTIME_PORT", "8100"),
 		"MODEL_INFER_RUNTIME_URL":      getEnvValueOrDefault(backend, "RUNTIME_URL", "http://localhost:8000/metrics"),
 		"MODEL_INFER_RUNTIME_ENGINE":   strings.ToLower(string(backend.Type)),
+		"PREFILL_REPLICAS":             workersMap[registry.ModelWorkerTypePrefill].Replicas,
+		"DECODE_REPLICAS":              workersMap[registry.ModelWorkerTypeDecode].Replicas,
 		"ENGINE_DECODE_RESOURCES":      workersMap[registry.ModelWorkerTypeDecode].Resources,
 		"ENGINE_DECODE_IMAGE":          workersMap[registry.ModelWorkerTypeDecode].Image,
 		"ENGINE_PREFILL_RESOURCES":     workersMap[registry.ModelWorkerTypePrefill].Resources,
