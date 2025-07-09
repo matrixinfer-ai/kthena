@@ -22,6 +22,17 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: install sponge
+      shell: bash
+      run: sudo apt-get update && sudo apt-get install -y moreutils
+    - name: generate copyright
+      shell: bash
+      run: |
+        make add-copyright
+    - name: check diff
+      shell: bash
+      run: |
+        git diff --exit-code
     - name: Setup Go
       uses: actions/setup-go@v4.0.0
       with:
