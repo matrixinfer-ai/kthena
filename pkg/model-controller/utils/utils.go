@@ -77,6 +77,12 @@ func BuildModelInferCR(model *registry.Model) ([]*workload.ModelInfer, error) {
 func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, error) {
 	backend := &model.Spec.Backends[idx]
 	workersMap := mapWorkers(backend.Workers)
+	if workersMap[registry.ModelWorkerTypePrefill] == nil {
+		return nil, fmt.Errorf("prefill worker not found in backend: %s", backend.Name)
+	}
+	if workersMap[registry.ModelWorkerTypeDecode] == nil {
+		return nil, fmt.Errorf("decode worker not found in backend: %s", backend.Name)
+	}
 	weightsPath := getCachePath(backend.CacheURI) + getMountPath(backend.ModelURI)
 	data := map[string]interface{}{
 		"MODEL_INFER_TEMPLATE_METADATA": &metav1.ObjectMeta{
