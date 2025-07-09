@@ -170,13 +170,10 @@ func (c *ModelInferController) deleteModelInfer(obj interface{}) {
 		return
 	}
 
-	err := c.store.DeleteModelInfer(types.NamespacedName{
+	c.store.DeleteModelInfer(types.NamespacedName{
 		Namespace: mi.Namespace,
 		Name:      mi.Name,
 	})
-	if err != nil {
-		klog.Errorf("delete model infer store failed: %v", err)
-	}
 }
 
 func (c *ModelInferController) addPod(obj interface{}) {
@@ -425,10 +422,7 @@ func (c *ModelInferController) manageReplicas(ctx context.Context, mi *workloadv
 	for idx := 0; idx < expectedCount; idx++ {
 		if replicas[idx] == nil {
 			// Insert new InferGroup to global storage
-			err = c.store.AddInferGroup(utils.GetNamespaceName(mi), idx)
-			if err != nil {
-				return fmt.Errorf("store infer group failed: %v", err)
-			}
+			c.store.AddInferGroup(utils.GetNamespaceName(mi), idx)
 			// Create pods for inferGroup
 			err = c.CreatePodsForInferGroup(ctx, mi, idx, newHash)
 			if err != nil {
@@ -517,7 +511,7 @@ func (c *ModelInferController) DeleteInferGroup(mi *workloadv1alpha1.ModelInfer,
 	}
 	if len(pods) == 0 && len(services) == 0 {
 		klog.V(2).Infof("inferGroup %s has been deleted", groupname)
-		_ = c.store.DeleteInferGroup(miNamedName, groupname)
+		c.store.DeleteInferGroup(miNamedName, groupname)
 		c.enqueueModelInfer(mi)
 		return
 	}
