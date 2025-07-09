@@ -57,10 +57,8 @@ func main() {
 
 	pflag.StringVar(&kubeconfig, "kubeconfig", "", "kubeconfig file path")
 	pflag.StringVar(&master, "master", "", "master URL")
-	pflag.StringVar(&config.ConfigMapNameSpace, "configmap-namespace", "default", "The namespace of configmap. "+
-		"Model controller will load config from this configmap. Default is default.")
-	pflag.StringVar(&config.ConfigMapName, "configmap-name", "model-config-map", "The name of configmap. "+
-		"Model controller will load config from this configmap. Default is model-config-map.")
+	pflag.StringVar(&config.ConfigMapNamespace, "configmap-namespace", "default", "The namespace of the ConfigMap to load configuration from.")
+	pflag.StringVar(&config.ConfigMapName, "configmap-name", "model-config-map", "The name of the ConfigMap to load configuration from.")
 	pflag.IntVar(&workers, "workers", 5, "number of workers to run")
 	pflag.BoolVar(&enableLeaderElection, "leader-elect", false, "Enable leader election for controller. "+
 		"Enabling this will ensure there is only one active model controller. Default is false.")
