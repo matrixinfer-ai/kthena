@@ -6,7 +6,7 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
 )
 
-const MaxWaitingRequests = 100
+const MaxWaitingRequests = 10
 const LeastRequestPluginName = "least-request"
 
 var _ framework.FilterPlugin = &LeastRequest{}
@@ -44,6 +44,7 @@ func (l *LeastRequest) Score(ctx *framework.Context, pods []*datastore.PodInfo) 
 	baseScores := make(map[*datastore.PodInfo]float64)
 	maxScore := 0.0
 	for _, info := range pods {
+		// The weight of waiting requests is 100. It's a magic number just to sinificantly lower the score of the pod when there are waiting reqs.
 		base := info.RequestRunningNum + 100*info.RequestWaitingNum
 		baseScores[info] = base
 		if base > maxScore {
