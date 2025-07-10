@@ -58,6 +58,42 @@ func TestGetMountPath(t *testing.T) {
 	}
 }
 
+func TestGetCachePath(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "normal case",
+			input:    "pvc://my-cache-path",
+			expected: "my-cache-path",
+		},
+		{
+			name:     "empty cache path",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "invalid cache path",
+			input:    "invalidpath",
+			expected: "",
+		},
+		{
+			name:     "multiple separators",
+			input:    "pvc://path/with/multiple/separators",
+			expected: "path/with/multiple/separators",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getCachePath(tt.input); got != tt.expected {
+				t.Errorf("getCachePath() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
 func TestBuildModelInferCR(t *testing.T) {
 	tests := []struct {
 		name         string
