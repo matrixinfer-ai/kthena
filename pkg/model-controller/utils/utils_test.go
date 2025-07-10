@@ -18,8 +18,9 @@ package utils
 
 import (
 	"os"
-	"sigs.k8s.io/yaml"
 	"testing"
+
+	"sigs.k8s.io/yaml"
 
 	"github.com/stretchr/testify/assert"
 	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
