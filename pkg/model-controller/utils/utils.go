@@ -87,8 +87,8 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 	if err != nil {
 		return nil, err
 	}
-	weightsPath := getCachePath(backend.CacheURI) + getMountPath(backend.ModelURI)
-	commands, err := buildCommands(backend, weightsPath, workersMap)
+	modelDownloadPath := getCachePath(backend.CacheURI) + getMountPath(backend.ModelURI)
+	commands, err := buildCommands(backend, modelDownloadPath, workersMap)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +121,7 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 		"MODEL_DOWNLOAD_ENVFROM":       backend.EnvFrom,
 		"ENGINE_PREFILL_COMMAND":       commands,
 		"ENGINE_DECODE_COMMAND":        commands,
-		"MODEL_DOWNLOAD_PATH":          weightsPath,
+		"MODEL_DOWNLOAD_PATH":          modelDownloadPath,
 		"MODEL_INFER_DOWNLOADER_IMAGE": config.Config.GetModelInferDownloaderImage(),
 		"MODEL_INFER_RUNTIME_IMAGE":    config.Config.GetModelInferRuntimeImage(),
 		"MODEL_INFER_RUNTIME_PORT":     getEnvValueOrDefault(backend, "RUNTIME_PORT", "8100"),
@@ -148,8 +148,8 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 	if err != nil {
 		return nil, err
 	}
-	weightsPath := getCachePath(backend.CacheURI) + getMountPath(backend.ModelURI)
-	commands, err := buildCommands(backend, weightsPath, workersMap)
+	modelDownloadPath := getCachePath(backend.CacheURI) + getMountPath(backend.ModelURI)
+	commands, err := buildCommands(backend, modelDownloadPath, workersMap)
 	if err != nil {
 		return nil, err
 	}
@@ -191,7 +191,7 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 			MountPath: getCachePath(backend.CacheURI),
 		}},
 		"MODEL_URL":                    backend.ModelURI,
-		"MODEL_DOWNLOAD_PATH":          weightsPath,
+		"MODEL_DOWNLOAD_PATH":          modelDownloadPath,
 		"MODEL_DOWNLOAD_ENV":           getEnvVarOrDefault(backend, "ENDPOINT", ""),
 		"MODEL_DOWNLOAD_ENVFROM":       backend.EnvFrom,
 		"MODEL_INFER_DOWNLOADER_IMAGE": config.Config.GetModelInferDownloaderImage(),
@@ -217,9 +217,9 @@ func mapWorkers(workers []registry.ModelWorker) map[registry.ModelWorkerType]*re
 }
 
 // buildCommands constructs the command list for the backend.
-func buildCommands(backend *registry.ModelBackend, weightsPath string,
+func buildCommands(backend *registry.ModelBackend, modelDownloadPath string,
 	workersMap map[registry.ModelWorkerType]*registry.ModelWorker) ([]string, error) {
-	commands := []string{"python", "-m", "vllm.entrypoints.openai.api_server", "--model", weightsPath}
+	commands := []string{"python", "-m", "vllm.entrypoints.openai.api_server", "--model", modelDownloadPath}
 	args, err := parseArgs(&backend.Config)
 	commands = append(commands, args...)
 	if workersMap[registry.ModelWorkerTypeServer].Pods > 1 {
