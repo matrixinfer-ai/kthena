@@ -12,12 +12,6 @@ spec:
       cacheURI: hostpath:///tmp/test
       maxReplicas: 0
       minReplicas: 1
-      config:
-        block-size: 128
-        gpu-memory-utilization: 0.9
-        max-model-len: 32768
-        tensor-parallel-size: 2
-        trust-remote-code: ""
       env:
         - name: ENDPOINT
           value: https://obs.test.com
@@ -29,6 +23,12 @@ spec:
       workers:
         - image: vllm-server:latest
           pods: 1
+          config:
+            block-size: 128
+            gpu-memory-utilization: 0.9
+            max-model-len: 32768
+            tensor-parallel-size: 2
+            trust-remote-code: ""
           resources:
             requests:
               cpu: 100m

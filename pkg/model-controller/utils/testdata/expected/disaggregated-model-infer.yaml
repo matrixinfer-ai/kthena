@@ -52,9 +52,9 @@ spec:
                   - /cache/568a486051fd302c338d84946c4f3d48
                   - --disable-frontend-multiprocessing
                   - --gpu-memory-utilization
-                  - "0.95"
+                  - "0.99"
                   - --max-model-len
-                  - "1024"
+                  - "2048"
                   - --quantization
                   - ascend
                   - --served-model-name

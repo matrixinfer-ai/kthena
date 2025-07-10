@@ -14,14 +14,6 @@ spec:
       cacheURI: hostpath:///cache
       maxReplicas: 1
       minReplicas: 1
-      config:
-        served-model-name: ds-r1-qwen-7b-pd
-        tensor-parallel-size: 16
-        gpu-memory-utilization: 0.95
-        disable-frontend-multiprocessing: ""
-        max-model-len: 1024
-        trust-remote-code: ""
-        quantization: ascend
       env:
         - name: ENDPOINT
           value: https://obs.test.com
@@ -32,6 +24,14 @@ spec:
         - image: vllm-prefill:latest
           pods: 1
           replicas: 1
+          config:
+            served-model-name: ds-r1-qwen-7b-pd
+            tensor-parallel-size: 16
+            gpu-memory-utilization: 0.99
+            disable-frontend-multiprocessing: ""
+            max-model-len: 2048
+            trust-remote-code: ""
+            quantization: ascend
           resources:
             requests:
               cpu: 100m
@@ -41,6 +41,14 @@ spec:
         - image: vllm-decode:latest
           pods: 1
           replicas: 1
+          config:
+            served-model-name: ds-r1-qwen-7b-pd
+            tensor-parallel-size: 16
+            gpu-memory-utilization: 0.95
+            disable-frontend-multiprocessing: ""
+            max-model-len: 1024
+            trust-remote-code: ""
+            quantization: ascend
           resources:
             requests:
               cpu: 100m

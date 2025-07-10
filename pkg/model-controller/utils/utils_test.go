@@ -104,12 +104,12 @@ func TestBuildModelInferCR(t *testing.T) {
 		{
 			name:     "CacheVolume_HuggingFace_HostPath",
 			input:    loadInputYAML(t, "testdata/input/model.yaml"),
-			expected: []*workload.ModelInfer{loadExpectedYAML(t, "testdata/model-infer.yaml")},
+			expected: []*workload.ModelInfer{loadExpectedYAML(t, "testdata/expected/model-infer.yaml")},
 		},
 		{
 			name:     "PD disaggregation",
 			input:    loadInputYAML(t, "testdata/input/pd-disaggregated-model.yaml"),
-			expected: []*workload.ModelInfer{loadExpectedYAML(t, "testdata/disaggregated-model-infer.yaml")},
+			expected: []*workload.ModelInfer{loadExpectedYAML(t, "testdata/expected/disaggregated-model-infer.yaml")},
 		},
 	}
 	for _, tt := range tests {

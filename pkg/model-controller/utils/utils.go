@@ -88,9 +88,20 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 		return nil, err
 	}
 	modelDownloadPath := getCachePath(backend.CacheURI) + getMountPath(backend.ModelURI)
-	commands, err := buildCommands(&backend.Config, modelDownloadPath, workersMap)
-	if err != nil {
-		return nil, err
+	var preFillCommand []string
+	var decodeCommand []string
+	for _, worker := range backend.Workers {
+		if worker.Type == registry.ModelWorkerTypePrefill {
+			preFillCommand, err = buildCommands(&worker.Config, modelDownloadPath, workersMap)
+			if err != nil {
+				return nil, err
+			}
+		} else if worker.Type == registry.ModelWorkerTypeDecode {
+			decodeCommand, err = buildCommands(&worker.Config, modelDownloadPath, workersMap)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 	data := map[string]interface{}{
 		"MODEL_INFER_TEMPLATE_METADATA": &metav1.ObjectMeta{
@@ -119,8 +130,8 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 		"MODEL_URL":                    backend.ModelURI,
 		"BACKEND_REPLICAS":             backend.MinReplicas, // todo: backend replicas
 		"MODEL_DOWNLOAD_ENVFROM":       backend.EnvFrom,
-		"ENGINE_PREFILL_COMMAND":       commands,
-		"ENGINE_DECODE_COMMAND":        commands,
+		"ENGINE_PREFILL_COMMAND":       preFillCommand,
+		"ENGINE_DECODE_COMMAND":        decodeCommand,
 		"MODEL_DOWNLOAD_PATH":          modelDownloadPath,
 		"MODEL_INFER_DOWNLOADER_IMAGE": config.Config.GetModelInferDownloaderImage(),
 		"MODEL_INFER_RUNTIME_IMAGE":    config.Config.GetModelInferRuntimeImage(),
@@ -149,7 +160,7 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 		return nil, err
 	}
 	modelDownloadPath := getCachePath(backend.CacheURI) + getMountPath(backend.ModelURI)
-	commands, err := buildCommands(&backend.Config, modelDownloadPath, workersMap)
+	commands, err := buildCommands(&backend.Workers[0].Config, modelDownloadPath, workersMap)
 	if err != nil {
 		return nil, err
 	}
