@@ -160,6 +160,7 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 		return nil, err
 	}
 	modelDownloadPath := getCachePath(backend.CacheURI) + getMountPath(backend.ModelURI)
+	// only one worker in such circumstance so get the first worker's config as commands
 	commands, err := buildCommands(&backend.Workers[0].Config, modelDownloadPath, workersMap)
 	if err != nil {
 		return nil, err
