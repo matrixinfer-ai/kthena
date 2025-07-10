@@ -144,6 +144,7 @@ func TestStoreUpdatePodMetrics(t *testing.T) {
 		},
 		GPUCacheUsage:     0.5,
 		RequestWaitingNum: 10,
+		RequestRunningNum: 5,
 		TPOT:              100,
 		TTFT:              200,
 		modelServer: sets.New[types.NamespacedName](types.NamespacedName{
@@ -178,6 +179,7 @@ func TestStoreUpdatePodMetrics(t *testing.T) {
 		return map[string]float64{
 				utils.GPUCacheUsage:     0.8,
 				utils.RequestWaitingNum: 15,
+				utils.RequestRunningNum: 10,
 				utils.TPOT:              120,
 				utils.TTFT:              210,
 			}, map[string]*dto.Histogram{
@@ -210,6 +212,7 @@ func TestStoreUpdatePodMetrics(t *testing.T) {
 	}
 	assert.Equal(t, s.pods[name].GPUCacheUsage, 0.8)
 	assert.Equal(t, s.pods[name].RequestWaitingNum, float64(15))
+	assert.Equal(t, s.pods[name].RequestRunningNum, float64(10))
 	assert.Equal(t, s.pods[name].TPOT, float64(120))
 	assert.Equal(t, s.pods[name].TTFT, float64(210))
 	assert.Equal(t, s.pods[name].TimePerOutputToken.SampleSum, &sum2)
@@ -227,6 +230,7 @@ func TestStoreAddOrUpdatePod(t *testing.T) {
 		return map[string]float64{
 				utils.GPUCacheUsage:     0.8,
 				utils.RequestWaitingNum: 15,
+				utils.RequestRunningNum: 10,
 				utils.TPOT:              120,
 				utils.TTFT:              210,
 			}, map[string]*dto.Histogram{

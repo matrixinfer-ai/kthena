@@ -32,6 +32,7 @@ var (
 
 	GPUCacheUsage     = "gpu_usage"
 	RequestWaitingNum = "request_waiting_num"
+	RequestRunningNum = "request_running_num"
 	TPOT              = "TPOT"
 	TTFT              = "TTFT"
 
