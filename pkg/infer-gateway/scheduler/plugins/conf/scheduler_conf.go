@@ -1,10 +1,6 @@
 package conf
 
-type KubeSchedulerConfiguration struct {
-	Profiles []Profile `yaml:"profiles"`
-}
-
-type Profile struct {
+type SchedulerConfiguration struct {
 	PluginConfig []PluginConfig `yaml:"pluginConfig"`
 	Plugins      *Plugins       `yaml:"plugins"`
 }
@@ -30,15 +26,20 @@ type PluginWithWeight struct {
 }
 
 type PluginConfig struct {
-	Name string     `yaml:"name"`
-	Args PluginArgs `yaml:"args,omitempty"`
+	Name string      `yaml:"name"`
+	Args interface{} `yaml:"args,omitempty"`
 }
 
-type PluginArgs struct {
-	MaxWaitingRequests   int     `yaml:"maxWaitingRequests,omitempty"`
-	MaxScore             float64 `yaml:"maxScore,omitempty"`
+type LeastRequestArgs struct {
+	MaxWaitingRequests int `yaml:"maxWaitingRequests,omitempty"`
+}
+
+type LeastLatencyArgs struct {
 	TTFTTPOTWeightFactor float64 `yaml:"TTFTTPOTWeightFactor,omitempty"`
-	BlockSizeToHash      int     `yaml:"blockSizeToHash,omitempty"`
-	MaxBlocksToMatch     int     `yaml:"maxBlocksToMatch,omitempty"`
-	MaxHashCacheSize     int     `yaml:"maxHashCacheSize,omitempty"`
+}
+
+type PrefixCacheArgs struct {
+	BlockSizeToHash  int `yaml:"blockSizeToHash,omitempty"`
+	MaxBlocksToMatch int `yaml:"maxBlocksToMatch,omitempty"`
+	MaxHashCacheSize int `yaml:"maxHashCacheSize,omitempty"`
 }

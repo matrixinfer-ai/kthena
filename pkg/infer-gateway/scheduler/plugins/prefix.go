@@ -78,7 +78,7 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/cache"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 )
 
 const PrefixCachePluginName = "prefix-cache"
@@ -86,10 +86,8 @@ const PrefixCachePluginName = "prefix-cache"
 var (
 	// Default token block size of vLLM is 16, and a good guess of average characters per token is 4.
 	// So we use 64 as the default block size.
-	BlockSizeToHash = utils.GetPluginArg(PrefixCachePluginName).BlockSizeToHash
-	// TODO: make these parameters configurable.
-	MaxBlocksToMatch = utils.GetPluginArg(PrefixCachePluginName).MaxBlocksToMatch
-	MaxHashCacheSize = utils.GetPluginArg(PrefixCachePluginName).MaxHashCacheSize
+	arg              = &conf.PrefixCacheArgs{}
+	MaxHashCacheSize = arg.MaxHashCacheSize
 )
 
 var _ framework.ScorePlugin = &PrefixCache{}
@@ -102,12 +100,12 @@ type PrefixCache struct {
 	store            *cache.ModelPrefixStore
 }
 
-func NewPrefixCache(store datastore.Store) *PrefixCache {
+func NewPrefixCache(store datastore.Store, arg conf.PrefixCacheArgs) *PrefixCache {
 	p := &PrefixCache{
 		name: PrefixCachePluginName,
 
-		blockSizeToHash:  BlockSizeToHash,
-		maxBlocksToMatch: MaxBlocksToMatch,
+		blockSizeToHash:  arg.BlockSizeToHash,
+		maxBlocksToMatch: arg.MaxBlocksToMatch,
 	}
 	// Initialize store with default values
 	p.store = cache.NewModelPrefixStore(store, MaxHashCacheSize, 5) // TODO: make these configurable

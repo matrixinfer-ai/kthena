@@ -36,7 +36,7 @@ var (
 	TPOT              = "TPOT"
 	TTFT              = "TTFT"
 
-	PluginsArgs = make(map[string]conf.PluginArgs)
+	PluginsArgs = make(map[string]interface{})
 )
 
 const ConfigMapPath = "/etc/config/schedulerConfiguration.yaml"
@@ -104,13 +104,19 @@ func LoadSchedulerConfig() (map[string]int, []string, error) {
 	if err != nil {
 		log.Fatalf("Failed to read file: %v", err)
 	}
-	var kubeSchedulerConfiguration conf.KubeSchedulerConfiguration
+	var kubeSchedulerConfiguration conf.SchedulerConfiguration
 	if err := yaml.Unmarshal(data, &kubeSchedulerConfiguration); err != nil {
 		log.Errorf("failed to Unmarshal schedulerConfiguration: %v", err)
 		return nil, nil, fmt.Errorf("failed to Unmarshal schedulerConfiguration: %v", err)
 	}
 
-	scorePluginMap, filterPlugins, err := unmarshalPluginsConfig(&kubeSchedulerConfiguration)
+	scorePluginMap, filterPlugins, err := unmarshalPlugins(&kubeSchedulerConfiguration)
+	if err != nil {
+		log.Errorf("failed to Unmarshal Plugins: %v", err)
+		return nil, nil, fmt.Errorf("failed to Unmarshal Plugins: %v", err)
+	}
+
+	err = unmarshalPluginsConfig(&kubeSchedulerConfiguration)
 	if err != nil {
 		log.Errorf("failed to Unmarshal PluginsConfig: %v", err)
 		return nil, nil, fmt.Errorf("failed to Unmarshal PluginsConfig: %v", err)
@@ -118,40 +124,30 @@ func LoadSchedulerConfig() (map[string]int, []string, error) {
 	return scorePluginMap, filterPlugins, nil
 }
 
-func unmarshalPluginsConfig(schedulerConfig *conf.KubeSchedulerConfiguration) (map[string]int, []string, error) {
+func unmarshalPlugins(schedulerConfig *conf.SchedulerConfiguration) (map[string]int, []string, error) {
 	var filterPlugins []string
 	scorePluginMap := make(map[string]int)
-	if len(schedulerConfig.Profiles) == 0 {
-		return scorePluginMap, filterPlugins, fmt.Errorf("profiles is empty")
+	if schedulerConfig.Plugins == nil {
+		return scorePluginMap, filterPlugins, fmt.Errorf("Plugins is nil")
 	}
-	for _, profiles := range schedulerConfig.Profiles {
-		if len(profiles.PluginConfig) > 0 {
-			for _, pluginConfig := range profiles.PluginConfig {
-				PluginsArgs[pluginConfig.Name] = pluginConfig.Args
-			}
+	if schedulerConfig.Plugins.Score != nil && len(schedulerConfig.Plugins.Score.Enabled) > 0 {
+		for _, plugin := range schedulerConfig.Plugins.Score.Enabled {
+			scorePluginMap[plugin.Name] = plugin.Weight
 		}
+	}
 
-		if profiles.Plugins == nil {
-			continue
-		}
-
-		if profiles.Plugins.Score != nil && len(profiles.Plugins.Score.Enabled) > 0 {
-			for _, plugin := range profiles.Plugins.Score.Enabled {
-				scorePluginMap[plugin.Name] = plugin.Weight
-			}
-		}
-
-		if profiles.Plugins.Filter != nil && len(profiles.Plugins.Filter.Enabled) > 0 {
-			filterPlugins = profiles.Plugins.Filter.Enabled
-		}
+	if schedulerConfig.Plugins.Filter != nil && len(schedulerConfig.Plugins.Filter.Enabled) > 0 {
+		filterPlugins = schedulerConfig.Plugins.Filter.Enabled
 	}
 	return scorePluginMap, filterPlugins, nil
 }
 
-func GetPluginArg(name string) *conf.PluginArgs {
-	if parameter, exist := PluginsArgs[name]; exist {
-		return &parameter
+func unmarshalPluginsConfig(schedulerConfig *conf.SchedulerConfiguration) error {
+	if len(schedulerConfig.PluginConfig) > 0 {
+		for _, pluginConfig := range schedulerConfig.PluginConfig {
+			PluginsArgs[pluginConfig.Name] = pluginConfig.Args
+		}
+		return nil
 	}
-	// return default value
-	return &conf.PluginArgs{MaxWaitingRequests: 10, MaxScore: 100.0, TTFTTPOTWeightFactor: 0.5, BlockSizeToHash: 64, MaxBlocksToMatch: 128, MaxHashCacheSize: 50000}
+	return fmt.Errorf("PluginsConfig is nil")
 }

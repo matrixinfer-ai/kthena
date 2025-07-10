@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/agiledragon/gomonkey/v2"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestLoadSchedulerConfig(t *testing.T) {
@@ -35,7 +34,7 @@ func TestLoadSchedulerConfig(t *testing.T) {
 					return []byte{}, nil
 				})
 			},
-			expectErrs: "failed to Unmarshal PluginsConfig: profiles is empty",
+			expectErrs: "failed to Unmarshal Plugins: Plugins is nil",
 		}, {
 			name: "invalid YAML syntax",
 			fn: func(patches *gomonkey.Patches) *gomonkey.Patches {
@@ -43,7 +42,7 @@ func TestLoadSchedulerConfig(t *testing.T) {
 					return []byte("{invalid: syntax}"), nil
 				})
 			},
-			expectErrs: "failed to Unmarshal PluginsConfig: profiles is empty",
+			expectErrs: "failed to Unmarshal Plugins: Plugins is nil",
 		},
 	}
 
@@ -61,26 +60,4 @@ func TestLoadSchedulerConfig(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestGetPluginArg(t *testing.T) {
-	testData, err := os.ReadFile("testdata/configmap.yaml")
-	if err != nil {
-		t.Fatalf("Failed to read Yaml:%v", err)
-	}
-
-	patches := gomonkey.NewPatches()
-	defer patches.Reset()
-	patches.ApplyFunc(os.ReadFile, func(string) ([]byte, error) {
-		return testData, nil
-	})
-
-	_, _, errs := LoadSchedulerConfig()
-	if errs != nil {
-		t.Errorf("unexpected error, got %v", errs)
-	}
-	pluginArgs := GetPluginArg("")
-	assert.Equal(t, 10, pluginArgs.MaxWaitingRequests)
-	pluginArgsNew := GetPluginArg("least-request")
-	assert.Equal(t, 12, pluginArgsNew.MaxWaitingRequests)
 }
