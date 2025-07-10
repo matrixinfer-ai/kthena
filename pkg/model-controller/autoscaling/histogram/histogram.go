@@ -2,9 +2,10 @@ package histogram
 
 import (
 	"fmt"
-	io_prometheus_client "github.com/prometheus/client_model/go"
 	"math"
 	"sort"
+
+	io_prometheus_client "github.com/prometheus/client_model/go"
 )
 
 type Snapshot struct {

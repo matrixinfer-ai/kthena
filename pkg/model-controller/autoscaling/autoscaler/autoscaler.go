@@ -1,11 +1,13 @@
 package autoscaler
 
 import (
+	"sort"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaling/datastructure"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaling/histogram"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaling/util"
-	"sort"
 )
 
 type Autoscaler struct {
@@ -18,14 +20,15 @@ type Autoscaler struct {
 	MinCorrectedForStable     *datastructure.RmqLineChartSlidingWindow[int32]
 	MinCorrectedForPanic      *datastructure.RmqLineChartSlidingWindow[int32]
 	GlobalInfo                *GlobalInfo
+	MetricTargets             map[string]float64
 }
 
 type HistogramInfo struct {
-	podStartTime string
-	histogram    *histogram.Snapshot
+	PodStartTime *metav1.Time
+	HistogramMap map[string]*histogram.Snapshot
 }
 
-func NewAutoscaler(behavior *v1alpha1.AutoscalingPolicyBehavior, globalInfo *GlobalInfo) *Autoscaler {
+func NewAutoscaler(behavior *v1alpha1.AutoscalingPolicyBehavior, globalInfo *GlobalInfo, metricTargets map[string]float64) *Autoscaler {
 	return &Autoscaler{
 		PanicModeEndsAt:           0,
 		PanicModeHoldMilliseconds: behavior.ScaleUp.PanicPolicy.PanicModeHold.Milliseconds(),
@@ -36,6 +39,7 @@ func NewAutoscaler(behavior *v1alpha1.AutoscalingPolicyBehavior, globalInfo *Glo
 		MinCorrectedForStable:     datastructure.NewMinimumLineChartSlidingWindow[int32](behavior.ScaleUp.StablePolicy.Period.Milliseconds()),
 		MinCorrectedForPanic:      datastructure.NewMinimumLineChartSlidingWindow[int32](behavior.ScaleUp.PanicPolicy.Period.Milliseconds()),
 		GlobalInfo:                globalInfo,
+		MetricTargets:             metricTargets,
 	}
 }
 
@@ -64,8 +68,8 @@ func (autoscaler *Autoscaler) IsPanicMode() bool {
 
 type GlobalInfo struct {
 	backendsInfo []*BackendInfo
-	minReplicas  int32
-	maxReplicas  int32
+	MinReplicas  int32
+	MaxReplicas  int32
 	scalingOrder []*ReplicaBlock
 }
 
@@ -73,7 +77,6 @@ type BackendInfo struct {
 	name        string
 	minReplicas int32
 	maxReplicas int32
-	cost        int64
 }
 
 type ReplicaBlock struct {
@@ -93,7 +96,6 @@ func NewGlobalInfo(backends []v1alpha1.ModelBackend, costExpansionRatePercent in
 			name:        backend.Name,
 			minReplicas: backend.MinReplicas,
 			maxReplicas: backend.MaxReplicas,
-			cost:        backend.Cost,
 		})
 		minReplicas += backend.MinReplicas
 		maxReplicas += backend.MaxReplicas
@@ -106,7 +108,7 @@ func NewGlobalInfo(backends []v1alpha1.ModelBackend, costExpansionRatePercent in
 				index:    int32(index),
 				name:     backend.Name,
 				replicas: replicas,
-				cost:     backend.Cost,
+				cost:     int64(backend.Cost),
 			})
 			continue
 		}
@@ -117,7 +119,7 @@ func NewGlobalInfo(backends []v1alpha1.ModelBackend, costExpansionRatePercent in
 				name:     backend.Name,
 				index:    int32(index),
 				replicas: currentLen,
-				cost:     backend.Cost * int64(currentLen),
+				cost:     int64(backend.Cost) * int64(currentLen),
 			})
 			replicas -= currentLen
 			packageLen = packageLen * float64(costExpansionRatePercent) / 100
@@ -131,8 +133,8 @@ func NewGlobalInfo(backends []v1alpha1.ModelBackend, costExpansionRatePercent in
 	})
 	return &GlobalInfo{
 		backendsInfo: backendsInfo,
-		minReplicas:  minReplicas,
-		maxReplicas:  maxReplicas,
+		MinReplicas:  minReplicas,
+		MaxReplicas:  maxReplicas,
 		scalingOrder: scalingOrder,
 	}
 }
@@ -142,8 +144,8 @@ func (globalInfo *GlobalInfo) RestoreReplicasOfEachBackend(replicas int32) map[s
 	for _, backend := range globalInfo.backendsInfo {
 		replicasMap[backend.name] = backend.minReplicas
 	}
-	replicas = min(max(replicas, globalInfo.minReplicas), globalInfo.maxReplicas)
-	replicas -= globalInfo.minReplicas
+	replicas = min(max(replicas, globalInfo.MinReplicas), globalInfo.MaxReplicas)
+	replicas -= globalInfo.MinReplicas
 	for _, block := range globalInfo.scalingOrder {
 		slot := min(replicas, block.replicas)
 		replicasMap[block.name] += slot

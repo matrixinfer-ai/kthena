@@ -5,4 +5,5 @@ const (
 	SloQuantileSlidingWindowSeconds = 60
 	SloQuantileDataKeepSeconds      = 300
 	SloQuantilePercentile           = 95
+	AutoscaleCtxTimeoutSeconds      = 3
 )

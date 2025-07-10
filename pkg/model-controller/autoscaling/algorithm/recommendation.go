@@ -1,54 +1,59 @@
 package algorithm
 
-import "math"
+import (
+	"math"
+
+	"k8s.io/klog/v2"
+)
 
 type MetricsMap = map[string]float64
 
 type GetRecommendedInstancesArgs struct {
-	minInstances          int32
-	maxInstances          int32
-	currentInstancesCount int32
-	tolerance             float64
-	metricTargets         MetricsMap
-	unreadyInstancesCount int32
-	readyInstancesMetrics []MetricsMap
-	externalMetrics       MetricsMap
+	MinInstances          int32
+	MaxInstances          int32
+	CurrentInstancesCount int32
+	Tolerance             float64
+	MetricTargets         MetricsMap
+	UnreadyInstancesCount int32
+	ReadyInstancesMetrics []MetricsMap
+	ExternalMetrics       MetricsMap
 }
 
 func GetRecommendedInstances(args GetRecommendedInstancesArgs) (recommendedInstances int32, skip bool) {
-	if args.currentInstancesCount < args.minInstances {
-		return args.minInstances, false
+	klog.InfoS("start to getRecommendedInstances", "args", args)
+	if args.CurrentInstancesCount < args.MinInstances {
+		return args.MinInstances, false
 	}
-	if args.currentInstancesCount > args.maxInstances {
-		return args.maxInstances, false
+	if args.CurrentInstancesCount > args.MaxInstances {
+		return args.MaxInstances, false
 	}
 	recommendedInstances = 0
 	skip = true
-	for name, target := range args.metricTargets {
-		externalMetric, ok := args.externalMetrics[name]
+	for name, target := range args.MetricTargets {
+		externalMetric, ok := args.ExternalMetrics[name]
 		if ok {
 			updateRecommendation(&recommendedInstances, &skip,
 				getDesiredInstancesForSingleExternalMetric(
-					args.currentInstancesCount,
-					args.tolerance,
+					args.CurrentInstancesCount,
+					args.Tolerance,
 					target,
 					externalMetric,
 				))
 		} else {
 			if desired, ok := getDesiredInstancesForSingleInstanceMetric(
-				args.currentInstancesCount,
-				args.tolerance,
+				args.CurrentInstancesCount,
+				args.Tolerance,
 				name,
 				target,
-				args.unreadyInstancesCount,
-				args.readyInstancesMetrics,
+				args.UnreadyInstancesCount,
+				args.ReadyInstancesMetrics,
 			); ok {
 				updateRecommendation(&recommendedInstances, &skip, desired)
 			}
 		}
 	}
 	if !skip {
-		recommendedInstances = min(max(recommendedInstances, args.minInstances), args.maxInstances)
+		recommendedInstances = min(max(recommendedInstances, args.MinInstances), args.MaxInstances)
 	}
 	return recommendedInstances, skip
 }
@@ -101,6 +106,8 @@ func getDesiredInstancesForSingleInstanceMetric(
 	}
 	ratio := currentMetricSum / float64(metricsCount) / target
 	shouldAddUnready := unreadyCount > 0 && getDirection(ratio) > 0
+	klog.InfoS("recommendation", "metricsCount", metricsCount, "currentMetricSum", currentMetricSum, "ratio", ratio,
+		"unreadyCount", unreadyCount, "shouldAddUnready", shouldAddUnready, "missingCount", missingCount, "tolerance", tolerance)
 	if !shouldAddUnready && missingCount == 0 {
 		if math.Abs(ratio-1.0) <= tolerance {
 			return currentCount, true

@@ -2,99 +2,95 @@ package algorithm
 
 import (
 	"math"
+
 	"matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaling/autoscaler"
 )
 
 type GetCorrectedInstancesArgs struct {
-	autoscaler           *autoscaler.Autoscaler
-	behavior             *v1alpha1.AutoscalingPolicyBehavior
-	minInstances         int32
-	maxInstances         int32
-	currentInstances     int32
-	recommendedInstances int32
+	Autoscaler           *autoscaler.Autoscaler
+	Behavior             *v1alpha1.AutoscalingPolicyBehavior
+	MinInstances         int32
+	MaxInstances         int32
+	CurrentInstances     int32
+	RecommendedInstances int32
 }
-
-const (
-	SelectPolicyOr  = "Or"
-	SelectPolicyAnd = "And"
-)
 
 func GetCorrectedInstances(args GetCorrectedInstancesArgs) int32 {
 	var corrected int32
-	if args.autoscaler.IsPanicMode() {
+	if args.Autoscaler.IsPanicMode() {
 		corrected = getCorrectedInstancesForPanic(args)
 	} else {
 		corrected = getCorrectedInstancesForStable(args)
 	}
-	return min(max(corrected, args.minInstances), args.maxInstances)
+	return min(max(corrected, args.MinInstances), args.MaxInstances)
 }
 
 func getCorrectedInstancesForPanic(args GetCorrectedInstancesArgs) int32 {
-	corrected := args.recommendedInstances
-	if pastSample, ok := args.autoscaler.MinCorrectedForPanic.GetBest(args.currentInstances); ok {
-		relativeConstraint := pastSample + int32(pastSample*args.behavior.ScaleUp.PanicPolicy.Percent/100)
+	corrected := args.RecommendedInstances
+	if pastSample, ok := args.Autoscaler.MinCorrectedForPanic.GetBest(args.CurrentInstances); ok {
+		relativeConstraint := pastSample + pastSample*(*args.Behavior.ScaleUp.PanicPolicy.Percent)/100
 		corrected = min(corrected, relativeConstraint)
 	}
-	corrected = max(corrected, args.currentInstances)
+	corrected = max(corrected, args.CurrentInstances)
 	return corrected
 }
 
 func getCorrectedInstancesForStable(args GetCorrectedInstancesArgs) int32 {
 	var corrected int32
 	switch {
-	case args.recommendedInstances < args.currentInstances:
+	case args.RecommendedInstances < args.CurrentInstances:
 		corrected = getCorrectedInstancesForStableScaleDown(args)
-	case args.recommendedInstances > args.currentInstances:
+	case args.RecommendedInstances > args.CurrentInstances:
 		corrected = getCorrectedInstancesForStableScaleUp(args)
 	default:
-		corrected = args.recommendedInstances
+		corrected = args.RecommendedInstances
 	}
 	return corrected
 }
 
 func getCorrectedInstancesForStableScaleDown(args GetCorrectedInstancesArgs) int32 {
-	corrected := args.recommendedInstances
-	if betterRecommendation, ok := args.autoscaler.MaxRecommendation.GetBest(); ok {
+	corrected := args.RecommendedInstances
+	if betterRecommendation, ok := args.Autoscaler.MaxRecommendation.GetBest(); ok {
 		corrected = max(corrected, betterRecommendation)
 	}
-	if pastSample, ok := args.autoscaler.MaxCorrected.GetBest(args.currentInstances); ok {
-		absoluteConstraint := pastSample - args.behavior.ScaleDown.Instances
-		relativeConstraint := pastSample - int32(pastSample*args.behavior.ScaleDown.Percent/100)
+	if pastSample, ok := args.Autoscaler.MaxCorrected.GetBest(args.CurrentInstances); ok {
+		absoluteConstraint := pastSample - *args.Behavior.ScaleDown.Instances
+		relativeConstraint := pastSample - pastSample*(*args.Behavior.ScaleDown.Percent)/100
 		var constraint int32
-		switch args.behavior.ScaleDown.SelectPolicy {
-		case SelectPolicyOr:
+		switch args.Behavior.ScaleDown.SelectPolicy {
+		case v1alpha1.SelectPolicyOr:
 			constraint = min(absoluteConstraint, relativeConstraint)
-		case SelectPolicyAnd:
+		case v1alpha1.SelectPolicyAnd:
 			constraint = max(absoluteConstraint, relativeConstraint)
 		default:
 			constraint = math.MinInt32
 		}
 		corrected = max(corrected, constraint)
 	}
-	corrected = min(corrected, args.currentInstances)
+	corrected = min(corrected, args.CurrentInstances)
 	return corrected
 }
 
 func getCorrectedInstancesForStableScaleUp(args GetCorrectedInstancesArgs) int32 {
-	corrected := args.recommendedInstances
-	if betterRecommendation, ok := args.autoscaler.MinRecommendation.GetBest(); ok {
+	corrected := args.RecommendedInstances
+	if betterRecommendation, ok := args.Autoscaler.MinRecommendation.GetBest(); ok {
 		corrected = min(corrected, betterRecommendation)
 	}
-	if pastSample, ok := args.autoscaler.MinCorrectedForStable.GetBest(args.currentInstances); ok {
-		absoluteConstraint := pastSample + args.behavior.ScaleUp.StablePolicy.Instances
-		relativeConstraint := pastSample + int32(pastSample*args.behavior.ScaleUp.StablePolicy.Percent/100)
+	if pastSample, ok := args.Autoscaler.MinCorrectedForStable.GetBest(args.CurrentInstances); ok {
+		absoluteConstraint := pastSample + *args.Behavior.ScaleUp.StablePolicy.Instances
+		relativeConstraint := pastSample + pastSample*(*args.Behavior.ScaleUp.StablePolicy.Percent)/100
 		var constraint int32
-		switch args.behavior.ScaleUp.StablePolicy.SelectPolicy {
-		case SelectPolicyOr:
+		switch args.Behavior.ScaleUp.StablePolicy.SelectPolicy {
+		case v1alpha1.SelectPolicyOr:
 			constraint = max(absoluteConstraint, relativeConstraint)
-		case SelectPolicyAnd:
+		case v1alpha1.SelectPolicyAnd:
 			constraint = min(absoluteConstraint, relativeConstraint)
 		default:
 			constraint = math.MaxInt32
 		}
 		corrected = min(corrected, constraint)
 	}
-	corrected = max(corrected, args.currentInstances)
+	corrected = max(corrected, args.CurrentInstances)
 	return corrected
 }
