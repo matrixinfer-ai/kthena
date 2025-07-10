@@ -30,6 +30,7 @@ import (
 	versioned "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
 	internalinterfaces "matrixinfer.ai/matrixinfer/client-go/informers/externalversions/internalinterfaces"
 	networking "matrixinfer.ai/matrixinfer/client-go/informers/externalversions/networking"
+	registry "matrixinfer.ai/matrixinfer/client-go/informers/externalversions/registry"
 	workload "matrixinfer.ai/matrixinfer/client-go/informers/externalversions/workload"
 )
 
@@ -256,11 +257,16 @@ type SharedInformerFactory interface {
 	InformerFor(obj runtime.Object, newFunc internalinterfaces.NewInformerFunc) cache.SharedIndexInformer
 
 	Networking() networking.Interface
+	Registry() registry.Interface
 	Workload() workload.Interface
 }
 
 func (f *sharedInformerFactory) Networking() networking.Interface {
 	return networking.New(f, f.namespace, f.tweakListOptions)
+}
+
+func (f *sharedInformerFactory) Registry() registry.Interface {
+	return registry.New(f, f.namespace, f.tweakListOptions)
 }
 
 func (f *sharedInformerFactory) Workload() workload.Interface {

@@ -1,9 +1,0 @@
-apiVersion: registry.matrixinfer.ai/v1
-kind: AutoscalingPolicy
-metadata:
-  labels:
-    app.kubernetes.io/name: matrixinfer
-    app.kubernetes.io/managed-by: kustomize
-  name: autoscalingpolicy-sample
-spec:
-  # TODO(user): Add fields here

@@ -1,9 +1,0 @@
-kind: Kustomization
-apiVersion: kustomize.config.k8s.io/v1beta1
-resources:
-  - bases/networking.matrixinfer.ai_modelroutes.yaml
-  - bases/networking.matrixinfer.ai_modelservers.yaml
-  - bases/registry.matrixinfer.ai_autoscalingpolicies.yaml
-  - bases/registry.matrixinfer.ai_loraadapters.yaml
-  - bases/registry.matrixinfer.ai_models.yaml
-  - bases/workload.matrixinfer.ai_modelinfers.yaml
