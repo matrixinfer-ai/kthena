@@ -85,7 +85,9 @@ func TestBuildModelInferCR(t *testing.T) {
 			} else {
 				assert.Nil(t, err)
 			}
-			assert.Equal(t, tt.expected, got)
+			actualYAML, _ := yaml.Marshal(got)
+			expectedYAML, _ := yaml.Marshal(tt.expected)
+			assert.Equal(t, string(expectedYAML), string(actualYAML))
 		})
 	}
 }

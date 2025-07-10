@@ -88,7 +88,7 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 		return nil, err
 	}
 	modelDownloadPath := getCachePath(backend.CacheURI) + getMountPath(backend.ModelURI)
-	commands, err := buildCommands(backend, modelDownloadPath, workersMap)
+	commands, err := buildCommands(&backend.Config, modelDownloadPath, workersMap)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +149,7 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 		return nil, err
 	}
 	modelDownloadPath := getCachePath(backend.CacheURI) + getMountPath(backend.ModelURI)
-	commands, err := buildCommands(backend, modelDownloadPath, workersMap)
+	commands, err := buildCommands(&backend.Config, modelDownloadPath, workersMap)
 	if err != nil {
 		return nil, err
 	}
@@ -217,10 +217,10 @@ func mapWorkers(workers []registry.ModelWorker) map[registry.ModelWorkerType]*re
 }
 
 // buildCommands constructs the command list for the backend.
-func buildCommands(backend *registry.ModelBackend, modelDownloadPath string,
+func buildCommands(config *apiextensionsv1.JSON, modelDownloadPath string,
 	workersMap map[registry.ModelWorkerType]*registry.ModelWorker) ([]string, error) {
 	commands := []string{"python", "-m", "vllm.entrypoints.openai.api_server", "--model", modelDownloadPath}
-	args, err := parseArgs(&backend.Config)
+	args, err := parseArgs(config)
 	commands = append(commands, args...)
 	if workersMap[registry.ModelWorkerTypeServer] != nil && workersMap[registry.ModelWorkerTypeServer].Pods > 1 {
 		commands = append(commands, "--distributed_executor_backend", "ray")

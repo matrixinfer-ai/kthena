@@ -15,9 +15,11 @@ spec:
       maxReplicas: 1
       minReplicas: 1
       config:
-        gpu-memory-utilization: 0.95
-        max-model-len: 1024
+        served-model-name: ds-r1-qwen-7b-pd
         tensor-parallel-size: 16
+        gpu-memory-utilization: 0.95
+        disable-frontend-multiprocessing: ""
+        max-model-len: 1024
         trust-remote-code: ""
         quantization: ascend
       env:
