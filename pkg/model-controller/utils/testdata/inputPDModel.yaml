@@ -1,0 +1,47 @@
+apiVersion: registry.matrixinfer.ai/v1alpha1
+kind: Model
+metadata:
+  name: ds-r1-qwen-7b-pd
+  namespace: demo
+  uid: randomUID
+spec:
+  name: ds-r1-qwen-7b-pd
+  owner: example
+  backends:
+    - name: ds-r1-qwen-7b-pd
+      type: vLLMDisaggregated
+      modelURI: s3://aios_models/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
+      cacheURI: hostpath:///cache
+      maxReplicas: 1
+      minReplicas: 1
+      config:
+        gpu-memory-utilization: 0.95
+        max-model-len: 1024
+        tensor-parallel-size: 16
+        trust-remote-code: ""
+        quantization: ascend
+      env:
+        - name: ENDPOINT
+          value: https://obs.test.com
+      envFrom:
+        - secretRef:
+            name: downloader-secrets
+      workers:
+        - image: vllm-prefill:latest
+          pods: 1
+          replicas: 1
+          resources:
+            requests:
+              cpu: 100m
+              huawei.com/ascend-1980: "1"
+              memory: 1Gi
+          type: prefill
+        - image: vllm-decode:latest
+          pods: 1
+          replicas: 1
+          resources:
+            requests:
+              cpu: 100m
+              huawei.com/ascend-1980: "1"
+              memory: 1Gi
+          type: decode

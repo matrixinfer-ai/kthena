@@ -63,16 +63,6 @@ spec:
                   - --quantization
                   - ascend
                   - --kv-transfer-config
-                  - '{"kv_rank":0, "kv_connector":"AscendSimpleConnector","kv_buffer_device":"npu","kv_role":"kv_producer",
-              "kv_parallel_size":2,"kv_connector_extra_config":{"prefill_device_ips":
-              ["214.71.150.137", "214.71.173.73", "214.71.230.168", "214.71.161.230",
-              "214.71.128.255", "214.71.130.82", "214.71.160.69", "214.71.189.91",
-              "214.71.251.142", "214.71.149.222", "214.71.245.25", "214.71.153.236",
-              "214.71.148.108", "214.71.154.164", "214.71.234.231", "214.71.167.204"],"decode_device_ips":
-              ["214.71.227.226", "214.71.186.209", "214.71.208.127", "214.71.196.104",
-              "214.71.128.44", "214.71.174.225", "214.71.221.13", "214.71.225.152",
-              "214.71.151.147", "214.71.200.47", "214.71.239.51", "214.71.203.53",
-              "214.71.190.45", "214.71.145.113", "214.71.166.79", "214.71.142.27"]}}'
                 env:
                   - name: HF_HUB_OFFLINE
                     value: "1"
@@ -112,7 +102,7 @@ spec:
                     memory: 1Gi
                 volumeMounts:
                   - mountPath: /cache/568a486051fd302c338d84946c4f3d48
-                    name: models
+                    name: ds-r1-qwen-7b-pd-weights
                     readOnly: true
             initContainers:
               - args:
@@ -134,7 +124,7 @@ spec:
               - hostPath:
                   path: /cache/568a486051fd302c338d84946c4f3d48
                   type: DirectoryOrCreate
-                name: models
+                name: ds-r1-qwen-7b-pd-weights
         name: prefill
         replicas: 1
         workerReplicas: 0
@@ -184,16 +174,6 @@ spec:
                   - --quantization
                   - ascend
                   - --kv-transfer-config
-                  - '{"kv_rank":1, "kv_connector":"AscendSimpleConnector","kv_buffer_device":"npu","kv_role":"kv_consumer",
-              "kv_parallel_size":2,"kv_connector_extra_config":{"prefill_device_ips":
-              ["214.71.150.137", "214.71.173.73", "214.71.230.168", "214.71.161.230",
-              "214.71.128.255", "214.71.130.82", "214.71.160.69", "214.71.189.91",
-              "214.71.251.142", "214.71.149.222", "214.71.245.25", "214.71.153.236",
-              "214.71.148.108", "214.71.154.164", "214.71.234.231", "214.71.167.204"],"decode_device_ips":
-              ["214.71.227.226", "214.71.186.209", "214.71.208.127", "214.71.196.104",
-              "214.71.128.44", "214.71.174.225", "214.71.221.13", "214.71.225.152",
-              "214.71.151.147", "214.71.200.47", "214.71.239.51", "214.71.203.53",
-              "214.71.190.45", "214.71.145.113", "214.71.166.79", "214.71.142.27"]}}'
                 env:
                   - name: HF_HUB_OFFLINE
                     value: "1"
@@ -251,7 +231,7 @@ spec:
               - hostPath:
                   path: /cache/568a486051fd302c338d84946c4f3d48
                   type: DirectoryOrCreate
-                name: models
+                name: ds-r1-qwen-7b-pd-weights
         name: decode
         replicas: 1
         workerReplicas: 0

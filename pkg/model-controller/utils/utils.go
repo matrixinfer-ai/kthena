@@ -222,7 +222,7 @@ func buildCommands(backend *registry.ModelBackend, modelDownloadPath string,
 	commands := []string{"python", "-m", "vllm.entrypoints.openai.api_server", "--model", modelDownloadPath}
 	args, err := parseArgs(&backend.Config)
 	commands = append(commands, args...)
-	if workersMap[registry.ModelWorkerTypeServer].Pods > 1 {
+	if workersMap[registry.ModelWorkerTypeServer] != nil && workersMap[registry.ModelWorkerTypeServer].Pods > 1 {
 		commands = append(commands, "--distributed_executor_backend", "ray")
 		commands = []string{"bash", "-c", fmt.Sprintf("chmod u+x %s && %s leader --ray_cluster_size=%d --num-gpus=%d && %s", VllmMultiNodeServingScriptPath, VllmMultiNodeServingScriptPath, workersMap[registry.ModelWorkerTypeServer].Pods, getDeviceNum(workersMap[registry.ModelWorkerTypeServer]), strings.Join(commands, " "))}
 	}

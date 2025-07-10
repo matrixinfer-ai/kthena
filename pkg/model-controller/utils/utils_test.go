@@ -18,14 +18,10 @@ package utils
 
 import (
 	"os"
+	"sigs.k8s.io/yaml"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/yaml"
 	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 )
@@ -69,136 +65,16 @@ func TestBuildModelInferCR(t *testing.T) {
 		expectErrMsg string
 	}{
 		{
-			name: "CacheVolume_HuggingFace_HostPath",
-			input: &registry.Model{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-model",
-					Namespace: "default",
-					UID:       "randomUID",
-				},
-				Spec: registry.ModelSpec{
-					Backends: []registry.ModelBackend{
-						{
-							Name: "backend1",
-							Type: registry.ModelBackendTypeVLLM,
-							Config: apiextensionsv1.JSON{
-								Raw: []byte(`{"max-model-len": 32768, "block-size": 128, "trust-remote-code": "", "tensor-parallel-size": 2, "gpu-memory-utilization": 0.9}`),
-							},
-							MinReplicas: 1,
-							ModelURI:    "s3://aios_models/deepseek-ai/DeepSeek-V3-W8A8/vllm-ascend",
-							CacheURI:    "hostpath:///tmp/test",
-							Env: []corev1.EnvVar{
-								{
-									Name:  "ENDPOINT",
-									Value: "https://obs.test.com",
-								},
-								{
-									Name:  "RUNTIME_PORT",
-									Value: "8900",
-								},
-							},
-							EnvFrom: []corev1.EnvFromSource{
-								{
-									SecretRef: &corev1.SecretEnvSource{
-										LocalObjectReference: corev1.LocalObjectReference{
-											Name: "test-secret",
-										},
-									},
-								},
-							},
-							Workers: []registry.ModelWorker{
-								{
-									Type:  registry.ModelWorkerTypeServer,
-									Pods:  1,
-									Image: "vllm-server:latest",
-									Resources: corev1.ResourceRequirements{
-										Requests: corev1.ResourceList{
-											corev1.ResourceCPU:                            resource.MustParse("100m"),
-											corev1.ResourceMemory:                         resource.MustParse("1Gi"),
-											corev1.ResourceName("huawei.com/ascend-1980"): resource.MustParse("1"),
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			expected: []*workload.ModelInfer{loadTestYAML(t, "testdata/expectModelInfer.yaml")},
+			name:     "CacheVolume_HuggingFace_HostPath",
+			input:    loadInputYAML(t, "testdata/inputModel.yaml"),
+			expected: []*workload.ModelInfer{loadExpectedYAML(t, "testdata/expectModelInfer.yaml")},
 		},
 		{
-			name: "pd disaggregation",
-			input: &registry.Model{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "ds-r1-qwen-7b-pd",
-					Namespace: "demo",
-					UID:       "randomUID",
-				},
-				Spec: registry.ModelSpec{
-					Name:  "ds-r1-qwen-7b-pd",
-					Owner: "example",
-					Backends: []registry.ModelBackend{
-						{
-							Name: "ds-r1-qwen-7b-pd",
-							Type: registry.ModelBackendTypeVLLMDisaggregated,
-							Config: apiextensionsv1.JSON{
-								Raw: []byte(`{"max-model-len": 1024, "trust-remote-code": "", "tensor-parallel-size": 16, "gpu-memory-utilization": 0.95}`),
-							},
-							ModelURI: "s3://aios_models/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
-							CacheURI: "hostpath:///cache",
-							EnvFrom: []corev1.EnvFromSource{
-								{
-									SecretRef: &corev1.SecretEnvSource{
-										LocalObjectReference: corev1.LocalObjectReference{
-											Name: "downloader-secrets",
-										},
-									},
-								},
-							},
-							Env: []corev1.EnvVar{
-								{
-									Name:  "ENDPOINT",
-									Value: "https://obs.test.com",
-								},
-							},
-							MinReplicas: 1,
-							MaxReplicas: 1,
-							Workers: []registry.ModelWorker{
-								{
-									Type:     registry.ModelWorkerTypePrefill,
-									Pods:     1,
-									Replicas: 1,
-									Image:    "vllm-prefill:latest",
-									Resources: corev1.ResourceRequirements{
-										Requests: corev1.ResourceList{
-											corev1.ResourceCPU:                            resource.MustParse("100m"),
-											corev1.ResourceMemory:                         resource.MustParse("1Gi"),
-											corev1.ResourceName("huawei.com/ascend-1980"): resource.MustParse("1"),
-										},
-									},
-								},
-								{
-									Type:     registry.ModelWorkerTypeDecode,
-									Pods:     1,
-									Replicas: 1,
-									Image:    "vllm-decode:latest",
-									Resources: corev1.ResourceRequirements{
-										Requests: corev1.ResourceList{
-											corev1.ResourceCPU:                            resource.MustParse("100m"),
-											corev1.ResourceMemory:                         resource.MustParse("1Gi"),
-											corev1.ResourceName("huawei.com/ascend-1980"): resource.MustParse("1"),
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			expected: []*workload.ModelInfer{loadTestYAML(t, "testdata/expectModelInferDisaggregation.yaml")},
+			name:     "PD disaggregation",
+			input:    loadInputYAML(t, "testdata/inputPDModel.yaml"),
+			expected: []*workload.ModelInfer{loadExpectedYAML(t, "testdata/expectModelInferDisaggregation.yaml")},
 		},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := BuildModelInferCR(tt.input)
@@ -213,7 +89,7 @@ func TestBuildModelInferCR(t *testing.T) {
 	}
 }
 
-func loadTestYAML(t *testing.T, path string) *workload.ModelInfer {
+func loadExpectedYAML(t *testing.T, path string) *workload.ModelInfer {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("Failed to read YAML: %v", err)
@@ -223,4 +99,16 @@ func loadTestYAML(t *testing.T, path string) *workload.ModelInfer {
 		t.Fatalf("Failed to unmarshal YAML: %v", err)
 	}
 	return &infer
+}
+
+func loadInputYAML(t *testing.T, path string) *registry.Model {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("Failed to read YAML: %v", err)
+	}
+	var model registry.Model
+	if err := yaml.Unmarshal(data, &model); err != nil {
+		t.Fatalf("Failed to unmarshal YAML: %v", err)
+	}
+	return &model
 }

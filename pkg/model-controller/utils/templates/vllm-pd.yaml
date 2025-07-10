@@ -18,7 +18,7 @@ spec:
         entryTemplate:
           spec:
             initContainers:
-              - name: ${MODEL_NAME}-downloader
+              - name: downloader
                 imagePullPolicy: Always
                 image: ${MODEL_INFER_DOWNLOADER_IMAGE}
                 args:
