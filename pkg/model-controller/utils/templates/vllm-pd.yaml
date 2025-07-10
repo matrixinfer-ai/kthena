@@ -81,10 +81,10 @@ spec:
                 requiredDuringSchedulingIgnoredDuringExecution:
                   nodeSelectorTerms:
                     - matchExpressions:
-                        - key: volcano.sh/hypernode
+                        - key: node.kubernetes.io/npu.chip.name
                           operator: In
                           values:
-                            - 78533445-4b1f-11f0-a3ab-0255ac10007d
+                            - Ascend910
         workerReplicas: 0
         workerTemplate:
           spec:
@@ -152,10 +152,10 @@ spec:
                 requiredDuringSchedulingIgnoredDuringExecution:
                   nodeSelectorTerms:
                     - matchExpressions:
-                        - key: volcano.sh/hypernode
+                        - key: node.kubernetes.io/npu.chip.name
                           operator: In
                           values:
-                            - f0189bcc-1479-11f0-8512-0255ac100079
+                            - Ascend910
             volumes: ${VOLUMES}
         workerReplicas: 0
         workerTemplate:
