@@ -59,7 +59,7 @@ func NewModelRouteController(
 		store:            store,
 	}
 
-	modelRouteInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, _ = modelRouteInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.enqueueModelRoute,
 		UpdateFunc: func(old, new interface{}) {
 			controller.enqueueModelRoute(new)

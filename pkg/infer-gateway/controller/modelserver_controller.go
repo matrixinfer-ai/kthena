@@ -27,13 +27,11 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes"
 	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
-	"matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
 	informersv1alpha1 "matrixinfer.ai/matrixinfer/client-go/informers/externalversions"
 	listerv1alpha1 "matrixinfer.ai/matrixinfer/client-go/listers/networking/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
@@ -41,9 +39,6 @@ import (
 )
 
 type ModelServerController struct {
-	matrixinferclientset versioned.Interface
-	kubeclientset        kubernetes.Interface
-
 	modelServerLister listerv1alpha1.ModelServerLister
 	podLister         corelisters.PodLister
 
@@ -71,7 +66,7 @@ func NewModelServerController(
 		store:             store,
 	}
 
-	modelServerInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, _ = modelServerInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.enqueueModelServer,
 		UpdateFunc: func(old, new interface{}) {
 			controller.enqueueModelServer(new)
