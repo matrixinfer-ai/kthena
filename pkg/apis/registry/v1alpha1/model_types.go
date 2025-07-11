@@ -54,9 +54,6 @@ type ModelBackend struct {
 	Name string `json:"name"`
 	// Type is the type of the backend.
 	Type ModelBackendType `json:"type"`
-	// Config contains backend-specific configuration in JSON format.
-	// +optional
-	Config apiextensionsv1.JSON `json:"config,omitempty"`
 	// ModelURI is the URI where the model is stored.
 	// +kubebuilder:validation:Pattern=`^(hf://|s3://|pvc://).+`
 	ModelURI string `json:"modelURI"`
@@ -146,6 +143,9 @@ type ModelWorker struct {
 	// Affinity specifies the affinity rules for scheduling the worker pods.
 	// +optional
 	Affinity corev1.Affinity `json:"affinity,omitempty"`
+	// Config contains worker-specific configuration in JSON format.
+	// +optional
+	Config apiextensionsv1.JSON `json:"config,omitempty"`
 }
 
 // ModelWorkerType defines the type of model worker.

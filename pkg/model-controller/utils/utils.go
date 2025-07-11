@@ -37,88 +37,137 @@ import (
 )
 
 const (
-	ModelInferOwnerKey = "model.uid"
-
-	CacheURIPrefixPVC      = "pvc://"
-	CacheURIPrefixHostPath = "hostpath://"
-	URIPrefixSeparator     = "://"
-
-	VllmTemplatePath              = "templates/vllm.yaml"
-	VllmDisaggregatedTemplatePath = "templates/vllm-pd.yaml"
-
+	ModelInferOwnerKey             = "model.uid"
+	CacheURIPrefixPVC              = "pvc://"
+	CacheURIPrefixHostPath         = "hostpath://"
+	URIPrefixSeparator             = "://"
+	VllmTemplatePath               = "templates/vllm.yaml"
+	VllmDisaggregatedTemplatePath  = "templates/vllm-pd.yaml"
 	VllmMultiNodeServingScriptPath = "/vllm-workspace/vllm/examples/online_serving/multi-node-serving.sh"
 )
 
+//go:embed templates/*
+var templateFS embed.FS
+
+var XPUList = []corev1.ResourceName{"nvidia.com/gpu", "huawei.com/ascend-1980"}
+
+// BuildModelInferCR creates ModelInfer objects based on the model's backends.
 func BuildModelInferCR(model *registry.Model) ([]*workload.ModelInfer, error) {
-	infers := make([]*workload.ModelInfer, 0, len(model.Spec.Backends))
-	for backendIdx, backend := range model.Spec.Backends {
+	var infers []*workload.ModelInfer
+	for idx, backend := range model.Spec.Backends {
+		var infer *workload.ModelInfer
+		var err error
 		switch backend.Type {
 		case registry.ModelBackendTypeVLLM:
-			infer, err := buildVllmModelInfer(model, backendIdx)
-			if err != nil {
-				return nil, err
-			}
-			infers = append(infers, infer)
+			infer, err = buildVllmModelInfer(model, idx)
 		case registry.ModelBackendTypeVLLMDisaggregated:
-			infer, err := buildVllmDisaggregatedModelInfer(model, backendIdx)
-			if err != nil {
-				return nil, err
-			}
-			infers = append(infers, infer)
+			infer, err = buildVllmDisaggregatedModelInfer(model, idx)
 		default:
 			return nil, fmt.Errorf("not support model backend type: %s", backend.Type)
 		}
+		if err != nil {
+			return nil, err
+		}
+		infers = append(infers, infer)
 	}
 	return infers, nil
 }
 
-func buildVllmDisaggregatedModelInfer(model *registry.Model, backendIdx int) (*workload.ModelInfer, error) {
-	backend := &model.Spec.Backends[backendIdx]
-	workersMap := make(map[registry.ModelWorkerType]*registry.ModelWorker, len(backend.Workers))
-	for _, worker := range backend.Workers {
-		workersMap[worker.Type] = &worker
+// buildVllmDisaggregatedModelInfer handles VLLM disaggregated backend creation.
+func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, error) {
+	backend := &model.Spec.Backends[idx]
+	workersMap := mapWorkers(backend.Workers)
+	if workersMap[registry.ModelWorkerTypePrefill] == nil {
+		return nil, fmt.Errorf("prefill worker not found in backend: %s", backend.Name)
 	}
-
-	data := map[string]interface{}{}
-	// TODO: insert params into data map
-	modelInfer, err := loadModelInferTemplate(VllmDisaggregatedTemplatePath, &data)
-	if err != nil {
-		return nil, err
+	if workersMap[registry.ModelWorkerTypeDecode] == nil {
+		return nil, fmt.Errorf("decode worker not found in backend: %s", backend.Name)
 	}
-	return modelInfer, nil
-}
-
-func buildVllmModelInfer(model *registry.Model, backendIdx int) (*workload.ModelInfer, error) {
-	backend := &model.Spec.Backends[backendIdx]
-	workersMap := make(map[registry.ModelWorkerType]*registry.ModelWorker, len(backend.Workers))
-	for _, worker := range backend.Workers {
-		workersMap[worker.Type] = &worker
-	}
-	if workersMap[registry.ModelWorkerTypeServer] == nil {
-		return nil, fmt.Errorf("not found server worker in backend: %s", backend.Name)
-	}
-
 	cacheVolume, err := buildCacheVolume(backend)
 	if err != nil {
 		return nil, err
 	}
+	modelDownloadPath := getCachePath(backend.CacheURI) + getMountPath(backend.ModelURI)
+	var preFillCommand []string
+	var decodeCommand []string
+	for _, worker := range backend.Workers {
+		if worker.Type == registry.ModelWorkerTypePrefill {
+			preFillCommand, err = buildCommands(&worker.Config, modelDownloadPath, workersMap)
+			if err != nil {
+				return nil, err
+			}
+		} else if worker.Type == registry.ModelWorkerTypeDecode {
+			decodeCommand, err = buildCommands(&worker.Config, modelDownloadPath, workersMap)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	data := map[string]interface{}{
+		"MODEL_INFER_TEMPLATE_METADATA": &metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-%d-%s-instance", model.Name, idx, strings.ToLower(string(backend.Type))),
+			Namespace: model.Namespace,
+			Labels: map[string]string{
+				ModelInferOwnerKey: string(model.UID),
+			},
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: registry.GroupVersion.String(),
+					Kind:       registry.ModelKind,
+					Name:       model.Name,
+					UID:        model.UID,
+				},
+			},
+		},
+		"VOLUME_MOUNTS": []corev1.VolumeMount{{
+			Name:      cacheVolume.Name,
+			MountPath: getCachePath(backend.CacheURI),
+		}},
+		"VOLUMES": []*corev1.Volume{
+			cacheVolume,
+		},
+		"MODEL_NAME":                   model.Name,
+		"MODEL_URL":                    backend.ModelURI,
+		"BACKEND_REPLICAS":             backend.MinReplicas, // todo: backend replicas
+		"MODEL_DOWNLOAD_ENVFROM":       backend.EnvFrom,
+		"ENGINE_PREFILL_COMMAND":       preFillCommand,
+		"ENGINE_DECODE_COMMAND":        decodeCommand,
+		"MODEL_DOWNLOAD_PATH":          modelDownloadPath,
+		"MODEL_INFER_DOWNLOADER_IMAGE": config.Config.GetModelInferDownloaderImage(),
+		"MODEL_INFER_RUNTIME_IMAGE":    config.Config.GetModelInferRuntimeImage(),
+		"MODEL_INFER_RUNTIME_PORT":     getEnvValueOrDefault(backend, "RUNTIME_PORT", "8100"),
+		"MODEL_INFER_RUNTIME_URL":      getEnvValueOrDefault(backend, "RUNTIME_URL", "http://localhost:8000/metrics"),
+		"MODEL_INFER_RUNTIME_ENGINE":   strings.ToLower(string(backend.Type)),
+		"PREFILL_REPLICAS":             workersMap[registry.ModelWorkerTypePrefill].Replicas,
+		"DECODE_REPLICAS":              workersMap[registry.ModelWorkerTypeDecode].Replicas,
+		"ENGINE_DECODE_RESOURCES":      workersMap[registry.ModelWorkerTypeDecode].Resources,
+		"ENGINE_DECODE_IMAGE":          workersMap[registry.ModelWorkerTypeDecode].Image,
+		"ENGINE_PREFILL_RESOURCES":     workersMap[registry.ModelWorkerTypePrefill].Resources,
+		"ENGINE_PREFILL_IMAGE":         workersMap[registry.ModelWorkerTypePrefill].Image,
+	}
+	return loadModelInferTemplate(VllmDisaggregatedTemplatePath, &data)
+}
 
-	weightsPath := getCachePath(backend.CacheURI) + getMountPath(backend.ModelURI)
-	commands := []string{"python", "-m", "vllm.entrypoints.openai.api_server", "--model", weightsPath}
-	args, err := parseArgs(&backend.Config)
+// buildVllmModelInfer handles VLLM backend creation.
+func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, error) {
+	backend := &model.Spec.Backends[idx]
+	workersMap := mapWorkers(backend.Workers)
+	if workersMap[registry.ModelWorkerTypeServer] == nil {
+		return nil, fmt.Errorf("server worker not found in backend: %s", backend.Name)
+	}
+	cacheVolume, err := buildCacheVolume(backend)
 	if err != nil {
 		return nil, err
 	}
-	commands = append(commands, args...)
-
-	if workersMap[registry.ModelWorkerTypeServer].Pods > 1 {
-		commands = append(commands, "--distributed_executor_backend", "ray")
-		commands = []string{"bash", "-c", fmt.Sprintf("chmod u+x %s && %s leader --ray_cluster_size=%d --num-gpus=%d && %s", VllmMultiNodeServingScriptPath, VllmMultiNodeServingScriptPath, workersMap[registry.ModelWorkerTypeServer].Pods, getDeviceNum(workersMap[registry.ModelWorkerTypeServer]), strings.Join(commands, " "))}
+	modelDownloadPath := getCachePath(backend.CacheURI) + getMountPath(backend.ModelURI)
+	// only one worker in such circumstance so get the first worker's config as commands
+	commands, err := buildCommands(&backend.Workers[0].Config, modelDownloadPath, workersMap)
+	if err != nil {
+		return nil, err
 	}
-
 	data := map[string]interface{}{
 		"MODEL_INFER_TEMPLATE_METADATA": &metav1.ObjectMeta{
-			Name:      model.Name + "-" + strconv.Itoa(backendIdx) + "-" + strings.ToLower(string(backend.Type)) + "-instance",
+			Name:      fmt.Sprintf("%s-%d-%s-instance", model.Name, idx, strings.ToLower(string(backend.Type))),
 			Namespace: model.Namespace,
 			Labels: map[string]string{
 				ModelInferOwnerKey: string(model.UID),
@@ -154,7 +203,7 @@ func buildVllmModelInfer(model *registry.Model, backendIdx int) (*workload.Model
 			MountPath: getCachePath(backend.CacheURI),
 		}},
 		"MODEL_URL":                    backend.ModelURI,
-		"MODEL_DOWNLOAD_PATH":          weightsPath,
+		"MODEL_DOWNLOAD_PATH":          modelDownloadPath,
 		"MODEL_DOWNLOAD_ENV":           getEnvVarOrDefault(backend, "ENDPOINT", ""),
 		"MODEL_DOWNLOAD_ENVFROM":       backend.EnvFrom,
 		"MODEL_INFER_DOWNLOADER_IMAGE": config.Config.GetModelInferDownloaderImage(),
@@ -167,12 +216,29 @@ func buildVllmModelInfer(model *registry.Model, backendIdx int) (*workload.Model
 		"ENGINE_SERVER_COMMAND":        commands,
 		"WORKER_REPLICAS":              workersMap[registry.ModelWorkerTypeServer].Pods - 1,
 	}
+	return loadModelInferTemplate(VllmTemplatePath, &data)
+}
 
-	modelInfer, err := loadModelInferTemplate(VllmTemplatePath, &data)
-	if err != nil {
-		return nil, err
+// mapWorkers creates a map of workers by type.
+func mapWorkers(workers []registry.ModelWorker) map[registry.ModelWorkerType]*registry.ModelWorker {
+	workersMap := make(map[registry.ModelWorkerType]*registry.ModelWorker, len(workers))
+	for _, worker := range workers {
+		workersMap[worker.Type] = &worker
 	}
-	return modelInfer, nil
+	return workersMap
+}
+
+// buildCommands constructs the command list for the backend.
+func buildCommands(config *apiextensionsv1.JSON, modelDownloadPath string,
+	workersMap map[registry.ModelWorkerType]*registry.ModelWorker) ([]string, error) {
+	commands := []string{"python", "-m", "vllm.entrypoints.openai.api_server", "--model", modelDownloadPath}
+	args, err := parseArgs(config)
+	commands = append(commands, args...)
+	if workersMap[registry.ModelWorkerTypeServer] != nil && workersMap[registry.ModelWorkerTypeServer].Pods > 1 {
+		commands = append(commands, "--distributed_executor_backend", "ray")
+		commands = []string{"bash", "-c", fmt.Sprintf("chmod u+x %s && %s leader --ray_cluster_size=%d --num-gpus=%d && %s", VllmMultiNodeServingScriptPath, VllmMultiNodeServingScriptPath, workersMap[registry.ModelWorkerTypeServer].Pods, getDeviceNum(workersMap[registry.ModelWorkerTypeServer]), strings.Join(commands, " "))}
+	}
+	return commands, err
 }
 
 // getMountPath returns the mount path for the given ModelBackend in the format "/<backend.Name>".
@@ -249,11 +315,6 @@ func getEnvValueOrDefault(backend *registry.ModelBackend, name string, defaultVa
 	}
 	return defaultValue
 }
-
-//go:embed templates/*
-var templateFS embed.FS
-
-var XPUList = []corev1.ResourceName{"nvidia.com/gpu", "huawei.com/ascend-1980"}
 
 func getDeviceNum(worker *registry.ModelWorker) int64 {
 	sum := int64(0)
@@ -371,6 +432,7 @@ func replaceEmbeddedPlaceholders(s string, values *map[string]interface{}) (stri
 	return result.String(), nil
 }
 
+// loadModelInferTemplate loads and processes the template file.
 func loadModelInferTemplate(templatePath string, data *map[string]interface{}) (*workload.ModelInfer, error) {
 	templateBytes, err := templateFS.ReadFile(templatePath)
 	if err != nil {
