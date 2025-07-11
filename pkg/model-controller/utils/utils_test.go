@@ -20,15 +20,11 @@ import (
 	"os"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/yaml"
-	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
+	"sigs.k8s.io/yaml"
 
+	"github.com/stretchr/testify/assert"
 	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
+	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 )
 
 func TestGetMountPath(t *testing.T) {
@@ -62,6 +58,42 @@ func TestGetMountPath(t *testing.T) {
 	}
 }
 
+func TestGetCachePath(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "normal case",
+			input:    "pvc://my-cache-path",
+			expected: "my-cache-path",
+		},
+		{
+			name:     "empty cache path",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "invalid cache path",
+			input:    "invalidpath",
+			expected: "",
+		},
+		{
+			name:     "multiple separators",
+			input:    "pvc://path/with/multiple/separators",
+			expected: "path/with/multiple/separators",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getCachePath(tt.input); got != tt.expected {
+				t.Errorf("getCachePath() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
 func TestBuildModelInferCR(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -70,65 +102,16 @@ func TestBuildModelInferCR(t *testing.T) {
 		expectErrMsg string
 	}{
 		{
-			name: "CacheVolume_HuggingFace_HostPath",
-			input: &registry.Model{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-model",
-					Namespace: "default",
-					UID:       "randomUID",
-				},
-				Spec: registry.ModelSpec{
-					Backends: []registry.ModelBackend{
-						{
-							Name: "backend1",
-							Type: registry.ModelBackendTypeVLLM,
-							Config: apiextensionsv1.JSON{
-								Raw: []byte(`{"max-model-len": 32768, "block-size": 128, "trust-remote-code": "", "tensor-parallel-size": 2, "gpu-memory-utilization": 0.9}`),
-							},
-							MinReplicas: 1,
-							ModelURI:    "s3://aios_models/deepseek-ai/DeepSeek-V3-W8A8/vllm-ascend",
-							CacheURI:    "hostpath:///tmp/test",
-							Env: []corev1.EnvVar{
-								{
-									Name:  "ENDPOINT",
-									Value: "https://obs.test.com",
-								},
-								{
-									Name:  "RUNTIME_PORT",
-									Value: "8900",
-								},
-							},
-							EnvFrom: []corev1.EnvFromSource{
-								{
-									SecretRef: &corev1.SecretEnvSource{
-										LocalObjectReference: corev1.LocalObjectReference{
-											Name: "test-secret",
-										},
-									},
-								},
-							},
-							Workers: []registry.ModelWorker{
-								{
-									Type:  registry.ModelWorkerTypeServer,
-									Pods:  1,
-									Image: "vllm-server:latest",
-									Resources: corev1.ResourceRequirements{
-										Requests: corev1.ResourceList{
-											corev1.ResourceCPU:                            resource.MustParse("100m"),
-											corev1.ResourceMemory:                         resource.MustParse("1Gi"),
-											corev1.ResourceName("huawei.com/ascend-1980"): resource.MustParse("1"),
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			expected: []*workload.ModelInfer{loadTestYAML(t, "testdata/expectModelInfer.yaml")},
+			name:     "CacheVolume_HuggingFace_HostPath",
+			input:    loadInputYAML(t, "testdata/input/model.yaml"),
+			expected: []*workload.ModelInfer{loadExpectedYAML(t, "testdata/expected/model-infer.yaml")},
+		},
+		{
+			name:     "PD disaggregation",
+			input:    loadInputYAML(t, "testdata/input/pd-disaggregated-model.yaml"),
+			expected: []*workload.ModelInfer{loadExpectedYAML(t, "testdata/expected/disaggregated-model-infer.yaml")},
 		},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := BuildModelInferCR(tt.input)
@@ -138,12 +121,14 @@ func TestBuildModelInferCR(t *testing.T) {
 			} else {
 				assert.Nil(t, err)
 			}
-			assert.Equal(t, tt.expected, got)
+			actualYAML, _ := yaml.Marshal(got)
+			expectedYAML, _ := yaml.Marshal(tt.expected)
+			assert.Equal(t, string(expectedYAML), string(actualYAML))
 		})
 	}
 }
 
-func loadTestYAML(t *testing.T, path string) *workload.ModelInfer {
+func loadExpectedYAML(t *testing.T, path string) *workload.ModelInfer {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("Failed to read YAML: %v", err)
@@ -153,4 +138,16 @@ func loadTestYAML(t *testing.T, path string) *workload.ModelInfer {
 		t.Fatalf("Failed to unmarshal YAML: %v", err)
 	}
 	return &infer
+}
+
+func loadInputYAML(t *testing.T, path string) *registry.Model {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("Failed to read YAML: %v", err)
+	}
+	var model registry.Model
+	if err := yaml.Unmarshal(data, &model); err != nil {
+		t.Fatalf("Failed to unmarshal YAML: %v", err)
+	}
+	return &model
 }

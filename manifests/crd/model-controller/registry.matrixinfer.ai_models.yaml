@@ -80,10 +80,6 @@ spec:
                       description: CacheURI is the URI where the model cache is stored.
                       pattern: ^(hostpath://|pvc://).+
                       type: string
-                    config:
-                      description: Config contains backend-specific configuration
-                        in JSON format.
-                      x-kubernetes-preserve-unknown-fields: true
                     cost:
                       description: Cost is the cost associated with running this backend.
                       format: int32
@@ -1258,6 +1254,10 @@ spec:
                                     x-kubernetes-list-type: atomic
                                 type: object
                             type: object
+                          config:
+                            description: Config contains worker-specific configuration
+                              in JSON format.
+                            x-kubernetes-preserve-unknown-fields: true
                           image:
                             description: Image is the container image for the worker.
                             type: string
