@@ -164,12 +164,10 @@ func TestStoreUpdatePodMetrics(t *testing.T) {
 				Namespace: "default",
 				Name:      "model1",
 			}: {
-				pods: map[types.NamespacedName]*PodInfo{
-					{
-						Namespace: "default",
-						Name:      "pod1",
-					}: &podinfo,
-				},
+				pods: sets.New[types.NamespacedName](types.NamespacedName{
+					Namespace: "default",
+					Name:      "pod1",
+				}),
 			},
 		},
 	}
@@ -201,10 +199,6 @@ func TestStoreUpdatePodMetrics(t *testing.T) {
 		Namespace: "default",
 		Name:      "pod1",
 	}
-	modelName := types.NamespacedName{
-		Namespace: "default",
-		Name:      "model1",
-	}
 	assert.Equal(t, s.pods[name].GPUCacheUsage, 0.8)
 	assert.Equal(t, s.pods[name].RequestWaitingNum, float64(15))
 	assert.Equal(t, s.pods[name].RequestRunningNum, float64(10))
@@ -214,82 +208,203 @@ func TestStoreUpdatePodMetrics(t *testing.T) {
 	assert.Equal(t, s.pods[name].TimePerOutputToken.SampleCount, &count2)
 	assert.Equal(t, s.pods[name].TimeToFirstToken.SampleSum, &sum2)
 	assert.Equal(t, s.pods[name].TimeToFirstToken.SampleCount, &count2)
-	assert.Equal(t, s.modelServer[modelName].pods[name], s.pods[name])
 }
 
 func TestStoreAddOrUpdatePod(t *testing.T) {
-	sum := float64(1)
-	count := uint64(1)
-	patch := gomonkey.NewPatches()
-	patch.ApplyFunc(backend.GetPodMetrics, func(backend string, pod *corev1.Pod, previousHistogram map[string]*dto.Histogram) (map[string]float64, map[string]*dto.Histogram) {
-		return map[string]float64{
-				utils.GPUCacheUsage:     0.8,
-				utils.RequestWaitingNum: 15,
-				utils.RequestRunningNum: 10,
-				utils.TPOT:              120,
-				utils.TTFT:              210,
-			}, map[string]*dto.Histogram{
-				utils.TPOT: {
-					SampleSum:   &sum,
-					SampleCount: &count,
-				},
-				utils.TTFT: {
-					SampleSum:   &sum,
-					SampleCount: &count,
-				},
-			}
-	})
-	defer patch.Reset()
-
-	type args struct {
-		pod          *corev1.Pod
-		modelServers []*aiv1alpha1.ModelServer
+	s := &store{
+		modelServer: make(map[types.NamespacedName]*modelServer),
+		pods:        make(map[types.NamespacedName]*PodInfo),
 	}
-	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
-	}{
-		{
-			name: "test",
-			args: args{
-				pod: &corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace: "default",
-						Name:      "pod1",
-					},
-				},
-				modelServers: []*aiv1alpha1.ModelServer{
-					{
-						ObjectMeta: metav1.ObjectMeta{
-							Namespace: "default",
-							Name:      "model1",
-						},
-					},
-					{
-						ObjectMeta: metav1.ObjectMeta{
-							Namespace: "default",
-							Name:      "model2",
-						},
-					},
-				},
-			},
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "default",
+			Name:      "pod1",
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := &store{
-				modelServer: make(map[types.NamespacedName]*modelServer),
-				pods:        make(map[types.NamespacedName]*PodInfo),
-			}
-			err := s.AddOrUpdatePod(tt.args.pod, tt.args.modelServers)
-			assert.NoError(t, err)
-			podName := utils.GetNamespaceName(tt.args.pod)
-			for _, ms := range tt.args.modelServers {
-				msName := utils.GetNamespaceName(ms)
-				assert.Equal(t, s.pods[podName].modelServer.Contains(msName), true)
-				assert.Equal(t, s.pods[podName], s.modelServer[msName].pods[podName])
-			}
-		})
+	ms1 := &aiv1alpha1.ModelServer{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "default",
+			Name:      "model1",
+		},
 	}
+	ms2 := &aiv1alpha1.ModelServer{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "default",
+			Name:      "model2",
+		},
+	}
+	modelServers := []*aiv1alpha1.ModelServer{ms1, ms2}
+
+	err := s.AddOrUpdatePod(pod, modelServers)
+	assert.NoError(t, err)
+	podName := utils.GetNamespaceName(pod)
+	for _, ms := range modelServers {
+		msName := utils.GetNamespaceName(ms)
+		assert.True(t, s.pods[podName].modelServer.Contains(msName))
+	}
+
+	// Update pod with only one model server
+	err = s.AddOrUpdatePod(pod, []*aiv1alpha1.ModelServer{ms1})
+	assert.NoError(t, err)
+	assert.True(t, s.pods[podName].modelServer.Contains(utils.GetNamespaceName(ms1)))
+	assert.False(t, s.pods[podName].modelServer.Contains(utils.GetNamespaceName(ms2)))
+}
+
+func TestStoreDeletePod(t *testing.T) {
+	podName := types.NamespacedName{Namespace: "default", Name: "pod1"}
+	modelServerName := types.NamespacedName{Namespace: "default", Name: "model1"}
+
+	pod := &corev1.Pod{}
+	podInfo := &PodInfo{
+		Pod:         pod,
+		modelServer: sets.New[types.NamespacedName](modelServerName),
+		models:      sets.New[string](),
+	}
+
+	ms := newModelServer(&aiv1alpha1.ModelServer{})
+	ms.addPod(podName)
+
+	s := &store{
+		pods: map[types.NamespacedName]*PodInfo{
+			podName: podInfo,
+		},
+		modelServer: map[types.NamespacedName]*modelServer{
+			modelServerName: ms,
+		},
+		callbacks: make(map[string][]CallbackFunc),
+	}
+
+	// Normal delete
+	err := s.DeletePod(podName)
+	assert.NoError(t, err)
+	_, exists := s.pods[podName]
+	assert.False(t, exists, "pod should be deleted from store")
+	assert.False(t, ms.pods.Contains(podName), "pod should be removed from modelServer set")
+
+	// Delete non-existent pod
+	err = s.DeletePod(types.NamespacedName{Namespace: "default", Name: "notfound"})
+	assert.NoError(t, err)
+}
+
+func TestStoreDeletePod_MultiModelServers(t *testing.T) {
+	podName := types.NamespacedName{Namespace: "default", Name: "pod1"}
+	ms1Name := types.NamespacedName{Namespace: "default", Name: "model1"}
+	ms2Name := types.NamespacedName{Namespace: "default", Name: "model2"}
+
+	pod := &corev1.Pod{}
+	podInfo := &PodInfo{
+		Pod:         pod,
+		modelServer: sets.New[types.NamespacedName](ms1Name, ms2Name),
+		models:      sets.New[string](),
+	}
+
+	ms1 := newModelServer(&aiv1alpha1.ModelServer{})
+	ms2 := newModelServer(&aiv1alpha1.ModelServer{})
+	ms1.addPod(podName)
+	ms2.addPod(podName)
+
+	s := &store{
+		pods: map[types.NamespacedName]*PodInfo{
+			podName: podInfo,
+		},
+		modelServer: map[types.NamespacedName]*modelServer{
+			ms1Name: ms1,
+			ms2Name: ms2,
+		},
+		callbacks: make(map[string][]CallbackFunc),
+	}
+
+	err := s.DeletePod(podName)
+	assert.NoError(t, err)
+	assert.False(t, ms1.pods.Contains(podName))
+	assert.False(t, ms2.pods.Contains(podName))
+}
+
+func TestStoreAddOrUpdateModelServer(t *testing.T) {
+	s := &store{
+		modelServer: make(map[types.NamespacedName]*modelServer),
+	}
+	ms := &aiv1alpha1.ModelServer{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "default",
+			Name:      "model1",
+		},
+	}
+	pods := sets.New[types.NamespacedName](types.NamespacedName{Namespace: "default", Name: "pod1"})
+	err := s.AddOrUpdateModelServer(ms, pods)
+	assert.NoError(t, err)
+	msName := utils.GetNamespaceName(ms)
+	assert.NotNil(t, s.modelServer[msName])
+	assert.True(t, s.modelServer[msName].pods.Contains(types.NamespacedName{Namespace: "default", Name: "pod1"}))
+
+	// Update with new pods
+	pods2 := sets.New[types.NamespacedName](types.NamespacedName{Namespace: "default", Name: "pod2"})
+	err = s.AddOrUpdateModelServer(ms, pods2)
+	assert.NoError(t, err)
+	assert.True(t, s.modelServer[msName].pods.Contains(types.NamespacedName{Namespace: "default", Name: "pod2"}))
+	assert.False(t, s.modelServer[msName].pods.Contains(types.NamespacedName{Namespace: "default", Name: "pod1"}))
+}
+
+func TestStoreDeleteModelServer(t *testing.T) {
+	s := &store{
+		modelServer: make(map[types.NamespacedName]*modelServer),
+		pods:        make(map[types.NamespacedName]*PodInfo),
+	}
+	ms := &aiv1alpha1.ModelServer{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "default",
+			Name:      "model1",
+		},
+	}
+	msName := utils.GetNamespaceName(ms)
+	podName := types.NamespacedName{Namespace: "default", Name: "pod1"}
+	modelSrv := newModelServer(ms)
+	modelSrv.addPod(podName)
+	s.modelServer[msName] = modelSrv
+	podInfo := &PodInfo{
+		Pod:         &corev1.Pod{},
+		modelServer: sets.New[types.NamespacedName](msName),
+		models:      sets.New[string](),
+	}
+	s.pods[podName] = podInfo
+
+	err := s.DeleteModelServer(ms)
+	assert.NoError(t, err)
+	_, exists := s.modelServer[msName]
+	assert.False(t, exists, "modelServer should be deleted")
+	assert.False(t, podInfo.modelServer.Contains(msName), "modelServer ref should be removed from podInfo")
+	_, podExists := s.pods[podName]
+	assert.False(t, podExists, "pod should be deleted if no modelServer left")
+}
+
+func TestStoreGetPodsByModelServer(t *testing.T) {
+	s := &store{
+		modelServer: make(map[types.NamespacedName]*modelServer),
+		pods:        make(map[types.NamespacedName]*PodInfo),
+	}
+	ms := &aiv1alpha1.ModelServer{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "default",
+			Name:      "model1",
+		},
+	}
+	msName := utils.GetNamespaceName(ms)
+	podName := types.NamespacedName{Namespace: "default", Name: "pod1"}
+	modelSrv := newModelServer(ms)
+	modelSrv.addPod(podName)
+	s.modelServer[msName] = modelSrv
+	podInfo := &PodInfo{
+		Pod:         &corev1.Pod{},
+		modelServer: sets.New[types.NamespacedName](msName),
+		models:      sets.New[string](),
+	}
+	s.pods[podName] = podInfo
+
+	pods, err := s.GetPodsByModelServer(msName)
+	assert.NoError(t, err)
+	assert.Len(t, pods, 1)
+	assert.Equal(t, podInfo, pods[0])
+
+	_, err = s.GetPodsByModelServer(types.NamespacedName{Namespace: "default", Name: "notfound"})
+	assert.Error(t, err)
 }

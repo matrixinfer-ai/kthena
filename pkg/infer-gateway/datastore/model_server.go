@@ -19,48 +19,43 @@ package datastore
 import (
 	"sync"
 
+	"istio.io/istio/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/types"
 	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
 type modelServer struct {
 	mutex sync.RWMutex
 
 	modelServer *aiv1alpha1.ModelServer
-	pods        map[types.NamespacedName]*PodInfo
+	pods        sets.Set[types.NamespacedName]
 }
 
-func (m *modelServer) getPods() []*PodInfo {
-	if m == nil {
-		return nil
+func newModelServer(ms *aiv1alpha1.ModelServer) *modelServer {
+	return &modelServer{
+		modelServer: ms,
+		pods:        sets.New[types.NamespacedName](),
 	}
+}
+
+func (m *modelServer) getPods() []types.NamespacedName {
+	podNames := make([]types.NamespacedName, 0, m.pods.Len())
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
-	podInfos := make([]*PodInfo, 0, len(m.pods))
-	for _, podInfo := range m.pods {
-		podInfos = append(podInfos, podInfo)
+	for podName := range m.pods {
+		podNames = append(podNames, podName)
 	}
-	return podInfos
+	return podNames
 }
 
-func (m *modelServer) addPod(pod *PodInfo) {
-	if m == nil {
-		return
-	}
+func (m *modelServer) addPod(podName types.NamespacedName) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-	if m.pods == nil {
-		m.pods = make(map[types.NamespacedName]*PodInfo)
-	}
-	m.pods[utils.GetNamespaceName(pod.Pod)] = pod
+	m.pods.Insert(podName)
 }
 
 func (m *modelServer) deletePod(podName types.NamespacedName) {
-	if m == nil {
-		return
-	}
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-	delete(m.pods, podName)
+	m.pods.Delete(podName)
 }

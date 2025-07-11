@@ -24,7 +24,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore/testutil"
 )
 
 func TestModelPrefixStore(t *testing.T) {
@@ -100,7 +99,7 @@ func TestModelPrefixStore(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockStore := testutil.NewMockStore()
+			mockStore := datastore.New()
 			store := NewModelPrefixStore(mockStore, tt.maxHashes, tt.topK)
 
 			// Add pods to cache
