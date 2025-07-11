@@ -34,7 +34,7 @@ type Store interface {
 	GetInferGroupStatus(modelInferName types.NamespacedName, inferGroupName string) InferGroupStatus
 	DeleteModelInfer(modelInferName types.NamespacedName)
 	DeleteInferGroup(modelInferName types.NamespacedName, inferGroupName string)
-	AddInferGroup(modelInferName types.NamespacedName, idx int)
+	AddInferGroup(modelInferName types.NamespacedName, idx int, revision string)
 	AddRunningPodToInferGroup(modelInferName types.NamespacedName, inferGroupName string, pod string)
 	DeleteRunningPodFromInferGroup(modelInferName types.NamespacedName, inferGroupName string, pod string)
 	UpdateInferGroupStatus(modelInferName types.NamespacedName, inferGroupName string, Status InferGroupStatus) error
@@ -51,6 +51,7 @@ type store struct {
 type InferGroup struct {
 	Name        string
 	runningPods map[string]struct{} // Map of pod names in this infer group
+	Revision    string
 	Status      InferGroupStatus
 }
 
@@ -60,7 +61,7 @@ const (
 	InferGroupRunning  InferGroupStatus = "Running"
 	InferGroupCreating InferGroupStatus = "Creating"
 	InferGroupDeleting InferGroupStatus = "Deleting"
-	InferGroupUpdating InferGroupStatus = "Updating"
+	// InferGroupUpdating InferGroupStatus = "Updating"
 	InferGroupNotFound InferGroupStatus = "NotFound"
 )
 
@@ -139,7 +140,7 @@ func (s *store) DeleteInferGroup(modelInferName types.NamespacedName, inferGroup
 }
 
 // AddInferGroup add inferGroup item of one modelInfer
-func (s *store) AddInferGroup(modelInferName types.NamespacedName, idx int) {
+func (s *store) AddInferGroup(modelInferName types.NamespacedName, idx int, revision string) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 

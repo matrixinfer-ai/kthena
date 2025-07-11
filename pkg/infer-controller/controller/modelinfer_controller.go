@@ -293,23 +293,22 @@ func (c *ModelInferController) syncModelInfer(ctx context.Context, key string) e
 		return err
 	}
 	// only fields in roles can be modified in rolling updates
-	newHash := utils.HashModelInferRevision(mi.Spec.Template.Roles)
+	revision := utils.HashModelInferRevision(mi.Spec.Template.Roles)
 
-	err = c.manageReplicas(ctx, mi, newHash)
+	err = c.manageReplicas(ctx, mi, revision)
 	if err != nil {
 		return fmt.Errorf("cannot manage inferGroup replicas: %v", err)
 	}
 
-	err = c.manageRollingUpdate(mi, newHash)
+	err = c.manageRollingUpdate(mi, revision)
 	if err != nil {
 		return fmt.Errorf("cannot manage inferGroup rollingUpdate: %v", err)
 	}
 
-	if err := c.UpdateModelInferStatus(mi); err != nil {
+	if err := c.UpdateModelInferStatus(mi, revision); err != nil {
 		return fmt.Errorf("failed to update status of mi %s/%s: %v", namespace, name, err)
 	}
 
-	//TODO: Add rolling upgrade function
 	return nil
 }
 
@@ -361,27 +360,34 @@ func (c *ModelInferController) UpdateModelInferConditionsStatus(mi *workloadv1al
 }
 
 // UpdateModelInferReplicasStatus update replicas in modelInfer status.
-func (c *ModelInferController) UpdateModelInferStatus(mi *workloadv1alpha1.ModelInfer) error {
+func (c *ModelInferController) UpdateModelInferStatus(mi *workloadv1alpha1.ModelInfer, revision string) error {
 	groups, err := c.store.GetInferGroupByModelInfer(utils.GetNamespaceName(mi))
 	if err != nil {
 		return err
 	}
 
 	available := 0
+	updated := 0
 	progressingGroups := []int{}
+	updatedGroups := []int{}
 	for index := range groups {
-		// TODO: Handler of status == updating
 		if groups[index].Status != datastore.InferGroupRunning {
 			progressingGroups = append(progressingGroups, index)
 		} else {
 			available = available + 1
 		}
+
+		if groups[index].Revision == revision {
+			updated = updated + 1
+			updatedGroups = append(updatedGroups, index)
+		}
 	}
 
-	shouldUpdate := utils.SetCondition(mi, progressingGroups)
+	shouldUpdate := utils.SetCondition(mi, progressingGroups, updatedGroups)
 	copy := mi.DeepCopy()
 	copy.Status.Replicas = int32(len(groups))
 	copy.Status.AvailableReplicas = int32(available)
+	copy.Status.UpdatedReplicas = int32(updated)
 
 	if shouldUpdate {
 		_, err := c.modelInferClient.WorkloadV1alpha1().ModelInfers(mi.GetNamespace()).UpdateStatus(context.TODO(), copy, metav1.UpdateOptions{})
@@ -393,7 +399,7 @@ func (c *ModelInferController) UpdateModelInferStatus(mi *workloadv1alpha1.Model
 	return nil
 }
 
-func (c *ModelInferController) manageReplicas(ctx context.Context, mi *workloadv1alpha1.ModelInfer, newHash string) error {
+func (c *ModelInferController) manageReplicas(ctx context.Context, mi *workloadv1alpha1.ModelInfer, newRevision string) error {
 	inferGroupList, err := c.store.GetInferGroupByModelInfer(utils.GetNamespaceName(mi))
 	if err != nil {
 		return fmt.Errorf("cannot get inferGroup from map: %v", err)
@@ -422,9 +428,9 @@ func (c *ModelInferController) manageReplicas(ctx context.Context, mi *workloadv
 	for idx := 0; idx < expectedCount; idx++ {
 		if replicas[idx] == nil {
 			// Insert new InferGroup to global storage
-			c.store.AddInferGroup(utils.GetNamespaceName(mi), idx)
+			c.store.AddInferGroup(utils.GetNamespaceName(mi), idx, newRevision)
 			// Create pods for inferGroup
-			err = c.CreatePodsForInferGroup(ctx, mi, idx, newHash)
+			err = c.CreatePodsForInferGroup(ctx, mi, idx, newRevision)
 			if err != nil {
 				// I think that after create a pod failed, a period of time should pass before joining the coordination queue.
 				return fmt.Errorf("create infer group failed: %v", err)
