@@ -17,72 +17,134 @@ limitations under the License.
 package controller
 
 import (
-	"context"
+	"fmt"
+	"time"
 
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"k8s.io/apimachinery/pkg/api/errors"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/workqueue"
+	"k8s.io/klog/v2"
 
-	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
+	informersv1alpha1 "matrixinfer.ai/matrixinfer/client-go/informers/externalversions"
+	listerv1alpha1 "matrixinfer.ai/matrixinfer/client-go/listers/networking/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 )
 
-// ModelRouteController reconciles a ModelRoute object
+const (
+	maxRetries = 5
+)
+
+// ModelRouteControllerName is the name of the ModelRoute controller.
+
 type ModelRouteController struct {
-	client.Client
-	Scheme *runtime.Scheme
-	store  datastore.Store
+	modelRouteLister listerv1alpha1.ModelRouteLister
+	modelRouteSynced cache.InformerSynced
+
+	workqueue workqueue.TypedRateLimitingInterface[any]
+	store     datastore.Store
 }
 
-func NewModelRouteController(mgr ctrl.Manager, store datastore.Store) *ModelRouteController {
-	return &ModelRouteController{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-		store:  store,
+func NewModelRouteController(
+	matrixinferInformerFactory informersv1alpha1.SharedInformerFactory,
+	store datastore.Store,
+) *ModelRouteController {
+	modelRouteInformer := matrixinferInformerFactory.Networking().V1alpha1().ModelRoutes()
+
+	controller := &ModelRouteController{
+		modelRouteLister: modelRouteInformer.Lister(),
+		modelRouteSynced: modelRouteInformer.Informer().HasSynced,
+		workqueue:        workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[any]()),
+		store:            store,
+	}
+
+	modelRouteInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: controller.enqueueModelRoute,
+		UpdateFunc: func(old, new interface{}) {
+			controller.enqueueModelRoute(new)
+		},
+		DeleteFunc: controller.enqueueModelRoute,
+	})
+
+	return controller
+}
+
+func (c *ModelRouteController) Run(workers int, stopCh <-chan struct{}) error {
+	defer utilruntime.HandleCrash()
+	defer c.workqueue.ShutDown()
+
+	if ok := cache.WaitForCacheSync(stopCh, c.modelRouteSynced); !ok {
+		return fmt.Errorf("failed to wait for caches to sync")
+	}
+
+	for i := 0; i < workers; i++ {
+		go wait.Until(c.runWorker, time.Second, stopCh)
+	}
+
+	<-stopCh
+	return nil
+}
+
+func (c *ModelRouteController) runWorker() {
+	for c.processNextWorkItem() {
 	}
 }
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the ModelRoute object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.19.1/pkg/reconcile
-func (m *ModelRouteController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	var mr aiv1alpha1.ModelRoute
-	if err := m.Get(ctx, req.NamespacedName, &mr); err != nil {
-		if apierrors.IsNotFound(err) {
-			if err := m.store.DeleteModelRoute(req.NamespacedName.String()); err != nil {
-				log.Errorf("failed to delete route: %v", err)
-				return ctrl.Result{}, nil
-			}
+func (c *ModelRouteController) processNextWorkItem() bool {
+	obj, shutdown := c.workqueue.Get()
+	if shutdown {
+		return false
+	}
+	defer c.workqueue.Done(obj)
+	var key string
+	var ok bool
+	if key, ok = obj.(string); !ok {
+		c.workqueue.Forget(obj)
+		utilruntime.HandleError(fmt.Errorf("expected string in workqueue but got %#v", obj))
+		return true
+	}
+
+	if err := c.syncHandler(key); err != nil {
+		if c.workqueue.NumRequeues(key) < maxRetries {
+			klog.V(2).Infof("error syncing modelRoute %q: %s, requeuing", key, err.Error())
+			c.workqueue.AddRateLimited(key)
+			return true
 		}
-
-		log.Errorf("unable to fetch ModelRoute: %v", err)
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+		klog.V(2).Infof("giving up on syncing modelRoute %q after %d retries: %s", key, maxRetries, err)
+		c.workqueue.Forget(obj)
 	}
-
-	log.Infof("Get ModelRoute model: %s", mr.Spec.ModelName)
-
-	// Update route in datastore
-	if err := m.store.AddOrUpdateModelRoute(&mr); err != nil {
-		log.Error(err, "failed to update ModelRouter")
-		return ctrl.Result{}, err
-	}
-
-	return ctrl.Result{}, nil
+	return true
 }
 
-// SetupWithManager sets up the controller with the Manager.
-func (m *ModelRouteController) SetupWithManager(mgr ctrl.Manager) error {
-	log.Infof("start modelroutes controller")
+func (c *ModelRouteController) syncHandler(key string) error {
+	namespace, name, err := cache.SplitMetaNamespaceKey(key)
+	if err != nil {
+		utilruntime.HandleError(fmt.Errorf("invalid resource key: %s", key))
+		return nil
+	}
 
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&aiv1alpha1.ModelRoute{}).
-		Named("ModelRoute").
-		Complete(m)
+	mr, err := c.modelRouteLister.ModelRoutes(namespace).Get(name)
+	if errors.IsNotFound(err) {
+		_ = c.store.DeleteModelRoute(key)
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	if err := c.store.AddOrUpdateModelRoute(mr); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *ModelRouteController) enqueueModelRoute(obj interface{}) {
+	key, err := cache.MetaNamespaceKeyFunc(obj)
+	if err != nil {
+		utilruntime.HandleError(err)
+		return
+	}
+	c.workqueue.Add(key)
 }

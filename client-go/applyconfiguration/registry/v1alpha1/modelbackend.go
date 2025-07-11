@@ -19,8 +19,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
@@ -30,18 +29,17 @@ import (
 type ModelBackendApplyConfiguration struct {
 	Name                   *string                            `json:"name,omitempty"`
 	Type                   *registryv1alpha1.ModelBackendType `json:"type,omitempty"`
-	Config                 *v1.JSON                           `json:"config,omitempty"`
 	ModelURI               *string                            `json:"modelURI,omitempty"`
 	CacheURI               *string                            `json:"cacheURI,omitempty"`
-	EnvFrom                []corev1.EnvFromSource             `json:"envFrom,omitempty"`
-	Env                    []corev1.EnvVar                    `json:"env,omitempty"`
+	EnvFrom                []v1.EnvFromSource                 `json:"envFrom,omitempty"`
+	Env                    []v1.EnvVar                        `json:"env,omitempty"`
 	MinReplicas            *int32                             `json:"minReplicas,omitempty"`
 	MaxReplicas            *int32                             `json:"maxReplicas,omitempty"`
 	Cost                   *int32                             `json:"cost,omitempty"`
 	ScaleToZeroGracePeriod *metav1.Duration                   `json:"scaleToZeroGracePeriod,omitempty"`
 	Workers                []ModelWorkerApplyConfiguration    `json:"workers,omitempty"`
-	LoraAdapterRefs        []corev1.LocalObjectReference      `json:"loraAdapterRefs,omitempty"`
-	AutoscalingPolicyRef   *corev1.LocalObjectReference       `json:"autoscalingPolicyRef,omitempty"`
+	LoraAdapterRefs        []v1.LocalObjectReference          `json:"loraAdapterRefs,omitempty"`
+	AutoscalingPolicyRef   *v1.LocalObjectReference           `json:"autoscalingPolicyRef,omitempty"`
 }
 
 // ModelBackendApplyConfiguration constructs a declarative configuration of the ModelBackend type for use with
@@ -66,14 +64,6 @@ func (b *ModelBackendApplyConfiguration) WithType(value registryv1alpha1.ModelBa
 	return b
 }
 
-// WithConfig sets the Config field in the declarative configuration to the given value
-// and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the Config field is set to the value of the last call.
-func (b *ModelBackendApplyConfiguration) WithConfig(value v1.JSON) *ModelBackendApplyConfiguration {
-	b.Config = &value
-	return b
-}
-
 // WithModelURI sets the ModelURI field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the ModelURI field is set to the value of the last call.
@@ -93,7 +83,7 @@ func (b *ModelBackendApplyConfiguration) WithCacheURI(value string) *ModelBacken
 // WithEnvFrom adds the given value to the EnvFrom field in the declarative configuration
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, values provided by each call will be appended to the EnvFrom field.
-func (b *ModelBackendApplyConfiguration) WithEnvFrom(values ...corev1.EnvFromSource) *ModelBackendApplyConfiguration {
+func (b *ModelBackendApplyConfiguration) WithEnvFrom(values ...v1.EnvFromSource) *ModelBackendApplyConfiguration {
 	for i := range values {
 		b.EnvFrom = append(b.EnvFrom, values[i])
 	}
@@ -103,7 +93,7 @@ func (b *ModelBackendApplyConfiguration) WithEnvFrom(values ...corev1.EnvFromSou
 // WithEnv adds the given value to the Env field in the declarative configuration
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, values provided by each call will be appended to the Env field.
-func (b *ModelBackendApplyConfiguration) WithEnv(values ...corev1.EnvVar) *ModelBackendApplyConfiguration {
+func (b *ModelBackendApplyConfiguration) WithEnv(values ...v1.EnvVar) *ModelBackendApplyConfiguration {
 	for i := range values {
 		b.Env = append(b.Env, values[i])
 	}
@@ -158,7 +148,7 @@ func (b *ModelBackendApplyConfiguration) WithWorkers(values ...*ModelWorkerApply
 // WithLoraAdapterRefs adds the given value to the LoraAdapterRefs field in the declarative configuration
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, values provided by each call will be appended to the LoraAdapterRefs field.
-func (b *ModelBackendApplyConfiguration) WithLoraAdapterRefs(values ...corev1.LocalObjectReference) *ModelBackendApplyConfiguration {
+func (b *ModelBackendApplyConfiguration) WithLoraAdapterRefs(values ...v1.LocalObjectReference) *ModelBackendApplyConfiguration {
 	for i := range values {
 		b.LoraAdapterRefs = append(b.LoraAdapterRefs, values[i])
 	}
@@ -168,7 +158,7 @@ func (b *ModelBackendApplyConfiguration) WithLoraAdapterRefs(values ...corev1.Lo
 // WithAutoscalingPolicyRef sets the AutoscalingPolicyRef field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the AutoscalingPolicyRef field is set to the value of the last call.
-func (b *ModelBackendApplyConfiguration) WithAutoscalingPolicyRef(value corev1.LocalObjectReference) *ModelBackendApplyConfiguration {
+func (b *ModelBackendApplyConfiguration) WithAutoscalingPolicyRef(value v1.LocalObjectReference) *ModelBackendApplyConfiguration {
 	b.AutoscalingPolicyRef = &value
 	return b
 }

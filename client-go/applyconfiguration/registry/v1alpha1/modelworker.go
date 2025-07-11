@@ -20,6 +20,7 @@ package v1alpha1
 
 import (
 	v1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
 
@@ -32,6 +33,7 @@ type ModelWorkerApplyConfiguration struct {
 	Pods      *int32                            `json:"pods,omitempty"`
 	Resources *v1.ResourceRequirements          `json:"resources,omitempty"`
 	Affinity  *v1.Affinity                      `json:"affinity,omitempty"`
+	Config    *apiextensionsv1.JSON             `json:"config,omitempty"`
 }
 
 // ModelWorkerApplyConfiguration constructs a declarative configuration of the ModelWorker type for use with
@@ -85,5 +87,13 @@ func (b *ModelWorkerApplyConfiguration) WithResources(value v1.ResourceRequireme
 // If called multiple times, the Affinity field is set to the value of the last call.
 func (b *ModelWorkerApplyConfiguration) WithAffinity(value v1.Affinity) *ModelWorkerApplyConfiguration {
 	b.Affinity = &value
+	return b
+}
+
+// WithConfig sets the Config field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the Config field is set to the value of the last call.
+func (b *ModelWorkerApplyConfiguration) WithConfig(value apiextensionsv1.JSON) *ModelWorkerApplyConfiguration {
+	b.Config = &value
 	return b
 }
