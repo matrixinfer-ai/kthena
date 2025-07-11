@@ -111,7 +111,7 @@ type Store interface {
 type PodInfo struct {
 	Pod *corev1.Pod
 	// Name of AI inference engine
-	backend string
+	engine string
 	// TODO: add metrics here
 	GPUCacheUsage     float64 // GPU KV-cache usage.
 	RequestWaitingNum float64 // Number of requests waiting to be processed.
@@ -214,7 +214,7 @@ func (s *store) AddOrUpdateModelServer(name types.NamespacedName, ms *aiv1alpha1
 		if _, ok := s.pods[podName]; !ok {
 			s.pods[podName] = &PodInfo{
 				Pod:         pod,
-				backend:     string(ms.Spec.InferenceEngine),
+				engine:      string(ms.Spec.InferenceEngine),
 				models:      sets.New[string](),
 				modelServer: sets.New[types.NamespacedName](name),
 			}
@@ -285,7 +285,7 @@ func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.Model
 		modelServerNames = append(modelServerNames, modelServerName)
 		newPodInfo.AddModelServer(modelServerName)
 		// NOTE: even if a pod belongs to multiple model servers, the backend should be the same
-		newPodInfo.backend = string(modelServer.Spec.InferenceEngine)
+		newPodInfo.engine = string(modelServer.Spec.InferenceEngine)
 	}
 
 	s.mutex.Lock()
@@ -513,24 +513,24 @@ func selectFromWeightedSlice(weights []uint32) int {
 }
 
 func (s *store) updatePodMetrics(pod *PodInfo) {
-	if pod.backend == "" {
+	if pod.engine == "" {
 		log.Error("failed to find backend in pod")
 		return
 	}
 
 	previousHistogram := getPreviousHistogram(pod)
-	gaugeMetrics, histogramMetrics := backend.GetPodMetrics(pod.backend, pod.Pod, previousHistogram)
+	gaugeMetrics, histogramMetrics := backend.GetPodMetrics(pod.engine, pod.Pod, previousHistogram)
 	updateGaugeMetricsInfo(pod, gaugeMetrics)
 	updateHistogramMetrics(pod, histogramMetrics)
 }
 
 func (s *store) updatePodModels(podInfo *PodInfo) {
-	if podInfo.backend == "" {
+	if podInfo.engine == "" {
 		log.Error("failed to find backend in pod")
 		return
 	}
 
-	models, err := backend.GetPodModels(podInfo.backend, podInfo.Pod)
+	models, err := backend.GetPodModels(podInfo.engine, podInfo.Pod)
 	if err != nil {
 		log.Errorf("failed to get models of pod %s/%s", podInfo.Pod.GetNamespace(), podInfo.Pod.GetName())
 	}
