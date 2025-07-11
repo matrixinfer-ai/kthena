@@ -278,14 +278,14 @@ func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.Model
 		models:      sets.New[string](),
 	}
 
+	s.mutex.Lock()
 	for _, modelServer := range modelServers {
 		modelServerName := utils.GetNamespaceName(modelServer)
 		newPodInfo.AddModelServer(modelServerName)
 		// NOTE: even if a pod belongs to multiple model servers, the backend should be the same
 		newPodInfo.engine = string(modelServer.Spec.InferenceEngine)
+		s.modelServer[modelServerName].addPod(podName)
 	}
-
-	s.mutex.Lock()
 	s.pods[podName] = newPodInfo
 	s.mutex.Unlock()
 

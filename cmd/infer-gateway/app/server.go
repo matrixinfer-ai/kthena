@@ -19,7 +19,6 @@ package app
 import (
 	"context"
 
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/controller"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 )
 
@@ -41,11 +40,8 @@ func (s *Server) Run(ctx context.Context) {
 	go store.Run(ctx)
 
 	go func() {
-		// must be after the store and router initialization
-		// it will run the callbacks registered by router
-		if err := controller.StartControllers(store); err != nil {
-			log.Fatal("Unable to start controllers")
-		}
+		// start controller
+		startControllers(store, ctx.Done())
 	}()
 	// start router
 	startRouter(ctx, r)
