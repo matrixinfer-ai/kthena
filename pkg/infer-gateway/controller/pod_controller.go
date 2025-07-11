@@ -43,7 +43,8 @@ type PodController struct {
 	podLister         corelisters.PodLister
 	modelServerLister listerv1alpha1.ModelServerLister
 
-	podSynced cache.InformerSynced
+	modelServerSynced cache.InformerSynced
+	podSynced         cache.InformerSynced
 
 	workqueue workqueue.TypedRateLimitingInterface[any]
 	store     datastore.Store
@@ -60,6 +61,7 @@ func NewPodController(
 	controller := &PodController{
 		podLister:         podInformer.Lister(),
 		modelServerLister: modelServerInformer.Lister(),
+		modelServerSynced: modelServerInformer.Informer().HasSynced,
 		podSynced:         podInformer.Informer().HasSynced,
 		workqueue:         workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[any]()),
 		store:             store,
@@ -80,7 +82,7 @@ func (c *PodController) Run(workers int, stopCh <-chan struct{}) error {
 	defer utilruntime.HandleCrash()
 	defer c.workqueue.ShutDown()
 
-	if ok := cache.WaitForCacheSync(stopCh, c.podSynced); !ok {
+	if ok := cache.WaitForCacheSync(stopCh, c.podSynced, c.modelServerSynced); !ok {
 		return fmt.Errorf("failed to wait for caches to sync")
 	}
 
