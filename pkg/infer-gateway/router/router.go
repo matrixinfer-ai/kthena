@@ -99,6 +99,7 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 
 		pods, modelServer, err := r.getPodsAndServer(modelServerName)
 		if err != nil {
+			log.Errorf("failed to get pods and model server: %v, %v", modelServerName, err)
 			c.AbortWithStatusJSON(http.StatusNotFound, fmt.Sprintf("can't find model server: %v", modelServerName))
 			return
 		}
