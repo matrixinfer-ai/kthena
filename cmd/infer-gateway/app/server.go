@@ -34,14 +34,15 @@ func (s *Server) Run(ctx context.Context) {
 	// create store
 	store := datastore.New()
 
+	// must be run before the controller, because it will register callbacks
 	r := NewRouter(store)
 
 	// Start store's periodic update loop
 	go store.Run(ctx)
 
 	go func() {
-		// start controller
-		// must be after the store
+		// must be after the store and router initialization
+		// it will run the callbacks registered by router
 		if err := controller.StartControllers(store); err != nil {
 			log.Fatal("Unable to start controllers")
 		}

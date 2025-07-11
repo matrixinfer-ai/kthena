@@ -366,14 +366,14 @@ func (s *store) MatchModelServer(model string, req *http.Request) (types.Namespa
 	s.routeMutex.RLock()
 	defer s.routeMutex.RUnlock()
 
-	var is_lora bool
+	var isLora bool
 	mr, ok := s.routes[model]
 	if !ok {
 		mr, ok = s.loraRoutes[model]
 		if !ok {
 			return types.NamespacedName{}, false, fmt.Errorf("not found route rules for model %s", model)
 		}
-		is_lora = true
+		isLora = true
 	}
 
 	rule, err := s.selectRule(req, mr.Spec.Rules)
@@ -386,7 +386,7 @@ func (s *store) MatchModelServer(model string, req *http.Request) (types.Namespa
 		return types.NamespacedName{}, false, fmt.Errorf("failed to select destination: %v", err)
 	}
 
-	return types.NamespacedName{Namespace: mr.Namespace, Name: dst.ModelServerName}, is_lora, nil
+	return types.NamespacedName{Namespace: mr.Namespace, Name: dst.ModelServerName}, isLora, nil
 }
 
 func (s *store) selectRule(req *http.Request, rules []*aiv1alpha1.Rule) (*aiv1alpha1.Rule, error) {
@@ -620,7 +620,7 @@ func (p *PodInfo) GetModels() sets.Set[string] {
 	return result
 }
 
-// GetModels returns a copy of the models set
+// Contains checks if a model exists in the models set
 func (p *PodInfo) Contains(model string) bool {
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
