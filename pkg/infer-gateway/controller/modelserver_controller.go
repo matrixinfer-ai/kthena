@@ -20,13 +20,16 @@ import (
 	"context"
 	"fmt"
 
+	"istio.io/istio/pkg/util/sets"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
+	"matrixinfer.ai/matrixinfer/pkg/infer-controller/utils"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 )
 
@@ -80,15 +83,15 @@ func (r *ModelServerController) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 
-	pods := make([]*corev1.Pod, 0, len(podList.Items))
-	for i := range podList.Items {
-		if isPodReady(&podList.Items[i]) {
-			pods = append(pods, &podList.Items[i])
+	pods := sets.NewWithLength[types.NamespacedName](len(podList.Items))
+	for _, pod := range podList.Items {
+		if isPodReady(&pod) {
+			pods.Insert(utils.GetNamespaceName(&pod))
 		}
 	}
 
 	log.Infof("Update ModelServer: %v", name.String())
-	_ = r.store.AddOrUpdateModelServer(name, ms, pods)
+	_ = r.store.AddOrUpdateModelServer(ms, pods)
 
 	return ctrl.Result{}, nil
 }
