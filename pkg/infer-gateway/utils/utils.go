@@ -125,16 +125,14 @@ func LoadSchedulerConfig() (map[string]int, []string, map[string]interface{}, er
 func unmarshalPlugins(schedulerConfig *conf.SchedulerConfiguration) (map[string]int, []string, error) {
 	var filterPlugins []string
 	scorePluginMap := make(map[string]int)
-	if schedulerConfig.Plugins == nil {
-		return scorePluginMap, filterPlugins, fmt.Errorf("Plugins is nil")
-	}
-	if schedulerConfig.Plugins.Score != nil && len(schedulerConfig.Plugins.Score.Enabled) > 0 {
+
+	if len(schedulerConfig.Plugins.Score.Enabled) > 0 {
 		for _, plugin := range schedulerConfig.Plugins.Score.Enabled {
 			scorePluginMap[plugin.Name] = plugin.Weight
 		}
 	}
 
-	if schedulerConfig.Plugins.Filter != nil && len(schedulerConfig.Plugins.Filter.Enabled) > 0 {
+	if len(schedulerConfig.Plugins.Filter.Enabled) > 0 {
 		filterPlugins = schedulerConfig.Plugins.Filter.Enabled
 	}
 	return scorePluginMap, filterPlugins, nil

@@ -2,12 +2,12 @@ package conf
 
 type SchedulerConfiguration struct {
 	PluginConfig []PluginConfig `yaml:"pluginConfig"`
-	Plugins      *Plugins       `yaml:"plugins"`
+	Plugins      Plugins        `yaml:"plugins"`
 }
 
 type Plugins struct {
-	Filter *Filter `yaml:"Filter"`
-	Score  *Score  `yaml:"Score"`
+	Filter Filter `yaml:"Filter"`
+	Score  Score  `yaml:"Score"`
 }
 
 type Filter struct {
@@ -26,8 +26,8 @@ type PluginWithWeight struct {
 }
 
 type PluginConfig struct {
-	Name string      `yaml:"name"`
-	Args interface{} `yaml:"args,omitempty"`
+	Name string `yaml:"name"`
+	Args any    `yaml:"args,omitempty"`
 }
 
 type LeastRequestArgs struct {

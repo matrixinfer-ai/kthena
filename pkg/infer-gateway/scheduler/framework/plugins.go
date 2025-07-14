@@ -15,8 +15,8 @@ type ScorePluginFactory = func(arg map[string]interface{}) ScorePlugin
 type FilterPluginFactory = func(arg map[string]interface{}) FilterPlugin
 
 func RegisterScorePluginBuilder(name string, sp ScorePluginFactory) {
-	pluginMutex.RLock()
-	defer pluginMutex.RUnlock()
+	pluginMutex.Lock()
+	defer pluginMutex.Unlock()
 
 	scorePluginBuilders[name] = sp
 }
@@ -30,8 +30,8 @@ func GetScorePluginBuilder(name string) (ScorePluginFactory, bool) {
 }
 
 func RegisterFilterPluginBuilder(name string, fp FilterPluginFactory) {
-	pluginMutex.RLock()
-	defer pluginMutex.RUnlock()
+	pluginMutex.Lock()
+	defer pluginMutex.Unlock()
 
 	filterPluginBuilders[name] = fp
 }
