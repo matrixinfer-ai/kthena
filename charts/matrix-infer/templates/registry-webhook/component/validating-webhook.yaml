@@ -3,7 +3,8 @@ kind: ValidatingWebhookConfiguration
 metadata:
   name: registry-validating-webhook
   labels:
-    app: registry-webhook
+    app.kubernetes.io/instance: registry-webhook
+    {{- include "matrixinfer.labels" . | nindent 4 }}
   annotations:
     cert-manager.io/inject-ca-from: matrixinfer-system/registry-webhook-cert
 webhooks:
@@ -15,7 +16,7 @@ webhooks:
   clientConfig:
     service:
       name: registry-webhook
-      namespace: matrixinfer-system
+      namespace: {{ .Release.Namespace }}
       path: "/validate-registry-matrixinfer-ai-v1alpha1-model"
       port: 443
     caBundle: ""

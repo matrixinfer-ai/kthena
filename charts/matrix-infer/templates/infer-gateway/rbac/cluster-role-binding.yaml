@@ -1,0 +1,16 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: infer-gateway
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: infer-gateway-role-binding
+    {{- include "matrixinfer.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: infer-gateway
+subjects:
+  - kind: ServiceAccount
+    name: infer-gateway
+    namespace: {{ .Release.Namespace }}

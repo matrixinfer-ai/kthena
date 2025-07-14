@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: model-config-map
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: model-config-map
+    {{- include "matrixinfer.labels" . | nindent 4 }}
+data:
+  model_infer_downloader_image: "matrixinfer/downloader:latest"
+  model_infer_runtime_image: "matrixinfer/runtime:latest"

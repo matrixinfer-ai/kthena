@@ -48,9 +48,9 @@ help: ## Display this help.
 
 .PHONY: gen-crd
 gen-crd: controller-gen 
-	$(CONTROLLER_GEN) crd paths="./pkg/apis/networking/..." output:crd:artifacts:config=manifests/crd/infer-gateway
-	$(CONTROLLER_GEN) crd paths="./pkg/apis/workload/..." output:crd:artifacts:config=manifests/crd/infer-controller
-	$(CONTROLLER_GEN) crd paths="./pkg/apis/registry/..." output:crd:artifacts:config=manifests/crd/model-controller
+	$(CONTROLLER_GEN) crd paths="./pkg/apis/networking/..." output:crd:artifacts:config=charts/matrix-infer/crds/infer-gateway
+	$(CONTROLLER_GEN) crd paths="./pkg/apis/workload/..." output:crd:artifacts:config=charts/matrix-infer/crds/infer-controller
+	$(CONTROLLER_GEN) crd paths="./pkg/apis/registry/..." output:crd:artifacts:config=charts/matrix-infer/crds/model-controller
 .PHONY: generate
 generate: controller-gen code-generator gen-crd ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
