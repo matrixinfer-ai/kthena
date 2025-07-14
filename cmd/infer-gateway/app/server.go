@@ -23,6 +23,8 @@ import (
 )
 
 type Server struct {
+	store       datastore.Store
+	controllers Controller
 }
 
 func NewServer() *Server {
@@ -32,6 +34,7 @@ func NewServer() *Server {
 func (s *Server) Run(ctx context.Context) {
 	// create store
 	store := datastore.New()
+	s.store = store
 
 	// must be run before the controller, because it will register callbacks
 	r := NewRouter(store)
@@ -39,10 +42,12 @@ func (s *Server) Run(ctx context.Context) {
 	// Start store's periodic update loop
 	go store.Run(ctx)
 
-	go func() {
-		// start controller
-		startControllers(store, ctx.Done())
-	}()
+	// start controller
+	s.controllers = startControllers(store, ctx.Done())
 	// start router
-	startRouter(ctx, r)
+	s.startRouter(ctx, r)
+}
+
+func (s *Server) HasSynced() bool {
+	return s.controllers.HasSynced()
 }

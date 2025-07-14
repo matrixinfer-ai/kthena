@@ -37,10 +37,10 @@ func NewRouter(store datastore.Store) *router.Router {
 }
 
 // Starts router
-func startRouter(ctx context.Context, router *router.Router) {
+func (s *Server) startRouter(ctx context.Context, router *router.Router) {
 	gin.SetMode(gin.ReleaseMode)
 	engine := gin.New()
-	engine.Use(gin.LoggerWithWriter(gin.DefaultWriter, "/healthz"), gin.Recovery())
+	engine.Use(gin.LoggerWithWriter(gin.DefaultWriter, "/healthz", "readyz"), gin.Recovery())
 
 	// TODO: add middle ware
 	// engine.Use()
@@ -48,11 +48,22 @@ func startRouter(ctx context.Context, router *router.Router) {
 	// engine.Use(auth.Authenticate)
 	// engine.Use(auth.Authorize)
 
-	// TODO: return healthy after the controller has been synced
 	engine.GET("/healthz", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"message": "ok",
 		})
+	})
+
+	engine.GET("/readyz", func(c *gin.Context) {
+		if s.HasSynced() {
+			c.JSON(http.StatusOK, gin.H{
+				"message": "gateway is ready",
+			})
+		} else {
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"message": "gateway is not ready",
+			})
+		}
 	})
 
 	// Handle all paths under /v1/

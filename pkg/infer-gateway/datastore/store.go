@@ -106,6 +106,10 @@ type Store interface {
 	RegisterCallback(kind string, callback CallbackFunc)
 	// Run to update pod info periodically
 	Run(context.Context)
+
+	// HasSynced checks if the store has been initialized and synced
+	HasSynced() bool
+	SetSynced()
 }
 
 type PodInfo struct {
@@ -153,18 +157,22 @@ type store struct {
 
 	// New fields for callback management
 	callbacks map[string][]CallbackFunc
+	// TODO: figure out a better way to handle callbacks
 	initiated *atomic.Bool
+	// initialSynced is used to indicate whether all the resources has been processed and storred into this store.
+	initialSynced *atomic.Bool
 }
 
 func New() Store {
 	return &store{
-		modelServer: make(map[types.NamespacedName]*modelServer),
-		pods:        make(map[types.NamespacedName]*PodInfo),
-		routeInfo:   make(map[string]*modelRouteInfo),
-		routes:      make(map[string]*aiv1alpha1.ModelRoute),
-		loraRoutes:  make(map[string]*aiv1alpha1.ModelRoute),
-		callbacks:   make(map[string][]CallbackFunc),
-		initiated:   &atomic.Bool{},
+		modelServer:   make(map[types.NamespacedName]*modelServer),
+		pods:          make(map[types.NamespacedName]*PodInfo),
+		routeInfo:     make(map[string]*modelRouteInfo),
+		routes:        make(map[string]*aiv1alpha1.ModelRoute),
+		loraRoutes:    make(map[string]*aiv1alpha1.ModelRoute),
+		callbacks:     make(map[string][]CallbackFunc),
+		initiated:     &atomic.Bool{},
+		initialSynced: &atomic.Bool{},
 	}
 }
 
@@ -192,6 +200,14 @@ func (s *store) Run(ctx context.Context) {
 			time.Sleep(uppdateInterval)
 		}
 	}
+}
+
+func (s *store) HasSynced() bool {
+	return s.initialSynced.Load()
+}
+
+func (s *store) SetSynced() {
+	s.initialSynced.Store(true)
 }
 
 func (s *store) AddOrUpdateModelServer(ms *aiv1alpha1.ModelServer, pods sets.Set[types.NamespacedName]) error {

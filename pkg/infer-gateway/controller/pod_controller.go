@@ -18,6 +18,7 @@ package controller
 
 import (
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -45,9 +46,11 @@ type PodController struct {
 
 	modelServerSynced cache.InformerSynced
 	podSynced         cache.InformerSynced
+	registation       cache.ResourceEventHandlerRegistration
 
-	workqueue workqueue.TypedRateLimitingInterface[any]
-	store     datastore.Store
+	workqueue   workqueue.TypedRateLimitingInterface[any]
+	initialSync *atomic.Bool
+	store       datastore.Store
 }
 
 func NewPodController(
@@ -64,10 +67,11 @@ func NewPodController(
 		modelServerSynced: modelServerInformer.Informer().HasSynced,
 		podSynced:         podInformer.Informer().HasSynced,
 		workqueue:         workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[any]()),
+		initialSync:       &atomic.Bool{},
 		store:             store,
 	}
 
-	_, _ = podInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	controller.registation, _ = podInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.enqueuePod,
 		UpdateFunc: func(old, new interface{}) {
 			controller.enqueuePod(new)
@@ -82,9 +86,12 @@ func (c *PodController) Run(workers int, stopCh <-chan struct{}) error {
 	defer utilruntime.HandleCrash()
 	defer c.workqueue.ShutDown()
 
-	if ok := cache.WaitForCacheSync(stopCh, c.podSynced, c.modelServerSynced); !ok {
+	if ok := cache.WaitForCacheSync(stopCh, c.registation.HasSynced, c.modelServerSynced); !ok {
 		return fmt.Errorf("failed to wait for caches to sync")
 	}
+
+	// add initialSync signal
+	c.workqueue.Add(initialSyncSignal)
 
 	for i := 0; i < workers; i++ {
 		go wait.Until(c.runWorker, time.Second, stopCh)
@@ -92,6 +99,10 @@ func (c *PodController) Run(workers int, stopCh <-chan struct{}) error {
 
 	<-stopCh
 	return nil
+}
+
+func (c *PodController) HasSynced() bool {
+	return c.initialSync.Load()
 }
 
 func (c *PodController) runWorker() {
@@ -105,6 +116,14 @@ func (c *PodController) processNextWorkItem() bool {
 		return false
 	}
 	defer c.workqueue.Done(obj)
+
+	if obj == initialSyncSignal {
+		klog.V(2).Info("initial pods have been synced")
+		c.workqueue.Forget(obj)
+		c.initialSync.Store(true)
+		return true
+	}
+
 	var key string
 	var ok bool
 	if key, ok = obj.(string); !ok {
