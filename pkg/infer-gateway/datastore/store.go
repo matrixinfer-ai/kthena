@@ -109,7 +109,6 @@ type Store interface {
 
 	// HasSynced checks if the store has been initialized and synced
 	HasSynced() bool
-	SetSynced()
 }
 
 type PodInfo struct {
@@ -196,7 +195,7 @@ func (s *store) Run(ctx context.Context) {
 				s.updatePodMetrics(podInfo)
 				s.updatePodModels(podInfo)
 			}
-
+			s.initialSynced.Store(true)
 			time.Sleep(uppdateInterval)
 		}
 	}
@@ -204,10 +203,6 @@ func (s *store) Run(ctx context.Context) {
 
 func (s *store) HasSynced() bool {
 	return s.initialSynced.Load()
-}
-
-func (s *store) SetSynced() {
-	s.initialSynced.Store(true)
 }
 
 func (s *store) AddOrUpdateModelServer(ms *aiv1alpha1.ModelServer, pods sets.Set[types.NamespacedName]) error {
