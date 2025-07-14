@@ -19,10 +19,13 @@ package app
 import (
 	"context"
 
+	"k8s.io/client-go/tools/cache"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 )
 
 type Server struct {
+	store       datastore.Store
+	controllers Controller
 }
 
 func NewServer() *Server {
@@ -32,17 +35,26 @@ func NewServer() *Server {
 func (s *Server) Run(ctx context.Context) {
 	// create store
 	store := datastore.New()
+	s.store = store
 
 	// must be run before the controller, because it will register callbacks
 	r := NewRouter(store)
 
-	// Start store's periodic update loop
-	go store.Run(ctx)
+	// start controller
+	s.controllers = startControllers(store, ctx.Done())
 
+	// Start store's periodic update loop after controllers have synced
 	go func() {
-		// start controller
-		startControllers(store, ctx.Done())
+		if !cache.WaitForCacheSync(ctx.Done(), s.controllers.HasSynced) {
+			log.Fatalf("Failed to sync controllers")
+		}
+		log.Infof("Controllers have synced, starting store periodic update loop")
+		store.Run(ctx)
 	}()
 	// start router
-	startRouter(ctx, r)
+	s.startRouter(ctx, r)
+}
+
+func (s *Server) HasSynced() bool {
+	return s.controllers.HasSynced() && s.store.HasSynced()
 }
