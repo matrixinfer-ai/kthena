@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: webhook
-          image: "{{ .Values.registryWebhook.image }}:{{ .Values.registryWebhook.image.tag }}"
+          image: "{{ .Values.registryWebhook.image.repository }}:{{ .Values.registryWebhook.image.tag }}"
           imagePullPolicy: {{ .Values.registryWebhook.image.pullPolicy }}
           args: {{ .Values.registryWebhook.image.args }}
           ports:
