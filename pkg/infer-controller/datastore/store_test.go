@@ -104,7 +104,7 @@ func TestAddInferGroup(t *testing.T) {
 	}
 
 	// 1. Add group to an empty modelInfer.
-	s.AddInferGroup(key, 0)
+	s.AddInferGroup(key, 0, "9559767")
 	groupName := utils.GenerateInferGroupName(key.Name, 0)
 	group, exists := s.inferGroup[key][groupName]
 	assert.True(t, exists, "group should exist after add")
@@ -114,21 +114,21 @@ func TestAddInferGroup(t *testing.T) {
 	assert.Empty(t, group.runningPods)
 
 	// 2. Adds a group to an existing modelInferName.
-	s.AddInferGroup(key, 1)
+	s.AddInferGroup(key, 1, "9559767")
 	groupName2 := utils.GenerateInferGroupName(key.Name, 1)
 	group2, exists2 := s.inferGroup[key][groupName2]
 	assert.True(t, exists2, "second group should exist after add")
 	assert.Equal(t, groupName2, group2.Name)
 
 	// 3. Multiple additions of the same idx, group is overwritten
-	s.AddInferGroup(key, 1)
+	s.AddInferGroup(key, 1, "9559767")
 	group3, exists3 := s.inferGroup[key][groupName2]
 	assert.True(t, exists3, "group should still exist after overwrite")
 	assert.Equal(t, groupName2, group3.Name)
 
 	// 4. new modelInferName
 	key2 := types.NamespacedName{Namespace: "ns2", Name: "model2"}
-	s.AddInferGroup(key2, 0)
+	s.AddInferGroup(key2, 0, "9559766")
 	groupName4 := utils.GenerateInferGroupName(key2.Name, 0)
 	group4, exists4 := s.inferGroup[key2][groupName4]
 	assert.True(t, exists4, "group for new modelInferName should exist")

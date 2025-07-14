@@ -42,7 +42,7 @@ func TestSetCondition(t *testing.T) {
 		assert.True(t, shouldUpdate)
 		assert.Len(t, mi.Status.Conditions, 1)
 		cond := mi.Status.Conditions[0]
-		assert.Equal(t, string(workloadv1alpha1.ModelInferSetAvailable), cond.Type)
+		assert.Equal(t, string(workloadv1alpha1.ModelInferAvailable), cond.Type)
 		assert.Equal(t, metav1.ConditionTrue, cond.Status)
 		assert.Equal(t, "AllGroupsReady", cond.Reason)
 	})
@@ -63,7 +63,7 @@ func TestSetCondition(t *testing.T) {
 		assert.True(t, shouldUpdate)
 		assert.Len(t, mi.Status.Conditions, 1)
 		cond := mi.Status.Conditions[0]
-		assert.Equal(t, string(workloadv1alpha1.ModelInferSetUpdateInProgerss), cond.Type)
+		assert.Equal(t, string(workloadv1alpha1.ModelInferUpdateInProgress), cond.Type)
 		assert.Equal(t, metav1.ConditionTrue, cond.Status)
 		assert.Contains(t, cond.Message, SomeGroupsAreProgressing)
 		assert.Contains(t, cond.Message, SomeGroupsAreUpdated)
@@ -92,7 +92,7 @@ func TestSetCondition(t *testing.T) {
 		assert.True(t, shouldUpdate)
 		assert.Len(t, mi.Status.Conditions, 1)
 		cond := mi.Status.Conditions[0]
-		assert.Equal(t, string(workloadv1alpha1.ModelInferSetProgressing), cond.Type)
+		assert.Equal(t, string(workloadv1alpha1.ModelInferProgressing), cond.Type)
 		assert.Equal(t, metav1.ConditionTrue, cond.Status)
 		assert.Contains(t, cond.Message, SomeGroupsAreProgressing)
 	})

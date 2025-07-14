@@ -104,6 +104,7 @@ spec:
                     - InferGroupRollingUpdate
                     type: string
                 required:
+                - rollingUpdateConfiguration
                 - type
                 type: object
               schedulerName:

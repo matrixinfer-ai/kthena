@@ -199,7 +199,7 @@ func (mc *ModelController) isModelInferActive(ctx context.Context, model *regist
 		return fmt.Errorf("model infer number not equal to backend number")
 	}
 	for _, modelInfer := range modelInferList.Items {
-		if !meta.IsStatusConditionPresentAndEqual(modelInfer.Status.Conditions, string(workload.ModelInferSetAvailable), metav1.ConditionTrue) {
+		if !meta.IsStatusConditionPresentAndEqual(modelInfer.Status.Conditions, string(workload.ModelInferAvailable), metav1.ConditionTrue) {
 			// requeue until all Model Infers are active
 			klog.InfoS("model infer is not active", "model infer", modelInfer.Name, "namespace", modelInfer.Namespace)
 			return nil

@@ -321,17 +321,17 @@ func ContainerRestarted(pod *corev1.Pod) bool {
 	return false
 }
 
-func newCondition(condType workloadv1alpha1.ModelInferSetConditionType, message string) metav1.Condition {
+func newCondition(condType workloadv1alpha1.ModelInferConditionType, message string) metav1.Condition {
 	var conditionType, reason string
 	switch condType {
-	case workloadv1alpha1.ModelInferSetAvailable:
-		conditionType = string(workloadv1alpha1.ModelInferSetAvailable)
+	case workloadv1alpha1.ModelInferAvailable:
+		conditionType = string(workloadv1alpha1.ModelInferAvailable)
 		reason = "AllGroupsReady"
-	case workloadv1alpha1.ModelInferSetProgressing:
-		conditionType = string(workloadv1alpha1.ModelInferSetProgressing)
+	case workloadv1alpha1.ModelInferProgressing:
+		conditionType = string(workloadv1alpha1.ModelInferProgressing)
 		reason = "GroupProgressing"
-	case workloadv1alpha1.ModelInferSetUpdateInProgerss:
-		conditionType = string(workloadv1alpha1.ModelInferSetUpdateInProgerss)
+	case workloadv1alpha1.ModelInferUpdateInProgress:
+		conditionType = string(workloadv1alpha1.ModelInferUpdateInProgress)
 		reason = "GroupsUpdating"
 	}
 
@@ -344,7 +344,7 @@ func newCondition(condType workloadv1alpha1.ModelInferSetConditionType, message 
 	}
 }
 
-func SetCondition(mi *workloadv1alpha1.ModelInfer, progressingGroups, updatedGreoups, currentGroups []int) bool {
+func SetCondition(mi *workloadv1alpha1.ModelInfer, progressingGroups, updatedGroups, currentGroups []int) bool {
 	var newCond metav1.Condition
 	found := false
 	shouldUpdate := false
@@ -355,17 +355,15 @@ func SetCondition(mi *workloadv1alpha1.ModelInfer, progressingGroups, updatedGre
 	}
 
 	if len(progressingGroups) == 0 {
-		newCond = newCondition(workloadv1alpha1.ModelInferSetAvailable, AllGroupsIsReady)
+		newCond = newCondition(workloadv1alpha1.ModelInferAvailable, AllGroupsIsReady)
 	} else {
-		strOfProgressingGroups := fmt.Sprintf("%v", progressingGroups)
-		message := SomeGroupsAreProgressing + ": " + strOfProgressingGroups
-		// If currentGroups big than Partition, modelInfer is still in updating
+		message := SomeGroupsAreProgressing + ": " + fmt.Sprintf("%v", progressingGroups)
+		// If the number of current groups is greater than the Partition, modelInfer is still updating.
 		if len(currentGroups) > partition {
-			strUpdatedGroups := fmt.Sprintf("%v", updatedGreoups)
-			message = message + ", " + SomeGroupsAreUpdated + ": " + strUpdatedGroups
-			newCond = newCondition(workloadv1alpha1.ModelInferSetUpdateInProgerss, message)
+			message = message + ", " + SomeGroupsAreUpdated + ": " + fmt.Sprintf("%v", updatedGroups)
+			newCond = newCondition(workloadv1alpha1.ModelInferUpdateInProgress, message)
 		} else {
-			newCond = newCondition(workloadv1alpha1.ModelInferSetProgressing, message)
+			newCond = newCondition(workloadv1alpha1.ModelInferProgressing, message)
 		}
 	}
 
@@ -378,7 +376,7 @@ func SetCondition(mi *workloadv1alpha1.ModelInfer, progressingGroups, updatedGre
 			}
 			found = true
 		} else {
-			// Available and progreaaaing/updateInprogress are not allowd to be true at the same time.
+			// Available and progressing/updateInprogress are not allowed to be true at the same time.
 			if exclusiveConditionTypes(curCondition, newCond) && curCondition.Status == metav1.ConditionTrue && newCond.Status == metav1.ConditionTrue {
 				mi.Status.Conditions[i].Status = metav1.ConditionFalse
 				shouldUpdate = true
@@ -396,13 +394,13 @@ func SetCondition(mi *workloadv1alpha1.ModelInfer, progressingGroups, updatedGre
 
 // This function is refer to https://github.com/kubernetes-sigs/lws/blob/main/pkg/controllers/leaderworkerset_controller.go#L840
 func exclusiveConditionTypes(condition1 metav1.Condition, condition2 metav1.Condition) bool {
-	if (condition1.Type == string(workloadv1alpha1.ModelInferSetAvailable) && condition2.Type == string(workloadv1alpha1.ModelInferSetProgressing)) ||
-		(condition1.Type == string(workloadv1alpha1.ModelInferSetProgressing) && condition2.Type == string(workloadv1alpha1.ModelInferSetAvailable)) {
+	if (condition1.Type == string(workloadv1alpha1.ModelInferAvailable) && condition2.Type == string(workloadv1alpha1.ModelInferProgressing)) ||
+		(condition1.Type == string(workloadv1alpha1.ModelInferProgressing) && condition2.Type == string(workloadv1alpha1.ModelInferAvailable)) {
 		return true
 	}
 
-	if (condition1.Type == string(workloadv1alpha1.ModelInferSetAvailable) && condition2.Type == string(workloadv1alpha1.ModelInferSetUpdateInProgerss)) ||
-		(condition1.Type == string(workloadv1alpha1.ModelInferSetUpdateInProgerss) && condition2.Type == string(workloadv1alpha1.ModelInferSetAvailable)) {
+	if (condition1.Type == string(workloadv1alpha1.ModelInferAvailable) && condition2.Type == string(workloadv1alpha1.ModelInferUpdateInProgress)) ||
+		(condition1.Type == string(workloadv1alpha1.ModelInferUpdateInProgress) && condition2.Type == string(workloadv1alpha1.ModelInferAvailable)) {
 		return true
 	}
 
