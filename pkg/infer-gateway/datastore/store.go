@@ -106,6 +106,9 @@ type Store interface {
 	RegisterCallback(kind string, callback CallbackFunc)
 	// Run to update pod info periodically
 	Run(context.Context)
+
+	// HasSynced checks if the store has been initialized and synced
+	HasSynced() bool
 }
 
 type PodInfo struct {
@@ -153,23 +156,24 @@ type store struct {
 
 	// New fields for callback management
 	callbacks map[string][]CallbackFunc
-	initiated *atomic.Bool
+
+	// initialSynced is used to indicate whether all the resources has been processed and storred into this store.
+	initialSynced *atomic.Bool
 }
 
 func New() Store {
 	return &store{
-		modelServer: make(map[types.NamespacedName]*modelServer),
-		pods:        make(map[types.NamespacedName]*PodInfo),
-		routeInfo:   make(map[string]*modelRouteInfo),
-		routes:      make(map[string]*aiv1alpha1.ModelRoute),
-		loraRoutes:  make(map[string]*aiv1alpha1.ModelRoute),
-		callbacks:   make(map[string][]CallbackFunc),
-		initiated:   &atomic.Bool{},
+		modelServer:   make(map[types.NamespacedName]*modelServer),
+		pods:          make(map[types.NamespacedName]*PodInfo),
+		routeInfo:     make(map[string]*modelRouteInfo),
+		routes:        make(map[string]*aiv1alpha1.ModelRoute),
+		loraRoutes:    make(map[string]*aiv1alpha1.ModelRoute),
+		callbacks:     make(map[string][]CallbackFunc),
+		initialSynced: &atomic.Bool{},
 	}
 }
 
 func (s *store) Run(ctx context.Context) {
-	s.initiated.Store(true)
 	for {
 		select {
 		case <-ctx.Done():
@@ -188,10 +192,14 @@ func (s *store) Run(ctx context.Context) {
 				s.updatePodMetrics(podInfo)
 				s.updatePodModels(podInfo)
 			}
-
+			s.initialSynced.Store(true)
 			time.Sleep(uppdateInterval)
 		}
 	}
+}
+
+func (s *store) HasSynced() bool {
+	return s.initialSynced.Load()
 }
 
 func (s *store) AddOrUpdateModelServer(ms *aiv1alpha1.ModelServer, pods sets.Set[types.NamespacedName]) error {
@@ -586,11 +594,6 @@ func updateHistogramMetrics(podinfo *PodInfo, histogramMetrics map[string]*dto.H
 // RegisterCallback registers a callback function for a specific resource
 // Note this can only be called during bootstrapping.
 func (s *store) RegisterCallback(kind string, callback CallbackFunc) {
-	if s.initiated.Load() {
-		log.Error("Cannot register callback after store is initiated")
-		return
-	}
-
 	if _, exists := s.callbacks[kind]; !exists {
 		s.callbacks[kind] = make([]CallbackFunc, 0)
 	}
