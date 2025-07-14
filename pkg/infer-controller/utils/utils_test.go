@@ -35,8 +35,8 @@ func TestSetCondition(t *testing.T) {
 		}
 
 		progressingGroups := []int{}
-		updatedGroups := []int{3, 4}
-		currentGroups := []int{1, 2}
+		updatedGroups := []int{2, 3}
+		currentGroups := []int{0, 1}
 
 		shouldUpdate := SetCondition(mi, progressingGroups, updatedGroups, currentGroups)
 		assert.True(t, shouldUpdate)
@@ -56,8 +56,8 @@ func TestSetCondition(t *testing.T) {
 		}
 
 		progressingGroups := []int{3}
-		updatedGroups := []int{3, 4}
-		currentGroups := []int{1, 2}
+		updatedGroups := []int{2, 3}
+		currentGroups := []int{0, 1}
 
 		shouldUpdate := SetCondition(mi, progressingGroups, updatedGroups, currentGroups)
 		assert.True(t, shouldUpdate)
@@ -84,9 +84,9 @@ func TestSetCondition(t *testing.T) {
 			},
 		}
 
-		progressingGroups := []int{3}
-		updatedGroups := []int{3}
-		currentGroups := []int{1, 2}
+		progressingGroups := []int{2}
+		updatedGroups := []int{2}
+		currentGroups := []int{0, 1}
 
 		shouldUpdate := SetCondition(mi, progressingGroups, updatedGroups, currentGroups)
 		assert.True(t, shouldUpdate)

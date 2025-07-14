@@ -257,6 +257,15 @@ func IsPodRunningAndReady(pod *corev1.Pod) bool {
 	return pod.Status.Phase == corev1.PodRunning && isPodReady(pod)
 }
 
+// CheckPodRevision determine if the pod's revision is compliant or not.
+func CheckPodRevision(pod *corev1.Pod, revision string) bool {
+	podRevision, ok := pod.Labels[workloadv1alpha1.RevisionLabelKey]
+	if !ok {
+		return false
+	}
+	return podRevision == revision
+}
+
 func isPodReady(pod *corev1.Pod) bool {
 	return isPodReadyConditionTrue(pod.Status)
 }
@@ -350,10 +359,13 @@ func SetCondition(mi *workloadv1alpha1.ModelInfer, progressingGroups, updatedGro
 	shouldUpdate := false
 
 	partition := 0
-	if mi.Spec.RolloutStrategy != nil && mi.Spec.RolloutStrategy.RollingUpdateConfiguration.Partition != nil {
+	if mi.Spec.RolloutStrategy != nil && mi.Spec.RolloutStrategy.RollingUpdateConfiguration != nil && mi.Spec.RolloutStrategy.RollingUpdateConfiguration.Partition != nil {
 		partition = int(*mi.Spec.RolloutStrategy.RollingUpdateConfiguration.Partition)
 	}
 
+	// If progressingGroups is empty, all groups are running. In addition, we still need to check revision.
+	// But if the group's revision doesn't meet the requirements, then the group's status will change to deleting,
+	// so when all groups are running, it means that the revision meets the requirements as well.
 	if len(progressingGroups) == 0 {
 		newCond = newCondition(workloadv1alpha1.ModelInferAvailable, AllGroupsIsReady)
 	} else {

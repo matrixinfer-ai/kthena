@@ -59,8 +59,9 @@ spec:
                   to update replicas
                 properties:
                   rollingUpdateConfiguration:
-                    description: RollingUpdateConfiguration defines the parameters
-                      to be used when type is RollingUpdateStrategyType.
+                    description: |-
+                      RollingUpdateConfiguration defines the parameters to be used when type is RollingUpdateStrategyType.
+                      optional
                     properties:
                       maxSurge:
                         anyOf:
@@ -104,7 +105,6 @@ spec:
                     - InferGroupRollingUpdate
                     type: string
                 required:
-                - rollingUpdateConfiguration
                 - type
                 type: object
               schedulerName:
@@ -16834,9 +16834,8 @@ spec:
                   type: object
                 type: array
               currentReplicas:
-                description: |-
-                  CurrentReplicas is the number of InferGroup created by the ModelInfer controller from the ModelInfer version
-                  indicated by currentRevision.
+                description: CurrentReplicas is the number of InferGroup created by
+                  the ModelInfer controller from the ModelInfer version
                 format: int32
                 type: integer
               replicas:

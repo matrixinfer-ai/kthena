@@ -36,7 +36,7 @@ type Store interface {
 	DeleteModelInfer(modelInferName types.NamespacedName)
 	DeleteInferGroup(modelInferName types.NamespacedName, inferGroupName string)
 	AddInferGroup(modelInferName types.NamespacedName, idx int, revision string)
-	AddRunningPodToInferGroup(modelInferName types.NamespacedName, inferGroupName string, pod string)
+	AddRunningPodToInferGroup(modelInferName types.NamespacedName, inferGroupName string, pod string, revision string)
 	DeleteRunningPodFromInferGroup(modelInferName types.NamespacedName, inferGroupName string, pod string)
 	UpdateInferGroupStatus(modelInferName types.NamespacedName, inferGroupName string, Status InferGroupStatus) error
 }
@@ -161,7 +161,7 @@ func (s *store) AddInferGroup(modelInferName types.NamespacedName, idx int, revi
 }
 
 // AddRunningPodToInferGroup add inferGroup in runningPodOfInferGroup map
-func (s *store) AddRunningPodToInferGroup(modelInferName types.NamespacedName, inferGroupName string, runningPodName string) {
+func (s *store) AddRunningPodToInferGroup(modelInferName types.NamespacedName, inferGroupName string, runningPodName string, revision string) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	if _, ok := s.inferGroup[modelInferName]; !ok {
@@ -176,6 +176,7 @@ func (s *store) AddRunningPodToInferGroup(modelInferName types.NamespacedName, i
 			Name:        inferGroupName,
 			runningPods: map[string]struct{}{runningPodName: {}},
 			Status:      InferGroupCreating,
+			Revision:    revision,
 		}
 		s.inferGroup[modelInferName][inferGroupName] = group
 		return

@@ -93,7 +93,8 @@ type RolloutStrategy struct {
 	Type RolloutStrategyType `json:"type"`
 
 	// RollingUpdateConfiguration defines the parameters to be used when type is RollingUpdateStrategyType.
-	RollingUpdateConfiguration *RollingUpdateConfiguration `json:"rollingUpdateConfiguration"`
+	// optional
+	RollingUpdateConfiguration *RollingUpdateConfiguration `json:"rollingUpdateConfiguration,omitempty"`
 }
 
 type RolloutStrategyType string
@@ -174,7 +175,6 @@ type ModelInferStatus struct {
 	Replicas int32 `json:"replicas,omitempty"`
 
 	// CurrentReplicas is the number of InferGroup created by the ModelInfer controller from the ModelInfer version
-	// indicated by currentRevision.
 	CurrentReplicas int32 `json:"currentReplicas,omitempty"`
 
 	// UpdatedReplicas track the number of InferGroup that have been updated (ready or not).
