@@ -44,4 +44,4 @@ jobs:
     - name: Build matrixinfer
       shell: bash
       run: |
-        make generate
+        make gen-check

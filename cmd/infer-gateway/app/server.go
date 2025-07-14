@@ -17,7 +17,8 @@ limitations under the License.
 package app
 
 import (
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/controller"
+	"context"
+
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 )
 
@@ -28,20 +29,20 @@ func NewServer() *Server {
 	return &Server{}
 }
 
-func (s *Server) Run(stop <-chan struct{}) {
+func (s *Server) Run(ctx context.Context) {
 	// create store
 	store := datastore.New()
 
+	// must be run before the controller, because it will register callbacks
+	r := NewRouter(store)
+
 	// Start store's periodic update loop
-	go store.Run(stop)
+	go store.Run(ctx)
 
 	go func() {
 		// start controller
-		if err := controller.StartControllers(store); err != nil {
-			log.Fatal("Unable to start controllers")
-		}
+		startControllers(store, ctx.Done())
 	}()
-
 	// start router
-	startRouter(stop, store)
+	startRouter(ctx, r)
 }

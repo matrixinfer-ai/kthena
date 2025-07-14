@@ -17,88 +17,157 @@ limitations under the License.
 package controller
 
 import (
-	"context"
 	"fmt"
+	"time"
 
-	corev1 "k8s.io/api/core/v1"
+	"istio.io/istio/pkg/util/sets"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"k8s.io/apimachinery/pkg/types"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/informers"
+	corelisters "k8s.io/client-go/listers/core/v1"
+	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/workqueue"
+	"k8s.io/klog/v2"
 
-	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
+	informersv1alpha1 "matrixinfer.ai/matrixinfer/client-go/informers/externalversions"
+	listerv1alpha1 "matrixinfer.ai/matrixinfer/client-go/listers/networking/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
-// ModelServerController reconciles a ModelServer object
 type ModelServerController struct {
-	client.Client
-	Scheme *runtime.Scheme
+	modelServerLister listerv1alpha1.ModelServerLister
+	podLister         corelisters.PodLister
 
-	store datastore.Store
+	modelServerSynced cache.InformerSynced
+	podSynced         cache.InformerSynced
+
+	workqueue workqueue.TypedRateLimitingInterface[any]
+	store     datastore.Store
 }
 
-func NewModelServerController(mgr ctrl.Manager, store datastore.Store) *ModelServerController {
-	return &ModelServerController{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+func NewModelServerController(
+	matrixinferInformerFactory informersv1alpha1.SharedInformerFactory,
+	kubeInformerFactory informers.SharedInformerFactory,
+	store datastore.Store,
+) *ModelServerController {
+	modelServerInformer := matrixinferInformerFactory.Networking().V1alpha1().ModelServers()
+	podInformer := kubeInformerFactory.Core().V1().Pods()
 
-		store: store,
+	controller := &ModelServerController{
+		modelServerLister: modelServerInformer.Lister(),
+		podLister:         podInformer.Lister(),
+		modelServerSynced: modelServerInformer.Informer().HasSynced,
+		podSynced:         podInformer.Informer().HasSynced,
+		workqueue:         workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[any]()),
+		store:             store,
+	}
+
+	_, _ = modelServerInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: controller.enqueueModelServer,
+		UpdateFunc: func(old, new interface{}) {
+			controller.enqueueModelServer(new)
+		},
+		DeleteFunc: controller.enqueueModelServer,
+	})
+
+	return controller
+}
+
+func (c *ModelServerController) Run(workers int, stopCh <-chan struct{}) error {
+	defer utilruntime.HandleCrash()
+	defer c.workqueue.ShutDown()
+
+	if ok := cache.WaitForCacheSync(stopCh, c.modelServerSynced, c.podSynced); !ok {
+		return fmt.Errorf("failed to wait for caches to sync")
+	}
+
+	for i := 0; i < workers; i++ {
+		go wait.Until(c.runWorker, time.Second, stopCh)
+	}
+
+	<-stopCh
+	return nil
+}
+
+func (c *ModelServerController) runWorker() {
+	for c.processNextWorkItem() {
 	}
 }
 
-// +kubebuilder:rbac:groups=ai.kmesh.net,resources=ModelServers,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=ai.kmesh.net,resources=ModelServers/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=ai.kmesh.net,resources=ModelServers/finalizers,verbs=update
+func (c *ModelServerController) processNextWorkItem() bool {
+	obj, shutdown := c.workqueue.Get()
+	if shutdown {
+		return false
+	}
+	defer c.workqueue.Done(obj)
+	var key string
+	var ok bool
+	if key, ok = obj.(string); !ok {
+		c.workqueue.Forget(obj)
+		utilruntime.HandleError(fmt.Errorf("expected string in workqueue but got %#v", obj))
+		return true
+	}
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the ModelServer object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.19.1/pkg/reconcile
-func (r *ModelServerController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	ms := &aiv1alpha1.ModelServer{}
-	name := req.NamespacedName
+	if err := c.syncHandler(key); err != nil {
+		if c.workqueue.NumRequeues(key) < maxRetries {
+			klog.V(2).Infof("error syncing modelServer %q': %v, requeuing", key, err)
+			c.workqueue.AddRateLimited(key)
+			return true
+		}
+		klog.V(2).Infof("giving up on syncing %q after %d retries: %v", key, maxRetries, err)
+		c.workqueue.Forget(obj)
+	}
+	return true
+}
 
-	if err := r.Get(ctx, name, ms); err != nil {
-		log.Infof("Delete ModelServer: %v", name.String())
-		_ = r.store.DeleteModelServer(ms)
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+func (c *ModelServerController) syncHandler(key string) error {
+	namespace, name, err := cache.SplitMetaNamespaceKey(key)
+	if err != nil {
+		utilruntime.HandleError(fmt.Errorf("invalid resource key: %s", key))
+		return nil
+	}
+
+	ms, err := c.modelServerLister.ModelServers(namespace).Get(name)
+	if errors.IsNotFound(err) {
+		_ = c.store.DeleteModelServer(ms)
+		return nil
+	}
+	if err != nil {
+		return err
 	}
 
 	selector, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{MatchLabels: ms.Spec.WorkloadSelector.MatchLabels})
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("invalid selector: %v", err)
+		return fmt.Errorf("invalid selector: %v", err)
 	}
 
-	var podList corev1.PodList
-	if err := r.List(ctx, &podList, client.InNamespace(req.Namespace), client.MatchingLabelsSelector{Selector: selector}); err != nil {
-		return ctrl.Result{}, err
+	podList, err := c.podLister.Pods(ms.Namespace).List(selector)
+	if err != nil {
+		return err
 	}
 
-	pods := make([]*corev1.Pod, 0, len(podList.Items))
-	for i := range podList.Items {
-		if isPodReady(&podList.Items[i]) {
-			pods = append(pods, &podList.Items[i])
+	pods := sets.NewWithLength[types.NamespacedName](len(podList))
+	for _, pod := range podList {
+		if isPodReady(pod) {
+			pods.Insert(utils.GetNamespaceName(pod))
 		}
 	}
 
-	log.Infof("Update ModelServer: %v", name.String())
-	_ = r.store.AddOrUpdateModelServer(name, ms, pods)
+	_ = c.store.AddOrUpdateModelServer(ms, pods)
 
-	return ctrl.Result{}, nil
+	return nil
 }
 
-// SetupWithManager sets up the controller with the Manager.
-func (r *ModelServerController) SetupWithManager(mgr ctrl.Manager) error {
-	log.Infof("start modelserver controller")
-
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&aiv1alpha1.ModelServer{}).
-		Named("ModelServer").
-		Complete(r)
+func (c *ModelServerController) enqueueModelServer(obj interface{}) {
+	var key string
+	var err error
+	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
+		utilruntime.HandleError(err)
+		return
+	}
+	c.workqueue.Add(key)
 }
