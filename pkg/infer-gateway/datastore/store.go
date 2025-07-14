@@ -156,8 +156,7 @@ type store struct {
 
 	// New fields for callback management
 	callbacks map[string][]CallbackFunc
-	// TODO: figure out a better way to handle callbacks
-	initiated *atomic.Bool
+
 	// initialSynced is used to indicate whether all the resources has been processed and storred into this store.
 	initialSynced *atomic.Bool
 }
@@ -170,13 +169,11 @@ func New() Store {
 		routes:        make(map[string]*aiv1alpha1.ModelRoute),
 		loraRoutes:    make(map[string]*aiv1alpha1.ModelRoute),
 		callbacks:     make(map[string][]CallbackFunc),
-		initiated:     &atomic.Bool{},
 		initialSynced: &atomic.Bool{},
 	}
 }
 
 func (s *store) Run(ctx context.Context) {
-	s.initiated.Store(true)
 	for {
 		select {
 		case <-ctx.Done():
@@ -597,11 +594,6 @@ func updateHistogramMetrics(podinfo *PodInfo, histogramMetrics map[string]*dto.H
 // RegisterCallback registers a callback function for a specific resource
 // Note this can only be called during bootstrapping.
 func (s *store) RegisterCallback(kind string, callback CallbackFunc) {
-	if s.initiated.Load() {
-		log.Error("Cannot register callback after store is initiated")
-		return
-	}
-
 	if _, exists := s.callbacks[kind]; !exists {
 		s.callbacks[kind] = make([]CallbackFunc, 0)
 	}
