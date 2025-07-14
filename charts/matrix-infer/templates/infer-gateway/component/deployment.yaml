@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: infer-gateway
+  name: {{ include "matrixinfer.fullname" . }}-infer-gateway
   namespace: {{ .Release.Namespace }}
   labels:
     app.kubernetes.io/instance: infer-gateway
@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: infer-gateway
-          image: {{ .Values.inferGateway.image }}:{{ .Values.inferGateway.image.tag }}
+          image: "{{ .Values.inferGateway.image }}:{{ .Values.inferGateway.image.tag }}"
           imagePullPolicy: {{ .Values.inferGateway.image.pullPolicy }}
           ports:
             - containerPort: 8080

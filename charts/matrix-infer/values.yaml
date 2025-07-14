@@ -19,6 +19,14 @@ modelController:
     requests:
       cpu: 100m
       memory: 128Mi
+  # downloaderImage is the container image used for downloading models.
+  downloaderImage:
+    repository: matrixinfer/downloader
+    tag: latest
+  # runtimeImage is the container image used for running models.
+  runtimeImage:
+    repository: matrixinfer/runtime
+    tag: latest
 
 registryWebhook:
   # replicas is the number of registry-webhook instances to run.

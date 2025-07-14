@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: registry-webhook
+  name: {{ include "matrixinfer.fullname" . }}-registry-webhook
   namespace: {{ .Release.Namespace }}
   labels:
     app.kubernetes.io/instance: registry-webhook
@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: webhook
-          image: {{ .Values.registryWebhook.image }}:{{ .Values.registryWebhook.image.tag }}
+          image: "{{ .Values.registryWebhook.image }}:{{ .Values.registryWebhook.image.tag }}"
           imagePullPolicy: {{ .Values.registryWebhook.image.pullPolicy }}
           args: {{ .Values.registryWebhook.image.args }}
           ports:
@@ -48,3 +48,4 @@ spec:
         - name: webhook-certs
           secret:
             secretName: registry-webhook-certs
+      serviceAccountName: registry-webhook

@@ -1,30 +1,31 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: registry-mutating-webhook
+  name: {{ include "matrixinfer.fullname" . }}-registry-mutating-webhook
+  namespace: {{ .Release.Namespace }}
   labels:
     app.kubernetes.io/instance: registry-webhook
     {{- include "matrixinfer.labels" . | nindent 4 }}
   annotations:
-    cert-manager.io/inject-ca-from: matrixinfer-system/registry-webhook-cert
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/registry-webhook-cert
 webhooks:
-- name: mutate-registry-matrixinfer-ai-v1alpha1-model.matrixinfer.ai
-  admissionReviewVersions: ["v1"]
-  sideEffects: None
-  failurePolicy: Fail
-  timeoutSeconds: 30
-  clientConfig:
-    service:
-      name: registry-webhook
-      namespace: {{ .Release.Namespace }}
-      path: "/mutate-registry-matrixinfer-ai-v1alpha1-model"
-      port: 443
-    caBundle: ""
-  rules:
-  - apiGroups: ["registry.matrixinfer.ai"]
-    apiVersions: ["v1alpha1"]
-    resources: ["models"]
-    operations: ["CREATE", "UPDATE"]
-    scope: "Namespaced"
-  # This ensures the webhook is called before validation
-  reinvocationPolicy: IfNeeded
+  - name: mutate-registry-matrixinfer-ai-v1alpha1-model.matrixinfer.ai
+    admissionReviewVersions: [ "v1" ]
+    sideEffects: None
+    failurePolicy: Fail
+    timeoutSeconds: 30
+    clientConfig:
+      service:
+        name: registry-webhook
+        namespace: {{ .Release.Namespace }}
+        path: "/mutate-registry-matrixinfer-ai-v1alpha1-model"
+        port: 443
+      caBundle: ""
+    rules:
+      - apiGroups: [ "registry.matrixinfer.ai" ]
+        apiVersions: [ "v1alpha1" ]
+        resources: [ "models" ]
+        operations: [ "CREATE", "UPDATE" ]
+        scope: "Namespaced"
+    # This ensures the webhook is called before validation
+    reinvocationPolicy: IfNeeded
