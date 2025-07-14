@@ -60,36 +60,42 @@ type podInfoWithValue struct {
 }
 
 func NewScheduler(store datastore.Store) Scheduler {
-	scorePluginMap, filterPluginMap, err := utils.LoadSchedulerConfig()
+	scorePluginMap, filterPluginMap, pluginsArgsMap, err := utils.LoadSchedulerConfig()
 	if err != nil {
 		log.Errorf("failed to Load Scheduler: %v", err)
 	}
-	prefixCache := plugins.NewPrefixCache(store, conf.PrefixCacheArgs{})
+	prefixCache := plugins.NewPrefixCache(store, &conf.PrefixCacheArgs{})
 	return &SchedulerImpl{
 		store:         store,
-		filterPlugins: ParseFilterPlugin(filterPluginMap),
-		scorePlugins:  GetScorePlugin(prefixCache, scorePluginMap),
+		filterPlugins: ParseFilterPlugin(filterPluginMap, pluginsArgsMap),
+		scorePlugins:  GetScorePlugin(prefixCache, scorePluginMap, pluginsArgsMap),
 		ScheduleHooks: []framework.ScheduleHook{
 			prefixCache,
 		},
 	}
 }
 
-func ParseFilterPlugin(filterPluginMap []string) []framework.FilterPlugin {
+func ParseFilterPlugin(filterPluginMap []string, pluginsArgsMap map[string]interface{}) []framework.FilterPlugin {
 	var list []framework.FilterPlugin
 	// TODO: enable lora affinity when models from metrics are available.
-	for _, plugin := range filterPluginMap {
-		if pb, exist := framework.GetFilterPluginBuilder(plugin); !exist {
-			log.Errorf("Failed to get plugin %s.", plugin)
+	for _, pluginName := range filterPluginMap {
+		if factory, exist := framework.GetFilterPluginBuilder(pluginName); !exist {
+			log.Errorf("Failed to get plugin %s.", pluginName)
+			continue
 		} else {
-			list = append(list, pb)
+			args, ok := pluginsArgsMap[pluginName].(map[string]interface{})
+			if !ok {
+				args = map[string]interface{}{}
+			}
+			plugin := factory(args)
+			list = append(list, plugin)
 		}
 	}
 	return list
 }
 
 // TODO: set the weight of each plugin properly.
-func GetScorePlugin(prefixCache *plugins.PrefixCache, scorePluginMap map[string]int) []*scorePlugin {
+func GetScorePlugin(prefixCache *plugins.PrefixCache, scorePluginMap map[string]int, pluginsArgsMap map[string]interface{}) []*scorePlugin {
 	var list []*scorePlugin
 	for key, value := range scorePluginMap {
 		if key == plugins.PrefixCachePluginName {
@@ -102,7 +108,7 @@ func GetScorePlugin(prefixCache *plugins.PrefixCache, scorePluginMap map[string]
 				log.Errorf("Failed to get plugin %s.", key)
 			} else {
 				list = append(list, &scorePlugin{
-					plugin: pb,
+					plugin: pb(pluginsArgsMap),
 					weight: value,
 				})
 			}

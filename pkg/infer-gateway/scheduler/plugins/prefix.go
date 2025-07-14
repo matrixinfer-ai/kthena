@@ -95,7 +95,7 @@ type PrefixCache struct {
 
 // Default token block size of vLLM is 16, and a good guess of average characters per token is 4.
 // So we use 64 as the default block size.
-func NewPrefixCache(store datastore.Store, arg conf.PrefixCacheArgs) *PrefixCache {
+func NewPrefixCache(store datastore.Store, arg *conf.PrefixCacheArgs) *PrefixCache {
 	p := &PrefixCache{
 		name: PrefixCachePluginName,
 

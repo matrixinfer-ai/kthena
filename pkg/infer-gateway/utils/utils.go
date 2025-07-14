@@ -35,8 +35,6 @@ var (
 	RequestRunningNum = "request_running_num"
 	TPOT              = "TPOT"
 	TTFT              = "TTFT"
-
-	PluginsArgs = make(map[string]interface{})
 )
 
 const ConfigMapPath = "/etc/config/schedulerConfiguration.yaml"
@@ -99,29 +97,29 @@ func GetPrompt(body map[string]interface{}) (string, error) {
 	return "", fmt.Errorf("prompt or messages not found in request body")
 }
 
-func LoadSchedulerConfig() (map[string]int, []string, error) {
+func LoadSchedulerConfig() (map[string]int, []string, map[string]interface{}, error) {
 	data, err := os.ReadFile(ConfigMapPath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read config file %s: %w", ConfigMapPath, err)
+		return nil, nil, nil, fmt.Errorf("failed to read config file %s: %w", ConfigMapPath, err)
 	}
 	var kubeSchedulerConfiguration conf.SchedulerConfiguration
 	if err := yaml.Unmarshal(data, &kubeSchedulerConfiguration); err != nil {
 		log.Errorf("failed to Unmarshal schedulerConfiguration: %v", err)
-		return nil, nil, fmt.Errorf("failed to Unmarshal schedulerConfiguration: %v", err)
+		return nil, nil, nil, fmt.Errorf("failed to Unmarshal schedulerConfiguration: %v", err)
 	}
 
 	scorePluginMap, filterPlugins, err := unmarshalPlugins(&kubeSchedulerConfiguration)
 	if err != nil {
 		log.Errorf("failed to Unmarshal Plugins: %v", err)
-		return nil, nil, fmt.Errorf("failed to Unmarshal Plugins: %v", err)
+		return nil, nil, nil, fmt.Errorf("failed to Unmarshal Plugins: %v", err)
 	}
 
-	err = unmarshalPluginsConfig(&kubeSchedulerConfiguration)
+	pluginsArgsMap, err := unmarshalPluginsConfig(&kubeSchedulerConfiguration)
 	if err != nil {
 		log.Errorf("failed to Unmarshal PluginsConfig: %v", err)
-		return nil, nil, fmt.Errorf("failed to Unmarshal PluginsConfig: %v", err)
+		return nil, nil, nil, fmt.Errorf("failed to Unmarshal PluginsConfig: %v", err)
 	}
-	return scorePluginMap, filterPlugins, nil
+	return scorePluginMap, filterPlugins, pluginsArgsMap, nil
 }
 
 func unmarshalPlugins(schedulerConfig *conf.SchedulerConfiguration) (map[string]int, []string, error) {
@@ -142,12 +140,12 @@ func unmarshalPlugins(schedulerConfig *conf.SchedulerConfiguration) (map[string]
 	return scorePluginMap, filterPlugins, nil
 }
 
-func unmarshalPluginsConfig(schedulerConfig *conf.SchedulerConfiguration) error {
+func unmarshalPluginsConfig(schedulerConfig *conf.SchedulerConfiguration) (map[string]interface{}, error) {
+	pluginsArgsMap := make(map[string]interface{})
 	if len(schedulerConfig.PluginConfig) > 0 {
 		for _, pluginConfig := range schedulerConfig.PluginConfig {
-			PluginsArgs[pluginConfig.Name] = pluginConfig.Args
+			pluginsArgsMap[pluginConfig.Name] = pluginConfig.Args
 		}
-		return nil
 	}
-	return fmt.Errorf("PluginsConfig is nil")
+	return pluginsArgsMap, nil
 }

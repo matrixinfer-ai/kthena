@@ -7,18 +7,21 @@ import (
 var (
 	pluginMutex sync.RWMutex
 
-	scorePluginBuilders  = map[string]ScorePlugin{}
-	filterPluginBuilders = map[string]FilterPlugin{}
+	scorePluginBuilders  = map[string]ScorePluginFactory{}
+	filterPluginBuilders = map[string]FilterPluginFactory{}
 )
 
-func RegisterScorePluginBuilder(name string, sp ScorePlugin) {
+type ScorePluginFactory = func(arg map[string]interface{}) ScorePlugin
+type FilterPluginFactory = func(arg map[string]interface{}) FilterPlugin
+
+func RegisterScorePluginBuilder(name string, sp ScorePluginFactory) {
 	pluginMutex.RLock()
 	defer pluginMutex.RUnlock()
 
 	scorePluginBuilders[name] = sp
 }
 
-func GetScorePluginBuilder(name string) (ScorePlugin, bool) {
+func GetScorePluginBuilder(name string) (ScorePluginFactory, bool) {
 	pluginMutex.RLock()
 	defer pluginMutex.RUnlock()
 
@@ -26,14 +29,14 @@ func GetScorePluginBuilder(name string) (ScorePlugin, bool) {
 	return sp, exist
 }
 
-func RegisterFilterPluginBuilder(name string, fp FilterPlugin) {
+func RegisterFilterPluginBuilder(name string, fp FilterPluginFactory) {
 	pluginMutex.RLock()
 	defer pluginMutex.RUnlock()
 
 	filterPluginBuilders[name] = fp
 }
 
-func GetFilterPluginBuilder(name string) (FilterPlugin, bool) {
+func GetFilterPluginBuilder(name string) (FilterPluginFactory, bool) {
 	pluginMutex.RLock()
 	defer pluginMutex.RUnlock()
 
