@@ -102,7 +102,7 @@ func GetPrompt(body map[string]interface{}) (string, error) {
 func LoadSchedulerConfig() (map[string]int, []string, error) {
 	data, err := os.ReadFile(ConfigMapPath)
 	if err != nil {
-		log.Fatalf("Failed to read file: %v", err)
+		return nil, nil, fmt.Errorf("failed to read config file %s: %w", ConfigMapPath, err)
 	}
 	var kubeSchedulerConfiguration conf.SchedulerConfiguration
 	if err := yaml.Unmarshal(data, &kubeSchedulerConfiguration); err != nil {

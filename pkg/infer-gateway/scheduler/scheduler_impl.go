@@ -62,7 +62,7 @@ type podInfoWithValue struct {
 func NewScheduler(store datastore.Store) Scheduler {
 	scorePluginMap, filterPluginMap, err := utils.LoadSchedulerConfig()
 	if err != nil {
-		log.Errorf("failed toLoad Scheduler: %v", err)
+		log.Errorf("failed to Load Scheduler: %v", err)
 	}
 	prefixCache := plugins.NewPrefixCache(store, conf.PrefixCacheArgs{})
 	return &SchedulerImpl{
@@ -80,7 +80,7 @@ func ParseFilterPlugin(filterPluginMap []string) []framework.FilterPlugin {
 	// TODO: enable lora affinity when models from metrics are available.
 	for _, plugin := range filterPluginMap {
 		if pb, exist := framework.GetFilterPluginBuilder(plugin); !exist {
-			log.Errorf("Failed to get plugin %s.", pb)
+			log.Errorf("Failed to get plugin %s.", plugin)
 		} else {
 			list = append(list, pb)
 		}
@@ -99,7 +99,7 @@ func GetScorePlugin(prefixCache *plugins.PrefixCache, scorePluginMap map[string]
 			})
 		} else {
 			if pb, exist := framework.GetScorePluginBuilder(key); !exist {
-				log.Errorf("Failed to get plugin %s.", pb)
+				log.Errorf("Failed to get plugin %s.", key)
 			} else {
 				list = append(list, &scorePlugin{
 					plugin: pb,
