@@ -22,8 +22,10 @@ import (
 	"time"
 
 	"istio.io/istio/pkg/util/sets"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -35,9 +37,24 @@ import (
 
 	informersv1alpha1 "matrixinfer.ai/matrixinfer/client-go/informers/externalversions"
 	listerv1alpha1 "matrixinfer.ai/matrixinfer/client-go/listers/networking/v1alpha1"
+	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
+
+// ResourceType represents the type of Kubernetes resource
+type ResourceType string
+
+const (
+	ResourceTypeModelServer ResourceType = "ModelServer"
+	ResourceTypePod         ResourceType = "Pod"
+)
+
+// QueueItem represents an item in the work queue
+type QueueItem struct {
+	ResourceType ResourceType
+	Key          string
+}
 
 type ModelServerController struct {
 	modelServerLister listerv1alpha1.ModelServerLister
@@ -45,9 +62,12 @@ type ModelServerController struct {
 
 	modelServerSynced cache.InformerSynced
 	podSynced         cache.InformerSynced
-	registation       cache.ResourceEventHandlerRegistration
 
-	workqueue   workqueue.TypedRateLimitingInterface[any]
+	// Event handler registrations
+	modelServerRegistration cache.ResourceEventHandlerRegistration
+	podRegistration         cache.ResourceEventHandlerRegistration
+
+	workqueue   workqueue.TypedRateLimitingInterface[QueueItem]
 	initialSync *atomic.Bool
 	store       datastore.Store
 }
@@ -65,12 +85,13 @@ func NewModelServerController(
 		podLister:         podInformer.Lister(),
 		modelServerSynced: modelServerInformer.Informer().HasSynced,
 		podSynced:         podInformer.Informer().HasSynced,
-		workqueue:         workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[any]()),
+		workqueue:         workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[QueueItem]()),
 		initialSync:       &atomic.Bool{},
 		store:             store,
 	}
 
-	controller.registation, _ = modelServerInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	// Register ModelServer event handlers
+	controller.modelServerRegistration, _ = modelServerInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.enqueueModelServer,
 		UpdateFunc: func(old, new interface{}) {
 			controller.enqueueModelServer(new)
@@ -78,22 +99,29 @@ func NewModelServerController(
 		DeleteFunc: controller.enqueueModelServer,
 	})
 
+	// Register Pod event handlers
+	controller.podRegistration, _ = podInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: controller.enqueuePod,
+		UpdateFunc: func(old, new interface{}) {
+			controller.enqueuePod(new)
+		},
+		DeleteFunc: controller.enqueuePod,
+	})
+
 	return controller
 }
 
-func (c *ModelServerController) Run(workers int, stopCh <-chan struct{}) error {
+func (c *ModelServerController) Run(stopCh <-chan struct{}) error {
 	defer utilruntime.HandleCrash()
 	defer c.workqueue.ShutDown()
 
-	if ok := cache.WaitForCacheSync(stopCh, c.registation.HasSynced, c.podSynced); !ok {
+	if ok := cache.WaitForCacheSync(stopCh, c.modelServerRegistration.HasSynced, c.podRegistration.HasSynced); !ok {
 		return fmt.Errorf("failed to wait for caches to sync")
 	}
 	// add initialSync signal
-	c.workqueue.Add(initialSyncSignal)
+	c.workqueue.Add(QueueItem{})
 
-	for i := 0; i < workers; i++ {
-		go wait.Until(c.runWorker, time.Second, stopCh)
-	}
+	go wait.Until(c.runWorker, time.Second, stopCh)
 
 	<-stopCh
 	return nil
@@ -115,34 +143,39 @@ func (c *ModelServerController) processNextWorkItem() bool {
 	}
 	defer c.workqueue.Done(obj)
 
-	if obj == initialSyncSignal {
-		klog.V(2).Info("initial model servers have been synced")
+	// Handle initial sync signal
+	if obj.ResourceType == "" && obj.Key == "" {
+		klog.V(2).Info("initial modelServer and pod resources have been synced")
 		c.workqueue.Forget(obj)
 		c.initialSync.Store(true)
 		return true
 	}
 
-	var key string
-	var ok bool
-	if key, ok = obj.(string); !ok {
+	var err error
+	switch obj.ResourceType {
+	case ResourceTypeModelServer:
+		err = c.syncModelServerHandler(obj.Key)
+	case ResourceTypePod:
+		err = c.syncPodHandler(obj.Key)
+	default:
 		c.workqueue.Forget(obj)
-		utilruntime.HandleError(fmt.Errorf("expected string in workqueue but got %#v", obj))
+		utilruntime.HandleError(fmt.Errorf("unexpected resource type in workqueue: %s", obj.ResourceType))
 		return true
 	}
 
-	if err := c.syncHandler(key); err != nil {
-		if c.workqueue.NumRequeues(key) < maxRetries {
-			klog.V(2).Infof("error syncing modelServer %q': %v, requeuing", key, err)
-			c.workqueue.AddRateLimited(key)
+	if err != nil {
+		if c.workqueue.NumRequeues(obj) < maxRetries {
+			klog.V(2).Infof("error syncing %s %q: %v, requeuing", obj.ResourceType, obj.Key, err)
+			c.workqueue.AddRateLimited(obj)
 			return true
 		}
-		klog.V(2).Infof("giving up on syncing %q after %d retries: %v", key, maxRetries, err)
-		c.workqueue.Forget(obj)
+		klog.V(2).Infof("giving up on syncing %s %q after %d retries: %v", obj.ResourceType, obj.Key, maxRetries, err)
 	}
+	c.workqueue.Forget(obj)
 	return true
 }
 
-func (c *ModelServerController) syncHandler(key string) error {
+func (c *ModelServerController) syncModelServerHandler(key string) error {
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("invalid resource key: %s", key))
@@ -151,7 +184,7 @@ func (c *ModelServerController) syncHandler(key string) error {
 
 	ms, err := c.modelServerLister.ModelServers(namespace).Get(name)
 	if errors.IsNotFound(err) {
-		_ = c.store.DeleteModelServer(ms)
+		_ = c.store.DeleteModelServer(types.NamespacedName{Namespace: namespace, Name: name})
 		return nil
 	}
 	if err != nil {
@@ -180,6 +213,52 @@ func (c *ModelServerController) syncHandler(key string) error {
 	return nil
 }
 
+func (c *ModelServerController) syncPodHandler(key string) error {
+	namespace, name, err := cache.SplitMetaNamespaceKey(key)
+	if err != nil {
+		utilruntime.HandleError(fmt.Errorf("invalid resource key: %s", key))
+		return nil
+	}
+
+	pod, err := c.podLister.Pods(namespace).Get(name)
+	if errors.IsNotFound(err) {
+		_ = c.store.DeletePod(types.NamespacedName{Namespace: namespace, Name: name})
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	if !isPodReady(pod) {
+		_ = c.store.DeletePod(types.NamespacedName{Namespace: namespace, Name: name})
+		return nil
+	}
+
+	modelServers, err := c.modelServerLister.ModelServers(pod.Namespace).List(labels.Everything())
+	if err != nil {
+		return err
+	}
+
+	servers := []*aiv1alpha1.ModelServer{}
+	for _, item := range modelServers {
+		selector, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{MatchLabels: item.Spec.WorkloadSelector.MatchLabels})
+		if err != nil || !selector.Matches(labels.Set(pod.Labels)) {
+			continue
+		}
+		servers = append(servers, item)
+	}
+
+	if len(servers) == 0 {
+		return nil
+	}
+
+	if err := c.store.AddOrUpdatePod(pod, servers); err != nil {
+		return fmt.Errorf("failed to add or update pod in data store: %v", name)
+	}
+
+	return nil
+}
+
 func (c *ModelServerController) enqueueModelServer(obj interface{}) {
 	var key string
 	var err error
@@ -187,5 +266,34 @@ func (c *ModelServerController) enqueueModelServer(obj interface{}) {
 		utilruntime.HandleError(err)
 		return
 	}
-	c.workqueue.Add(key)
+	c.workqueue.Add(QueueItem{
+		ResourceType: ResourceTypeModelServer,
+		Key:          key,
+	})
+}
+
+func (c *ModelServerController) enqueuePod(obj interface{}) {
+	var key string
+	var err error
+	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
+		utilruntime.HandleError(err)
+		return
+	}
+	c.workqueue.Add(QueueItem{
+		ResourceType: ResourceTypePod,
+		Key:          key,
+	})
+}
+
+// isPodReady checks if the pod is in a running state and has a PodReady condition set to true.
+func isPodReady(pod *corev1.Pod) bool {
+	if pod.Status.Phase != corev1.PodRunning {
+		return false
+	}
+	for _, condition := range pod.Status.Conditions {
+		if condition.Type == corev1.PodReady && condition.Status == corev1.ConditionTrue {
+			return true
+		}
+	}
+	return false
 }

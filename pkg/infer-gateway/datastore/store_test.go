@@ -368,7 +368,7 @@ func TestStoreDeleteModelServer(t *testing.T) {
 	}
 	s.pods[podName] = podInfo
 
-	err := s.DeleteModelServer(ms)
+	err := s.DeleteModelServer(msName)
 	assert.NoError(t, err)
 	_, exists := s.modelServer[msName]
 	assert.False(t, exists, "modelServer should be deleted")

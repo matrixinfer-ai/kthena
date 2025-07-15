@@ -26,10 +26,6 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 )
 
-const (
-	workerNum = 2
-)
-
 type Controller interface {
 	HasSynced() bool
 }
@@ -59,7 +55,6 @@ func startControllers(store datastore.Store, stop <-chan struct{}) Controller {
 	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, 0)
 	matrixinferInformerFactory := matrixinferinformers.NewSharedInformerFactory(matrixinferClient, 0)
 
-	podController := controller.NewPodController(kubeInformerFactory, matrixinferInformerFactory, store)
 	modelRouteController := controller.NewModelRouteController(matrixinferInformerFactory, store)
 	modelServerController := controller.NewModelServerController(matrixinferInformerFactory, kubeInformerFactory, store)
 
@@ -67,26 +62,19 @@ func startControllers(store datastore.Store, stop <-chan struct{}) Controller {
 	matrixinferInformerFactory.Start(stop)
 
 	go func() {
-		if err := podController.Run(workerNum, stop); err != nil {
-			log.Fatalf("Error running pod controller: %s", err.Error())
-		}
-	}()
-
-	go func() {
-		if err := modelRouteController.Run(workerNum, stop); err != nil {
+		if err := modelRouteController.Run(stop); err != nil {
 			log.Fatalf("Error running model route controller: %s", err.Error())
 		}
 	}()
 
 	go func() {
-		if err := modelServerController.Run(workerNum, stop); err != nil {
+		if err := modelServerController.Run(stop); err != nil {
 			log.Fatalf("Error running model server controller: %s", err.Error())
 		}
 	}()
 
 	return &aggregatedController{
 		controllers: []Controller{
-			podController,
 			modelRouteController,
 			modelServerController,
 		},
