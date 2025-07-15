@@ -219,8 +219,12 @@ func TestModelServerController_ModelServerLifecycle(t *testing.T) {
 			context.Background(), ms, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
+		waitForObjectInCache(t, 2*time.Second, func() bool {
+			_, err := controller.modelServerLister.ModelServers("default").Get("test-modelserver-delete")
+			return err == nil
+		})
+
 		// Process creation
-		controller.enqueueModelServer(ms)
 		err = controller.syncModelServerHandler("default/test-modelserver-delete")
 		assert.NoError(t, err)
 
@@ -229,23 +233,17 @@ func TestModelServerController_ModelServerLifecycle(t *testing.T) {
 			Namespace: "default",
 			Name:      "test-modelserver-delete",
 		})
-		assert.Nil(t, storedMS, "ModelServer should be found in store before deletion")
+		assert.NotNil(t, storedMS, "ModelServer should be found in store before deletion")
 
 		// Delete ModelServer
 		err = matrixinferClient.NetworkingV1alpha1().ModelServers("default").Delete(
 			context.Background(), "test-modelserver-delete", metav1.DeleteOptions{})
 		assert.NoError(t, err)
 
-		// Clear any previous items from queue
-		for controller.workqueue.Len() > 0 {
-			item, _ := controller.workqueue.Get()
-			controller.workqueue.Done(item)
-			controller.workqueue.Forget(item)
-		}
-
-		// Simulate controller receiving delete event
-		controller.enqueueModelServer(ms)
-		assert.Equal(t, 1, controller.workqueue.Len())
+		waitForObjectInCache(t, 2*time.Second, func() bool {
+			_, err := controller.modelServerLister.ModelServers("default").Get("test-modelserver-delete")
+			return err != nil
+		})
 
 		// Process the deletion - this should handle the NotFound error gracefully
 		err = controller.syncModelServerHandler("default/test-modelserver-delete")
@@ -903,9 +901,6 @@ func TestModelServerController_ComprehensiveLifecycleTest(t *testing.T) {
 	// Test error handling for non-existent resources
 	err = controller.syncModelServerHandler("test-ns/non-existent-modelserver")
 	assert.NoError(t, err) // This should work fine for pods
-
-	// This would cause a panic due to the controller bug, so we skip it
-	t.Log("Skipping non-existent ModelServer test due to controller bug")
 
 	err = controller.syncPodHandler("test-ns/non-existent-pod")
 	assert.NoError(t, err) // This should work fine for pods

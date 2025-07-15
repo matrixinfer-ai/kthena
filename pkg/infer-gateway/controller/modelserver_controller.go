@@ -287,7 +287,7 @@ func (c *ModelServerController) enqueuePod(obj interface{}) {
 
 // isPodReady checks if the pod is in a running state and has a PodReady condition set to true.
 func isPodReady(pod *corev1.Pod) bool {
-	if pod.Status.Phase != corev1.PodRunning {
+	if pod.DeletionTimestamp != nil || pod.Status.Phase != corev1.PodRunning {
 		return false
 	}
 	for _, condition := range pod.Status.Conditions {
