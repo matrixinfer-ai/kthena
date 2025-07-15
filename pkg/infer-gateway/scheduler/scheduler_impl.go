@@ -27,7 +27,6 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
@@ -64,7 +63,7 @@ func NewScheduler(store datastore.Store) Scheduler {
 	if err != nil {
 		log.Errorf("failed to Load Scheduler: %v", err)
 	}
-	prefixCache := plugins.NewPrefixCache(store, &conf.PrefixCacheArgs{})
+	prefixCache := plugins.NewPrefixCache(store, pluginsArgsMap)
 	return &SchedulerImpl{
 		store:         store,
 		filterPlugins: ParseFilterPlugin(filterPluginMap, pluginsArgsMap),
@@ -83,11 +82,7 @@ func ParseFilterPlugin(filterPluginMap []string, pluginsArgsMap map[string]inter
 			log.Errorf("Failed to get plugin %s.", pluginName)
 			continue
 		} else {
-			args, ok := pluginsArgsMap[pluginName].(map[string]interface{})
-			if !ok {
-				args = map[string]interface{}{}
-			}
-			plugin := factory(args)
+			plugin := factory(pluginsArgsMap)
 			list = append(list, plugin)
 		}
 	}

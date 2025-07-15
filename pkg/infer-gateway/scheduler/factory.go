@@ -8,13 +8,13 @@ import (
 func init() {
 	// scorePlugin
 	framework.RegisterScorePluginBuilder(plugins.KVCachePluginName, func(args map[string]interface{}) framework.ScorePlugin {
-		return &plugins.GPUCacheUsage{}
+		return plugins.NewGPUCacheUsage()
 	})
 	framework.RegisterScorePluginBuilder(plugins.LeastLatencyPluginName, func(args map[string]interface{}) framework.ScorePlugin {
-		return &plugins.LeastLatency{}
+		return plugins.NewLeastLatency()
 	})
 	framework.RegisterScorePluginBuilder(plugins.LeastRequestPluginName, func(args map[string]interface{}) framework.ScorePlugin {
-		return &plugins.LeastRequest{}
+		return plugins.NewLeastRequest(args)
 	})
 	framework.RegisterScorePluginBuilder(plugins.PrefixCachePluginName, func(args map[string]interface{}) framework.ScorePlugin {
 		return &plugins.PrefixCache{}
@@ -22,9 +22,9 @@ func init() {
 
 	// filterPlugin
 	framework.RegisterFilterPluginBuilder(plugins.LeastRequestPluginName, func(args map[string]interface{}) framework.FilterPlugin {
-		return &plugins.LeastRequest{}
+		return plugins.NewLeastRequest(args)
 	})
 	framework.RegisterFilterPluginBuilder(plugins.LoraAffinityPluginName, func(args map[string]interface{}) framework.FilterPlugin {
-		return &plugins.LoraAffinity{}
+		return plugins.NewLoraAffinity()
 	})
 }
