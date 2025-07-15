@@ -79,4 +79,4 @@ inferController:
     # pullPolicy is the image pull policy for the infer-controller.
     pullPolicy: IfNotPresent
     # args are the command line arguments for the infer-controller.
-    args: [ "--v", "2" ]
+    args: [ "--v=2" ]
