@@ -154,22 +154,22 @@ docker-buildx: ## Build and push docker image for cross-platform support
 	$(CONTAINER_TOOL) buildx build \
 		--platform ${PLATFORMS} \
 		-t ${IMG_GATEWAY} \
-		-f Dockerfile.gateway \
+		-f docker/Dockerfile.gateway \
 		--push .
 	$(CONTAINER_TOOL) buildx build \
 		--platform ${PLATFORMS}\
 		-t ${IMG_MODELINFER} \
-		-f Dockerfile.modelinfer \
+		-f docker/Dockerfile.modelinfer \
 		--push .
 	$(CONTAINER_TOOL) buildx build \
 		--platform ${PLATFORMS} \
 		-t ${IMG_MODELCONTROLLER} \
-		-f Dockerfile.modelcontroller \
+		-f docker/Dockerfile.modelcontroller \
 		--push .
 	$(CONTAINER_TOOL) buildx build \
 		--platform ${PLATFORMS} \
 		-t ${IMG_REGISTRY_WEBHOOK} \
-		-f Dockerfile.registry.webhook \
+		-f docker/Dockerfile.registry.webhook \
 		--push .
 
 .PHONY: build-installer
