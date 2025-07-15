@@ -89,24 +89,29 @@ func ParseFilterPlugin(filterPluginMap []string, pluginsArgsMap map[string]inter
 	return list
 }
 
-// TODO: set the weight of each plugin properly.
 func GetScorePlugin(prefixCache *plugins.PrefixCache, scorePluginMap map[string]int, pluginsArgsMap map[string]interface{}) []*scorePlugin {
 	var list []*scorePlugin
-	for key, value := range scorePluginMap {
-		if key == plugins.PrefixCachePluginName {
+	for pluginName, weight := range scorePluginMap {
+		if weight < 0 {
+			log.Errorf("Weight for plugin '%s' is invalid, value is %d. Setting to 0", pluginName, weight)
+			weight = 0
+		}
+
+		if pluginName == plugins.PrefixCachePluginName {
 			list = append(list, &scorePlugin{
 				plugin: prefixCache,
-				weight: value,
+				weight: weight,
 			})
+			continue
+		}
+
+		if pb, exist := framework.GetScorePluginBuilder(pluginName); !exist {
+			log.Errorf("Failed to get plugin %s.", pluginName)
 		} else {
-			if pb, exist := framework.GetScorePluginBuilder(key); !exist {
-				log.Errorf("Failed to get plugin %s.", key)
-			} else {
-				list = append(list, &scorePlugin{
-					plugin: pb(pluginsArgsMap),
-					weight: value,
-				})
-			}
+			list = append(list, &scorePlugin{
+				plugin: pb(pluginsArgsMap),
+				weight: weight,
+			})
 		}
 	}
 	return list
