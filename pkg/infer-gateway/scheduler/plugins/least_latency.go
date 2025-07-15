@@ -22,10 +22,11 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
 var _ framework.ScorePlugin = &LeastLatency{}
-var leastLatencyArgs = conf.LeastLatencyArgs{}
+var leastLatencyArgs conf.LeastLatencyArgs
 
 const LeastLatencyPluginName = "least-latency"
 
@@ -38,7 +39,9 @@ type LeastLatency struct {
 	name string
 }
 
-func NewLeastLatency() *LeastLatency {
+func NewLeastLatency(arg map[string]interface{}) *LeastLatency {
+	utils.ParsePluginArgs(LeastLatencyPluginName, arg, &leastLatencyArgs)
+
 	return &LeastLatency{
 		name: LeastLatencyPluginName,
 	}

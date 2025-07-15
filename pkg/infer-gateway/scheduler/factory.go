@@ -11,11 +11,12 @@ func init() {
 		return plugins.NewGPUCacheUsage()
 	})
 	framework.RegisterScorePluginBuilder(plugins.LeastLatencyPluginName, func(args map[string]interface{}) framework.ScorePlugin {
-		return plugins.NewLeastLatency()
+		return plugins.NewLeastLatency(args)
 	})
 	framework.RegisterScorePluginBuilder(plugins.LeastRequestPluginName, func(args map[string]interface{}) framework.ScorePlugin {
 		return plugins.NewLeastRequest(args)
 	})
+	// PrefixCache requires two parameters and is instantiated during use
 	framework.RegisterScorePluginBuilder(plugins.PrefixCachePluginName, func(args map[string]interface{}) framework.ScorePlugin {
 		return &plugins.PrefixCache{}
 	})

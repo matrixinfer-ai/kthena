@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/mitchellh/mapstructure"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
@@ -146,4 +147,20 @@ func unmarshalPluginsConfig(schedulerConfig *conf.SchedulerConfiguration) (map[s
 		}
 	}
 	return pluginsArgsMap, nil
+}
+
+func ParsePluginArgs[T any](pluginName string, arg map[string]interface{}, configPtr *T) {
+	configMap, ok := arg[pluginName].(map[string]interface{})
+	if !ok {
+		log.Errorf("failed to parse arg")
+	}
+
+	decoder, _ := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		TagName:     "yaml",
+		Result:      configPtr,
+		ErrorUnused: false,
+	})
+	if err := decoder.Decode(configMap); err != nil {
+		log.Errorf("failed to Decode confiMap")
+	}
 }
