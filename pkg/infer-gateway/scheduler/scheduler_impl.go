@@ -61,7 +61,7 @@ type podInfoWithValue struct {
 func NewScheduler(store datastore.Store) Scheduler {
 	scorePluginMap, filterPluginMap, pluginsArgsMap, err := utils.LoadSchedulerConfig()
 	if err != nil {
-		log.Errorf("failed to Load Scheduler: %v", err)
+		log.Fatalf("failed to Load Scheduler: %v", err)
 	}
 	prefixCache := plugins.NewPrefixCache(store, pluginsArgsMap)
 	return &SchedulerImpl{

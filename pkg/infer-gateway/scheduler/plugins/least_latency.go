@@ -26,24 +26,24 @@ import (
 )
 
 var _ framework.ScorePlugin = &LeastLatency{}
-var leastLatencyArgs conf.LeastLatencyArgs
 
 const LeastLatencyPluginName = "least-latency"
 
 // MaxScore is the highest possible score a pod can receive
 const MaxScore = 100.0
 
-var TTFTTPOTWeightFactor = leastLatencyArgs.TTFTTPOTWeightFactor
-
 type LeastLatency struct {
-	name string
+	name                 string
+	TTFTTPOTWeightFactor float64
 }
 
 func NewLeastLatency(arg map[string]interface{}) *LeastLatency {
+	var leastLatencyArgs conf.LeastLatencyArgs
 	utils.ParsePluginArgs(LeastLatencyPluginName, arg, &leastLatencyArgs)
 
 	return &LeastLatency{
-		name: LeastLatencyPluginName,
+		name:                 LeastLatencyPluginName,
+		TTFTTPOTWeightFactor: leastLatencyArgs.TTFTTPOTWeightFactor,
 	}
 }
 
@@ -76,7 +76,7 @@ func (l *LeastLatency) Score(ctx *framework.Context, pods []*datastore.PodInfo) 
 		if maxTPOT > minTPOT {
 			scoreTPOT = MaxScore * (maxTPOT - info.TPOT) / (maxTPOT - minTPOT)
 		}
-		scoreResults[info] = int(scoreTTFT*TTFTTPOTWeightFactor + scoreTPOT*(1-TTFTTPOTWeightFactor))
+		scoreResults[info] = int(scoreTTFT*l.TTFTTPOTWeightFactor + scoreTPOT*(1-l.TTFTTPOTWeightFactor))
 	}
 
 	return scoreResults
