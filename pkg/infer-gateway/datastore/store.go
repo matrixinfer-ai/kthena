@@ -210,7 +210,6 @@ func (s *store) AddOrUpdateModelServer(ms *aiv1alpha1.ModelServer, pods sets.Set
 	if _, ok := s.modelServer[name]; !ok {
 		s.modelServer[name] = newModelServer(ms)
 	} else {
-		fmt.Println("update model server", name)
 		s.modelServer[name].modelServer = ms
 	}
 	// donot operate s.pods here, which are done within pod handler
@@ -250,7 +249,6 @@ func (s *store) GetModelServer(name types.NamespacedName) *aiv1alpha1.ModelServe
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	fmt.Println("get model server", s.modelServer)
 	if ms, ok := s.modelServer[name]; ok {
 		return ms.modelServer
 	}

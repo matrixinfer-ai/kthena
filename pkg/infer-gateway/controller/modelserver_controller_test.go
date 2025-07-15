@@ -21,9 +21,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/agiledragon/gomonkey/v2"
+	dto "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/informers"
 	kubefake "k8s.io/client-go/kubernetes/fake"
@@ -32,7 +35,9 @@ import (
 	matrixinferfake "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/fake"
 	informersv1alpha1 "matrixinfer.ai/matrixinfer/client-go/informers/externalversions"
 	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/backend"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
 func TestModelServerController_ModelServerLifecycle(t *testing.T) {
@@ -256,6 +261,9 @@ func TestModelServerController_ModelServerLifecycle(t *testing.T) {
 }
 
 func TestModelServerController_PodLifecycle(t *testing.T) {
+	patch := setupMockBackend()
+	defer patch.Reset()
+
 	// Create fake clients
 	kubeClient := kubefake.NewSimpleClientset()
 	matrixinferClient := matrixinferfake.NewSimpleClientset()
@@ -280,8 +288,8 @@ func TestModelServerController_PodLifecycle(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Create informer factories
-	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, time.Second*30)
-	matrixinferInformerFactory := informersv1alpha1.NewSharedInformerFactory(matrixinferClient, time.Second*30)
+	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, 0)
+	matrixinferInformerFactory := informersv1alpha1.NewSharedInformerFactory(matrixinferClient, 0)
 
 	// Create store
 	store := datastore.New()
@@ -292,6 +300,15 @@ func TestModelServerController_PodLifecycle(t *testing.T) {
 		kubeInformerFactory,
 		store,
 	)
+
+	stop := make(chan struct{})
+	defer close(stop)
+
+	go controller.Run(stop)
+
+	matrixinferInformerFactory.Start(stop)
+	kubeInformerFactory.Start(stop)
+	waitForCacheSync(t, 5*time.Second, controller.modelServerSynced, controller.podSynced)
 
 	// Test Case 1: Pod Creation (Ready Pod)
 	t.Run("PodCreateReady", func(t *testing.T) {
@@ -326,22 +343,11 @@ func TestModelServerController_PodLifecycle(t *testing.T) {
 			controller.workqueue.Forget(item)
 		}
 
-		// Simulate controller receiving the event
-		controller.enqueuePod(pod)
-		assert.Equal(t, 1, controller.workqueue.Len())
-
-		// Process the queue item - this may fail if ModelServer is not in cache
-		// so we'll accept the error for now
-		err = controller.syncPodHandler("default/test-pod-ready")
-		// Accept the error since the ModelServer may not be in the informer cache
-		if err != nil && err.Error() == "model server not found: default/test-modelserver-pods" {
-			t.Logf("Expected error: %v", err)
-		} else {
-			assert.NoError(t, err)
-		}
-
-		// Since we can't rely on the informer cache in unit tests,
-		// we'll verify that the pod processing doesn't crash
+		sync := waitForObjectInCache(t, 2*time.Second, func() bool {
+			pods, _ := store.GetPodsByModelServer(utils.GetNamespaceName(ms))
+			return len(pods) > 0 && pods[0].Pod.Name == "test-pod-ready"
+		})
+		assert.True(t, sync, "Pod should be found in store after creation")
 	})
 
 	// Test Case 2: Pod Creation (Not Ready Pod)
@@ -376,17 +382,19 @@ func TestModelServerController_PodLifecycle(t *testing.T) {
 			controller.workqueue.Done(item)
 			controller.workqueue.Forget(item)
 		}
-
-		// Simulate controller receiving the event
-		controller.enqueuePod(pod)
-		assert.Equal(t, 1, controller.workqueue.Len())
-
-		// Process the queue item
-		err = controller.syncPodHandler("default/test-pod-not-ready")
-		assert.NoError(t, err)
+		sync := waitForObjectInCache(t, 2*time.Second, func() bool {
+			pods, _ := controller.podLister.Pods("default").Get("test-pod-not-ready")
+			return pods != nil && pods.Name == "test-pod-not-ready"
+		})
+		assert.True(t, sync, "Pod should be found in lister after creation")
 
 		// Since pod is not ready, it should be deleted from store (or not added)
 		// The exact verification depends on your store implementation
+		sync = waitForObjectInCache(t, 2*time.Second, func() bool {
+			pods, _ := store.GetPodsByModelServer(utils.GetNamespaceName(ms))
+			return len(pods) == 1 && pods[0].Pod.Name == "test-pod-ready"
+		})
+		assert.True(t, sync, "Pod should be found in store after creation")
 	})
 
 	// Test Case 3: Pod Update (Becomes Ready)
@@ -415,11 +423,6 @@ func TestModelServerController_PodLifecycle(t *testing.T) {
 			context.Background(), pod, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
-		// Process initial creation
-		controller.enqueuePod(pod)
-		err = controller.syncPodHandler("default/test-pod-update-ready")
-		assert.NoError(t, err)
-
 		// Update pod to be ready
 		updatedPod := pod.DeepCopy()
 		updatedPod.Status.Phase = corev1.PodRunning
@@ -429,28 +432,14 @@ func TestModelServerController_PodLifecycle(t *testing.T) {
 			context.Background(), updatedPod, metav1.UpdateOptions{})
 		assert.NoError(t, err)
 
-		// Clear queue before test
-		for controller.workqueue.Len() > 0 {
-			item, _ := controller.workqueue.Get()
-			controller.workqueue.Done(item)
-			controller.workqueue.Forget(item)
-		}
-
-		// Simulate controller receiving update event
-		controller.enqueuePod(updatedPod)
-		assert.Equal(t, 1, controller.workqueue.Len())
-
-		// Process the update
-		err = controller.syncPodHandler("default/test-pod-update-ready")
-		// Accept the error since the ModelServer may not be in the informer cache
-		if err != nil && err.Error() == "model server not found: default/test-modelserver-pods" {
-			t.Logf("Expected error: %v", err)
-		} else {
-			assert.NoError(t, err)
-		}
-
 		// Verify pod is now considered ready
 		// The exact verification depends on your store implementation
+		sync := waitForObjectInCache(t, 2*time.Second, func() bool {
+			pods, _ := store.GetPodsByModelServer(utils.GetNamespaceName(ms))
+			return len(pods) == 2 &&
+				(pods[0].Pod.Name == "test-pod-update-ready" || pods[1].Pod.Name == "test-pod-update-ready")
+		})
+		assert.True(t, sync, "Pod should be found in store after update")
 	})
 
 	// Test Case 4: Pod Update (Becomes Not Ready)
@@ -479,15 +468,12 @@ func TestModelServerController_PodLifecycle(t *testing.T) {
 			context.Background(), pod, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
-		// Process initial creation
-		controller.enqueuePod(pod)
-		err = controller.syncPodHandler("default/test-pod-update-not-ready")
-		// Accept the error since the ModelServer may not be in the informer cache
-		if err != nil && err.Error() == "model server not found: default/test-modelserver-pods" {
-			t.Logf("Expected error: %v", err)
-		} else {
-			assert.NoError(t, err)
-		}
+		// Verify pod was in store since it's ready
+		sync := waitForObjectInCache(t, 2*time.Second, func() bool {
+			pods, _ := store.GetPodsByModelServer(utils.GetNamespaceName(ms))
+			return len(pods) == 3
+		})
+		assert.True(t, sync, "Pod should be found in store after creation")
 
 		// Update pod to not ready
 		updatedPod := pod.DeepCopy()
@@ -498,83 +484,30 @@ func TestModelServerController_PodLifecycle(t *testing.T) {
 			context.Background(), updatedPod, metav1.UpdateOptions{})
 		assert.NoError(t, err)
 
-		// Clear queue before test
-		for controller.workqueue.Len() > 0 {
-			item, _ := controller.workqueue.Get()
-			controller.workqueue.Done(item)
-			controller.workqueue.Forget(item)
-		}
-
-		// Simulate controller receiving update event
-		controller.enqueuePod(updatedPod)
-		assert.Equal(t, 1, controller.workqueue.Len())
-
-		// Process the update
-		err = controller.syncPodHandler("default/test-pod-update-not-ready")
-		assert.NoError(t, err)
-
 		// Verify pod was removed from store since it's not ready
-		// The exact verification depends on your store implementation
+		sync = waitForObjectInCache(t, 2*time.Second, func() bool {
+			pods, _ := store.GetPodsByModelServer(utils.GetNamespaceName(ms))
+			return len(pods) == 2 && (pods[0].Pod.Name != "test-pod-update-not-ready" && pods[1].Pod.Name != "test-pod-update-not-ready")
+		})
+		assert.True(t, sync, "Pod should not be found in store after creation")
 	})
 
 	// Test Case 5: Pod Deletion
 	t.Run("PodDelete", func(t *testing.T) {
-		pod := &corev1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "default",
-				Name:      "test-pod-delete",
-				Labels: map[string]string{
-					"app": "test-model-pods",
-				},
-			},
-			Status: corev1.PodStatus{
-				Phase: corev1.PodRunning,
-				Conditions: []corev1.PodCondition{
-					{
-						Type:   corev1.PodReady,
-						Status: corev1.ConditionTrue,
-					},
-				},
-			},
-		}
-
-		// Create pod first
-		_, err := kubeClient.CoreV1().Pods("default").Create(
-			context.Background(), pod, metav1.CreateOptions{})
-		assert.NoError(t, err)
-
-		// Process creation
-		controller.enqueuePod(pod)
-		err = controller.syncPodHandler("default/test-pod-delete")
-		// Accept the error since the ModelServer may not be in the informer cache
-		if err != nil && err.Error() == "model server not found: default/test-modelserver-pods" {
-			t.Logf("Expected error: %v", err)
-		} else {
+		// Delete all pods
+		for _, podName := range []string{"test-pod-ready", "test-pod-not-ready", "test-pod-update-ready", "test-pod-update-not-ready"} {
+			err = kubeClient.CoreV1().Pods("default").Delete(
+				context.Background(), podName, metav1.DeleteOptions{})
 			assert.NoError(t, err)
 		}
 
-		// Delete pod
-		err = kubeClient.CoreV1().Pods("default").Delete(
-			context.Background(), "test-pod-delete", metav1.DeleteOptions{})
-		assert.NoError(t, err)
-
-		// Clear queue before test
-		for controller.workqueue.Len() > 0 {
-			item, _ := controller.workqueue.Get()
-			controller.workqueue.Done(item)
-			controller.workqueue.Forget(item)
-		}
-
-		// Simulate controller receiving delete event
-		controller.enqueuePod(pod)
-		assert.Equal(t, 1, controller.workqueue.Len())
-
-		// Process the deletion (should handle NotFound error)
-		err = controller.syncPodHandler("default/test-pod-delete")
-		assert.NoError(t, err)
-
 		// Verify pod was removed from store
-		// The exact verification depends on your store implementation
+		// Verify pod was removed from store since it's not ready
+		sync := waitForObjectInCache(t, 2*time.Second, func() bool {
+			pods, _ := store.GetPodsByModelServer(utils.GetNamespaceName(ms))
+			return len(pods) == 0
+		})
+		assert.True(t, sync, "Pod should not be found in store after deletion")
 	})
 }
 
@@ -584,8 +517,8 @@ func TestModelServerController_ErrorHandling(t *testing.T) {
 	matrixinferClient := matrixinferfake.NewSimpleClientset()
 
 	// Create informer factories
-	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, time.Second*30)
-	matrixinferInformerFactory := informersv1alpha1.NewSharedInformerFactory(matrixinferClient, time.Second*30)
+	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, 0)
+	matrixinferInformerFactory := informersv1alpha1.NewSharedInformerFactory(matrixinferClient, 0)
 
 	// Create store
 	store := datastore.New()
@@ -628,8 +561,8 @@ func TestModelServerController_WorkQueueProcessing(t *testing.T) {
 	matrixinferClient := matrixinferfake.NewSimpleClientset()
 
 	// Create informer factories
-	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, time.Second*30)
-	matrixinferInformerFactory := informersv1alpha1.NewSharedInformerFactory(matrixinferClient, time.Second*30)
+	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, 0)
+	matrixinferInformerFactory := informersv1alpha1.NewSharedInformerFactory(matrixinferClient, 0)
 
 	// Create store
 	store := datastore.New()
@@ -703,8 +636,8 @@ func TestModelServerController_PodSelectionLogic(t *testing.T) {
 	matrixinferClient := matrixinferfake.NewSimpleClientset()
 
 	// Create informer factories
-	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, time.Second*30)
-	matrixinferInformerFactory := informersv1alpha1.NewSharedInformerFactory(matrixinferClient, time.Second*30)
+	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, 0)
+	matrixinferInformerFactory := informersv1alpha1.NewSharedInformerFactory(matrixinferClient, 0)
 
 	// Create store
 	store := datastore.New()
@@ -715,6 +648,12 @@ func TestModelServerController_PodSelectionLogic(t *testing.T) {
 		kubeInformerFactory,
 		store,
 	)
+
+	stop := make(chan struct{})
+	defer close(stop)
+	go controller.Run(stop)
+	matrixinferInformerFactory.Start(stop)
+	kubeInformerFactory.Start(stop)
 
 	// Test Case: Pod with Non-matching Labels
 	t.Run("PodWithNonMatchingLabels", func(t *testing.T) {
@@ -764,6 +703,11 @@ func TestModelServerController_PodSelectionLogic(t *testing.T) {
 			context.Background(), podNonMatching, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
+		waitForObjectInCache(t, 2*time.Second, func() bool {
+			pods, _ := controller.podLister.Pods("default").Get("test-pod-non-matching")
+			return pods != nil && pods.Name == "test-pod-non-matching"
+		})
+
 		// Process the pod - should not be associated with ModelServer
 		controller.enqueuePod(podNonMatching)
 		err = controller.syncPodHandler("default/test-pod-non-matching")
@@ -794,600 +738,175 @@ func TestModelServerController_PodSelectionLogic(t *testing.T) {
 			context.Background(), podMatching, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
-		// Process the matching pod
-		controller.enqueuePod(podMatching)
-		err = controller.syncPodHandler("default/test-pod-matching")
-		assert.NoError(t, err)
-
-		// The exact verification would depend on your store implementation
-		// but the pod should be associated with the ModelServer
-	})
-}
-
-func TestModelServerController_WorkingScenarios(t *testing.T) {
-	// Create a test that works around the controller bug by testing scenarios
-	// where the objects exist in the lister
-
-	t.Run("ModelServerCreateWithInformers", func(t *testing.T) {
-		// Create fake clients
-		kubeClient := kubefake.NewSimpleClientset()
-		matrixinferClient := matrixinferfake.NewSimpleClientset()
-
-		ms := &aiv1alpha1.ModelServer{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "default",
-				Name:      "test-modelserver-working",
-			},
-			Spec: aiv1alpha1.ModelServerSpec{
-				InferenceEngine: aiv1alpha1.VLLM,
-				WorkloadSelector: &aiv1alpha1.WorkloadSelector{
-					MatchLabels: map[string]string{
-						"app": "test-model-working",
-					},
-				},
-			},
-		}
-
-		// Add ModelServer to fake client first
-		_, err := matrixinferClient.NetworkingV1alpha1().ModelServers("default").Create(
-			context.Background(), ms, metav1.CreateOptions{})
-		assert.NoError(t, err)
-
-		// Create informer factories
-		kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, time.Second*30)
-		matrixinferInformerFactory := informersv1alpha1.NewSharedInformerFactory(matrixinferClient, time.Second*30)
-
-		// Start informers
-		stopCh := make(chan struct{})
-		defer close(stopCh)
-
-		matrixinferInformerFactory.Start(stopCh)
-		kubeInformerFactory.Start(stopCh)
-
-		// Wait for cache to sync
-		matrixinferInformerFactory.WaitForCacheSync(stopCh)
-		kubeInformerFactory.WaitForCacheSync(stopCh)
-
-		// Create store and controller
-		store := datastore.New()
-		controller := NewModelServerController(
-			matrixinferInformerFactory,
-			kubeInformerFactory,
-			store,
-		)
-
-		// Process the queue item
-		err = controller.syncModelServerHandler("default/test-modelserver-working")
-		assert.NoError(t, err)
-
-		// Verify ModelServer was added to store
-		storedMS := store.GetModelServer(types.NamespacedName{
-			Namespace: "default",
-			Name:      "test-modelserver-working",
+		sync := waitForObjectInCache(t, 2*time.Second, func() bool {
+			pods, _ := store.GetPodsByModelServer(utils.GetNamespaceName(ms))
+			return len(pods) > 0 && pods[0].Pod.Name == "test-pod-matching"
 		})
-		if storedMS != nil {
-			assert.Equal(t, "test-modelserver-working", storedMS.Name)
-			assert.Equal(t, aiv1alpha1.VLLM, storedMS.Spec.InferenceEngine)
-		} else {
-			t.Log("ModelServer not found in store - this is expected due to informer cache limitations in unit tests")
-		}
-	})
-
-	t.Run("PodCreateWithInformers", func(t *testing.T) {
-		// Create fake clients
-		kubeClient := kubefake.NewSimpleClientset()
-		matrixinferClient := matrixinferfake.NewSimpleClientset()
-
-		// Create ModelServer first
-		ms := &aiv1alpha1.ModelServer{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "default",
-				Name:      "test-modelserver-for-pod",
-			},
-			Spec: aiv1alpha1.ModelServerSpec{
-				InferenceEngine: aiv1alpha1.VLLM,
-				WorkloadSelector: &aiv1alpha1.WorkloadSelector{
-					MatchLabels: map[string]string{
-						"app": "test-model-for-pod",
-					},
-				},
-			},
-		}
-
-		_, err := matrixinferClient.NetworkingV1alpha1().ModelServers("default").Create(
-			context.Background(), ms, metav1.CreateOptions{})
-		assert.NoError(t, err)
-
-		// Create Pod
-		pod := &corev1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "default",
-				Name:      "test-pod-working",
-				Labels: map[string]string{
-					"app": "test-model-for-pod",
-				},
-			},
-			Status: corev1.PodStatus{
-				Phase: corev1.PodRunning,
-				Conditions: []corev1.PodCondition{
-					{
-						Type:   corev1.PodReady,
-						Status: corev1.ConditionTrue,
-					},
-				},
-			},
-		}
-
-		_, err = kubeClient.CoreV1().Pods("default").Create(
-			context.Background(), pod, metav1.CreateOptions{})
-		assert.NoError(t, err)
-
-		// Create informer factories
-		kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, time.Second*30)
-		matrixinferInformerFactory := informersv1alpha1.NewSharedInformerFactory(matrixinferClient, time.Second*30)
-
-		// Start informers
-		stopCh := make(chan struct{})
-		defer close(stopCh)
-
-		matrixinferInformerFactory.Start(stopCh)
-		kubeInformerFactory.Start(stopCh)
-
-		// Wait for cache to sync
-		matrixinferInformerFactory.WaitForCacheSync(stopCh)
-		kubeInformerFactory.WaitForCacheSync(stopCh)
-
-		// Create store and controller
-		store := datastore.New()
-		controller := NewModelServerController(
-			matrixinferInformerFactory,
-			kubeInformerFactory,
-			store,
-		)
-
-		// Process the pod
-		err = controller.syncPodHandler("default/test-pod-working")
-		assert.NoError(t, err)
-
-		// The exact verification depends on the store implementation
-		// but we can verify that no error occurred during processing
-	})
-
-	t.Run("PodNotReadyScenario", func(t *testing.T) {
-		// Create fake clients
-		kubeClient := kubefake.NewSimpleClientset()
-		matrixinferClient := matrixinferfake.NewSimpleClientset()
-
-		// Create ModelServer first
-		ms := &aiv1alpha1.ModelServer{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "default",
-				Name:      "test-modelserver-for-not-ready-pod",
-			},
-			Spec: aiv1alpha1.ModelServerSpec{
-				InferenceEngine: aiv1alpha1.VLLM,
-				WorkloadSelector: &aiv1alpha1.WorkloadSelector{
-					MatchLabels: map[string]string{
-						"app": "test-model-for-not-ready-pod",
-					},
-				},
-			},
-		}
-
-		_, err := matrixinferClient.NetworkingV1alpha1().ModelServers("default").Create(
-			context.Background(), ms, metav1.CreateOptions{})
-		assert.NoError(t, err)
-
-		// Create Pod that's not ready
-		pod := &corev1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "default",
-				Name:      "test-pod-not-ready",
-				Labels: map[string]string{
-					"app": "test-model-for-not-ready-pod",
-				},
-			},
-			Status: corev1.PodStatus{
-				Phase: corev1.PodPending, // Not running
-				Conditions: []corev1.PodCondition{
-					{
-						Type:   corev1.PodReady,
-						Status: corev1.ConditionFalse,
-					},
-				},
-			},
-		}
-
-		_, err = kubeClient.CoreV1().Pods("default").Create(
-			context.Background(), pod, metav1.CreateOptions{})
-		assert.NoError(t, err)
-
-		// Create informer factories
-		kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, time.Second*30)
-		matrixinferInformerFactory := informersv1alpha1.NewSharedInformerFactory(matrixinferClient, time.Second*30)
-
-		// Start informers
-		stopCh := make(chan struct{})
-		defer close(stopCh)
-
-		matrixinferInformerFactory.Start(stopCh)
-		kubeInformerFactory.Start(stopCh)
-
-		// Wait for cache to sync
-		matrixinferInformerFactory.WaitForCacheSync(stopCh)
-		kubeInformerFactory.WaitForCacheSync(stopCh)
-
-		// Create store and controller
-		store := datastore.New()
-		controller := NewModelServerController(
-			matrixinferInformerFactory,
-			kubeInformerFactory,
-			store,
-		)
-
-		// Process the pod - should handle not ready pod gracefully
-		err = controller.syncPodHandler("default/test-pod-not-ready")
-		assert.NoError(t, err)
-
-		// Since pod is not ready, it should be deleted from store (or not added)
-		// The exact verification depends on the store implementation
-	})
-}
-
-func TestModelServerController_DirectStoreOperations(t *testing.T) {
-	// Test store operations directly without going through the controller's problematic sync handlers
-
-	t.Run("DirectStoreModelServerOps", func(t *testing.T) {
-		store := datastore.New()
-
-		ms := &aiv1alpha1.ModelServer{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "default",
-				Name:      "test-direct-modelserver",
-			},
-			Spec: aiv1alpha1.ModelServerSpec{
-				InferenceEngine: aiv1alpha1.VLLM,
-				WorkloadSelector: &aiv1alpha1.WorkloadSelector{
-					MatchLabels: map[string]string{
-						"app": "test-direct-model",
-					},
-				},
-			},
-		}
-
-		// Test direct store operations
-		err := store.AddOrUpdateModelServer(ms, nil)
-		assert.NoError(t, err)
-
-		// Verify ModelServer was added
-		storedMS := store.GetModelServer(types.NamespacedName{
-			Namespace: "default",
-			Name:      "test-direct-modelserver",
-		})
-		assert.NotNil(t, storedMS)
-		assert.Equal(t, "test-direct-modelserver", storedMS.Name)
-		assert.Equal(t, aiv1alpha1.VLLM, storedMS.Spec.InferenceEngine)
-
-		// Test update
-		updatedMS := ms.DeepCopy()
-		updatedMS.Spec.InferenceEngine = aiv1alpha1.SGLang
-
-		err = store.AddOrUpdateModelServer(updatedMS, nil)
-		assert.NoError(t, err)
-
-		// Verify update
-		storedMS = store.GetModelServer(types.NamespacedName{
-			Namespace: "default",
-			Name:      "test-direct-modelserver",
-		})
-		assert.NotNil(t, storedMS)
-		assert.Equal(t, aiv1alpha1.SGLang, storedMS.Spec.InferenceEngine)
-
-		// Test deletion (using the correct signature)
-		err = store.DeleteModelServer(types.NamespacedName{
-			Namespace: "default",
-			Name:      "test-direct-modelserver",
-		})
-		assert.NoError(t, err)
-
-		// Verify deletion
-		storedMS = store.GetModelServer(types.NamespacedName{
-			Namespace: "default",
-			Name:      "test-direct-modelserver",
-		})
-		assert.Nil(t, storedMS)
-	})
-
-	t.Run("EnqueueAndQueueOperations", func(t *testing.T) {
-		// Test only the enqueueing and queue operations without the sync handlers
-		kubeClient := kubefake.NewSimpleClientset()
-		matrixinferClient := matrixinferfake.NewSimpleClientset()
-		kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, time.Second*30)
-		matrixinferInformerFactory := informersv1alpha1.NewSharedInformerFactory(matrixinferClient, time.Second*30)
-		store := datastore.New()
-
-		controller := NewModelServerController(
-			matrixinferInformerFactory,
-			kubeInformerFactory,
-			store,
-		)
-
-		ms := &aiv1alpha1.ModelServer{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "default",
-				Name:      "test-enqueue-modelserver",
-			},
-		}
-
-		pod := &corev1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "default",
-				Name:      "test-enqueue-pod",
-			},
-		}
-
-		// Test enqueuing
-		controller.enqueueModelServer(ms)
-		assert.Equal(t, 1, controller.workqueue.Len())
-
-		item, shutdown := controller.workqueue.Get()
-		assert.False(t, shutdown)
-		assert.Equal(t, ResourceTypeModelServer, item.ResourceType)
-		assert.Equal(t, "default/test-enqueue-modelserver", item.Key)
-		controller.workqueue.Done(item)
-		controller.workqueue.Forget(item)
-
-		controller.enqueuePod(pod)
-		assert.Equal(t, 1, controller.workqueue.Len())
-
-		item, shutdown = controller.workqueue.Get()
-		assert.False(t, shutdown)
-		assert.Equal(t, ResourceTypePod, item.ResourceType)
-		assert.Equal(t, "default/test-enqueue-pod", item.Key)
-		controller.workqueue.Done(item)
-		controller.workqueue.Forget(item)
+		assert.True(t, sync, "Pod should be found in store after creation")
 	})
 }
 
 func TestModelServerController_ComprehensiveLifecycleTest(t *testing.T) {
-	// This test documents and demonstrates comprehensive testing patterns
-	// while working around the controller bug
+	// Create a comprehensive test that tests the full workflow
+	// with proper informer setup and timing
+	kubeClient := kubefake.NewSimpleClientset()
+	matrixinferClient := matrixinferfake.NewSimpleClientset()
 
-	t.Run("ControllerBugDocumentation", func(t *testing.T) {
-		t.Log("KNOWN ISSUE: The controller has a bug in syncModelServerHandler")
-		t.Log("When a ModelServer is not found (deleted), it passes nil to store.DeleteModelServer")
-		t.Log("This causes a nil pointer dereference in utils.GetNamespaceName")
-		t.Log("The fix would be to modify the controller to handle deletion differently")
-		t.Log("For example: store.DeleteModelServerByKey(types.NamespacedName{Namespace: namespace, Name: name})")
-	})
-
-	t.Run("IntegrationTestPattern", func(t *testing.T) {
-		// Create a comprehensive test that tests the full workflow
-		// with proper informer setup and timing
-
-		kubeClient := kubefake.NewSimpleClientset()
-		matrixinferClient := matrixinferfake.NewSimpleClientset()
-
-		// Create and add resources to fake clients BEFORE starting informers
-		ms := &aiv1alpha1.ModelServer{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "test-ns",
-				Name:      "integration-modelserver",
-				Labels: map[string]string{
-					"version": "v1",
-				},
+	// Create and add resources to fake clients BEFORE starting informers
+	ms := &aiv1alpha1.ModelServer{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "test-ns",
+			Name:      "integration-modelserver",
+			Labels: map[string]string{
+				"version": "v1",
 			},
-			Spec: aiv1alpha1.ModelServerSpec{
-				InferenceEngine: aiv1alpha1.VLLM,
-				WorkloadSelector: &aiv1alpha1.WorkloadSelector{
-					MatchLabels: map[string]string{
-						"app": "integration-model",
-					},
-				},
-			},
-		}
-
-		readyPod := &corev1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "test-ns",
-				Name:      "ready-pod",
-				Labels: map[string]string{
+		},
+		Spec: aiv1alpha1.ModelServerSpec{
+			InferenceEngine: aiv1alpha1.VLLM,
+			WorkloadSelector: &aiv1alpha1.WorkloadSelector{
+				MatchLabels: map[string]string{
 					"app": "integration-model",
 				},
 			},
-			Status: corev1.PodStatus{
-				Phase: corev1.PodRunning,
-				Conditions: []corev1.PodCondition{
-					{
-						Type:   corev1.PodReady,
-						Status: corev1.ConditionTrue,
-					},
-				},
-			},
-		}
+		},
+	}
 
-		notReadyPod := &corev1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "test-ns",
-				Name:      "not-ready-pod",
-				Labels: map[string]string{
-					"app": "integration-model",
-				},
-			},
-			Status: corev1.PodStatus{
-				Phase: corev1.PodPending,
-				Conditions: []corev1.PodCondition{
-					{
-						Type:   corev1.PodReady,
-						Status: corev1.ConditionFalse,
-					},
-				},
-			},
-		}
-
-		// Add resources to fake clients
-		_, err := matrixinferClient.NetworkingV1alpha1().ModelServers("test-ns").Create(
-			context.Background(), ms, metav1.CreateOptions{})
-		assert.NoError(t, err)
-
-		_, err = kubeClient.CoreV1().Pods("test-ns").Create(
-			context.Background(), readyPod, metav1.CreateOptions{})
-		assert.NoError(t, err)
-
-		_, err = kubeClient.CoreV1().Pods("test-ns").Create(
-			context.Background(), notReadyPod, metav1.CreateOptions{})
-		assert.NoError(t, err)
-
-		// Create informer factories and start them
-		kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, time.Second*30)
-		matrixinferInformerFactory := informersv1alpha1.NewSharedInformerFactory(matrixinferClient, time.Second*30)
-
-		stopCh := make(chan struct{})
-		defer close(stopCh)
-
-		matrixinferInformerFactory.Start(stopCh)
-		kubeInformerFactory.Start(stopCh)
-
-		// Wait for informers to sync
-		matrixinferInformerFactory.WaitForCacheSync(stopCh)
-		kubeInformerFactory.WaitForCacheSync(stopCh)
-
-		// Create controller and store
-		store := datastore.New()
-		controller := NewModelServerController(
-			matrixinferInformerFactory,
-			kubeInformerFactory,
-			store,
-		)
-
-		// Test ModelServer processing
-		err = controller.syncModelServerHandler("test-ns/integration-modelserver")
-		assert.NoError(t, err)
-
-		// Verify ModelServer was processed
-		storedMS := store.GetModelServer(types.NamespacedName{
+	readyPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "test-ns",
-			Name:      "integration-modelserver",
-		})
-		if storedMS != nil {
-			assert.Equal(t, "integration-modelserver", storedMS.Name)
-			assert.Equal(t, "v1", storedMS.Labels["version"])
-		} else {
-			t.Log("ModelServer not found in store - this is expected due to informer cache limitations in unit tests")
-		}
+			Name:      "ready-pod",
+			Labels: map[string]string{
+				"app": "integration-model",
+			},
+		},
+		Status: corev1.PodStatus{
+			Phase: corev1.PodRunning,
+			Conditions: []corev1.PodCondition{
+				{
+					Type:   corev1.PodReady,
+					Status: corev1.ConditionTrue,
+				},
+			},
+		},
+	}
 
-		// Test Pod processing
-		err = controller.syncPodHandler("test-ns/ready-pod")
-		assert.NoError(t, err)
-
-		err = controller.syncPodHandler("test-ns/not-ready-pod")
-		assert.NoError(t, err)
-
-		// Test update scenario
-		updatedMS := ms.DeepCopy()
-		updatedMS.Labels["version"] = "v2"
-		updatedMS.Spec.InferenceEngine = aiv1alpha1.SGLang
-
-		_, err = matrixinferClient.NetworkingV1alpha1().ModelServers("test-ns").Update(
-			context.Background(), updatedMS, metav1.UpdateOptions{})
-		assert.NoError(t, err)
-
-		// Wait for update to propagate gracefully
-		if !waitForCacheSync(t, 5*time.Second, controller.modelServerSynced) {
-			t.Log("Cache sync timeout after update - proceeding anyway")
-		}
-
-		// Wait for the updated object to be available in cache
-		found := waitForObjectInCache(t, 2*time.Second, func() bool {
-			ms, err := controller.modelServerLister.ModelServers("test-ns").Get("integration-modelserver")
-			if err != nil {
-				return false
-			}
-			// Check if the update is reflected
-			return ms.Labels["version"] == "v2"
-		})
-		if !found {
-			t.Log("Updated ModelServer not found in cache - proceeding anyway")
-		}
-
-		// Process the update
-		err = controller.syncModelServerHandler("test-ns/integration-modelserver")
-		assert.NoError(t, err)
-
-		// Verify update
-		storedMS = store.GetModelServer(types.NamespacedName{
+	notReadyPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "test-ns",
-			Name:      "integration-modelserver",
-		})
-		if storedMS != nil {
-			assert.Equal(t, "v2", storedMS.Labels["version"])
-			assert.Equal(t, aiv1alpha1.SGLang, storedMS.Spec.InferenceEngine)
-		} else {
-			t.Log("Updated ModelServer not found in store - this is expected due to informer cache limitations in unit tests")
-		}
+			Name:      "not-ready-pod",
+			Labels: map[string]string{
+				"app": "integration-model",
+			},
+		},
+		Status: corev1.PodStatus{
+			Phase: corev1.PodPending,
+			Conditions: []corev1.PodCondition{
+				{
+					Type:   corev1.PodReady,
+					Status: corev1.ConditionFalse,
+				},
+			},
+		},
+	}
 
-		// Test error handling for non-existent resources
-		err = controller.syncModelServerHandler("test-ns/non-existent-modelserver")
-		// This would cause a panic due to the controller bug, so we skip it
-		t.Log("Skipping non-existent ModelServer test due to controller bug")
+	// Add resources to fake clients
+	_, err := matrixinferClient.NetworkingV1alpha1().ModelServers("test-ns").Create(
+		context.Background(), ms, metav1.CreateOptions{})
+	assert.NoError(t, err)
 
-		err = controller.syncPodHandler("test-ns/non-existent-pod")
-		assert.NoError(t, err) // This should work fine for pods
+	_, err = kubeClient.CoreV1().Pods("test-ns").Create(
+		context.Background(), readyPod, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	_, err = kubeClient.CoreV1().Pods("test-ns").Create(
+		context.Background(), notReadyPod, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	// Create informer factories and start them
+	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, 0)
+	matrixinferInformerFactory := informersv1alpha1.NewSharedInformerFactory(matrixinferClient, 0)
+
+	stopCh := make(chan struct{})
+	defer close(stopCh)
+
+	// Create controller and store
+	store := datastore.New()
+	controller := NewModelServerController(
+		matrixinferInformerFactory,
+		kubeInformerFactory,
+		store,
+	)
+
+	matrixinferInformerFactory.Start(stopCh)
+	kubeInformerFactory.Start(stopCh)
+
+	waitForObjectInCache(t, 2*time.Second, func() bool {
+		ms, err := controller.modelServerLister.ModelServers("test-ns").Get("integration-modelserver")
+		return err == nil && ms.Name == "integration-modelserver"
 	})
 
-	t.Run("ComponentLevelTests", func(t *testing.T) {
-		// Test individual components in isolation
+	// Test ModelServer processing
+	err = controller.syncModelServerHandler("test-ns/integration-modelserver")
+	assert.NoError(t, err)
 
-		// Test 1: Queue Item creation and processing
-		queueItem := QueueItem{
-			ResourceType: ResourceTypeModelServer,
-			Key:          "default/test-item",
-		}
-		assert.Equal(t, ResourceTypeModelServer, queueItem.ResourceType)
-		assert.Equal(t, "default/test-item", queueItem.Key)
-
-		// Test 2: Store operations work correctly
-		store := datastore.New()
-		ms := &aiv1alpha1.ModelServer{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "default",
-				Name:      "component-test-ms",
-			},
-			Spec: aiv1alpha1.ModelServerSpec{
-				InferenceEngine: aiv1alpha1.VLLM,
-				WorkloadSelector: &aiv1alpha1.WorkloadSelector{
-					MatchLabels: map[string]string{
-						"component": "test",
-					},
-				},
-			},
-		}
-
-		err := store.AddOrUpdateModelServer(ms, nil)
-		assert.NoError(t, err)
-
-		retrieved := store.GetModelServer(types.NamespacedName{
-			Namespace: "default",
-			Name:      "component-test-ms",
-		})
-		assert.NotNil(t, retrieved)
-		assert.Equal(t, "component-test-ms", retrieved.Name)
-
-		// Test 3: Controller initialization works
-		kubeClient := kubefake.NewSimpleClientset()
-		matrixinferClient := matrixinferfake.NewSimpleClientset()
-		kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, time.Second*30)
-		matrixinferInformerFactory := informersv1alpha1.NewSharedInformerFactory(matrixinferClient, time.Second*30)
-
-		controller := NewModelServerController(
-			matrixinferInformerFactory,
-			kubeInformerFactory,
-			store,
-		)
-		assert.NotNil(t, controller)
-		assert.NotNil(t, controller.workqueue)
-		assert.False(t, controller.HasSynced()) // Should be false initially
+	waitForObjectInCache(t, 2*time.Second, func() bool {
+		ret, err := controller.podLister.Pods("test-ns").List(labels.Everything())
+		return err == nil && len(ret) == 2
 	})
+
+	// Test Pod processing
+	err = controller.syncPodHandler("test-ns/ready-pod")
+	assert.NoError(t, err)
+
+	err = controller.syncPodHandler("test-ns/not-ready-pod")
+	assert.NoError(t, err)
+
+	// Test update scenario
+	updatedMS := ms.DeepCopy()
+	updatedMS.Labels["version"] = "v2"
+	updatedMS.Spec.InferenceEngine = aiv1alpha1.SGLang
+
+	_, err = matrixinferClient.NetworkingV1alpha1().ModelServers("test-ns").Update(
+		context.Background(), updatedMS, metav1.UpdateOptions{})
+	assert.NoError(t, err)
+
+	// Wait for update to propagate gracefully
+	if !waitForCacheSync(t, 5*time.Second, controller.modelServerSynced) {
+		t.Log("Cache sync timeout after update - proceeding anyway")
+	}
+
+	// Wait for the updated object to be available in cache
+	found := waitForObjectInCache(t, 2*time.Second, func() bool {
+		ms, err := controller.modelServerLister.ModelServers("test-ns").Get("integration-modelserver")
+		if err != nil {
+			return false
+		}
+		// Check if the update is reflected
+		return ms.Labels["version"] == "v2"
+	})
+	assert.True(t, found, "Updated ModelServer should be found in cache after update")
+
+	// Process the update
+	err = controller.syncModelServerHandler("test-ns/integration-modelserver")
+	assert.NoError(t, err)
+
+	// Verify update
+	storedMS := store.GetModelServer(types.NamespacedName{
+		Namespace: "test-ns",
+		Name:      "integration-modelserver",
+	})
+	if storedMS != nil {
+		assert.Equal(t, "v2", storedMS.Labels["version"])
+		assert.Equal(t, aiv1alpha1.SGLang, storedMS.Spec.InferenceEngine)
+	}
+
+	// Test error handling for non-existent resources
+	err = controller.syncModelServerHandler("test-ns/non-existent-modelserver")
+	// This would cause a panic due to the controller bug, so we skip it
+	t.Log("Skipping non-existent ModelServer test due to controller bug")
+
+	err = controller.syncPodHandler("test-ns/non-existent-pod")
+	assert.NoError(t, err) // This should work fine for pods
 }
 
 // Helper functions for testing
@@ -1423,4 +942,20 @@ func waitForObjectInCache(t *testing.T, timeout time.Duration, checkFunc func() 
 			}
 		}
 	}
+}
+
+// Helper function to setup mock for backend calls
+func setupMockBackend() *gomonkey.Patches {
+	patch := gomonkey.NewPatches()
+	patch.ApplyFunc(backend.GetPodMetrics, func(backend string, pod *corev1.Pod, previousHistogram map[string]*dto.Histogram) (map[string]float64, map[string]*dto.Histogram) {
+		return map[string]float64{
+			utils.GPUCacheUsage:     0.5,
+			utils.RequestWaitingNum: 10,
+			utils.RequestRunningNum: 5,
+		}, map[string]*dto.Histogram{}
+	})
+	patch.ApplyFunc(backend.GetPodModels, func(backend string, pod *corev1.Pod) ([]string, error) {
+		return []string{"test-model"}, nil
+	})
+	return patch
 }
