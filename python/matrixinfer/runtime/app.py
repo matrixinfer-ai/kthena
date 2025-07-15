@@ -24,6 +24,9 @@ from contextlib import asynccontextmanager
 import uvicorn
 from matrixinfer.runtime.collect import process_metrics
 from matrixinfer.runtime.standard import MetricStandard
+import json
+from fastapi import BackgroundTasks, Body
+from matrixinfer.downloader.downloader import download_model
 
 TIMEOUT = float(os.getenv("REQUEST_TIMEOUT", "30.0"))
 
@@ -94,12 +97,13 @@ def create_application(args: argparse.Namespace) -> FastAPI:
     app = FastAPI(lifespan=lifespan)
 
     app.state.metric_standard = MetricStandard(args.engine)
-    app.state.engine_metrics_url = args.url
+    app.state.engine_metrics_url = args.engine_base_url + args.engine_metrics_path
     
     app.include_router(router)
     
     logger.info(f"Application configured for engine: {args.engine}")
-    logger.info(f"Metrics URL: {args.url}")
+    logger.info(f"Engine base URL: {args.engine_base_url}")
+    logger.info(f"Engine metrics URL: {args.engine_base_url + args.engine_metrics_path}")
     
     return app
 
@@ -132,10 +136,17 @@ def parse_arguments() -> argparse.Namespace:
     )
     
     parser.add_argument(
-        "-U", "--url",
+        "-B", "--engine-base-url",
         type=str,
-        default="http://localhost:8000/metrics",
-        help="URL endpoint to fetch metrics from engine"
+        default="http://localhost:8000",
+        help="Base URL of the engine server"
+    )
+    
+    parser.add_argument(
+        "-M", "--engine-metrics-path",
+        type=str,
+        default="/metrics",
+        help="Metrics endpoint path"
     )
     
     return parser.parse_args()
@@ -161,6 +172,97 @@ def main() -> None:
         logger.error(f"Failed to start service: {e}")
         raise
 
+
+@router.post("/v1/load_lora_adapter", tags=["LoRA"])
+async def load_lora_adapter(request: Request) -> JSONResponse:
+    try:
+        state = request.app.state
+        body = await request.json()
+        response = await state.client.post(f"{state.engine_base_url}/v1/load_lora_adapter", json=body)
+        response.raise_for_status()
+        return JSONResponse(content=response.json(), status_code=response.status_code)
+    except Exception as e:
+        logger.error(f"Error loading LoRA adapter: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/v1/unload_lora_adapter", tags=["LoRA"])
+async def unload_lora_adapter(request: Request) -> JSONResponse:
+    try:
+        state = request.app.state
+        body = await request.json()
+        response = await state.client.post(f"{state.engine_base_url}/v1/unload_lora_adapter", json=body)
+        response.raise_for_status()
+        return JSONResponse(content=response.json(), status_code=response.status_code)
+    except Exception as e:
+        logger.error(f"Error unloading LoRA adapter: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/v1/download_model", tags=["Download"])
+async def download_model_endpoint(request: Request, background_tasks: BackgroundTasks) -> JSONResponse:
+    """
+    Download model from various sources (S3, OBS, PVC, HuggingFace)
+    
+    Request body should contain:
+    - source: str - Model source URL (s3://, obs://, pvc://, or HuggingFace model name)
+    - output_dir: str - Local directory to save the model
+    - config: dict - Configuration for the downloader (access_key, secret_key, endpoint, hf_token, etc.)
+    - max_workers: int (optional) - Number of parallel workers for download (default: 8)
+    - async_download: bool (optional) - Whether to run download in background (default: False)
+    """
+    try:
+        body = await request.json()
+        
+        # Validate required parameters
+        source = body.get("source")
+        output_dir = body.get("output_dir")
+        config = body.get("config", {})
+        max_workers = body.get("max_workers", 8)
+        async_download = body.get("async_download", False)
+        
+        if not source:
+            raise HTTPException(status_code=400, detail="Missing required parameter: source")
+        if not output_dir:
+            raise HTTPException(status_code=400, detail="Missing required parameter: output_dir")
+        
+        logger.info(f"Starting model download from {source} to {output_dir}")
+        
+        def download_task():
+            try:
+                download_model(source, output_dir, config, max_workers)
+                logger.info(f"Model download completed successfully: {source} -> {output_dir}")
+            except Exception as e:
+                logger.error(f"Model download failed: {e}")
+        
+        if async_download:
+            # Run download in background
+            background_tasks.add_task(download_task)
+            return JSONResponse(
+                content={
+                    "status": "started",
+                    "message": "Model download started in background",
+                    "source": source,
+                    "output_dir": output_dir
+                },
+                status_code=202
+            )
+        else:
+            # Run download synchronously
+            download_task()
+            return JSONResponse(
+                content={
+                    "status": "completed",
+                    "message": "Model download completed successfully",
+                    "source": source,
+                    "output_dir": output_dir
+                },
+                status_code=200
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in download endpoint: {e}")
+        raise HTTPException(status_code=500, detail=f"Download failed: {str(e)}")
 
 if __name__ == "__main__":
     main()

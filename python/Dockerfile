@@ -26,8 +26,21 @@ ENV PYTHONPATH="/app"
 ENTRYPOINT ["python", "matrixinfer/downloader/app.py"]
 
 FROM python:3.9.6-slim AS runtime
+# Copy downloader dependencies from downloader stage
+COPY --from=downloader /usr/local/aws /usr/local/aws
+COPY --from=downloader /usr/local/bin/aws /usr/local/bin/aws
+RUN apt-get update && \
+    apt-get install -y rsync && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
+COPY matrixinfer/downloader/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY matrixinfer/downloader/ ./matrixinfer/downloader/
 COPY matrixinfer/runtime/ ./matrixinfer/runtime/
 RUN pip install --no-cache-dir -r matrixinfer/runtime/requirements.txt
 ENV PYTHONPATH="/app"
-ENTRYPOINT ["python", "matrixinfer/runtime/app.py"]
+# Default to runtime, but can override with command
+ENTRYPOINT ["python"]
+CMD ["matrixinfer/runtime/app.py"]
