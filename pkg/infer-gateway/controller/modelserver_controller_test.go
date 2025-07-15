@@ -902,6 +902,8 @@ func TestModelServerController_ComprehensiveLifecycleTest(t *testing.T) {
 
 	// Test error handling for non-existent resources
 	err = controller.syncModelServerHandler("test-ns/non-existent-modelserver")
+	assert.NoError(t, err) // This should work fine for pods
+
 	// This would cause a panic due to the controller bug, so we skip it
 	t.Log("Skipping non-existent ModelServer test due to controller bug")
 
