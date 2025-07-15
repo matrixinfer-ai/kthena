@@ -306,7 +306,7 @@ func IsPodFailed(pod *corev1.Pod) bool {
 	return pod.Status.Phase == corev1.PodFailed
 }
 
-func ExpectedPodNum(mi *workloadv1alpha1.ModelInfer) int {
+func InferGroupExpectedPodNum(mi *workloadv1alpha1.ModelInfer) int {
 	num := 0
 	for _, role := range mi.Spec.Template.Roles {
 		// Calculate the expected number of pod replicas when the role is running normally

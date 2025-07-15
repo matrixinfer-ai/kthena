@@ -63,16 +63,17 @@ const (
 	InferGroupRunning  InferGroupStatus = "Running"
 	InferGroupCreating InferGroupStatus = "Creating"
 	InferGroupDeleting InferGroupStatus = "Deleting"
+	InferGroupError    InferGroupStatus = "Error"
 	// InferGroupUpdating InferGroupStatus = "Updating"
 	InferGroupNotFound InferGroupStatus = "NotFound"
 )
 
 var ErrInferGroupNotFound = errors.New("infer group not found")
 
-func New() (Store, error) {
+func New() Store {
 	return &store{
 		inferGroup: make(map[types.NamespacedName]map[string]*InferGroup),
-	}, nil
+	}
 }
 
 // GetInferGroupByModelInfer returns the list of inferGroups and errors

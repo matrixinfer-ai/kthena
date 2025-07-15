@@ -85,10 +85,7 @@ func NewModelInferController(kubeClientSet kubernetes.Interface, modelInferClien
 	modelInferInformerFactory := informersv1alpha1.NewSharedInformerFactory(modelInferClient, 0)
 	modelInferInformer := modelInferInformerFactory.Workload().V1alpha1().ModelInfers()
 
-	store, err := datastore.New()
-	if err != nil {
-		klog.Fatal("Unable to create data store")
-	}
+	store := datastore.New()
 
 	c := &ModelInferController{
 		kubeClientSet:       kubeClientSet,
@@ -369,12 +366,38 @@ func (c *ModelInferController) Run(ctx context.Context, workers int) {
 }
 
 // sync all pods before starting the worker
-// we donot need to sync ModelInfer here, because the ModelInfer controller will sync all ModelInfers after the initial sync.
-// Related inferGroups will be created when syncing pods.
+// we need to check the number of pods in the inferGroup to avoid losing pod events during controller downtime.
+// ModelInfer controller will sync all ModelInfers after the initial sync. Related inferGroups will be created when syncing pods.
 func (c *ModelInferController) syncAll() {
 	pods, _ := c.podsLister.List(labels.Everything())
 	for _, pod := range pods {
 		c.addPod(pod)
+	}
+
+	miList, _ := c.modelInfersLister.List(labels.Everything())
+	for _, mi := range miList {
+		inferGroupList, err := c.store.GetInferGroupByModelInfer(utils.GetNamespaceName(mi))
+		if err != nil {
+			// modelInfer has not created inferGroups, so synchronization is not required.
+			klog.V(4).Infof("cannot obtain inferGroup list of modelInfer %s during initial synchronization", mi.Name)
+			continue
+		}
+		expectedPodNum := utils.InferGroupExpectedPodNum(mi)
+		for _, group := range inferGroupList {
+			ok, err := c.isInferGroupPodNumExpected(group, mi.Namespace, expectedPodNum)
+			if err != nil {
+				klog.Errorf("inferGroup %s synchronization failed, error: %v", group.Name, err)
+				continue
+			}
+			if !ok {
+				// The number of pods does not meet the requirement. It may be that the pods were deleted during the controller downtime.
+				// Need to rebuild the inferGroup in manageReplicas.
+				err = c.store.UpdateInferGroupStatus(utils.GetNamespaceName(mi), group.Name, datastore.InferGroupError)
+				if err != nil {
+					klog.Errorf("cannot set inferGroup %s status, error: %v", group.Name, err)
+				}
+			}
+		}
 	}
 
 	c.initialSync = true
@@ -452,7 +475,15 @@ func (c *ModelInferController) manageReplicas(ctx context.Context, mi *workloadv
 	expectedCount := int(*mi.Spec.Replicas)
 	curReplicas := len(inferGroupList)
 	if curReplicas == expectedCount {
-		klog.V(4).Info("The number of replicas is consistent, no need to scale up or down")
+		klog.V(4).Info("The number of replicas is consistent, no need to scale up or down.")
+		// The number of replicas is consistent. Check whether the number of pods in inferGroup meets the expectation.
+		for _, group := range inferGroupList {
+			if c.store.GetInferGroupStatus(utils.GetNamespaceName(mi), group.Name) == datastore.InferGroupError {
+				klog.V(2).Infof("The number of pods in inferGroup %s does not meet expectations and will be deleted and rebuilt.", group.Name)
+				c.DeleteInferGroup(mi, group.Name)
+			}
+		}
+		// After the inferGroup is completely deleted, it will re-enter the reconcile, so no need to rebuild here.
 		return nil
 	}
 	// slice that will contain all InferGroups as excepted
@@ -477,7 +508,11 @@ func (c *ModelInferController) manageReplicas(ctx context.Context, mi *workloadv
 			// Create pods for inferGroup
 			err = c.CreatePodsForInferGroup(ctx, mi, idx, newRevision)
 			if err != nil {
-				// I think that after create a pod failed, a period of time should pass before joining the coordination queue.
+				// If an error occurs during the creation, group status will be set to error and the group waits rebuild.
+				statusErr := c.store.UpdateInferGroupStatus(utils.GetNamespaceName(mi), utils.GenerateInferGroupName(mi.Name, idx), datastore.InferGroupError)
+				if statusErr != nil {
+					return fmt.Errorf("create infer group failed: %v, and set group status err: %v", err, statusErr)
+				}
 				return fmt.Errorf("create infer group failed: %v", err)
 			}
 		}
@@ -736,7 +771,7 @@ func (c *ModelInferController) checkInferGroupReady(mi *workloadv1alpha1.ModelIn
 	if err != nil {
 		return false, err
 	}
-	if runningPodsNum != utils.ExpectedPodNum(mi) {
+	if runningPodsNum != utils.InferGroupExpectedPodNum(mi) {
 		// the number of running pods does not reach the expected number
 		return false, nil
 	}
@@ -767,6 +802,26 @@ func (c *ModelInferController) isInferGroupOutdated(group datastore.InferGroup, 
 		}
 	}
 	return false
+}
+
+func (c *ModelInferController) isInferGroupPodNumExpected(group datastore.InferGroup, namespace string, expectedPodNum int) (bool, error) {
+	// check whether the number of pods in the inferGroup meets the expectation.
+	selector := labels.SelectorFromSet(map[string]string{
+		workloadv1alpha1.GroupNameLabelKey: group.Name,
+	})
+	pods, err := c.podsLister.Pods(namespace).List(selector)
+	if err != nil {
+		return false, fmt.Errorf("cannot list pods for group %s: %v", group.Name, err)
+	}
+	if len(pods) != expectedPodNum {
+		return false, nil
+	}
+	for _, pod := range pods {
+		if utils.PodRevision(pod) != group.Revision {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 func (c *ModelInferController) getModelInfer(pod *corev1.Pod) (*workloadv1alpha1.ModelInfer, string, error) {
