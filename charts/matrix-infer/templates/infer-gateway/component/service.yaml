@@ -4,11 +4,11 @@ metadata:
   name: {{ include "matrixinfer.fullname" . }}-infer-gateway
   namespace: {{ .Release.Namespace }}
   labels:
-    app.kubernetes.io/instance: infer-gateway
+    app.kubernetes.io/component: infer-gateway
     {{- include "matrixinfer.labels" . | nindent 4 }}
 spec:
   selector:
-    app.kubernetes.io/instance: infer-gateway
+    app.kubernetes.io/component: infer-gateway
     {{- include "matrixinfer.selectorLabels" . | nindent 4 }}
   ports:
     - port: 80

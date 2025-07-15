@@ -4,7 +4,7 @@ metadata:
   name: {{ include "matrixinfer.fullname" . }}-registry-webhook
   namespace: {{ .Release.Namespace }}
   labels:
-    app.kubernetes.io/instance: registry-webhook
+    app.kubernetes.io/component: registry-webhook
     {{- include "matrixinfer.labels" . | nindent 4 }}
 spec:
   ports:
@@ -12,5 +12,5 @@ spec:
       targetPort: 8443
       name: https
   selector:
-    app.kubernetes.io/instance: registry-webhook
+    app.kubernetes.io/component: registry-webhook
     {{- include "matrixinfer.selectorLabels" . | nindent 4 }}

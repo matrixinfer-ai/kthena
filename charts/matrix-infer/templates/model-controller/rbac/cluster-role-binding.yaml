@@ -3,7 +3,7 @@ kind: ClusterRoleBinding
 metadata:
   name: model-controller
   labels:
-    app.kubernetes.io/instance: model-controller-role-binding
+    app.kubernetes.io/component: model-controller-role-binding
     {{- include "matrixinfer.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io

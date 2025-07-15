@@ -4,7 +4,7 @@ metadata:
   name: model-config-map
   namespace: {{ .Release.Namespace }}
   labels:
-    app.kubernetes.io/instance: model-config-map
+    app.kubernetes.io/component: model-config-map
     {{- include "matrixinfer.labels" . | nindent 4 }}
 data:
   model_infer_downloader_image: "{{ .Values.modelController.downloaderImage.repository }}:{{ .Values.modelController.downloaderImage.tag }}"

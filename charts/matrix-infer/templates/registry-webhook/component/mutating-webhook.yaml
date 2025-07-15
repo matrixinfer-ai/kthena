@@ -4,7 +4,7 @@ metadata:
   name: {{ include "matrixinfer.fullname" . }}-registry-mutating-webhook
   namespace: {{ .Release.Namespace }}
   labels:
-    app.kubernetes.io/instance: registry-webhook
+    app.kubernetes.io/component: registry-webhook
     {{- include "matrixinfer.labels" . | nindent 4 }}
   annotations:
     cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/registry-webhook-cert

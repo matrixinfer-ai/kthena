@@ -3,7 +3,7 @@ kind: ClusterRoleBinding
 metadata:
   name: infer-gateway
   labels:
-    app.kubernetes.io/instance: infer-gateway-role-binding
+    app.kubernetes.io/component: infer-gateway-role-binding
     {{- include "matrixinfer.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io

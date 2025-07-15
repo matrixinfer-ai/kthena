@@ -47,4 +47,5 @@ Selector labels
 */}}
 {{- define "matrixinfer.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "matrixinfer.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}

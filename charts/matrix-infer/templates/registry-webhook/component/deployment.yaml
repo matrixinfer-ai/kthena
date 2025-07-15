@@ -4,18 +4,18 @@ metadata:
   name: {{ include "matrixinfer.fullname" . }}-registry-webhook
   namespace: {{ .Release.Namespace }}
   labels:
-    app.kubernetes.io/instance: registry-webhook
+    app.kubernetes.io/component: registry-webhook
     {{- include "matrixinfer.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.registryWebhook.replicas | default 1 }}
   selector:
     matchLabels:
-      app.kubernetes.io/instance: registry-webhook
+      app.kubernetes.io/component: registry-webhook
       {{- include "matrixinfer.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app.kubernetes.io/instance: registry-webhook
+        app.kubernetes.io/component: registry-webhook
         {{- include "matrixinfer.labels" . | nindent 8 }}
     spec:
       containers:
