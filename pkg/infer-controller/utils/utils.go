@@ -18,10 +18,14 @@ package utils
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"regexp"
 	"strconv"
 
+	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -417,4 +421,52 @@ func exclusiveConditionTypes(condition1 metav1.Condition, condition2 metav1.Cond
 	}
 
 	return false
+}
+
+// ParseAdmissionRequest parses the HTTP request and extracts the AdmissionReview and ModelInfer.
+func ParseModelInferFromRequest(r *http.Request) (*admissionv1.AdmissionReview, *workloadv1alpha1.ModelInfer, error) {
+	var body []byte
+	if r.Body != nil {
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to read request body: %v", err)
+		}
+		body = data
+	}
+
+	// Verify the content type is accurate
+	contentType := r.Header.Get("Content-Type")
+	if contentType != "application/json" {
+		return nil, nil, fmt.Errorf("invalid Content-Type, expected application/json, got %s", contentType)
+	}
+
+	// Parse the AdmissionReview request
+	var admissionReview admissionv1.AdmissionReview
+	if err := json.Unmarshal(body, &admissionReview); err != nil {
+		return nil, nil, fmt.Errorf("failed to decode body: %v", err)
+	}
+
+	var mi workloadv1alpha1.ModelInfer
+	if err := json.Unmarshal(admissionReview.Request.Object.Raw, &mi); err != nil {
+		return nil, nil, fmt.Errorf("failed to decode modelInfer: %v", err)
+	}
+
+	return &admissionReview, &mi, nil
+}
+
+// SendAdmissionResponse sends the AdmissionReview response back to the client
+func SendAdmissionResponse(w http.ResponseWriter, admissionReview *admissionv1.AdmissionReview) error {
+	// Send the response
+	resp, err := json.Marshal(admissionReview)
+	if err != nil {
+		return fmt.Errorf("failed to encode response: %v", err)
+	}
+
+	klog.V(4).Infof("Sending response: %s", string(resp))
+	w.Header().Set("Content-Type", "application/json")
+	if _, err := w.Write(resp); err != nil {
+		return fmt.Errorf("failed to write response: %v", err)
+	}
+
+	return nil
 }

@@ -32,31 +32,41 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-controller/controller"
 )
 
-func main() {
-	var kubeconfig string
-	var master string
-	var workers int
+type modelInferConfig struct {
+	kubeconfig string
+	masterURL  string
+	workers    int
+}
 
+func parseConfig() (modelInferConfig, error) {
+	var config modelInferConfig
+	pflag.StringVar(&config.kubeconfig, "kubeconfig", "", "kubeconfig file path")
+	pflag.StringVar(&config.masterURL, "master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
+	pflag.IntVar(&config.workers, "workers", 5, "number of workers to run")
+	pflag.Parse()
+	return config, nil
+}
+
+func main() {
 	klog.InitFlags(nil)
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
-
-	pflag.StringVar(&kubeconfig, "kubeconfig", "", "kubeconfig file path")
-	pflag.StringVar(&master, "master", "", "master URL")
-	pflag.IntVar(&workers, "workers", 5, "number of workers to run")
-	pflag.Parse()
+	config, err := parseConfig()
+	if err != nil {
+		klog.Fatalf("Config error: %v", err)
+	}
 
 	// create clientset
-	config, err := clientcmd.BuildConfigFromFlags(master, kubeconfig)
+	restConfig, err := clientcmd.BuildConfigFromFlags(config.masterURL, config.kubeconfig)
 	if err != nil {
 		klog.Fatalf("build client config: %v", err)
 	}
 
-	kubeClient, err := kubernetes.NewForConfig(config)
+	kubeClient, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		klog.Fatalf("failed to create k8s client: %v", err)
 	}
 
-	modelInferClient, err := clientset.NewForConfig(config)
+	modelInferClient, err := clientset.NewForConfig(restConfig)
 	if err != nil {
 		klog.Fatalf("failed to create ModelInfer client: %v", err)
 	}
@@ -66,7 +76,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	// Start controller
-	go mic.Run(ctx, workers)
+	go mic.Run(ctx, config.workers)
 	klog.Info("Started ModelInfer controller")
 
 	// Wait for interrupt signal
