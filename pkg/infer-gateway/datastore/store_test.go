@@ -233,8 +233,12 @@ func TestStoreAddOrUpdatePod(t *testing.T) {
 			Name:      "model2",
 		},
 	}
-	modelServers := []*aiv1alpha1.ModelServer{ms1, ms2}
 
+	// Add model server first
+	s.AddOrUpdateModelServer(ms1, nil)
+	s.AddOrUpdateModelServer(ms2, nil)
+
+	modelServers := []*aiv1alpha1.ModelServer{ms1, ms2}
 	err := s.AddOrUpdatePod(pod, modelServers)
 	assert.NoError(t, err)
 	podName := utils.GetNamespaceName(pod)
@@ -243,11 +247,17 @@ func TestStoreAddOrUpdatePod(t *testing.T) {
 		assert.True(t, s.pods[podName].modelServer.Contains(msName))
 	}
 
+	assert.Equal(t, s.pods[podName].Pod.Name, pod.Name, "pod should be stored correctly")
+	assert.Equal(t, len(s.pods[podName].modelServer), 2, "pod should reference both model servers")
+
 	// Update pod with only one model server
 	err = s.AddOrUpdatePod(pod, []*aiv1alpha1.ModelServer{ms1})
 	assert.NoError(t, err)
 	assert.True(t, s.pods[podName].modelServer.Contains(utils.GetNamespaceName(ms1)))
 	assert.False(t, s.pods[podName].modelServer.Contains(utils.GetNamespaceName(ms2)))
+
+	assert.Equal(t, s.modelServer[utils.GetNamespaceName(ms1)].pods.Len(), 1, "model server 1 should still reference the pod")
+	assert.Equal(t, s.modelServer[utils.GetNamespaceName(ms2)].pods.Len(), 0, "model server 2 should not reference the pod")
 }
 
 func TestStoreDeletePod(t *testing.T) {

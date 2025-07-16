@@ -212,8 +212,10 @@ func (s *store) AddOrUpdateModelServer(ms *aiv1alpha1.ModelServer, pods sets.Set
 	} else {
 		s.modelServer[name].modelServer = ms
 	}
-	// donot operate s.pods here, which are done within pod handler
-	s.modelServer[name].pods = pods
+	if len(pods) != 0 {
+		// donot operate s.pods here, which are done within pod handler
+		s.modelServer[name].pods = pods
+	}
 
 	return nil
 }
@@ -278,7 +280,6 @@ func (s *store) GetPodsByModelServer(name types.NamespacedName) ([]*PodInfo, err
 
 func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.ModelServer) error {
 	podName := utils.GetNamespaceName(pod)
-	// TODO: check if pod is already in the store, use the existing PodInfo if exists
 	newPodInfo := &PodInfo{
 		Pod:         pod,
 		modelServer: sets.Set[types.NamespacedName]{},
@@ -295,11 +296,25 @@ func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.Model
 			ms.addPod(podName)
 		}
 	}
+
+	oldPodInfo := s.pods[podName]
+	if oldPodInfo != nil {
+		oldModelServers := oldPodInfo.GetModelServers()
+		// Handle the case where the pod is no longer belong to some model servers
+		for msName := range oldModelServers.Difference(newPodInfo.modelServer) {
+			if ms, ok := s.modelServer[msName]; ok {
+				ms.deletePod(podName)
+			}
+		}
+	}
+
 	s.pods[podName] = newPodInfo
 	s.mutex.Unlock()
 
-	s.updatePodMetrics(newPodInfo)
-	s.updatePodModels(newPodInfo)
+	if oldPodInfo == nil {
+		s.updatePodMetrics(newPodInfo)
+		s.updatePodModels(newPodInfo)
+	}
 
 	return nil
 }
