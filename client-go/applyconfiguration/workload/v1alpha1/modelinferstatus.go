@@ -26,6 +26,7 @@ import (
 // with apply.
 type ModelInferStatusApplyConfiguration struct {
 	Replicas          *int32                           `json:"replicas,omitempty"`
+	CurrentReplicas   *int32                           `json:"currentReplicas,omitempty"`
 	UpdatedReplicas   *int32                           `json:"updatedReplicas,omitempty"`
 	AvailableReplicas *int32                           `json:"availableReplicas,omitempty"`
 	Conditions        []v1.ConditionApplyConfiguration `json:"conditions,omitempty"`
@@ -42,6 +43,14 @@ func ModelInferStatus() *ModelInferStatusApplyConfiguration {
 // If called multiple times, the Replicas field is set to the value of the last call.
 func (b *ModelInferStatusApplyConfiguration) WithReplicas(value int32) *ModelInferStatusApplyConfiguration {
 	b.Replicas = &value
+	return b
+}
+
+// WithCurrentReplicas sets the CurrentReplicas field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the CurrentReplicas field is set to the value of the last call.
+func (b *ModelInferStatusApplyConfiguration) WithCurrentReplicas(value int32) *ModelInferStatusApplyConfiguration {
+	b.CurrentReplicas = &value
 	return b
 }
 

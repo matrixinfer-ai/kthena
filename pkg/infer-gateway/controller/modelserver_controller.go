@@ -18,6 +18,7 @@ package controller
 
 import (
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"istio.io/istio/pkg/util/sets"
@@ -44,9 +45,11 @@ type ModelServerController struct {
 
 	modelServerSynced cache.InformerSynced
 	podSynced         cache.InformerSynced
+	registation       cache.ResourceEventHandlerRegistration
 
-	workqueue workqueue.TypedRateLimitingInterface[any]
-	store     datastore.Store
+	workqueue   workqueue.TypedRateLimitingInterface[any]
+	initialSync *atomic.Bool
+	store       datastore.Store
 }
 
 func NewModelServerController(
@@ -63,10 +66,11 @@ func NewModelServerController(
 		modelServerSynced: modelServerInformer.Informer().HasSynced,
 		podSynced:         podInformer.Informer().HasSynced,
 		workqueue:         workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[any]()),
+		initialSync:       &atomic.Bool{},
 		store:             store,
 	}
 
-	_, _ = modelServerInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	controller.registation, _ = modelServerInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.enqueueModelServer,
 		UpdateFunc: func(old, new interface{}) {
 			controller.enqueueModelServer(new)
@@ -81,9 +85,11 @@ func (c *ModelServerController) Run(workers int, stopCh <-chan struct{}) error {
 	defer utilruntime.HandleCrash()
 	defer c.workqueue.ShutDown()
 
-	if ok := cache.WaitForCacheSync(stopCh, c.modelServerSynced, c.podSynced); !ok {
+	if ok := cache.WaitForCacheSync(stopCh, c.registation.HasSynced, c.podSynced); !ok {
 		return fmt.Errorf("failed to wait for caches to sync")
 	}
+	// add initialSync signal
+	c.workqueue.Add(initialSyncSignal)
 
 	for i := 0; i < workers; i++ {
 		go wait.Until(c.runWorker, time.Second, stopCh)
@@ -91,6 +97,10 @@ func (c *ModelServerController) Run(workers int, stopCh <-chan struct{}) error {
 
 	<-stopCh
 	return nil
+}
+
+func (c *ModelServerController) HasSynced() bool {
+	return c.initialSync.Load()
 }
 
 func (c *ModelServerController) runWorker() {
@@ -104,6 +114,14 @@ func (c *ModelServerController) processNextWorkItem() bool {
 		return false
 	}
 	defer c.workqueue.Done(obj)
+
+	if obj == initialSyncSignal {
+		klog.V(2).Info("initial model servers have been synced")
+		c.workqueue.Forget(obj)
+		c.initialSync.Store(true)
+		return true
+	}
+
 	var key string
 	var ok bool
 	if key, ok = obj.(string); !ok {

@@ -18,6 +18,7 @@ package controller
 
 import (
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -32,18 +33,14 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 )
 
-const (
-	maxRetries = 5
-)
-
-// ModelRouteControllerName is the name of the ModelRoute controller.
-
 type ModelRouteController struct {
 	modelRouteLister listerv1alpha1.ModelRouteLister
 	modelRouteSynced cache.InformerSynced
+	registation      cache.ResourceEventHandlerRegistration
 
-	workqueue workqueue.TypedRateLimitingInterface[any]
-	store     datastore.Store
+	workqueue   workqueue.TypedRateLimitingInterface[any]
+	initialSync *atomic.Bool
+	store       datastore.Store
 }
 
 func NewModelRouteController(
@@ -56,10 +53,11 @@ func NewModelRouteController(
 		modelRouteLister: modelRouteInformer.Lister(),
 		modelRouteSynced: modelRouteInformer.Informer().HasSynced,
 		workqueue:        workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[any]()),
+		initialSync:      &atomic.Bool{},
 		store:            store,
 	}
 
-	_, _ = modelRouteInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	controller.registation, _ = modelRouteInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.enqueueModelRoute,
 		UpdateFunc: func(old, new interface{}) {
 			controller.enqueueModelRoute(new)
@@ -74,9 +72,11 @@ func (c *ModelRouteController) Run(workers int, stopCh <-chan struct{}) error {
 	defer utilruntime.HandleCrash()
 	defer c.workqueue.ShutDown()
 
-	if ok := cache.WaitForCacheSync(stopCh, c.modelRouteSynced); !ok {
+	if ok := cache.WaitForCacheSync(stopCh, c.registation.HasSynced); !ok {
 		return fmt.Errorf("failed to wait for caches to sync")
 	}
+	// add initialSync signal
+	c.workqueue.Add(initialSyncSignal)
 
 	for i := 0; i < workers; i++ {
 		go wait.Until(c.runWorker, time.Second, stopCh)
@@ -84,6 +84,10 @@ func (c *ModelRouteController) Run(workers int, stopCh <-chan struct{}) error {
 
 	<-stopCh
 	return nil
+}
+
+func (c *ModelRouteController) HasSynced() bool {
+	return c.initialSync.Load()
 }
 
 func (c *ModelRouteController) runWorker() {
@@ -97,6 +101,14 @@ func (c *ModelRouteController) processNextWorkItem() bool {
 		return false
 	}
 	defer c.workqueue.Done(obj)
+
+	if obj == initialSyncSignal {
+		klog.V(2).Info("initial model routes have been synced")
+		c.workqueue.Forget(obj)
+		c.initialSync.Store(true)
+		return true
+	}
+
 	var key string
 	var ok bool
 	if key, ok = obj.(string); !ok {

@@ -30,7 +30,17 @@ const (
 	workerNum = 2
 )
 
-func startControllers(store datastore.Store, stop <-chan struct{}) {
+type Controller interface {
+	HasSynced() bool
+}
+
+type aggregatedController struct {
+	controllers []Controller
+}
+
+var _ Controller = &aggregatedController{}
+
+func startControllers(store datastore.Store, stop <-chan struct{}) Controller {
 	cfg, err := clientcmd.BuildConfigFromFlags("", "")
 	if err != nil {
 		log.Fatalf("Error building kubeconfig: %s", err.Error())
@@ -73,4 +83,21 @@ func startControllers(store datastore.Store, stop <-chan struct{}) {
 			log.Fatalf("Error running model server controller: %s", err.Error())
 		}
 	}()
+
+	return &aggregatedController{
+		controllers: []Controller{
+			podController,
+			modelRouteController,
+			modelServerController,
+		},
+	}
+}
+
+func (c *aggregatedController) HasSynced() bool {
+	for _, controller := range c.controllers {
+		if !controller.HasSynced() {
+			return false
+		}
+	}
+	return true
 }
