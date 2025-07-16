@@ -1,6 +1,6 @@
 apiVersion: v2
-name: matrix-infer
-description: A Helm chart for deploying MatrixInfer
+name: workload
+description: A Helm subchart for matrix-infer.
 type: application
 # This is the chart version. This version number should be incremented each time you make changes
 # to the chart and its templates, including the app version.
@@ -11,9 +11,3 @@ version: 1.0.0
 # follow Semantic Versioning. They should reflect the version the application is using.
 # It is recommended to use it with quotes.
 appVersion: "1.0.0"
-# This chart has two subcharts: registry and workload.
-dependencies:
-  - name: registry
-    version: "1.0.0"
-  - name: workload
-    version: "1.0.0"
