@@ -21,27 +21,39 @@ jobs:
         go-version: [ '1.24' ]
 
     steps:
-    - uses: actions/checkout@v3
-    - name: install sponge
-      shell: bash
-      run: sudo apt-get update && sudo apt-get install -y moreutils
-    - name: generate copyright
-      shell: bash
-      run: |
-        make add-copyright
-    - name: check diff
-      shell: bash
-      run: |
-        git diff --exit-code
-    - name: Setup Go
-      uses: actions/setup-go@v4.0.0
-      with:
-        go-version: ${{ matrix.go-version }}
-    - name: golangci-lint
-      shell: bash
-      run: |
-        make lint
-    - name: Build matrixinfer
-      shell: bash
-      run: |
-        make gen-check
+      - uses: actions/checkout@v3
+      - name: install sponge
+        shell: bash
+        run: sudo apt-get update && sudo apt-get install -y moreutils
+      - name: generate copyright
+        shell: bash
+        run: |
+          make add-copyright
+      - name: check diff
+        shell: bash
+        run: |
+          git diff --exit-code
+      - name: install helm
+        shell: bash
+        run: |
+          curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | sudo tee /usr/share/keyrings/helm.gpg > /dev/null
+          sudo apt-get install apt-transport-https --yes
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main" | sudo tee /etc/apt/sources.list.d/helm-stable-debian.list
+          sudo apt-get update
+          sudo apt-get install helm
+      - name: helm lint
+        shell: bash
+        run: |
+          helm lint charts/matrix-infer
+      - name: Setup Go
+        uses: actions/setup-go@v4.0.0
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: golangci-lint
+        shell: bash
+        run: |
+          make lint
+      - name: Build matrixinfer
+        shell: bash
+        run: |
+          make gen-check
