@@ -25,7 +25,7 @@ prerequisite
 
 - [helm](https://helm.sh/docs/intro/install/) installed
 
-## package
+## Package
 
 package chart into an archive file
 
@@ -34,9 +34,10 @@ cd charts/
 helm package matrix-infer
 ```
 
-## install
+## Install
 
-> Helm installs resources in the following order:  
+Helm first installs resources from the `/crd` directory.  
+After that, it installs resources from the `/templates` directory in the following order:
 > - Namespace  
 > - NetworkPolicy  
 > - ResourceQuota  
@@ -75,7 +76,7 @@ helm package matrix-infer
 NOTICE: The current version helm (v3.17.0) will not update or uninstall CRD. If you want to update or uninstall CRD, you
 need to do it manually.
 
-### install from local archive
+### Install from local archive
 
 ```shell
 helm install <your-name> <archive-file-name> --namespace <namespace> 
@@ -95,13 +96,13 @@ hell install <your-name> <archive-file-name> --namespace <namespace> \
   --set gateway.enabled=false
 ```
 
-## uninstall
+## Uninstall
 
 ```shell
 helm uninstall <your-name>
 ```
 
-## test
+## Test
 
 ```shell
 cd charts/matrix-infer
