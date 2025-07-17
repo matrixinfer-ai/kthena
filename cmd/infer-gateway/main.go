@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"os"
 	"os/signal"
 	"syscall"
@@ -27,6 +28,11 @@ import (
 )
 
 func main() {
+	// Initialize klog flags
+	klog.InitFlags(nil)
+	flag.Parse()
+	defer klog.Flush()
+
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)
 	ctx, cancel := context.WithCancel(context.Background())
