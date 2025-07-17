@@ -15,7 +15,10 @@ appVersion: "1.0.0"
 dependencies:
   - name: registry
     version: "1.0.0"
+    condition: registry.enabled
   - name: workload
     version: "1.0.0"
+    condition: workload.enabled
   - name: gateway
     version: "1.0.0"
+    condition: gateway.enabled

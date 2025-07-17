@@ -1,0 +1,11 @@
+registry:
+  # enabled is a flag to enable or disable the registry subchart. Default is true.
+  enabled: true
+
+workload:
+  # enabled is a flag to enable or disable the workload subchart. Default is true.
+  enabled: true
+
+gateway:
+  # enabled is a flag to enable or disable the gateway subchart. Default is true.
+  enabled: true
