@@ -20,19 +20,14 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2"
 
 	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
-)
-
-var (
-	log = logger.NewLogger("scheduler")
 )
 
 const (
@@ -62,7 +57,7 @@ type podInfoWithValue struct {
 func NewScheduler(store datastore.Store) Scheduler {
 	scorePluginMap, filterPluginMap, pluginsArgMap, err := utils.LoadSchedulerConfig()
 	if err != nil {
-		log.Fatalf("failed to Load Scheduler: %v", err)
+		klog.Fatalf("failed to Load Scheduler: %v", err)
 	}
 
 	prefixCache := plugins.NewPrefixCache(store, pluginsArgMap[plugins.PrefixCachePluginName])
@@ -81,7 +76,7 @@ func ParseFilterPlugin(filterPluginMap []string, pluginsArgMap map[string]runtim
 	// TODO: enable lora affinity when models from metrics are available.
 	for _, pluginName := range filterPluginMap {
 		if factory, exist := framework.GetFilterPluginBuilder(pluginName); !exist {
-			log.Errorf("Failed to get plugin %s.", pluginName)
+			klog.Errorf("Failed to get plugin %s.", pluginName)
 			continue
 		} else {
 			plugin := factory(pluginsArgMap[pluginName])
@@ -95,7 +90,7 @@ func GetScorePlugin(prefixCache *plugins.PrefixCache, scorePluginMap map[string]
 	var list []*scorePlugin
 	for pluginName, weight := range scorePluginMap {
 		if weight < 0 {
-			log.Errorf("Weight for plugin '%s' is invalid, value is %d. Setting to 0", pluginName, weight)
+			klog.Errorf("Weight for plugin '%s' is invalid, value is %d. Setting to 0", pluginName, weight)
 			weight = 0
 		}
 
@@ -108,7 +103,7 @@ func GetScorePlugin(prefixCache *plugins.PrefixCache, scorePluginMap map[string]
 		}
 
 		if pb, exist := framework.GetScorePluginBuilder(pluginName); !exist {
-			log.Errorf("Failed to get plugin %s.", pluginName)
+			klog.Errorf("Failed to get plugin %s.", pluginName)
 		} else {
 			list = append(list, &scorePlugin{
 				plugin: pb(pluginsArgMap[pluginName]),
@@ -158,7 +153,7 @@ func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.P
 		}
 	}
 
-	log.Debugf("Running score plugins for decode pod")
+	klog.V(4).Info("Running score plugins for decode pod")
 	scores, err := s.RunScorePlugins(pods, ctx)
 	if err != nil {
 		return nil, err
@@ -179,7 +174,7 @@ func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.P
 				return nil, fmt.Errorf("no prefill pod found")
 			}
 
-			log.Debugf("Running score plugins for prefill pod")
+			klog.V(4).Info("Running score plugins for prefill pod")
 			scores, err = s.RunScorePlugins(selectedPods, ctx)
 			if err != nil {
 				return nil, err
@@ -209,10 +204,10 @@ func (s *SchedulerImpl) RunScorePlugins(pods []*datastore.PodInfo, ctx *framewor
 	res := make(map[*datastore.PodInfo]int)
 	for _, scorePlugin := range s.scorePlugins {
 		scores := scorePlugin.plugin.Score(ctx, pods)
-		log.Debugf("ScorePlugin: %s", scorePlugin.plugin.Name())
+		klog.V(4).Infof("ScorePlugin: %s", scorePlugin.plugin.Name())
 		for k, v := range scores {
 			if k.Pod != nil {
-				log.Debugf("Pod: %s/%s, Score: %d", k.Pod.Namespace, k.Pod.Name, v)
+				klog.V(4).Infof("Pod: %s/%s, Score: %d", k.Pod.Namespace, k.Pod.Name, v)
 			}
 			if _, ok := res[k]; !ok {
 				res[k] = v * scorePlugin.weight
@@ -222,11 +217,11 @@ func (s *SchedulerImpl) RunScorePlugins(pods []*datastore.PodInfo, ctx *framewor
 		}
 	}
 
-	if log.Logger != nil && log.Logger.IsLevelEnabled(logrus.DebugLevel) {
-		log.Debugf("Final Pod Scores:")
+	if klog.V(4).Enabled() {
+		klog.Info("Final Pod Scores:")
 		for k, v := range res {
 			if k.Pod != nil {
-				log.Debugf("  Pod: %s/%s, Final Score: %d", k.Pod.Namespace, k.Pod.Name, v)
+				klog.Infof("  Pod: %s/%s, Final Score: %d", k.Pod.Namespace, k.Pod.Name, v)
 			}
 		}
 	}

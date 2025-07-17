@@ -22,15 +22,13 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"k8s.io/klog/v2"
 
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/router"
 )
 
 const gracefulShutdownTimeout = 15 * time.Second
-
-var log = logger.NewLogger("")
 
 func NewRouter(store datastore.Store) *router.Router {
 	return router.NewRouter(store)
@@ -76,17 +74,17 @@ func (s *Server) startRouter(ctx context.Context, router *router.Router) {
 	go func() {
 		// service connections
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("listen failed: %v", err)
+			klog.Fatalf("listen failed: %v", err)
 		}
 	}()
 
 	<-ctx.Done()
 	// graceful shutdown
-	log.Info("Shutting down HTTP server ...")
+	klog.Info("Shutting down HTTP server ...")
 	ctx, cancel := context.WithTimeout(context.Background(), gracefulShutdownTimeout)
 	defer cancel()
 	if err := server.Shutdown(ctx); err != nil {
-		log.Info("Server Shutdown:", err)
+		klog.Info("Server Shutdown:", err)
 	}
-	log.Info("HTTP server exited")
+	klog.Info("HTTP server exited")
 }

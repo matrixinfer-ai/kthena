@@ -26,18 +26,14 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog/v2"
 
 	"matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/filters/ratelimit"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
-)
-
-var (
-	log = logger.NewLogger("router")
 )
 
 type Router struct {
@@ -53,10 +49,10 @@ func NewRouter(store datastore.Store) *Router {
 			if data.ModelRoute == nil || data.ModelRoute.Spec.RateLimit == nil {
 				return
 			}
-			log.Infof("add or update rate limit for model %s", data.ModelName)
+			klog.Infof("add or update rate limit for model %s", data.ModelName)
 			loadRateLimiter.AddOrUpdateLimiter(data.ModelName, data.ModelRoute.Spec.RateLimit)
 		} else if data.EventType == datastore.EventDelete {
-			log.Infof("delete rate limit for model %s", data.ModelName)
+			klog.Infof("delete rate limit for model %s", data.ModelName)
 			loadRateLimiter.DeleteLimiter(data.ModelName)
 		}
 	})
@@ -95,11 +91,11 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusNotFound, fmt.Sprintf("can't find corresponding model server: %v", err))
 			return
 		}
-		log.Debugf("modelServer is %v, is_lora: %v", modelServerName, isLora)
+		klog.V(4).Infof("modelServer is %v, is_lora: %v", modelServerName, isLora)
 
 		pods, modelServer, err := r.getPodsAndServer(modelServerName)
 		if err != nil {
-			log.Errorf("failed to get pods and model server: %v, %v", modelServerName, err)
+			klog.Errorf("failed to get pods and model server: %v, %v", modelServerName, err)
 			c.AbortWithStatusJSON(http.StatusNotFound, fmt.Sprintf("can't find model server: %v", modelServerName))
 			return
 		}
@@ -129,7 +125,7 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 
 		// step 7: proxy to pods
 		if err := r.proxyModelEndpoint(c, req, ctx, modelRequest, port); err != nil {
-			log.Errorf("request failed: %v", err)
+			klog.Errorf("request failed: %v", err)
 			return
 		}
 	}
@@ -152,7 +148,7 @@ func parseModelRequest(c *gin.Context) (ModelRequest, error) {
 		c.AbortWithStatusJSON(http.StatusNotFound, "model not found")
 		return nil, fmt.Errorf("model not found")
 	}
-	log.Debugf("model name is %v", modelName)
+	klog.V(4).Infof("model name is %v", modelName)
 
 	return modelRequest, nil
 }
@@ -201,15 +197,15 @@ func (r *Router) proxyModelEndpoint(
 		if ctx.DecodePods[i] != nil {
 			if ctx.PrefillPods != nil && len(ctx.PrefillPods) > i {
 				// PD disaggregated if there is a perfill pod. Dispatch to perfill pod first before dispatching to decode pod.
-				log.Debugf("prefill pod is %v", ctx.PrefillPods[i].Pod.Name)
+				klog.V(4).Infof("prefill pod is %v", ctx.PrefillPods[i].Pod.Name)
 				if err := proxyPrefillPod(prefillRequest, ctx.PrefillPods[i].Pod.Status.PodIP, port); err != nil {
-					log.Errorf("prefill pod request error: %v", err)
+					klog.Errorf("prefill pod request error: %v", err)
 					continue
 				}
 			}
 			// Request dispatched to the decode pod.
 			if err := proxyDecodePod(c, decodeRequest, ctx.DecodePods[i].Pod.Status.PodIP, port); err != nil {
-				log.Errorf("decode pod request error: %v", err)
+				klog.Errorf("decode pod request error: %v", err)
 				continue
 			}
 			// recoder in prefix cache

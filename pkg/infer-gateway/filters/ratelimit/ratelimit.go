@@ -21,14 +21,10 @@ import (
 	"time"
 
 	"golang.org/x/time/rate"
+	"k8s.io/klog/v2"
 
 	networkingv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/filters/tokenizer"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
-)
-
-var (
-	log = logger.NewLogger("ratelimit")
 )
 
 type RateLimitExceededError struct{}
@@ -94,7 +90,7 @@ func (r *TokenRateLimiter) AddOrUpdateLimiter(model string, ratelimit *networkin
 	case networkingv1alpha1.Month:
 		unit = 30 * 24 * 3600 // Approximate a month as 30 days
 	default:
-		log.Errorf("unknown rate limit unit: %s", ratelimit.Unit)
+		klog.Errorf("unknown rate limit unit: %s", ratelimit.Unit)
 		return
 	}
 
