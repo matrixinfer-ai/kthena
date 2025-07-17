@@ -68,7 +68,7 @@ func NewModelRouteController(
 	return controller
 }
 
-func (c *ModelRouteController) Run(workers int, stopCh <-chan struct{}) error {
+func (c *ModelRouteController) Run(stopCh <-chan struct{}) error {
 	defer utilruntime.HandleCrash()
 	defer c.workqueue.ShutDown()
 
@@ -78,9 +78,7 @@ func (c *ModelRouteController) Run(workers int, stopCh <-chan struct{}) error {
 	// add initialSync signal
 	c.workqueue.Add(initialSyncSignal)
 
-	for i := 0; i < workers; i++ {
-		go wait.Until(c.runWorker, time.Second, stopCh)
-	}
+	go wait.Until(c.runWorker, time.Second, stopCh)
 
 	<-stopCh
 	return nil

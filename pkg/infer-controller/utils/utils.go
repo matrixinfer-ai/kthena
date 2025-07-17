@@ -33,9 +33,12 @@ import (
 )
 
 const (
-	Entry                   = "true"
-	AllGroupsIsReady        = "All infer groups are ready"
-	SomeGroupsIsProgressing = "Some groups is progressing"
+	Entry = "true"
+
+	// condition status of ModelInferStatus
+	AllGroupsIsReady         = "All infer groups are ready"
+	SomeGroupsAreProgressing = "Some groups is progressing"
+	SomeGroupsAreUpdated     = "Updated Groups are"
 )
 
 func GetNamespaceName(obj metav1.Object) types.NamespacedName {
@@ -81,9 +84,9 @@ func generateWorkerPodName(groupName, roleName string, roleIndex, podIndex int) 
 	return groupName + "-" + roleName + "-" + strconv.Itoa(roleIndex) + "-" + strconv.Itoa(podIndex)
 }
 
-func GenerateEntryPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, groupName string, roleIndex int, newHash string) *corev1.Pod {
+func GenerateEntryPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, groupName string, roleIndex int, revision string) *corev1.Pod {
 	entryPodName := generateEntryPodName(groupName, role.Name, roleIndex)
-	entryPod := createBasePod(role, mi, entryPodName, groupName, newHash)
+	entryPod := createBasePod(role, mi, entryPodName, groupName, revision)
 	entryPod.ObjectMeta.Labels[workloadv1alpha1.EntryLabelKey] = Entry
 	addPodLabelAndAnnotation(entryPod, role.EntryTemplate.Metadata)
 	entryPod.Spec = role.EntryTemplate.Spec
@@ -95,9 +98,9 @@ func GenerateEntryPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfe
 	return entryPod
 }
 
-func GenerateWorkerPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, entryPod *corev1.Pod, groupName string, roleIndex, podIndex int, newHash string) *corev1.Pod {
+func GenerateWorkerPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, entryPod *corev1.Pod, groupName string, roleIndex, podIndex int, revision string) *corev1.Pod {
 	workerPodName := generateWorkerPodName(groupName, role.Name, roleIndex, podIndex)
-	workerPod := createBasePod(role, mi, workerPodName, groupName, newHash)
+	workerPod := createBasePod(role, mi, workerPodName, groupName, revision)
 	addPodLabelAndAnnotation(workerPod, role.WorkerTemplate.Metadata)
 	workerPod.Spec = role.WorkerTemplate.Spec
 	// Build environment variables into each container of all pod
@@ -106,7 +109,7 @@ func GenerateWorkerPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInf
 	return workerPod
 }
 
-func createBasePod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, name, groupName, newHash string) *corev1.Pod {
+func createBasePod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, name, groupName, revision string) *corev1.Pod {
 	return &corev1.Pod{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Pod",
@@ -119,7 +122,7 @@ func createBasePod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, 
 				workloadv1alpha1.ModelInferNameLabelKey: mi.Name,
 				workloadv1alpha1.GroupNameLabelKey:      groupName,
 				workloadv1alpha1.RoleLabelKey:           role.Name,
-				workloadv1alpha1.RevisionLabelKey:       newHash,
+				workloadv1alpha1.RevisionLabelKey:       revision,
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				newModelInferOwnerRef(mi),
@@ -254,6 +257,15 @@ func IsPodRunningAndReady(pod *corev1.Pod) bool {
 	return pod.Status.Phase == corev1.PodRunning && isPodReady(pod)
 }
 
+// CheckPodRevision determine if the pod's revision is compliant or not.
+func CheckPodRevision(pod *corev1.Pod, revision string) bool {
+	podRevision, ok := pod.Labels[workloadv1alpha1.RevisionLabelKey]
+	if !ok {
+		return false
+	}
+	return podRevision == revision
+}
+
 func isPodReady(pod *corev1.Pod) bool {
 	return isPodReadyConditionTrue(pod.Status)
 }
@@ -318,15 +330,18 @@ func ContainerRestarted(pod *corev1.Pod) bool {
 	return false
 }
 
-func newCondition(condType workloadv1alpha1.ModelInferSetConditionType, message string) metav1.Condition {
+func newCondition(condType workloadv1alpha1.ModelInferConditionType, message string) metav1.Condition {
 	var conditionType, reason string
 	switch condType {
-	case workloadv1alpha1.ModelInferSetAvailable:
-		conditionType = string(workloadv1alpha1.ModelInferSetAvailable)
+	case workloadv1alpha1.ModelInferAvailable:
+		conditionType = string(workloadv1alpha1.ModelInferAvailable)
 		reason = "AllGroupsReady"
-	case workloadv1alpha1.ModelInferSetProgressing:
-		conditionType = string(workloadv1alpha1.ModelInferSetProgressing)
+	case workloadv1alpha1.ModelInferProgressing:
+		conditionType = string(workloadv1alpha1.ModelInferProgressing)
 		reason = "GroupProgressing"
+	case workloadv1alpha1.ModelInferUpdateInProgress:
+		conditionType = string(workloadv1alpha1.ModelInferUpdateInProgress)
+		reason = "GroupsUpdating"
 	}
 
 	return metav1.Condition{
@@ -338,17 +353,30 @@ func newCondition(condType workloadv1alpha1.ModelInferSetConditionType, message 
 	}
 }
 
-func SetCondition(mi *workloadv1alpha1.ModelInfer, progressingGroups []int) bool {
+func SetCondition(mi *workloadv1alpha1.ModelInfer, progressingGroups, updatedGroups, currentGroups []int) bool {
 	var newCond metav1.Condition
 	found := false
-	updated := false
+	shouldUpdate := false
 
+	partition := 0
+	if mi.Spec.RolloutStrategy != nil && mi.Spec.RolloutStrategy.RollingUpdateConfiguration != nil && mi.Spec.RolloutStrategy.RollingUpdateConfiguration.Partition != nil {
+		partition = int(*mi.Spec.RolloutStrategy.RollingUpdateConfiguration.Partition)
+	}
+
+	// If progressingGroups is empty, all groups are running. In addition, we still need to check revision.
+	// But if the group's revision doesn't meet the requirements, then the group's status will change to deleting,
+	// so when all groups are running, it means that the revision meets the requirements as well.
 	if len(progressingGroups) == 0 {
-		newCond = newCondition(workloadv1alpha1.ModelInferSetAvailable, AllGroupsIsReady)
+		newCond = newCondition(workloadv1alpha1.ModelInferAvailable, AllGroupsIsReady)
 	} else {
-		strOfProgressingGroups := fmt.Sprintf("%v", progressingGroups)
-		message := SomeGroupsIsProgressing + ": " + strOfProgressingGroups
-		newCond = newCondition(workloadv1alpha1.ModelInferSetProgressing, message)
+		message := SomeGroupsAreProgressing + ": " + fmt.Sprintf("%v", progressingGroups)
+		// If the number of current groups is greater than the Partition, modelInfer is still updating.
+		if len(currentGroups) > partition {
+			message = message + ", " + SomeGroupsAreUpdated + ": " + fmt.Sprintf("%v", updatedGroups)
+			newCond = newCondition(workloadv1alpha1.ModelInferUpdateInProgress, message)
+		} else {
+			newCond = newCondition(workloadv1alpha1.ModelInferProgressing, message)
+		}
 	}
 
 	newCond.LastTransitionTime = metav1.Now()
@@ -356,19 +384,37 @@ func SetCondition(mi *workloadv1alpha1.ModelInfer, progressingGroups []int) bool
 		if newCond.Type == curCondition.Type {
 			if newCond.Status != curCondition.Status {
 				mi.Status.Conditions[i] = newCond
-				updated = true
+				shouldUpdate = true
 			}
 			found = true
 		} else {
-			mi.Status.Conditions[i].Status = metav1.ConditionFalse
-			updated = true
+			// Available and progressing/updateInprogress are not allowed to be true at the same time.
+			if exclusiveConditionTypes(curCondition, newCond) && curCondition.Status == metav1.ConditionTrue && newCond.Status == metav1.ConditionTrue {
+				mi.Status.Conditions[i].Status = metav1.ConditionFalse
+				shouldUpdate = true
+			}
 		}
 	}
 
 	if newCond.Status == metav1.ConditionTrue && !found {
 		mi.Status.Conditions = append(mi.Status.Conditions, newCond)
-		updated = true
+		shouldUpdate = true
 	}
 
-	return updated
+	return shouldUpdate
+}
+
+// This function is refer to https://github.com/kubernetes-sigs/lws/blob/main/pkg/controllers/leaderworkerset_controller.go#L840
+func exclusiveConditionTypes(condition1 metav1.Condition, condition2 metav1.Condition) bool {
+	if (condition1.Type == string(workloadv1alpha1.ModelInferAvailable) && condition2.Type == string(workloadv1alpha1.ModelInferProgressing)) ||
+		(condition1.Type == string(workloadv1alpha1.ModelInferProgressing) && condition2.Type == string(workloadv1alpha1.ModelInferAvailable)) {
+		return true
+	}
+
+	if (condition1.Type == string(workloadv1alpha1.ModelInferAvailable) && condition2.Type == string(workloadv1alpha1.ModelInferUpdateInProgress)) ||
+		(condition1.Type == string(workloadv1alpha1.ModelInferUpdateInProgress) && condition2.Type == string(workloadv1alpha1.ModelInferAvailable)) {
+		return true
+	}
+
+	return false
 }

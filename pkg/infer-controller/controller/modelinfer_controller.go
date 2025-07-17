@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"sync"
@@ -202,14 +203,15 @@ func (c *ModelInferController) updatePod(oldObj, newObj interface{}) {
 		}
 		return
 	}
+	revision := utils.HashModelInferRevision(mi.Spec.Template.Roles)
 	switch {
-	case utils.IsPodRunningAndReady(newPod):
+	case utils.IsPodRunningAndReady(newPod) && utils.CheckPodRevision(newPod, revision):
 		// The pod is available, that is, the state is running, and the container is ready
-		err = c.handleReadyPod(mi, inferGroupName, newPod)
+		err = c.handleReadyPod(mi, inferGroupName, newPod, revision)
 		if err != nil {
 			klog.Errorf("handle running pod failed: %v", err)
 		}
-	case utils.IsPodFailed(newPod) || utils.ContainerRestarted(newPod):
+	case utils.IsPodFailed(newPod) || utils.ContainerRestarted(newPod) || !utils.CheckPodRevision(newPod, revision):
 		// handleErrorPod is not called until modelInfer has been called.
 		if !c.initialSync {
 			return
@@ -293,23 +295,22 @@ func (c *ModelInferController) syncModelInfer(ctx context.Context, key string) e
 		return err
 	}
 	// only fields in roles can be modified in rolling updates
-	newHash := utils.HashModelInferRevision(mi.Spec.Template.Roles)
+	revision := utils.HashModelInferRevision(mi.Spec.Template.Roles)
 
-	err = c.manageReplicas(ctx, mi, newHash)
+	err = c.manageReplicas(ctx, mi, revision)
 	if err != nil {
 		return fmt.Errorf("cannot manage inferGroup replicas: %v", err)
 	}
 
-	err = c.manageRollingUpdate(mi, newHash)
+	err = c.manageRollingUpdate(mi, revision)
 	if err != nil {
 		return fmt.Errorf("cannot manage inferGroup rollingUpdate: %v", err)
 	}
 
-	if err := c.UpdateModelInferStatus(mi); err != nil {
+	if err := c.UpdateModelInferStatus(mi, revision); err != nil {
 		return fmt.Errorf("failed to update status of mi %s/%s: %v", namespace, name, err)
 	}
 
-	//TODO: Add rolling upgrade function
 	return nil
 }
 
@@ -361,30 +362,53 @@ func (c *ModelInferController) UpdateModelInferConditionsStatus(mi *workloadv1al
 }
 
 // UpdateModelInferReplicasStatus update replicas in modelInfer status.
-func (c *ModelInferController) UpdateModelInferStatus(mi *workloadv1alpha1.ModelInfer) error {
+func (c *ModelInferController) UpdateModelInferStatus(mi *workloadv1alpha1.ModelInfer, revision string) error {
 	groups, err := c.store.GetInferGroupByModelInfer(utils.GetNamespaceName(mi))
 	if err != nil {
 		return err
 	}
 
-	available := 0
-	progressingGroups := []int{}
+	available, updated, current := 0, 0, 0
+	progressingGroups, updatedGroups, currentGroups := []int{}, []int{}, []int{}
 	for index := range groups {
-		// TODO: Handler of status == updating
 		if groups[index].Status != datastore.InferGroupRunning {
 			progressingGroups = append(progressingGroups, index)
 		} else {
 			available = available + 1
 		}
+
+		if groups[index].Revision == revision {
+			updated = updated + 1
+			updatedGroups = append(updatedGroups, index)
+		} else {
+			current = current + 1
+			currentGroups = append(currentGroups, index)
+		}
 	}
 
-	shouldUpdate := utils.SetCondition(mi, progressingGroups)
 	copy := mi.DeepCopy()
-	copy.Status.Replicas = int32(len(groups))
-	copy.Status.AvailableReplicas = int32(available)
+	shouldUpdate := utils.SetCondition(copy, progressingGroups, updatedGroups, currentGroups)
+	if copy.Status.Replicas != int32(len(groups)) || copy.Status.AvailableReplicas != int32(available) || copy.Status.UpdatedReplicas != int32(updated) || copy.Status.CurrentReplicas != int32(current) {
+		shouldUpdate = true
+		copy.Status.Replicas = int32(len(groups))
+		copy.Status.AvailableReplicas = int32(available)
+		copy.Status.UpdatedReplicas = int32(updated)
+		copy.Status.CurrentReplicas = int32(current)
+	}
+
+	if copy.Spec.RolloutStrategy == nil || copy.Spec.RolloutStrategy.RollingUpdateConfiguration == nil || copy.Spec.RolloutStrategy.RollingUpdateConfiguration.Partition == nil {
+		// if not set spec.RolloutStrategy.RollingUpdateConfiguration.Partition,
+		// should set currentReplicas = updatedReplicas when rolling update is over.
+		if copy.Status.UpdatedReplicas == *copy.Spec.Replicas &&
+			copy.Status.AvailableReplicas == *copy.Spec.Replicas &&
+			copy.Status.Replicas == *copy.Spec.Replicas {
+			shouldUpdate = true
+			copy.Status.CurrentReplicas = copy.Status.UpdatedReplicas
+		}
+	}
 
 	if shouldUpdate {
-		_, err := c.modelInferClient.WorkloadV1alpha1().ModelInfers(mi.GetNamespace()).UpdateStatus(context.TODO(), copy, metav1.UpdateOptions{})
+		_, err := c.modelInferClient.WorkloadV1alpha1().ModelInfers(copy.GetNamespace()).UpdateStatus(context.TODO(), copy, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
@@ -393,10 +417,10 @@ func (c *ModelInferController) UpdateModelInferStatus(mi *workloadv1alpha1.Model
 	return nil
 }
 
-func (c *ModelInferController) manageReplicas(ctx context.Context, mi *workloadv1alpha1.ModelInfer, newHash string) error {
+func (c *ModelInferController) manageReplicas(ctx context.Context, mi *workloadv1alpha1.ModelInfer, newRevision string) error {
 	inferGroupList, err := c.store.GetInferGroupByModelInfer(utils.GetNamespaceName(mi))
-	if err != nil {
-		return fmt.Errorf("cannot get inferGroup from map: %v", err)
+	if err != nil && !errors.Is(err, datastore.ErrInferGroupNotFound) {
+		return fmt.Errorf("cannot get inferGroup of modelInfer: %s from map: %v", mi.GetName(), err)
 	}
 	expectedCount := int(*mi.Spec.Replicas)
 	curReplicas := len(inferGroupList)
@@ -422,9 +446,9 @@ func (c *ModelInferController) manageReplicas(ctx context.Context, mi *workloadv
 	for idx := 0; idx < expectedCount; idx++ {
 		if replicas[idx] == nil {
 			// Insert new InferGroup to global storage
-			c.store.AddInferGroup(utils.GetNamespaceName(mi), idx)
+			c.store.AddInferGroup(utils.GetNamespaceName(mi), idx, newRevision)
 			// Create pods for inferGroup
-			err = c.CreatePodsForInferGroup(ctx, mi, idx, newHash)
+			err = c.CreatePodsForInferGroup(ctx, mi, idx, newRevision)
 			if err != nil {
 				// I think that after create a pod failed, a period of time should pass before joining the coordination queue.
 				return fmt.Errorf("create infer group failed: %v", err)
@@ -554,10 +578,10 @@ func (c *ModelInferController) CreatePodByRole(ctx context.Context, role workloa
 	return nil
 }
 
-func (c *ModelInferController) manageRollingUpdate(mi *workloadv1alpha1.ModelInfer, newHash string) error {
+func (c *ModelInferController) manageRollingUpdate(mi *workloadv1alpha1.ModelInfer, revision string) error {
 	// we compute the minimum ordinal of the target sequence for a destructive update based on the strategy.
 	updateMin := 0
-	if mi.Spec.RolloutStrategy.RollingUpdateConfiguration != nil && mi.Spec.RolloutStrategy.RollingUpdateConfiguration.Partition != nil {
+	if mi.Spec.RolloutStrategy != nil && mi.Spec.RolloutStrategy.RollingUpdateConfiguration != nil && mi.Spec.RolloutStrategy.RollingUpdateConfiguration.Partition != nil {
 		updateMin = int(*mi.Spec.RolloutStrategy.RollingUpdateConfiguration.Partition)
 	}
 	inferGroupList, err := c.store.GetInferGroupByModelInfer(utils.GetNamespaceName(mi))
@@ -566,7 +590,7 @@ func (c *ModelInferController) manageRollingUpdate(mi *workloadv1alpha1.ModelInf
 	}
 	// we terminate the inferGroup with the largest ordinal that does not match the update revision.
 	for target := len(inferGroupList) - 1; target >= updateMin; target-- {
-		if c.isInferGroupOutdated(inferGroupList[target], mi.Namespace, newHash) {
+		if c.isInferGroupOutdated(inferGroupList[target], mi.Namespace, revision) {
 			// target inferGroup is not the latest version, needs to be updated
 			klog.V(2).Infof("inferGroup %s will be terminating for update", inferGroupList[target].Name)
 			c.DeleteInferGroup(mi, inferGroupList[target].Name)
@@ -586,12 +610,12 @@ func (c *ModelInferController) manageRollingUpdate(mi *workloadv1alpha1.ModelInf
 	return nil
 }
 
-func (c *ModelInferController) handleReadyPod(mi *workloadv1alpha1.ModelInfer, inferGroupName string, newPod *corev1.Pod) error {
+func (c *ModelInferController) handleReadyPod(mi *workloadv1alpha1.ModelInfer, inferGroupName string, newPod *corev1.Pod, revision string) error {
 	// Add the running pod to the global storage and try to update the inferGroup status
 	c.store.AddRunningPodToInferGroup(types.NamespacedName{
 		Namespace: mi.Namespace,
 		Name:      mi.Name,
-	}, inferGroupName, newPod.Name)
+	}, inferGroupName, newPod.Name, revision)
 	ready, err := c.checkInferGroupReady(mi, inferGroupName)
 	if err != nil {
 		return fmt.Errorf("failed to check inferGroup status, err: %v", err)

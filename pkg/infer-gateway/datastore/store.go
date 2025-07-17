@@ -85,7 +85,7 @@ type Store interface {
 	// Add modelServer which are selected by modelServer.Spec.WorkloadSelector
 	AddOrUpdateModelServer(modelServer *aiv1alpha1.ModelServer, pods sets.Set[types.NamespacedName]) error
 	// Delete modelServer
-	DeleteModelServer(modelServer *aiv1alpha1.ModelServer) error
+	DeleteModelServer(name types.NamespacedName) error
 	// Get modelServer
 	GetModelServer(name types.NamespacedName) *aiv1alpha1.ModelServer
 	GetPodsByModelServer(name types.NamespacedName) ([]*PodInfo, error)
@@ -212,15 +212,16 @@ func (s *store) AddOrUpdateModelServer(ms *aiv1alpha1.ModelServer, pods sets.Set
 	} else {
 		s.modelServer[name].modelServer = ms
 	}
-	// donot operate s.pods here, which are done within pod handler
-	s.modelServer[name].pods = pods
+	if len(pods) != 0 {
+		// donot operate s.pods here, which are done within pod handler
+		s.modelServer[name].pods = pods
+	}
 
 	return nil
 }
 
-func (s *store) DeleteModelServer(ms *aiv1alpha1.ModelServer) error {
-	name := utils.GetNamespaceName(ms)
-	modelserver, ok := s.modelServer[name]
+func (s *store) DeleteModelServer(ms types.NamespacedName) error {
+	modelserver, ok := s.modelServer[ms]
 	if !ok {
 		return nil
 	}
@@ -229,7 +230,7 @@ func (s *store) DeleteModelServer(ms *aiv1alpha1.ModelServer) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	// delete the model server from the store
-	delete(s.modelServer, name)
+	delete(s.modelServer, ms)
 	// then delete the model server from all pod info
 	for _, podName := range podNames {
 		podInfo := s.pods[podName]
@@ -237,7 +238,7 @@ func (s *store) DeleteModelServer(ms *aiv1alpha1.ModelServer) error {
 			log.Warningf("pod %s not found", podName)
 			continue
 		}
-		podInfo.RemoveModelServer(name)
+		podInfo.RemoveModelServer(ms)
 		if podInfo.GetModelServerCount() == 0 {
 			delete(s.pods, podName)
 		}
@@ -279,7 +280,6 @@ func (s *store) GetPodsByModelServer(name types.NamespacedName) ([]*PodInfo, err
 
 func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.ModelServer) error {
 	podName := utils.GetNamespaceName(pod)
-	// TODO: check if pod is already in the store, use the existing PodInfo if exists
 	newPodInfo := &PodInfo{
 		Pod:         pod,
 		modelServer: sets.Set[types.NamespacedName]{},
@@ -292,13 +292,29 @@ func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.Model
 		newPodInfo.AddModelServer(modelServerName)
 		// NOTE: even if a pod belongs to multiple model servers, the backend should be the same
 		newPodInfo.engine = string(modelServer.Spec.InferenceEngine)
-		s.modelServer[modelServerName].addPod(podName)
+		if ms, ok := s.modelServer[modelServerName]; ok {
+			ms.addPod(podName)
+		}
 	}
+
+	oldPodInfo := s.pods[podName]
+	if oldPodInfo != nil {
+		oldModelServers := oldPodInfo.GetModelServers()
+		// Handle the case where the pod is no longer belong to some model servers
+		for msName := range oldModelServers.Difference(newPodInfo.modelServer) {
+			if ms, ok := s.modelServer[msName]; ok {
+				ms.deletePod(podName)
+			}
+		}
+	}
+
 	s.pods[podName] = newPodInfo
 	s.mutex.Unlock()
 
-	s.updatePodMetrics(newPodInfo)
-	s.updatePodModels(newPodInfo)
+	if oldPodInfo == nil {
+		s.updatePodMetrics(newPodInfo)
+		s.updatePodModels(newPodInfo)
+	}
 
 	return nil
 }
@@ -308,6 +324,10 @@ func (s *store) DeletePod(podName types.NamespacedName) error {
 	if pod, ok := s.pods[podName]; ok {
 		modelServers := pod.GetModelServers()
 		for modelServerName := range modelServers {
+			if s.modelServer[modelServerName] == nil {
+				log.Debugf("model server %s not found for pod %s, maybe already deleted", modelServerName, podName)
+				continue
+			}
 			s.modelServer[modelServerName].deletePod(podName)
 		}
 		delete(s.pods, podName)

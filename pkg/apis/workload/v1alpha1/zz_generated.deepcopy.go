@@ -175,7 +175,11 @@ func (in *ModelInferSpec) DeepCopyInto(out *ModelInferSpec) {
 		**out = **in
 	}
 	in.Template.DeepCopyInto(&out.Template)
-	in.RolloutStrategy.DeepCopyInto(&out.RolloutStrategy)
+	if in.RolloutStrategy != nil {
+		in, out := &in.RolloutStrategy, &out.RolloutStrategy
+		*out = new(RolloutStrategy)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.TopologySpreadConstraints != nil {
 		in, out := &in.TopologySpreadConstraints, &out.TopologySpreadConstraints
 		*out = make([]TopologySpreadConstraint, len(*in))
