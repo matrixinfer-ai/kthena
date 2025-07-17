@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: model-controller
-          image: "{{ .Values.modelController.image.repository }}:{{ .Values.modelController.image.tag}}"
+          image: "{{ .Values.modelController.image.repository }}:{{ .Values.modelController.image.tag }}"
           args: {{ .Values.modelController.image.args }}
           imagePullPolicy: {{ .Values.modelController.image.pullPolicy }}
           resources:
