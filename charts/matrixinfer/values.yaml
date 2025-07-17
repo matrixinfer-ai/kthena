@@ -9,3 +9,14 @@ workload:
 gateway:
   # enabled is a flag to enable or disable the gateway subchart. Default is true.
   enabled: true
+
+global:
+  certManager:
+    # Enable or disable cert-manager integration for all subcharts.
+    # If set to true, this chart will attempt to create cert-manager resources (Issuer, Certificate, etc.)
+    # for all components that support it.
+    #
+    # IMPORTANT:
+    # - cert-manager must be installed in your cluster before enabling this option.
+    #   See: https://cert-manager.io/docs/installation/
+    enabled: true
