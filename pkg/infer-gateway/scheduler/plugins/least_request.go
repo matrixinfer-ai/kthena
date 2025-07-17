@@ -17,10 +17,11 @@ limitations under the License.
 package plugins
 
 import (
+	"github.com/stretchr/testify/assert/yaml"
 	"istio.io/istio/pkg/slices"
+	"k8s.io/apimachinery/pkg/runtime"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
 const LeastRequestPluginName = "least-request"
@@ -37,9 +38,13 @@ type LeastRequestArgs struct {
 	MaxWaitingRequests int `yaml:"maxWaitingRequests,omitempty"`
 }
 
-func NewLeastRequest(arg map[string]interface{}) *LeastRequest {
+func NewLeastRequest(pluginArg runtime.RawExtension) *LeastRequest {
 	var leastRequestArgs LeastRequestArgs
-	utils.ParsePluginArgs(LeastRequestPluginName, arg, &leastRequestArgs)
+	if yaml.Unmarshal(pluginArg.Raw, &leastRequestArgs) != nil {
+		leastRequestArgs = LeastRequestArgs{
+			10,
+		}
+	}
 
 	return &LeastRequest{
 		name:              LeastRequestPluginName,

@@ -16,6 +16,8 @@ limitations under the License.
 
 package conf
 
+import "k8s.io/apimachinery/pkg/runtime"
+
 type SchedulerConfiguration struct {
 	PluginConfig []PluginConfig `yaml:"pluginConfig"`
 	Plugins      Plugins        `yaml:"plugins"`
@@ -42,6 +44,6 @@ type PluginWithWeight struct {
 }
 
 type PluginConfig struct {
-	Name string `yaml:"name"`
-	Args any    `yaml:"args,omitempty"`
+	Name string               `yaml:"name"`
+	Args runtime.RawExtension `yaml:"args,omitempty"`
 }

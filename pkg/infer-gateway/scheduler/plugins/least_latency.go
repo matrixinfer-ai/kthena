@@ -19,9 +19,10 @@ package plugins
 import (
 	"math"
 
+	"github.com/stretchr/testify/assert/yaml"
+	"k8s.io/apimachinery/pkg/runtime"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
 var _ framework.ScorePlugin = &LeastLatency{}
@@ -40,9 +41,13 @@ type LeastLatencyArgs struct {
 	TTFTTPOTWeightFactor float64 `yaml:"TTFTTPOTWeightFactor,omitempty"`
 }
 
-func NewLeastLatency(arg map[string]interface{}) *LeastLatency {
+func NewLeastLatency(pluginArg runtime.RawExtension) *LeastLatency {
 	var leastLatencyArgs LeastLatencyArgs
-	utils.ParsePluginArgs(LeastLatencyPluginName, arg, &leastLatencyArgs)
+	if yaml.Unmarshal(pluginArg.Raw, &leastLatencyArgs) != nil {
+		leastLatencyArgs = LeastLatencyArgs{
+			0.5,
+		}
+	}
 
 	return &LeastLatency{
 		name:                 LeastLatencyPluginName,

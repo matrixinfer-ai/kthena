@@ -18,6 +18,8 @@ package framework
 
 import (
 	"sync"
+
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 var (
@@ -27,8 +29,8 @@ var (
 	filterPluginBuilders = map[string]FilterPluginFactory{}
 )
 
-type ScorePluginFactory = func(arg map[string]interface{}) ScorePlugin
-type FilterPluginFactory = func(arg map[string]interface{}) FilterPlugin
+type ScorePluginFactory = func(arg runtime.RawExtension) ScorePlugin
+type FilterPluginFactory = func(arg runtime.RawExtension) FilterPlugin
 
 func RegisterScorePluginBuilder(name string, sp ScorePluginFactory) {
 	pluginMutex.Lock()

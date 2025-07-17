@@ -17,31 +17,32 @@ limitations under the License.
 package scheduler
 
 import (
+	"k8s.io/apimachinery/pkg/runtime"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins"
 )
 
 func init() {
 	// scorePlugin
-	framework.RegisterScorePluginBuilder(plugins.KVCachePluginName, func(args map[string]interface{}) framework.ScorePlugin {
+	framework.RegisterScorePluginBuilder(plugins.KVCachePluginName, func(args runtime.RawExtension) framework.ScorePlugin {
 		return plugins.NewGPUCacheUsage()
 	})
-	framework.RegisterScorePluginBuilder(plugins.LeastLatencyPluginName, func(args map[string]interface{}) framework.ScorePlugin {
+	framework.RegisterScorePluginBuilder(plugins.LeastLatencyPluginName, func(args runtime.RawExtension) framework.ScorePlugin {
 		return plugins.NewLeastLatency(args)
 	})
-	framework.RegisterScorePluginBuilder(plugins.LeastRequestPluginName, func(args map[string]interface{}) framework.ScorePlugin {
+	framework.RegisterScorePluginBuilder(plugins.LeastRequestPluginName, func(args runtime.RawExtension) framework.ScorePlugin {
 		return plugins.NewLeastRequest(args)
 	})
 	// PrefixCache requires two parameters and is instantiated during use
-	framework.RegisterScorePluginBuilder(plugins.PrefixCachePluginName, func(args map[string]interface{}) framework.ScorePlugin {
+	framework.RegisterScorePluginBuilder(plugins.PrefixCachePluginName, func(args runtime.RawExtension) framework.ScorePlugin {
 		return &plugins.PrefixCache{}
 	})
 
 	// filterPlugin
-	framework.RegisterFilterPluginBuilder(plugins.LeastRequestPluginName, func(args map[string]interface{}) framework.FilterPlugin {
+	framework.RegisterFilterPluginBuilder(plugins.LeastRequestPluginName, func(args runtime.RawExtension) framework.FilterPlugin {
 		return plugins.NewLeastRequest(args)
 	})
-	framework.RegisterFilterPluginBuilder(plugins.LoraAffinityPluginName, func(args map[string]interface{}) framework.FilterPlugin {
+	framework.RegisterFilterPluginBuilder(plugins.LoraAffinityPluginName, func(args runtime.RawExtension) framework.FilterPlugin {
 		return plugins.NewLoraAffinity()
 	})
 }

@@ -27,6 +27,7 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
@@ -59,22 +60,23 @@ type podInfoWithValue struct {
 }
 
 func NewScheduler(store datastore.Store) Scheduler {
-	scorePluginMap, filterPluginMap, pluginsArgsMap, err := utils.LoadSchedulerConfig()
+	scorePluginMap, filterPluginMap, pluginsConfigList, err := utils.LoadSchedulerConfig()
 	if err != nil {
 		log.Fatalf("failed to Load Scheduler: %v", err)
 	}
-	prefixCache := plugins.NewPrefixCache(store, pluginsArgsMap)
+	pluginArg := utils.GetArgs(plugins.PrefixCachePluginName, pluginsConfigList)
+	prefixCache := plugins.NewPrefixCache(store, pluginArg)
 	return &SchedulerImpl{
 		store:         store,
-		filterPlugins: ParseFilterPlugin(filterPluginMap, pluginsArgsMap),
-		scorePlugins:  GetScorePlugin(prefixCache, scorePluginMap, pluginsArgsMap),
+		filterPlugins: ParseFilterPlugin(filterPluginMap, pluginsConfigList),
+		scorePlugins:  GetScorePlugin(prefixCache, scorePluginMap, pluginsConfigList),
 		ScheduleHooks: []framework.ScheduleHook{
 			prefixCache,
 		},
 	}
 }
 
-func ParseFilterPlugin(filterPluginMap []string, pluginsArgsMap map[string]interface{}) []framework.FilterPlugin {
+func ParseFilterPlugin(filterPluginMap []string, pluginsArgs []conf.PluginConfig) []framework.FilterPlugin {
 	var list []framework.FilterPlugin
 	// TODO: enable lora affinity when models from metrics are available.
 	for _, pluginName := range filterPluginMap {
@@ -82,14 +84,15 @@ func ParseFilterPlugin(filterPluginMap []string, pluginsArgsMap map[string]inter
 			log.Errorf("Failed to get plugin %s.", pluginName)
 			continue
 		} else {
-			plugin := factory(pluginsArgsMap)
+			pluginArg := utils.GetArgs(pluginName, pluginsArgs)
+			plugin := factory(pluginArg)
 			list = append(list, plugin)
 		}
 	}
 	return list
 }
 
-func GetScorePlugin(prefixCache *plugins.PrefixCache, scorePluginMap map[string]int, pluginsArgsMap map[string]interface{}) []*scorePlugin {
+func GetScorePlugin(prefixCache *plugins.PrefixCache, scorePluginMap map[string]int, pluginsArgs []conf.PluginConfig) []*scorePlugin {
 	var list []*scorePlugin
 	for pluginName, weight := range scorePluginMap {
 		if weight < 0 {
@@ -108,8 +111,9 @@ func GetScorePlugin(prefixCache *plugins.PrefixCache, scorePluginMap map[string]
 		if pb, exist := framework.GetScorePluginBuilder(pluginName); !exist {
 			log.Errorf("Failed to get plugin %s.", pluginName)
 		} else {
+			pluginArg := utils.GetArgs(pluginName, pluginsArgs)
 			list = append(list, &scorePlugin{
-				plugin: pb(pluginsArgsMap),
+				plugin: pb(pluginArg),
 				weight: weight,
 			})
 		}

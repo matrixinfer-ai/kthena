@@ -74,11 +74,12 @@ import (
 	"fmt"
 
 	"github.com/cespare/xxhash"
+	"github.com/stretchr/testify/assert/yaml"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/cache"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
 const PrefixCachePluginName = "prefix-cache"
@@ -101,9 +102,15 @@ type PrefixCacheArgs struct {
 
 // Default token block size of vLLM is 16, and a good guess of average characters per token is 4.
 // So we use 64 as the default block size.
-func NewPrefixCache(store datastore.Store, arg map[string]interface{}) *PrefixCache {
+func NewPrefixCache(store datastore.Store, pluginArg runtime.RawExtension) *PrefixCache {
 	var prefixCacheArgs PrefixCacheArgs
-	utils.ParsePluginArgs(PrefixCachePluginName, arg, &prefixCacheArgs)
+	if yaml.Unmarshal(pluginArg.Raw, &prefixCacheArgs) != nil {
+		prefixCacheArgs = PrefixCacheArgs{
+			64,
+			128,
+			50000,
+		}
+	}
 
 	p := &PrefixCache{
 		name: PrefixCachePluginName,

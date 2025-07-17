@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/mitchellh/mapstructure"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
@@ -98,7 +98,7 @@ func GetPrompt(body map[string]interface{}) (string, error) {
 	return "", fmt.Errorf("prompt or messages not found in request body")
 }
 
-func LoadSchedulerConfig() (map[string]int, []string, map[string]interface{}, error) {
+func LoadSchedulerConfig() (map[string]int, []string, []conf.PluginConfig, error) {
 	data, err := os.ReadFile(ConfigMapPath)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to read config file %s: %w", ConfigMapPath, err)
@@ -115,12 +115,7 @@ func LoadSchedulerConfig() (map[string]int, []string, map[string]interface{}, er
 		return nil, nil, nil, fmt.Errorf("failed to Unmarshal Plugins: %v", err)
 	}
 
-	pluginsArgsMap, err := unmarshalPluginsConfig(&kubeSchedulerConfiguration)
-	if err != nil {
-		log.Errorf("failed to Unmarshal PluginsConfig: %v", err)
-		return nil, nil, nil, fmt.Errorf("failed to Unmarshal PluginsConfig: %v", err)
-	}
-	return scorePluginMap, filterPlugins, pluginsArgsMap, nil
+	return scorePluginMap, filterPlugins, kubeSchedulerConfiguration.PluginConfig, nil
 }
 
 func unmarshalPlugins(schedulerConfig *conf.SchedulerConfiguration) (map[string]int, []string, error) {
@@ -139,28 +134,11 @@ func unmarshalPlugins(schedulerConfig *conf.SchedulerConfiguration) (map[string]
 	return scorePluginMap, filterPlugins, nil
 }
 
-func unmarshalPluginsConfig(schedulerConfig *conf.SchedulerConfiguration) (map[string]interface{}, error) {
-	pluginsArgsMap := make(map[string]interface{})
-	if len(schedulerConfig.PluginConfig) > 0 {
-		for _, pluginConfig := range schedulerConfig.PluginConfig {
-			pluginsArgsMap[pluginConfig.Name] = pluginConfig.Args
+func GetArgs(pluginName string, configs []conf.PluginConfig) runtime.RawExtension {
+	for _, config := range configs {
+		if config.Name == pluginName {
+			return config.Args
 		}
 	}
-	return pluginsArgsMap, nil
-}
-
-func ParsePluginArgs[T any](pluginName string, arg map[string]interface{}, configPtr *T) {
-	configMap, ok := arg[pluginName].(map[string]interface{})
-	if !ok {
-		log.Errorf("failed to parse arg")
-	}
-
-	decoder, _ := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-		TagName:     "yaml",
-		Result:      configPtr,
-		ErrorUnused: false,
-	})
-	if err := decoder.Decode(configMap); err != nil {
-		log.Errorf("failed to Decode confiMap")
-	}
+	return runtime.RawExtension{}
 }
