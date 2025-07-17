@@ -40,7 +40,7 @@ helm package matrix-infer
 helm install <release-name> <chart> [flags]
 ```
 
-### Install Customization
+### Installation Customization
 By default, all subcharts will be installed. If you want to specify which of them to install, you can customize by using the `--set` flag.
 
 ```shell
@@ -91,8 +91,8 @@ After that, it installs resources from the `/templates` directory in the followi
 > - Ingress
 > - APIService
 
-NOTICE: The current version helm (v3.17.0) will not update or uninstall CRD. If you want to update or uninstall CRD, you
-need to do it manually.
+**NOTICE:**  
+HELM manages the installation of CRDs. However, if you need to uninstall or update a CRD, please use `kubectl apply` or `kubectl delete`. For more details on the reasoning behind this, see [this explanation](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/#some-caveats-and-explanations).
 
 ## Uninstall
 
