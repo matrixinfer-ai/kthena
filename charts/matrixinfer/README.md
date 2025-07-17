@@ -36,8 +36,13 @@ helm package matrix-infer
 
 ## Install
 
+Syntax:
 ```shell
 helm install <release-name> <chart> [flags]
+```
+Example:
+```shell
+helm install my-release my-chart --namespace my-namespace
 ```
 
 ### Installation Customization
@@ -51,6 +56,11 @@ hell install <your-name> <archive-file-name> --namespace <namespace> \
 hell install <your-name> <archive-file-name> --namespace <namespace> \
   --set registry.enabled=false \
   --set gateway.enabled=false
+```
+
+And you can even specify a customized `values.yaml` file for installation.
+```shell
+helm install my-release my-chart -f my-values.yaml
 ```
 ### Installation Order
 
