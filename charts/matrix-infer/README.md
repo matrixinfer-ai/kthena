@@ -36,55 +36,12 @@ helm package matrix-infer
 
 ## Install
 
-Helm first installs resources from the `/crd` directory.  
-After that, it installs resources from the `/templates` directory in the following order:
-> - Namespace  
-> - NetworkPolicy  
-> - ResourceQuota  
-> - LimitRange  
-> - PodSecurityPolicy  
-> - PodDisruptionBudget  
-> - ServiceAccount  
-> - Secret  
-> - SecretList  
-> - ConfigMap  
-> - StorageClass  
-> - PersistentVolume  
-> - PersistentVolumeClaim  
-> - CustomResourceDefinition  (CRD)
-> - ClusterRole  
-> - ClusterRoleList  
-> - ClusterRoleBinding  
-> - ClusterRoleBindingList  
-> - Role  
-> - RoleList  
-> - RoleBinding  
-> - RoleBindingList  
-> - Service  
-> - DaemonSet  
-> - Pod  
-> - ReplicationController  
-> - ReplicaSet  
-> - Deployment  
-> - HorizontalPodAutoscaler  
-> - StatefulSet  
-> - Job  
-> - CronJob  
-> - Ingress  
-> - APIService
-
-NOTICE: The current version helm (v3.17.0) will not update or uninstall CRD. If you want to update or uninstall CRD, you
-need to do it manually.
-
-### Install from local archive
-
 ```shell
-helm install <your-name> <archive-file-name> --namespace <namespace> 
+helm install <release-name> <chart> [flags]
 ```
 
-default installation will install all subcharts, if you want to install only some of them, you can use `--set` to set
-the
-values of the subcharts.
+### Install Customization
+By default, all subcharts will be installed. If you want to specify which of them to install, you can customize by using the `--set` flag.
 
 ```shell
 # this will only install workload subchart, and disable registry and gateway subcharts
@@ -95,6 +52,47 @@ hell install <your-name> <archive-file-name> --namespace <namespace> \
   --set registry.enabled=false \
   --set gateway.enabled=false
 ```
+### Installation Order
+
+Helm first installs resources from the `/crd` directory.  
+After that, it installs resources from the `/templates` directory in the following order:
+> - Namespace
+> - NetworkPolicy
+> - ResourceQuota
+> - LimitRange
+> - PodSecurityPolicy
+> - PodDisruptionBudget
+> - ServiceAccount
+> - Secret
+> - SecretList
+> - ConfigMap
+> - StorageClass
+> - PersistentVolume
+> - PersistentVolumeClaim
+> - CustomResourceDefinition  (CRD)
+> - ClusterRole
+> - ClusterRoleList
+> - ClusterRoleBinding
+> - ClusterRoleBindingList
+> - Role
+> - RoleList
+> - RoleBinding
+> - RoleBindingList
+> - Service
+> - DaemonSet
+> - Pod
+> - ReplicationController
+> - ReplicaSet
+> - Deployment
+> - HorizontalPodAutoscaler
+> - StatefulSet
+> - Job
+> - CronJob
+> - Ingress
+> - APIService
+
+NOTICE: The current version helm (v3.17.0) will not update or uninstall CRD. If you want to update or uninstall CRD, you
+need to do it manually.
 
 ## Uninstall
 
