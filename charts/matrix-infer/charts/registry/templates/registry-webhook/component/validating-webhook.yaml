@@ -6,7 +6,7 @@ metadata:
     app.kubernetes.io/component: registry-webhook
     {{- include "matrixinfer.labels" . | nindent 4 }}
   annotations:
-    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/registry-webhook-cert
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "matrixinfer.fullname" . }}-registry-webhook-cert
 webhooks:
   - name: validate-registry-matrixinfer-ai-v1alpha1-model.matrixinfer.ai
     admissionReviewVersions: [ "v1" ]
@@ -15,7 +15,7 @@ webhooks:
     timeoutSeconds: 30
     clientConfig:
       service:
-        name: registry-webhook
+        name: {{ include "matrixinfer.fullname" . }}-registry-webhook
         namespace: {{ .Release.Namespace }}
         path: "/validate-registry-matrixinfer-ai-v1alpha1-model"
         port: 443
