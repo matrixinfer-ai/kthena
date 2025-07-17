@@ -331,6 +331,7 @@ func (mc *ModelController) loadConfigFromConfigMap() {
 	namespace, err := utils.GetInClusterNameSpace()
 	// when not running in cluster, namespace is default
 	if err != nil {
+		klog.Error(err)
 		namespace = "default"
 	}
 	cm, err := mc.kubeClient.CoreV1().ConfigMaps(namespace).Get(context.Background(), ConfigMapName, metav1.GetOptions{})
