@@ -7,7 +7,8 @@ Files in `crds/` are custom resource definitions, which are used to define the c
 `Chart.yaml` is a YAML file containing information about the chart.
 Visit [here](https://helm.sh/docs/topics/charts/#the-chartyaml-file) for more information.
 
-`charts/` is a directory containing the dependencies of the chart. There are two subcharts `registry` and `workload` in
+`charts/` is a directory containing the dependencies of the chart. There are three subcharts `registry`, `workload` and
+`gateway` in
 it.
 
 `values.yaml` is a YAML file containing the default configuration values for this chart.
@@ -74,6 +75,19 @@ need to do it manually.
 
 ```shell
 helm install <your-name> <archive-file-name> --namespace <namespace> 
+```
+
+default install will install all subcharts, if you want to install only some of them, you can use `--set` to set the
+values of the subcharts.
+
+```shell
+# this will only install workload subchart, and disable registry and gateway subcharts
+hell install <your-name> <archive-file-name> --namespace <namespace> \
+  --set registry.enabled=false,gateway.enabled=false
+# or
+hell install <your-name> <archive-file-name> --namespace <namespace> \
+  --set registry.enabled=false \
+  --set gateway.enabled=false
 ```
 
 ## uninstall
