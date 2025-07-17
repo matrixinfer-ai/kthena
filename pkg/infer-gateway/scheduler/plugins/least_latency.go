@@ -21,7 +21,6 @@ import (
 
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
@@ -37,8 +36,12 @@ type LeastLatency struct {
 	TTFTTPOTWeightFactor float64
 }
 
+type LeastLatencyArgs struct {
+	TTFTTPOTWeightFactor float64 `yaml:"TTFTTPOTWeightFactor,omitempty"`
+}
+
 func NewLeastLatency(arg map[string]interface{}) *LeastLatency {
-	var leastLatencyArgs conf.LeastLatencyArgs
+	var leastLatencyArgs LeastLatencyArgs
 	utils.ParsePluginArgs(LeastLatencyPluginName, arg, &leastLatencyArgs)
 
 	return &LeastLatency{

@@ -45,17 +45,3 @@ type PluginConfig struct {
 	Name string `yaml:"name"`
 	Args any    `yaml:"args,omitempty"`
 }
-
-type LeastRequestArgs struct {
-	MaxWaitingRequests int `yaml:"maxWaitingRequests,omitempty"`
-}
-
-type LeastLatencyArgs struct {
-	TTFTTPOTWeightFactor float64 `yaml:"TTFTTPOTWeightFactor,omitempty"`
-}
-
-type PrefixCacheArgs struct {
-	BlockSizeToHash  int `yaml:"blockSizeToHash,omitempty"`
-	MaxBlocksToMatch int `yaml:"maxBlocksToMatch,omitempty"`
-	MaxHashCacheSize int `yaml:"maxHashCacheSize,omitempty"`
-}

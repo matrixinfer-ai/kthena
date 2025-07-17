@@ -20,7 +20,6 @@ import (
 	"istio.io/istio/pkg/slices"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
@@ -34,8 +33,12 @@ type LeastRequest struct {
 	maxWaitingRequest int
 }
 
+type LeastRequestArgs struct {
+	MaxWaitingRequests int `yaml:"maxWaitingRequests,omitempty"`
+}
+
 func NewLeastRequest(arg map[string]interface{}) *LeastRequest {
-	var leastRequestArgs conf.LeastRequestArgs
+	var leastRequestArgs LeastRequestArgs
 	utils.ParsePluginArgs(LeastRequestPluginName, arg, &leastRequestArgs)
 
 	return &LeastRequest{

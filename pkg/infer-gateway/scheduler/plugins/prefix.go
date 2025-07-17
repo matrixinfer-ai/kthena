@@ -78,7 +78,6 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/cache"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
@@ -94,10 +93,16 @@ type PrefixCache struct {
 	store            *cache.ModelPrefixStore
 }
 
+type PrefixCacheArgs struct {
+	BlockSizeToHash  int `yaml:"blockSizeToHash,omitempty"`
+	MaxBlocksToMatch int `yaml:"maxBlocksToMatch,omitempty"`
+	MaxHashCacheSize int `yaml:"maxHashCacheSize,omitempty"`
+}
+
 // Default token block size of vLLM is 16, and a good guess of average characters per token is 4.
 // So we use 64 as the default block size.
 func NewPrefixCache(store datastore.Store, arg map[string]interface{}) *PrefixCache {
-	var prefixCacheArgs conf.PrefixCacheArgs
+	var prefixCacheArgs PrefixCacheArgs
 	utils.ParsePluginArgs(PrefixCachePluginName, arg, &prefixCacheArgs)
 
 	p := &PrefixCache{
