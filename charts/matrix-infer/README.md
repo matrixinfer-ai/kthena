@@ -77,7 +77,8 @@ need to do it manually.
 helm install <your-name> <archive-file-name> --namespace <namespace> 
 ```
 
-default install will install all subcharts, if you want to install only some of them, you can use `--set` to set the
+default installation will install all subcharts, if you want to install only some of them, you can use `--set` to set
+the
 values of the subcharts.
 
 ```shell
