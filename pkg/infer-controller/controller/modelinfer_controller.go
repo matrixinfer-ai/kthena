@@ -53,11 +53,11 @@ type ModelInferController struct {
 
 	syncHandler         func(ctx context.Context, miKey string) error
 	podsLister          listerv1.PodLister
-	podsInformer        cache.Controller
+	podsInformer        cache.SharedIndexInformer
 	servicesLister      listerv1.ServiceLister
-	servicesInformer    cache.Controller
+	servicesInformer    cache.SharedIndexInformer
 	modelInfersLister   listerv1alpha1.ModelInferLister
-	modelInfersInformer cache.Controller
+	modelInfersInformer cache.SharedIndexInformer
 
 	// nolint
 	workqueue   workqueue.RateLimitingInterface
@@ -67,12 +67,11 @@ type ModelInferController struct {
 }
 
 func NewModelInferController(kubeClientSet kubernetes.Interface, modelInferClient clientset.Interface) *ModelInferController {
-	req, err := labels.NewRequirement(workloadv1alpha1.GroupNameLabelKey, selection.Exists, nil)
+	selector, err := labels.NewRequirement(workloadv1alpha1.GroupNameLabelKey, selection.Exists, nil)
 	if err != nil {
-		klog.Errorf("cannot create label selector,err:%v", err)
+		klog.Errorf("cannot create label selector, err: %v", err)
 		return nil
 	}
-	selector := labels.NewSelector().Add(*req)
 
 	kubeInformerFactory := informers.NewSharedInformerFactoryWithOptions(
 		kubeClientSet,
@@ -106,7 +105,7 @@ func NewModelInferController(kubeClientSet kubernetes.Interface, modelInferClien
 	}
 
 	klog.Info("Set the ModelInfer event handler")
-	_, _ = modelInferInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, _ = c.modelInfersInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			c.addModelInfer(obj)
 		},
@@ -118,7 +117,7 @@ func NewModelInferController(kubeClientSet kubernetes.Interface, modelInferClien
 		},
 	})
 
-	_, _ = podsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, _ = c.podsInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			c.addPod(obj)
 		},
@@ -141,7 +140,7 @@ func (c *ModelInferController) addModelInfer(obj interface{}) {
 		klog.Error("failed to parse ModelInfer type when addMI")
 		return
 	}
-	klog.V(4).Info("Adding", "modelinfer", klog.KObj(mi))
+	klog.V(4).InfoS("Adding", "modelinfer", klog.KObj(mi))
 	c.enqueueModelInfer(mi)
 }
 
@@ -157,18 +156,29 @@ func (c *ModelInferController) updateModelInfer(old, cur interface{}) {
 		return
 	}
 
-	if *(oldMI.Spec.Replicas) != *(curMI.Spec.Replicas) || !reflect.DeepEqual(oldMI.Spec.Template, curMI.Spec.Template) {
-		// Reconciling is only triggered if modelinfer.replicas changes or infergroup.spec changes
-		klog.V(4).Info("Updating", "modelinfer", klog.KObj(curMI))
-		c.enqueueModelInfer(curMI)
+	if reflect.DeepEqual(oldMI.Spec, curMI.Spec) {
+		// If the spec has not changed, we do not need to reconcile.
+		klog.V(4).InfoS("Spec has not changed, skipping update", "modelinfer", klog.KObj(curMI))
+		return
 	}
+
+	c.enqueueModelInfer(curMI)
 }
 
 func (c *ModelInferController) deleteModelInfer(obj interface{}) {
 	mi, ok := obj.(*workloadv1alpha1.ModelInfer)
 	if !ok {
-		klog.Error("failed to parse ModelInfer type when deleteMI")
-		return
+		// If the object is not a ModelInfer, it might be a tombstone object.
+		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+		if !ok {
+			klog.Errorf("failed to parse ModelInfer type when deleteMI %#v", obj)
+			return
+		}
+		mi, ok = tombstone.Obj.(*workloadv1alpha1.ModelInfer)
+		if !ok {
+			klog.Errorf("failed to parse ModelInfer from tombstone %#v", tombstone.Obj)
+			return
+		}
 	}
 
 	c.store.DeleteModelInfer(types.NamespacedName{
@@ -227,8 +237,17 @@ func (c *ModelInferController) updatePod(oldObj, newObj interface{}) {
 func (c *ModelInferController) deletePod(obj interface{}) {
 	pod, ok := obj.(*corev1.Pod)
 	if !ok {
-		klog.Error("failed to parse pod type when deletePod")
-		return
+		// If the object is not a Pod, it might be a tombstone object.
+		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+		if !ok {
+			klog.Error("failed to parse pod type when deletePod")
+			return
+		}
+		pod, ok = tombstone.Obj.(*corev1.Pod)
+		if !ok {
+			klog.Errorf("failed to parse Pod from tombstone %#v", tombstone.Obj)
+			return
+		}
 	}
 
 	mi, inferGroupName, err := c.getModelInfer(pod)
