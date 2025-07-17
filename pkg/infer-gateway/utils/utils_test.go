@@ -64,10 +64,6 @@ func TestLoadSchedulerConfig(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			patches := gomonkey.NewPatches()
-			defer patches.Reset()
-			patches = tc.fn(patches)
-
 			_, _, _, errs := LoadSchedulerConfig()
 			if errs == nil && tc.expectErrs != "" {
 				t.Errorf("expected error containing %q, got nil", tc.expectErrs)
