@@ -170,16 +170,15 @@ func (c *ModelInferController) deleteModelInfer(obj interface{}) {
 	if !ok {
 		// If the object is not a ModelInfer, it might be a tombstone object.
 		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
-		if ok {
-			mi, ok = tombstone.Obj.(*workloadv1alpha1.ModelInfer)
-			if !ok {
-				klog.Errorf("failed to parse ModelInfer from tombstone %#v", tombstone.Obj)
-				return
-			}
-		} else {
+		if !ok {
 			klog.Errorf("failed to parse ModelInfer type when deleteMI %#v", obj)
+			return
 		}
-		return
+		mi, ok = tombstone.Obj.(*workloadv1alpha1.ModelInfer)
+		if !ok {
+			klog.Errorf("failed to parse ModelInfer from tombstone %#v", tombstone.Obj)
+			return
+		}
 	}
 
 	c.store.DeleteModelInfer(types.NamespacedName{
@@ -240,16 +239,15 @@ func (c *ModelInferController) deletePod(obj interface{}) {
 	if !ok {
 		// If the object is not a Pod, it might be a tombstone object.
 		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
-		if ok {
-			pod, ok = tombstone.Obj.(*corev1.Pod)
-			if !ok {
-				klog.Errorf("failed to parse Pod from tombstone %#v", tombstone.Obj)
-				return
-			}
-		} else {
+		if !ok {
 			klog.Error("failed to parse pod type when deletePod")
+			return
 		}
-		return
+		pod, ok = tombstone.Obj.(*corev1.Pod)
+		if !ok {
+			klog.Errorf("failed to parse Pod from tombstone %#v", tombstone.Obj)
+			return
+		}
 	}
 
 	mi, inferGroupName, err := c.getModelInfer(pod)
