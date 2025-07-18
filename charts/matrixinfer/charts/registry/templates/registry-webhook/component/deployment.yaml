@@ -1,3 +1,4 @@
+{{- if .Values.registryWebhook.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -49,3 +50,4 @@ spec:
           secret:
             secretName: registry-webhook-certs
       serviceAccountName: registry-webhook
+{{- end }}

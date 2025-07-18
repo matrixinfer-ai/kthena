@@ -36,6 +36,7 @@ modelController:
     secretKey: ""
 
 registryWebhook:
+  enabled: true
   # replicas is the number of registry-webhook instances to run.
   replicas: 1
   image:
