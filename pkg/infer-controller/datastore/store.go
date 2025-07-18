@@ -31,6 +31,7 @@ import (
 // Store is an interface for storing and retrieving data
 type Store interface {
 	GetInferGroupByModelInfer(modelInferName types.NamespacedName) ([]InferGroup, error)
+	GetInferGroup(modelInferName types.NamespacedName, inferGroupName string) *InferGroup
 	GetRunningPodNumByInferGroup(modelInferName types.NamespacedName, inferGroupName string) (int, error)
 	GetInferGroupStatus(modelInferName types.NamespacedName, inferGroupName string) InferGroupStatus
 	DeleteModelInfer(modelInferName types.NamespacedName)
@@ -111,6 +112,18 @@ func (s *store) GetRunningPodNumByInferGroup(modelInferName types.NamespacedName
 		return 0, nil
 	}
 	return len(group.runningPods), nil
+}
+
+// GetInferGroup returns the GetInferGroup
+func (s *store) GetInferGroup(modelInferName types.NamespacedName, inferGroupName string) *InferGroup {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	groups, ok := s.inferGroup[modelInferName]
+	if !ok {
+		return nil
+	}
+
+	return groups[inferGroupName]
 }
 
 // GetInferGroupStatus returns the status of inferGroup
