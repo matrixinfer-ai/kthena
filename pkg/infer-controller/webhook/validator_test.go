@@ -1,0 +1,303 @@
+/*
+Copyright MatrixInfer-AI Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package webhook
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/validation/field"
+	workloadv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
+)
+
+func TestValidateScheduler(t *testing.T) {
+	type args struct {
+		mi *workloadv1alpha1.ModelInfer
+	}
+	tests := []struct {
+		name string
+		args args
+		want field.ErrorList
+	}{
+		{
+			name: "valid scheduler",
+			args: args{
+				mi: &workloadv1alpha1.ModelInfer{
+					Spec: workloadv1alpha1.ModelInferSpec{
+						SchedulerName: "vo",
+					},
+				},
+			},
+			want: field.ErrorList{
+				field.Invalid(field.NewPath("spec").Child("schedulerName"), "vo", "invalid SchedulerName: vo, modelInfer support: volcano ..."),
+			},
+		},
+		{
+			name: "empty scheduler",
+			args: args{
+				mi: &workloadv1alpha1.ModelInfer{
+					Spec: workloadv1alpha1.ModelInferSpec{
+						SchedulerName: "",
+					},
+				},
+			},
+			want: field.ErrorList{
+				field.Invalid(field.NewPath("spec").Child("schedulerName"), "", "invalid SchedulerName: , modelInfer support: volcano ..."),
+			},
+		},
+		{
+			name: "formal scheduler",
+			args: args{
+				mi: &workloadv1alpha1.ModelInfer{
+					Spec: workloadv1alpha1.ModelInferSpec{
+						SchedulerName: "volcano",
+					},
+				},
+			},
+			want: field.ErrorList(nil),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := validateScheduler(tt.args.mi)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestValidPodNameLength(t *testing.T) {
+	replicas := int32(3)
+	type args struct {
+		mi *workloadv1alpha1.ModelInfer
+	}
+	tests := []struct {
+		name string
+		args args
+		want field.ErrorList
+	}{
+		{
+			name: "normal pod name length",
+			args: args{
+				mi: &workloadv1alpha1.ModelInfer{
+					ObjectMeta: v1.ObjectMeta{
+						Name: "valid-name",
+					},
+					Spec: workloadv1alpha1.ModelInferSpec{
+						Replicas: &replicas,
+						Template: workloadv1alpha1.InferGroup{
+							Roles: []workloadv1alpha1.Role{
+								{Name: "role1", Replicas: &replicas, WorkerReplicas: 2},
+							},
+						},
+					},
+				},
+			},
+			want: field.ErrorList(nil),
+		},
+		{
+			name: "pod name length exceeds limit",
+			args: args{
+				mi: &workloadv1alpha1.ModelInfer{
+					ObjectMeta: v1.ObjectMeta{
+						Name: "this-is-a-very-long-name-that-exceeds-the-allowed-length-for-pod-names",
+					},
+					Spec: workloadv1alpha1.ModelInferSpec{
+						Replicas: &replicas,
+						Template: workloadv1alpha1.InferGroup{
+							Roles: []workloadv1alpha1.Role{
+								{Name: "role1", Replicas: &replicas, WorkerReplicas: 2},
+							},
+						},
+					},
+				},
+			},
+			want: field.ErrorList{
+				field.Invalid(
+					field.NewPath("metadata").Child("name"),
+					"this-is-a-very-long-name-that-exceeds-the-allowed-length-for-pod-names",
+					"pod name: this-is-a-very-long-name-that-exceeds-the-allowed-length-for-pod-names-3-role1-3-2 generate by modelInfer is exceeding the length limit, please change mi.Name or role.Name"),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := validPodNameLength(tt.args.mi)
+			if got != nil {
+				assert.EqualValues(t, tt.want[0], got[0])
+			} else {
+				assert.Equal(t, tt.want, got)
+			}
+		})
+	}
+}
+
+func Test_validateRollingUpdateConfiguration(t *testing.T) {
+	replicas := int32(3)
+	type args struct {
+		mi *workloadv1alpha1.ModelInfer
+	}
+	tests := []struct {
+		name string
+		args args
+		want field.ErrorList
+	}{
+		{
+			name: "normal rolling update configuration",
+			args: args{
+				mi: &workloadv1alpha1.ModelInfer{
+					Spec: workloadv1alpha1.ModelInferSpec{
+						Replicas: &replicas,
+						RolloutStrategy: &workloadv1alpha1.RolloutStrategy{
+							RollingUpdateConfiguration: &workloadv1alpha1.RollingUpdateConfiguration{
+								MaxUnavailable: intstr.IntOrString{
+									Type:   intstr.Int,
+									IntVal: 1,
+								},
+								MaxSurge: intstr.IntOrString{
+									Type:   intstr.Int,
+									IntVal: 1,
+								},
+							},
+						},
+					},
+				},
+			},
+			want: field.ErrorList(nil),
+		},
+		{
+			name: "invalid maxUnavailable format",
+			args: args{
+				mi: &workloadv1alpha1.ModelInfer{
+					Spec: workloadv1alpha1.ModelInferSpec{
+						Replicas: &replicas,
+						RolloutStrategy: &workloadv1alpha1.RolloutStrategy{
+							RollingUpdateConfiguration: &workloadv1alpha1.RollingUpdateConfiguration{
+								MaxUnavailable: intstr.IntOrString{
+									Type:   intstr.String,
+									StrVal: "invalid",
+								},
+								MaxSurge: intstr.IntOrString{
+									Type:   intstr.Int,
+									IntVal: 1,
+								},
+							},
+						},
+					},
+				},
+			},
+			want: field.ErrorList{
+				field.Invalid(
+					field.NewPath("spec").Child("rolloutStrategy").Child("rollingUpdateConfiguration").Child("maxUnavailable"),
+					intstr.IntOrString{
+						Type:   intstr.String,
+						StrVal: "invalid",
+					},
+					"a valid percent string must be a numeric string followed by an ending '%' (e.g. '1%',  or '93%', regex used for validation is '[0-9]+%')",
+				),
+				field.Invalid(
+					field.NewPath("spec").Child("rolloutStrategy").Child("rollingUpdateConfiguration").Child("maxUnavailable"),
+					intstr.IntOrString{
+						Type:   intstr.String,
+						StrVal: "invalid",
+					},
+					"validate maxUnavailable",
+				),
+			},
+		},
+		{
+			name: "invalid maxSurge format",
+			args: args{
+				mi: &workloadv1alpha1.ModelInfer{
+					Spec: workloadv1alpha1.ModelInferSpec{
+						Replicas: &replicas,
+						RolloutStrategy: &workloadv1alpha1.RolloutStrategy{
+							RollingUpdateConfiguration: &workloadv1alpha1.RollingUpdateConfiguration{
+								MaxUnavailable: intstr.IntOrString{
+									Type:   intstr.Int,
+									IntVal: 1,
+								},
+								MaxSurge: intstr.IntOrString{
+									Type:   intstr.String,
+									StrVal: "invalid",
+								},
+							},
+						},
+					},
+				},
+			},
+			want: field.ErrorList{
+				field.Invalid(
+					field.NewPath("spec").Child("rolloutStrategy").Child("rollingUpdateConfiguration").Child("maxSurge"),
+					intstr.IntOrString{
+						Type:   intstr.String,
+						StrVal: "invalid",
+					},
+					"a valid percent string must be a numeric string followed by an ending '%' (e.g. '1%',  or '93%', regex used for validation is '[0-9]+%')",
+				),
+				field.Invalid(
+					field.NewPath("spec").Child("rolloutStrategy").Child("rollingUpdateConfiguration").Child("maxSurge"),
+					intstr.IntOrString{
+						Type:   intstr.String,
+						StrVal: "invalid",
+					},
+					"validate maxSurge",
+				),
+			},
+		},
+		{
+			name: "both maxUnavailable and maxSurge are zero",
+			args: args{
+				mi: &workloadv1alpha1.ModelInfer{
+					Spec: workloadv1alpha1.ModelInferSpec{
+						Replicas: &replicas,
+						RolloutStrategy: &workloadv1alpha1.RolloutStrategy{
+							RollingUpdateConfiguration: &workloadv1alpha1.RollingUpdateConfiguration{
+								MaxUnavailable: intstr.IntOrString{
+									Type:   intstr.Int,
+									IntVal: 0,
+								},
+								MaxSurge: intstr.IntOrString{
+									Type:   intstr.Int,
+									IntVal: 0,
+								},
+							},
+						},
+					},
+				},
+			},
+			want: field.ErrorList{
+				field.Invalid(
+					field.NewPath("spec").Child("rolloutStrategy").Child("rollingUpdateConfiguration"),
+					"",
+					"maxUnavailable and maxSurge cannot both be 0",
+				),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := validateRollingUpdateConfiguration(tt.args.mi)
+			if got != nil {
+				assert.EqualValues(t, tt.want, got)
+			} else {
+				assert.Equal(t, tt.want, got)
+			}
+		})
+	}
+}

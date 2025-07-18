@@ -27,6 +27,8 @@ import (
 
 	admissionv1 "k8s.io/api/admission/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
@@ -131,6 +133,7 @@ func (v *ModelInferValidator) validateModelInfer(modelInfer *workloadv1alpha1.Mo
 	allErrs = append(allErrs, validPodNameLength(modelInfer)...)
 	allErrs = append(allErrs, validateScheduler(modelInfer)...)
 	allErrs = append(allErrs, validateWorkerImages(modelInfer)...)
+	allErrs = append(allErrs, validateRollingUpdateConfiguration(modelInfer)...)
 
 	if len(allErrs) > 0 {
 		var messages []string
@@ -148,7 +151,6 @@ func validateScheduler(mi *workloadv1alpha1.ModelInfer) field.ErrorList {
 	// Support:
 	// volcano: https://github.com/volcano-sh/volcano
 	if mi.Spec.SchedulerName != "volcano" {
-		klog.Errorf("invalid SchedulerName: %s, modelInfer support: volcano", mi.Spec.SchedulerName)
 		allErrs = append(allErrs, field.Invalid(
 			field.NewPath("spec").Child("schedulerName"), mi.Spec.SchedulerName,
 			fmt.Sprintf("invalid SchedulerName: %s, modelInfer support: volcano ...", mi.Spec.SchedulerName),
@@ -168,11 +170,72 @@ func validPodNameLength(mi *workloadv1alpha1.ModelInfer) field.ErrorList {
 			allErrs = append(allErrs, field.Invalid(
 				field.NewPath("metadata").Child("name"),
 				mi.GetName(),
-				fmt.Sprint("pod name generate by modelInfer is exceeding the length limit, please change mi.Name or role.Name"),
+				fmt.Sprintf("pod name: %s generate by modelInfer is exceeding the length limit, please change mi.Name or role.Name", name),
 			))
 		}
 	}
 
+	return allErrs
+}
+
+// validateRollingUpdateConfiguration is validates maxUnavailable and maxSurge in rollingUpdateConfiguration.
+func validateRollingUpdateConfiguration(mi *workloadv1alpha1.ModelInfer) field.ErrorList {
+	var allErrs field.ErrorList
+	if mi.Spec.RolloutStrategy == nil || mi.Spec.RolloutStrategy.RollingUpdateConfiguration == nil {
+		return allErrs
+	}
+
+	maxUnavailable := mi.Spec.RolloutStrategy.RollingUpdateConfiguration.MaxUnavailable
+	maxUnavailablePath := field.NewPath("spec").Child("rolloutStrategy").Child("rollingUpdateConfiguration").Child("maxUnavailable")
+	allErrs = append(allErrs, validateIntOrPercent(maxUnavailable, maxUnavailablePath)...)
+
+	maxSurge := mi.Spec.RolloutStrategy.RollingUpdateConfiguration.MaxSurge
+	maxSurgePath := field.NewPath("spec").Child("rolloutStrategy").Child("rollingUpdateConfiguration").Child("maxSurge")
+	allErrs = append(allErrs, validateIntOrPercent(maxSurge, maxSurgePath)...)
+
+	fmt.Printf("maxUnavailable: %v, maxSurge: %v", maxUnavailable, maxSurge)
+
+	maxUnavailableValue, err := intstr.GetScaledValueFromIntOrPercent(&maxUnavailable, int(*mi.Spec.Replicas), false)
+	if err != nil {
+		allErrs = append(allErrs, field.Invalid(maxUnavailablePath, maxUnavailable, "validate maxUnavailable"))
+	}
+	maxSurgeValue, err := intstr.GetScaledValueFromIntOrPercent(&maxSurge, int(*mi.Spec.Replicas), true)
+	if err != nil {
+		allErrs = append(allErrs, field.Invalid(maxSurgePath, maxSurge, "validate maxSurge"))
+	}
+	if maxUnavailableValue == 0 && maxSurgeValue == 0 {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("rolloutStrategy").Child("rollingUpdateConfiguration"),
+			"",
+			"maxUnavailable and maxSurge cannot both be 0"))
+	}
+	return allErrs
+}
+
+func validateIntOrPercent(value intstr.IntOrString, fieldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+	switch value.Type {
+	case intstr.String:
+		for _, msg := range validation.IsValidPercent(value.StrVal) {
+			allErrs = append(allErrs, field.Invalid(fieldPath, value, msg))
+		}
+		// Converting percentages to int values(Only the % has been removed.)
+		percent, _ := strconv.Atoi(value.StrVal[:len(value.StrVal)-1])
+		if percent < 0 || percent > 100 {
+			allErrs = append(allErrs, field.Invalid(fieldPath, value, "must be a valid percent value (0-100)"))
+		}
+	case intstr.Int:
+		allErrs = append(allErrs, validateNonnegativeField(int64(value.IntValue()), fieldPath)...)
+	default:
+		allErrs = append(allErrs, field.Invalid(fieldPath, value, "must be an int or percent"))
+	}
+	return allErrs
+}
+
+func validateNonnegativeField(value int64, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+	if value < 0 {
+		allErrs = append(allErrs, field.Invalid(fldPath, value, "must be a non-negative integer"))
+	}
 	return allErrs
 }
 
