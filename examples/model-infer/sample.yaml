@@ -4,7 +4,7 @@ metadata:
   name: sample
   namespace: default
 spec:
-  schedulerName: volcano
+  schedulerName: vo
   replicas: 1  # inferGroup replicas
   template:
     restartGracePeriodSeconds: 60
@@ -15,7 +15,7 @@ spec:
           spec:
             containers:
               - name: leader
-                image: nginx
+                image: " "
                 ports:
                   - containerPort: 8080
         workerReplicas: 3
@@ -23,7 +23,7 @@ spec:
           spec:
             containers:
               - name: worker
-                image: nginx
+                image: " "
                 ports:
                   - containerPort: 8080
       - name: decode

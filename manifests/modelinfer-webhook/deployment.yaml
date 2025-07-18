@@ -28,13 +28,12 @@ spec:
     spec:
       containers:
       - name: webhook
-        image: modelinfer-webhook:latest
+        image: ghcr.io/matrixinfer-ai/modelinfer-webhook:latest
         imagePullPolicy: IfNotPresent
         args:
         - --port=8443
         - --tls-cert-file=/etc/webhook/certs/tls.crt
         - --tls-private-key-file=/etc/webhook/certs/tls.key
-        - --webhook-timeout=30
         ports:
         - containerPort: 8443
         volumeMounts:
