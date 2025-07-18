@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "matrixinfer.fullname" . }}-infer-gateway
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/component: infer-gateway
+    {{- include "matrixinfer.labels" . | nindent 4 }}
+spec:
+  replicas: {{.Values.inferGateway.replicas}}
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: infer-gateway
+      {{- include "matrixinfer.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: infer-gateway
+        {{- include "matrixinfer.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: infer-gateway
+          image: "{{ .Values.inferGateway.image.repository }}:{{ .Values.inferGateway.image.tag }}"
+          imagePullPolicy: {{ .Values.inferGateway.image.pullPolicy }}
+          ports:
+            - containerPort: 8080
+              name: http
+          resources: {{- toYaml .Values.inferGateway.resource | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 1
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 1
+            periodSeconds: 5
+      serviceAccountName: infer-gateway

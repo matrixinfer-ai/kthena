@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "matrixinfer.fullname" . }}-infer-controller
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/component: infer-controller
+    {{- include "matrixinfer.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.inferController.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: infer-controller
+      {{- include "matrixinfer.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: infer-controller
+        {{- include "matrixinfer.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: infer-controller
+          image: "{{ .Values.inferController.image.repository }}:{{ .Values.inferController.image.tag }}"
+          imagePullPolicy: {{ .Values.inferController.image.pullPolicy }}
+          args: {{ .Values.inferController.image.args }}
+          resources: {{- toYaml .Values.inferController.resource | nindent 12 }}
+      serviceAccountName: infer-controller

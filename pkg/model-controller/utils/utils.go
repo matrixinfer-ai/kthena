@@ -23,6 +23,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -44,6 +45,7 @@ const (
 	VllmTemplatePath               = "templates/vllm.yaml"
 	VllmDisaggregatedTemplatePath  = "templates/vllm-pd.yaml"
 	VllmMultiNodeServingScriptPath = "/vllm-workspace/vllm/examples/online_serving/multi-node-serving.sh"
+	inClusterNamespacePath         = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 )
 
 //go:embed templates/*
@@ -499,4 +501,19 @@ func parseArgs(config *apiextensionsv1.JSON) ([]string, error) {
 	}
 
 	return args, nil
+}
+
+// GetInClusterNameSpace gets the namespace of model controller
+func GetInClusterNameSpace() (string, error) {
+	if _, err := os.Stat(inClusterNamespacePath); os.IsNotExist(err) {
+		return "", fmt.Errorf("not running in-cluster, please specify namespace")
+	} else if err != nil {
+		return "", fmt.Errorf("error checking namespace file: %v", err)
+	}
+	// Load the namespace file and return its content
+	namespace, err := os.ReadFile(inClusterNamespacePath)
+	if err != nil {
+		return "", fmt.Errorf("error reading namespace file: %v", err)
+	}
+	return string(namespace), nil
 }
