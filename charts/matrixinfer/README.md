@@ -31,7 +31,7 @@ package chart into an archive file
 
 ```shell
 cd charts/
-helm package matrix-infer
+helm package matrixinfer
 ```
 
 ## Install
@@ -116,6 +116,6 @@ helm uninstall <your-name>
 ## Test
 
 ```shell
-cd charts/matrix-infer
+cd charts/matrixinfer
 helm lint
 ```
