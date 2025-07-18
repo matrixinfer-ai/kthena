@@ -105,6 +105,7 @@ type PrefixCacheArgs struct {
 func NewPrefixCache(store datastore.Store, pluginArg runtime.RawExtension) *PrefixCache {
 	var prefixCacheArgs PrefixCacheArgs
 	if yaml.Unmarshal(pluginArg.Raw, &prefixCacheArgs) != nil {
+		log.Errorf("Unmarshal PrefixCacheArgs error, setting default value")
 		prefixCacheArgs = PrefixCacheArgs{
 			64,
 			128,

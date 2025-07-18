@@ -98,7 +98,7 @@ func GetPrompt(body map[string]interface{}) (string, error) {
 	return "", fmt.Errorf("prompt or messages not found in request body")
 }
 
-func LoadSchedulerConfig() (map[string]int, []string, []conf.PluginConfig, error) {
+func LoadSchedulerConfig() (map[string]int, []string, map[string]runtime.RawExtension, error) {
 	data, err := os.ReadFile(ConfigMapPath)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to read config file %s: %w", ConfigMapPath, err)
@@ -115,7 +115,13 @@ func LoadSchedulerConfig() (map[string]int, []string, []conf.PluginConfig, error
 		return nil, nil, nil, fmt.Errorf("failed to Unmarshal Plugins: %v", err)
 	}
 
-	return scorePluginMap, filterPlugins, kubeSchedulerConfiguration.PluginConfig, nil
+	pluginsArgMap, err := unmarshalPluginsConfig(&kubeSchedulerConfiguration)
+	if err != nil {
+		log.Errorf("failed to Unmarshal PluginsConfig: %v", err)
+		return nil, nil, nil, fmt.Errorf("failed to Unmarshal PluginsConfig: %v", err)
+	}
+
+	return scorePluginMap, filterPlugins, pluginsArgMap, nil
 }
 
 func unmarshalPlugins(schedulerConfig *conf.SchedulerConfiguration) (map[string]int, []string, error) {
@@ -134,11 +140,14 @@ func unmarshalPlugins(schedulerConfig *conf.SchedulerConfiguration) (map[string]
 	return scorePluginMap, filterPlugins, nil
 }
 
-func GetArgs(pluginName string, configs []conf.PluginConfig) runtime.RawExtension {
-	for _, config := range configs {
-		if config.Name == pluginName {
-			return config.Args
+func unmarshalPluginsConfig(schedulerConfig *conf.SchedulerConfiguration) (map[string]runtime.RawExtension, error) {
+	pluginsArgMap := make(map[string]runtime.RawExtension)
+
+	if len(schedulerConfig.PluginConfig) > 0 {
+		for _, pluginArg := range schedulerConfig.PluginConfig {
+			pluginsArgMap[pluginArg.Name] = pluginArg.Args
 		}
 	}
-	return runtime.RawExtension{}
+
+	return pluginsArgMap, nil
 }
