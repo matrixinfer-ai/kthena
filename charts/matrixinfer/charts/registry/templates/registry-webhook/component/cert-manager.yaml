@@ -2,7 +2,7 @@
 apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
-  name: {{ include "matrixinfer.fullname" . }}-issuer
+  name: {{ include "matrixinfer.fullname" . }}-registry-webhook-issuer
   namespace: {{ .Release.Namespace }}
 spec:
   selfSigned: {}
@@ -10,14 +10,14 @@ spec:
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: {{ include "matrixinfer.fullname" . }}-cert
+  name: {{ include "matrixinfer.fullname" . }}-registry-webhook-cert
   namespace: {{ .Release.Namespace }}
 spec:
   dnsNames:
-    - {{ include "matrixinfer.fullname" . }}.{{ .Release.Namespace }}.svc
-    - {{ include "matrixinfer.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local
+    - {{ include "matrixinfer.fullname" . }}-registry-webhook.{{ .Release.Namespace }}.svc
+    - {{ include "matrixinfer.fullname" . }}-registry-webhook.{{ .Release.Namespace }}.svc.cluster.local
   issuerRef:
     kind: Issuer
-    name: {{ include "matrixinfer.fullname" . }}-issuer
-  secretName: {{ include "matrixinfer.fullname" . }}-certs
+    name: {{ include "matrixinfer.fullname" . }}-registry-webhook-issuer
+  secretName: {{ include "matrixinfer.fullname" . }}-registry-webhook-certs
 {{- end }}

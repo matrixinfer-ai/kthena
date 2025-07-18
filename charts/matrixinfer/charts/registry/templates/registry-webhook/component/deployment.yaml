@@ -48,6 +48,6 @@ spec:
       volumes:
         - name: webhook-certs
           secret:
-            secretName: {{ include "matrixinfer.fullname" . }}-certs
+            secretName: {{ include "matrixinfer.fullname" . }}-registry-webhook-certs
       serviceAccountName: registry-webhook
 {{- end }}
