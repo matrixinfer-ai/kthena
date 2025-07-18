@@ -1,0 +1,67 @@
+# Version control
+.git
+.gitignore
+
+# Node dependencies
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+.venv/
+pip-log.txt
+
+# Go
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Build artifacts
+dist/
+build/
+*.tgz
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker
+.dockerignore
+Dockerfile*
+
+# Logs
+*.log
+logs/
+*.out
+
+# Test and coverage
+coverage/
+*.cover
+*.lcov
+*.egg-info
+.eggs/
+
+# IDE/editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment/config
+.env
+.env.*
+*.local
+
+# Misc
+*.bak
+*.tmp
