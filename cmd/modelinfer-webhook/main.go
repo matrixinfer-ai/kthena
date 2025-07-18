@@ -25,7 +25,7 @@ import (
 
 	"github.com/spf13/pflag"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
@@ -33,21 +33,20 @@ import (
 )
 
 type modelInferConfig struct {
-	kubeconfig    string
-	masterURL     string
-	tLSCertFile   string
-	tLSPrivateKey string
-	port          int
+	kubeconfig  string
+	masterURL   string
+	tlsCertFile string
+	tksKeyFile  string
+	port        int
 }
 
 func parseConfig() (modelInferConfig, error) {
 	var config modelInferConfig
 	pflag.StringVar(&config.kubeconfig, "kubeconfig", "", "kubeconfig file path")
 	pflag.StringVar(&config.masterURL, "master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
-	pflag.StringVar(&config.tLSCertFile, "tls-cert-file", "/etc/webhook/certs/tls.crt", "File containing the x509 Certificate for HTTPS.")
-	pflag.StringVar(&config.tLSPrivateKey, "tls-private-key-file", "/etc/webhook/certs/tls.key", "File containing the x509 private key to --tls-cert-file.")
+	pflag.StringVar(&config.tlsCertFile, "tls-cert-file", "/etc/webhook/certs/tls.crt", "File containing the x509 Certificate for HTTPS.")
+	pflag.StringVar(&config.tksKeyFile, "tls-private-key-file", "/etc/webhook/certs/tls.key", "File containing the x509 private key to --tls-cert-file.")
 	pflag.IntVar(&config.port, "port", 8443, "Secure port that the webhook listens on")
-	pflag.Parse()
 
 	if config.port <= 0 || config.port > 65535 {
 		return config, fmt.Errorf("invalid port: %d", config.port)
@@ -62,13 +61,14 @@ func main() {
 	if err != nil {
 		klog.Fatalf("Config error: %v", err)
 	}
+	pflag.Parse()
 
 	// Set up signals so we handle the first shutdown signal gracefully
 	stopCh := setupSignalHandler()
 
-	cfg, err := rest.InClusterConfig()
+	cfg, err := clientcmd.BuildConfigFromFlags(config.masterURL, config.kubeconfig)
 	if err != nil {
-		klog.Fatalf("Error building kubeconfig: %s", err.Error())
+		klog.Fatalf("build client config: %v", err)
 	}
 
 	kubeClient, err := kubernetes.NewForConfig(cfg)
@@ -85,13 +85,14 @@ func main() {
 
 	klog.Info("Started ModelInfer validator")
 	go func() {
-		validator.Run(config.tLSCertFile, config.tLSPrivateKey, stopCh)
+		validator.Run(config.tlsCertFile, config.tksKeyFile, stopCh)
 	}()
 
 	<-stopCh
 	klog.Info("Shutting down webhook server")
 }
 
+// TODO: share this function with other components
 func setupSignalHandler() <-chan struct{} {
 	stopCh := make(chan struct{})
 	c := make(chan os.Signal, 2)

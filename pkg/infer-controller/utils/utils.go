@@ -425,19 +425,20 @@ func exclusiveConditionTypes(condition1 metav1.Condition, condition2 metav1.Cond
 
 // ParseAdmissionRequest parses the HTTP request and extracts the AdmissionReview and ModelInfer.
 func ParseModelInferFromRequest(r *http.Request) (*admissionv1.AdmissionReview, *workloadv1alpha1.ModelInfer, error) {
+	// Verify the content type is accurate
+	contentType := r.Header.Get("Content-Type")
+	if contentType != "application/json" {
+		return nil, nil, fmt.Errorf("invalid Content-Type, expected application/json, got %s", contentType)
+	}
+
 	var body []byte
 	if r.Body != nil {
+		defer r.Body.Close()
 		data, err := io.ReadAll(r.Body)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to read request body: %v", err)
 		}
 		body = data
-	}
-
-	// Verify the content type is accurate
-	contentType := r.Header.Get("Content-Type")
-	if contentType != "application/json" {
-		return nil, nil, fmt.Errorf("invalid Content-Type, expected application/json, got %s", contentType)
 	}
 
 	// Parse the AdmissionReview request

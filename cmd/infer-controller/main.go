@@ -49,6 +49,7 @@ func parseConfig() (modelInferConfig, error) {
 
 func main() {
 	klog.InitFlags(nil)
+	defer klog.Flush()
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	config, err := parseConfig()
 	if err != nil {
