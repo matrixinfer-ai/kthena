@@ -1,7 +1,7 @@
 registry:
   # enabled is a flag to enable or disable the registry subchart. Default is true.
   enabled: true
-  registryWebhook:
+  webhook:
     enabled: true
 
 workload:

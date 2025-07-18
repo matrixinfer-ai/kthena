@@ -1,4 +1,4 @@
-{{- if .Values.registryWebhook.enabled }}
+{{- if .Values.webhook.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/component: registry-webhook
     {{- include "matrixinfer.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.registryWebhook.replicas | default 1 }}
+  replicas: {{ .Values.webhook.replicas | default 1 }}
   selector:
     matchLabels:
       app.kubernetes.io/component: registry-webhook
@@ -21,16 +21,16 @@ spec:
     spec:
       containers:
         - name: webhook
-          image: "{{ .Values.registryWebhook.image.repository }}:{{ .Values.registryWebhook.image.tag }}"
-          imagePullPolicy: {{ .Values.registryWebhook.image.pullPolicy }}
-          args: {{ .Values.registryWebhook.image.args }}
+          image: "{{ .Values.webhook.image.repository }}:{{ .Values.webhook.image.tag }}"
+          imagePullPolicy: {{ .Values.webhook.image.pullPolicy }}
+          args: {{ .Values.webhook.image.args }}
           ports:
             - containerPort: 8443
           volumeMounts:
             - name: webhook-certs
               mountPath: /etc/webhook/certs
               readOnly: true
-          resources: {{- toYaml .Values.registryWebhook.resource | nindent 12 }}
+          resources: {{- toYaml .Values.webhook.resource | nindent 12 }}
           livenessProbe:
             httpGet:
               path: /healthz
