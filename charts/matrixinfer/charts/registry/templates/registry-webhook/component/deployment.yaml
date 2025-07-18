@@ -23,7 +23,7 @@ spec:
         - name: webhook
           image: "{{ .Values.webhook.image.repository }}:{{ .Values.webhook.image.tag }}"
           imagePullPolicy: {{ .Values.webhook.image.pullPolicy }}
-          args: {{ .Values.webhook.image.args }}
+          args: {{- toYaml .Values.webhook.image.args | nindent 12 }}
           ports:
             - containerPort: 8443
           volumeMounts:
@@ -48,6 +48,6 @@ spec:
       volumes:
         - name: webhook-certs
           secret:
-            secretName: registry-webhook-certs
+            secretName: {{ include "matrixinfer.fullname" . }}-certs
       serviceAccountName: registry-webhook
 {{- end }}

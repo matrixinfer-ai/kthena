@@ -47,7 +47,7 @@ webhook:
     # pullPolicy is the image pull policy for the registry-webhook.
     pullPolicy: IfNotPresent
     # args are the command line arguments for the registry-webhook.
-    args: [ "--port=8443", "--tls-cert-file=/etc/webhook/certs/tls.crt", "--tls-private-key-file=/etc/webhook/certs/tls.key", "--webhook-timeout=30" ]
+    args: [ "--port=8443", "--webhook-timeout=30" ]
   # resource defines the resource limits and requests for the registry-webhook.
   resource:
     limits:
