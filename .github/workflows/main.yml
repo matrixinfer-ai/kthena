@@ -40,7 +40,7 @@ jobs:
       - name: helm lint
         shell: bash
         run: |
-          helm lint charts/matrix-infer
+          helm lint charts/matrixinfer
       - name: Setup Go
         uses: actions/setup-go@v4.0.0
         with:
