@@ -49,13 +49,13 @@ helm install my-release my-chart --namespace my-namespace
 By default, all subcharts will be installed. If you want to specify which of them to install, you can customize by using the `--set` flag.
 
 ```shell
-# this will only install workload subchart, and disable registry and gateway subcharts
+# this will only install workload subchart, and disable registry and networking subcharts
 hell install <your-name> <archive-file-name> --namespace <namespace> \
-  --set registry.enabled=false,gateway.enabled=false
+  --set registry.enabled=false,networking.enabled=false
 # or
 hell install <your-name> <archive-file-name> --namespace <namespace> \
   --set registry.enabled=false \
-  --set gateway.enabled=false
+  --set networking.enabled=false
 ```
 
 And you can even specify a customized `values.yaml` file for installation.

@@ -18,6 +18,6 @@ dependencies:
   - name: workload
     version: "1.0.0"
     condition: workload.enabled
-  - name: gateway
+  - name: networking
     version: "1.0.0"
-    condition: gateway.enabled
+    condition: networking.enabled

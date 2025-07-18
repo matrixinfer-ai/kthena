@@ -1,5 +1,5 @@
 apiVersion: v2
-name: gateway
+name: networking
 description: A Helm subchart for matrix-infer.
 type: application
 # This is the chart version. This version number should be incremented each time you make changes
