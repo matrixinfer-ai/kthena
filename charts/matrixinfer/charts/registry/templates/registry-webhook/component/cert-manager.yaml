@@ -1,0 +1,23 @@
+{{- if and .Values.webhook.enabled .Values.global.certManager.enabled }}
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ include "matrixinfer.fullname" . }}-issuer
+  namespace: {{ .Release.Namespace }}
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "matrixinfer.fullname" . }}-cert
+  namespace: {{ .Release.Namespace }}
+spec:
+  dnsNames:
+    - {{ include "matrixinfer.fullname" . }}.{{ .Release.Namespace }}.svc
+    - {{ include "matrixinfer.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local
+  issuerRef:
+    kind: Issuer
+    name: {{ include "matrixinfer.fullname" . }}-issuer
+  secretName: {{ include "matrixinfer.fullname" . }}-certs
+{{- end }}

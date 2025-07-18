@@ -328,8 +328,13 @@ func (mc *ModelController) updateModelInfer(ctx context.Context, model *registry
 }
 
 func (mc *ModelController) loadConfigFromConfigMap() {
-	// todo configmap namespace and name is hard-code
-	cm, err := mc.kubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), ConfigMapName, metav1.GetOptions{})
+	namespace, err := utils.GetInClusterNameSpace()
+	// when not running in cluster, namespace is default
+	if err != nil {
+		klog.Error(err)
+		namespace = "default"
+	}
+	cm, err := mc.kubeClient.CoreV1().ConfigMaps(namespace).Get(context.Background(), ConfigMapName, metav1.GetOptions{})
 	if err != nil {
 		klog.Warningf("ConfigMap does not exist. Error: %v", err)
 		return

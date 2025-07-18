@@ -266,6 +266,11 @@ func CheckPodRevision(pod *corev1.Pod, revision string) bool {
 	return podRevision == revision
 }
 
+// PodRevision returns the revision label of the pod.
+func PodRevision(pod *corev1.Pod) string {
+	return pod.Labels[workloadv1alpha1.RevisionLabelKey]
+}
+
 func isPodReady(pod *corev1.Pod) bool {
 	return isPodReadyConditionTrue(pod.Status)
 }

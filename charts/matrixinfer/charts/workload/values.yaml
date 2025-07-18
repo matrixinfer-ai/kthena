@@ -1,0 +1,12 @@
+inferController:
+  # replicas is the number of infer-controller instances to run.
+  replicas: 1
+  image:
+    # repository is the container image repository for the infer-controller.
+    repository: ghcr.io/matrixinfer-ai/infer-controller
+    # tag is the container image tag for the infer-controller.
+    tag: 1.0.0
+    # pullPolicy is the image pull policy for the infer-controller.
+    pullPolicy: IfNotPresent
+    # args are the command line arguments for the infer-controller.
+    args: [ "--v=2" ]

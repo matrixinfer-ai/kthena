@@ -53,11 +53,11 @@ type ModelInferController struct {
 
 	syncHandler         func(ctx context.Context, miKey string) error
 	podsLister          listerv1.PodLister
-	podsInformer        cache.Controller
+	podsInformer        cache.SharedIndexInformer
 	servicesLister      listerv1.ServiceLister
-	servicesInformer    cache.Controller
+	servicesInformer    cache.SharedIndexInformer
 	modelInfersLister   listerv1alpha1.ModelInferLister
-	modelInfersInformer cache.Controller
+	modelInfersInformer cache.SharedIndexInformer
 
 	// nolint
 	workqueue   workqueue.RateLimitingInterface
@@ -67,12 +67,11 @@ type ModelInferController struct {
 }
 
 func NewModelInferController(kubeClientSet kubernetes.Interface, modelInferClient clientset.Interface) *ModelInferController {
-	req, err := labels.NewRequirement(workloadv1alpha1.GroupNameLabelKey, selection.Exists, nil)
+	selector, err := labels.NewRequirement(workloadv1alpha1.GroupNameLabelKey, selection.Exists, nil)
 	if err != nil {
-		klog.Errorf("cannot create label selector,err:%v", err)
+		klog.Errorf("cannot create label selector, err: %v", err)
 		return nil
 	}
-	selector := labels.NewSelector().Add(*req)
 
 	kubeInformerFactory := informers.NewSharedInformerFactoryWithOptions(
 		kubeClientSet,
@@ -106,7 +105,7 @@ func NewModelInferController(kubeClientSet kubernetes.Interface, modelInferClien
 	}
 
 	klog.Info("Set the ModelInfer event handler")
-	_, _ = modelInferInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, _ = c.modelInfersInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			c.addModelInfer(obj)
 		},
@@ -118,7 +117,7 @@ func NewModelInferController(kubeClientSet kubernetes.Interface, modelInferClien
 		},
 	})
 
-	_, _ = podsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, _ = c.podsInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			c.addPod(obj)
 		},
@@ -141,7 +140,7 @@ func (c *ModelInferController) addModelInfer(obj interface{}) {
 		klog.Error("failed to parse ModelInfer type when addMI")
 		return
 	}
-	klog.V(4).Info("Adding", "modelinfer", klog.KObj(mi))
+	klog.V(4).InfoS("Adding", "modelinfer", klog.KObj(mi))
 	c.enqueueModelInfer(mi)
 }
 
@@ -157,18 +156,29 @@ func (c *ModelInferController) updateModelInfer(old, cur interface{}) {
 		return
 	}
 
-	if *(oldMI.Spec.Replicas) != *(curMI.Spec.Replicas) || !reflect.DeepEqual(oldMI.Spec.Template, curMI.Spec.Template) {
-		// Reconciling is only triggered if modelinfer.replicas changes or infergroup.spec changes
-		klog.V(4).Info("Updating", "modelinfer", klog.KObj(curMI))
-		c.enqueueModelInfer(curMI)
+	if reflect.DeepEqual(oldMI.Spec, curMI.Spec) {
+		// If the spec has not changed, we do not need to reconcile.
+		klog.V(4).InfoS("Spec has not changed, skipping update", "modelinfer", klog.KObj(curMI))
+		return
 	}
+
+	c.enqueueModelInfer(curMI)
 }
 
 func (c *ModelInferController) deleteModelInfer(obj interface{}) {
 	mi, ok := obj.(*workloadv1alpha1.ModelInfer)
 	if !ok {
-		klog.Error("failed to parse ModelInfer type when deleteMI")
-		return
+		// If the object is not a ModelInfer, it might be a tombstone object.
+		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+		if !ok {
+			klog.Errorf("failed to parse ModelInfer type when deleteMI %#v", obj)
+			return
+		}
+		mi, ok = tombstone.Obj.(*workloadv1alpha1.ModelInfer)
+		if !ok {
+			klog.Errorf("failed to parse ModelInfer from tombstone %#v", tombstone.Obj)
+			return
+		}
 	}
 
 	c.store.DeleteModelInfer(types.NamespacedName{
@@ -203,15 +213,20 @@ func (c *ModelInferController) updatePod(oldObj, newObj interface{}) {
 		}
 		return
 	}
-	revision := utils.HashModelInferRevision(mi.Spec.Template.Roles)
+
+	if c.shouldSkipPodHandling(mi, inferGroupName, newPod) {
+		// Pod revision mismatch inferGroup, this can rarely happen
+		return
+	}
+
 	switch {
-	case utils.IsPodRunningAndReady(newPod) && utils.CheckPodRevision(newPod, revision):
+	case utils.IsPodRunningAndReady(newPod):
 		// The pod is available, that is, the state is running, and the container is ready
-		err = c.handleReadyPod(mi, inferGroupName, newPod, revision)
+		err = c.handleReadyPod(mi, inferGroupName, newPod)
 		if err != nil {
 			klog.Errorf("handle running pod failed: %v", err)
 		}
-	case utils.IsPodFailed(newPod) || utils.ContainerRestarted(newPod) || !utils.CheckPodRevision(newPod, revision):
+	case utils.IsPodFailed(newPod) || utils.ContainerRestarted(newPod):
 		// handleErrorPod is not called until modelInfer has been called.
 		if !c.initialSync {
 			return
@@ -227,12 +242,24 @@ func (c *ModelInferController) updatePod(oldObj, newObj interface{}) {
 func (c *ModelInferController) deletePod(obj interface{}) {
 	pod, ok := obj.(*corev1.Pod)
 	if !ok {
-		klog.Error("failed to parse pod type when deletePod")
-		return
+		// If the object is not a Pod, it might be a tombstone object.
+		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+		if !ok {
+			klog.Error("failed to parse pod type when deletePod")
+			return
+		}
+		pod, ok = tombstone.Obj.(*corev1.Pod)
+		if !ok {
+			klog.Errorf("failed to parse Pod from tombstone %#v", tombstone.Obj)
+			return
+		}
 	}
 
 	mi, inferGroupName, err := c.getModelInfer(pod)
 	if err == nil {
+		if c.shouldSkipPodHandling(mi, inferGroupName, pod) {
+			return
+		}
 		c.DeleteInferGroup(mi, inferGroupName)
 		return
 	}
@@ -295,7 +322,7 @@ func (c *ModelInferController) syncModelInfer(ctx context.Context, key string) e
 		return err
 	}
 	// only fields in roles can be modified in rolling updates
-	revision := utils.HashModelInferRevision(mi.Spec.Template.Roles)
+	revision := utils.Revision(mi.Spec.Template.Roles)
 
 	err = c.manageReplicas(ctx, mi, revision)
 	if err != nil {
@@ -589,19 +616,19 @@ func (c *ModelInferController) manageRollingUpdate(mi *workloadv1alpha1.ModelInf
 		return fmt.Errorf("cannot get inferGroupList from store, err:%v", err)
 	}
 	// we terminate the inferGroup with the largest ordinal that does not match the update revision.
-	for target := len(inferGroupList) - 1; target >= updateMin; target-- {
-		if c.isInferGroupOutdated(inferGroupList[target], mi.Namespace, revision) {
+	for i := len(inferGroupList) - 1; i >= updateMin; i-- {
+		if c.isInferGroupOutdated(inferGroupList[i], mi.Namespace, revision) {
 			// target inferGroup is not the latest version, needs to be updated
-			klog.V(2).Infof("inferGroup %s will be terminating for update", inferGroupList[target].Name)
-			c.DeleteInferGroup(mi, inferGroupList[target].Name)
+			klog.V(2).Infof("inferGroup %s will be terminating for update", inferGroupList[i].Name)
+			c.DeleteInferGroup(mi, inferGroupList[i].Name)
 			return nil
 		}
-		if inferGroupList[target].Status != datastore.InferGroupRunning {
+		if inferGroupList[i].Status != datastore.InferGroupRunning {
 			// target inferGroup is the latest version, but not running. We need to wait for the status to change to running.
 			// If the group fails after rolling, it will automatically be deleted and rebuilt when detecting the pod failure.
 			// If the group still pending due to reasons such as being unable to be scheduled, rolling update process will stop
 			// to avoid affecting other groups that are running normally.
-			klog.V(4).Infof("waiting for the infergroup %s status become running", inferGroupList[target].Name)
+			klog.V(4).Infof("waiting for the infergroup %s status become running", inferGroupList[i].Name)
 			return nil
 		}
 		// target inferGroup is already the latest version and running, processing the rolling update of the next group.
@@ -610,12 +637,12 @@ func (c *ModelInferController) manageRollingUpdate(mi *workloadv1alpha1.ModelInf
 	return nil
 }
 
-func (c *ModelInferController) handleReadyPod(mi *workloadv1alpha1.ModelInfer, inferGroupName string, newPod *corev1.Pod, revision string) error {
+func (c *ModelInferController) handleReadyPod(mi *workloadv1alpha1.ModelInfer, inferGroupName string, newPod *corev1.Pod) error {
 	// Add the running pod to the global storage and try to update the inferGroup status
 	c.store.AddRunningPodToInferGroup(types.NamespacedName{
 		Namespace: mi.Namespace,
 		Name:      mi.Name,
-	}, inferGroupName, newPod.Name, revision)
+	}, inferGroupName, newPod.Name, utils.PodRevision(newPod))
 	ready, err := c.checkInferGroupReady(mi, inferGroupName)
 	if err != nil {
 		return fmt.Errorf("failed to check inferGroup status, err: %v", err)
@@ -716,7 +743,7 @@ func (c *ModelInferController) checkInferGroupReady(mi *workloadv1alpha1.ModelIn
 	return true, nil
 }
 
-func (c *ModelInferController) isInferGroupOutdated(group datastore.InferGroup, namespace string, newHash string) bool {
+func (c *ModelInferController) isInferGroupOutdated(group datastore.InferGroup, namespace, newRevision string) bool {
 	// Find the pods corresponding to infergroup
 	req, err := labels.NewRequirement(workloadv1alpha1.GroupNameLabelKey, selection.Equals, []string{group.Name})
 	if err != nil {
@@ -735,12 +762,7 @@ func (c *ModelInferController) isInferGroupOutdated(group datastore.InferGroup, 
 	}
 	// Check all pods match the newHash
 	for _, pod := range pods {
-		revision, ok := pod.Labels[workloadv1alpha1.RevisionLabelKey]
-		if !ok {
-			klog.V(2).Infof("pod of inferGroup %s cannot find revision label", group.Name)
-			return true
-		}
-		if revision != newHash {
+		if utils.PodRevision(pod) != newRevision {
 			return true
 		}
 	}
@@ -757,4 +779,20 @@ func (c *ModelInferController) getModelInfer(pod *corev1.Pod) (*workloadv1alpha1
 		return nil, "", err
 	}
 	return mi, inferGroupName, nil
+}
+
+// shouldSkipPodHandling checks if a pod should be skipped based on revision mismatch
+func (c *ModelInferController) shouldSkipPodHandling(mi *workloadv1alpha1.ModelInfer, inferGroupName string, pod *corev1.Pod) bool {
+	podRevision := utils.PodRevision(pod)
+	inferGroup := c.store.GetInferGroup(types.NamespacedName{
+		Namespace: mi.Namespace,
+		Name:      mi.Name,
+	}, inferGroupName)
+	if inferGroup != nil && inferGroup.Revision != podRevision {
+		// If the pod revision is not equal to the inferGroup revision, we do not need to handle it.
+		klog.V(4).Infof("pod %s/%s revision %s is not equal to inferGroup %s revision %s, skip handling",
+			pod.Namespace, pod.Name, podRevision, inferGroupName, inferGroup.Revision)
+		return true
+	}
+	return false
 }
