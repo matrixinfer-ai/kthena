@@ -30,26 +30,30 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/registry-webhook/server"
 )
 
-var (
+type config struct {
 	masterURL      string
 	tlsCertFile    string
 	tlsPrivateKey  string
 	port           int
 	webhookTimeout int
-)
+}
 
-func init() {
-	pflag.StringVar(&masterURL, "master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
-	pflag.StringVar(&tlsCertFile, "tls-cert-file", "/etc/webhook/certs/tls.crt", "File containing the x509 Certificate for HTTPS.")
-	pflag.StringVar(&tlsPrivateKey, "tls-private-key-file", "/etc/webhook/certs/tls.key", "File containing the x509 private key to --tls-cert-file.")
-	pflag.IntVar(&port, "port", 8443, "Secure port that the webhook listens on")
-	pflag.IntVar(&webhookTimeout, "webhook-timeout", 30, "Timeout for webhook operations in seconds")
+func parseConfig() config {
+	var cfg config
+	pflag.StringVar(&cfg.masterURL, "master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
+	pflag.StringVar(&cfg.tlsCertFile, "tls-cert-file", "/etc/webhook/certs/tls.crt", "File containing the x509 Certificate for HTTPS.")
+	pflag.StringVar(&cfg.tlsPrivateKey, "tls-private-key-file", "/etc/webhook/certs/tls.key", "File containing the x509 private key to --tls-cert-file.")
+	pflag.IntVar(&cfg.port, "port", 8443, "Secure port that the webhook listens on")
+	pflag.IntVar(&cfg.webhookTimeout, "webhook-timeout", 30, "Timeout for webhook operations in seconds")
+	pflag.Parse()
+
+	return cfg
 }
 
 func main() {
 	klog.InitFlags(nil)
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
-	pflag.Parse()
+	config := parseConfig()
 
 	// Set up signals so we handle the first shutdown signal gracefully
 	stopCh := setupSignalHandler()
@@ -73,10 +77,10 @@ func main() {
 	webhookServer := server.NewWebhookServer(
 		kubeClient,
 		matrixinferClient,
-		tlsCertFile,
-		tlsPrivateKey,
-		port,
-		webhookTimeout,
+		config.tlsCertFile,
+		config.tlsPrivateKey,
+		config.port,
+		config.webhookTimeout,
 	)
 
 	// Start webhook server
