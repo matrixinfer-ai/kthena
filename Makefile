@@ -149,6 +149,11 @@ docker-push: docker-build-gateway docker-build-modelinfer docker-build-modelcont
 # PLATFORMS defines the target platforms for the images be built to provide support to multiple
 # architectures.
 PLATFORMS ?= linux/arm64,linux/amd64
+
+# Make sure Buildx is set up:
+#   docker buildx create --name mybuilder --driver docker-container --use
+#   docker buildx inspect --bootstrap
+
 .PHONY: docker-buildx
 docker-buildx: ## Build and push docker image for cross-platform support
 	$(CONTAINER_TOOL) buildx build \
