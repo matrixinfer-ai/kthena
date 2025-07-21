@@ -2,21 +2,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "matrixinfer.fullname" . }}-registry-webhook
+  name: {{ include "matrixinfer.fullname" . }}-webhook
   namespace: {{ .Release.Namespace }}
   labels:
-    app.kubernetes.io/component: registry-webhook
+    app.kubernetes.io/component: webhook
     {{- include "matrixinfer.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.webhook.replicas | default 1 }}
   selector:
     matchLabels:
-      app.kubernetes.io/component: registry-webhook
+      app.kubernetes.io/component: webhook
       {{- include "matrixinfer.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app.kubernetes.io/component: registry-webhook
+        app.kubernetes.io/component: webhook
         {{- include "matrixinfer.labels" . | nindent 8 }}
     spec:
       containers:
@@ -48,6 +48,6 @@ spec:
       volumes:
         - name: webhook-certs
           secret:
-            secretName: {{ include "matrixinfer.fullname" . }}-registry-webhook-certs
+            secretName: {{ include "matrixinfer.fullname" . }}-webhook-certs
       serviceAccountName: registry-webhook
 {{- end }}
