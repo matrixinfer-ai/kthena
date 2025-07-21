@@ -18,15 +18,28 @@ package main
 
 import (
 	"context"
+	"flag"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/spf13/pflag"
 	"k8s.io/klog/v2"
+
 	"matrixinfer.ai/matrixinfer/cmd/infer-gateway/app"
 )
 
 func main() {
+	// Initialize klog flags
+	klog.InitFlags(nil)
+	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
+	defer klog.Flush()
+	flag.Parse()
+	pflag.CommandLine.VisitAll(func(f *pflag.Flag) {
+		// print all flags for debugging
+		klog.Infof("Flag: %s, Value: %s", f.Name, f.Value.String())
+	})
+
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)
 	ctx, cancel := context.WithCancel(context.Background())
