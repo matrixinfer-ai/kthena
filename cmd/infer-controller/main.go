@@ -45,6 +45,11 @@ func main() {
 	pflag.IntVar(&workers, "workers", 5, "number of workers to run")
 	pflag.Parse()
 
+	pflag.CommandLine.VisitAll(func(f *pflag.Flag) {
+		// print all flags for debugging
+		klog.Infof("Flag: %s, Value: %s", f.Name, f.Value.String())
+	})
+
 	// create clientset
 	config, err := clientcmd.BuildConfigFromFlags(master, kubeconfig)
 	if err != nil {
