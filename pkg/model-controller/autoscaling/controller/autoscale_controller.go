@@ -577,7 +577,7 @@ func processMetricString(metricStr string, metricTargets algorithm.MetricsMap, p
 				addMetric(instanceMetricMap, mf.GetName(), quantileInDiffMetric)
 			}
 		default:
-			klog.InfoS("metric type: %s is out of range", mf.GetType())
+			klog.InfoS("metric type is out of range", "type", mf.GetType())
 		}
 	}
 
