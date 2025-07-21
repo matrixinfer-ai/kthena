@@ -1,4 +1,4 @@
-﻿/*
+/*
 Copyright MatrixInfer-AI Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -225,7 +225,7 @@ func (ac *AutoscaleController) processAutoscale(ctx context.Context, model v1alp
 				klog.InfoS("start to update")
 				for _, modelInfer := range modelInferList.Items {
 					klog.InfoS("finally modelInfer", "modelInfer", modelInfer)
-					if *modelInfer.Spec.Replicas == correctedInstances {
+					if modelInfer.Spec.Replicas == nil || *modelInfer.Spec.Replicas == correctedInstances {
 						klog.Warning("modelInfer replicas no need to update")
 						continue
 					}
@@ -347,7 +347,9 @@ func (ac *AutoscaleController) doAutoscale(ctx context.Context, namespace string
 	var currentInstancesCount int32 = 0
 	for _, modelInfer := range modelInferList.Items {
 		modelInferMap[modelInfer.Name] = ModelInfer{modelInfer.Name, 0}
-		currentInstancesCount += *modelInfer.Spec.Replicas
+		if modelInfer.Spec.Replicas != nil {
+			currentInstancesCount += *modelInfer.Spec.Replicas
+		}
 	}
 	klog.InfoS("doAutoscale modelInfer", "currentInstancesCount", currentInstancesCount)
 	listPodCtx, cancel := context.WithTimeout(ctx, util.AutoscaleCtxTimeoutSeconds*time.Second)
