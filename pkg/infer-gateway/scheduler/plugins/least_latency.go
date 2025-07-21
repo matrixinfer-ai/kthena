@@ -21,13 +21,13 @@ import (
 
 	"github.com/stretchr/testify/assert/yaml"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2"
+
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
 )
 
 var _ framework.ScorePlugin = &LeastLatency{}
-var log = logger.NewLogger("plugins")
 
 const LeastLatencyPluginName = "least-latency"
 
@@ -46,7 +46,7 @@ type LeastLatencyArgs struct {
 func NewLeastLatency(pluginArg runtime.RawExtension) *LeastLatency {
 	var leastLatencyArgs LeastLatencyArgs
 	if yaml.Unmarshal(pluginArg.Raw, &leastLatencyArgs) != nil {
-		log.Errorf("Unmarshal LeastLatencyArgs error, setting default value")
+		klog.Errorf("Unmarshal LeastLatencyArgs error, setting default value")
 		leastLatencyArgs = LeastLatencyArgs{
 			0.5,
 		}

@@ -11,12 +11,10 @@ require (
 	github.com/pkoukk/tiktoken-go-loader v0.0.1
 	github.com/prometheus/client_model v0.6.2
 	github.com/prometheus/common v0.63.0
-	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/pflag v1.0.6
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/time v0.11.0
 	gomodules.xyz/jsonpatch/v2 v2.5.0
-	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	istio.io/istio v0.0.0-20250514001512-c9c7d1fa7da1
 	k8s.io/api v0.33.2
 	k8s.io/apiextensions-apiserver v0.33.0
