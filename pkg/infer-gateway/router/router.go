@@ -304,6 +304,13 @@ func buildPrefillRequest(req *http.Request, modelRequest ModelRequest) (*http.Re
 }
 
 func buildDecodeRequest(req *http.Request, modelRequest ModelRequest) (*http.Request, error) {
+	if v, ok := modelRequest["stream"]; ok && v.(bool) {
+		// If stream is true, add stream options to include token usage.
+		modelRequest["stream_options"] = map[string]interface{}{
+			"include_usage": true,
+		}
+	}
+
 	body, err := json.Marshal(modelRequest)
 	if err != nil {
 		return nil, err

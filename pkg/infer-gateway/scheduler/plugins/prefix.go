@@ -76,6 +76,7 @@ import (
 	"github.com/cespare/xxhash"
 	"github.com/stretchr/testify/assert/yaml"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2"
 
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
@@ -105,7 +106,7 @@ type PrefixCacheArgs struct {
 func NewPrefixCache(store datastore.Store, pluginArg runtime.RawExtension) *PrefixCache {
 	var prefixCacheArgs PrefixCacheArgs
 	if yaml.Unmarshal(pluginArg.Raw, &prefixCacheArgs) != nil {
-		log.Errorf("Unmarshal PrefixCacheArgs error, setting default value")
+		klog.Errorf("Unmarshal PrefixCacheArgs error, setting default value")
 		prefixCacheArgs = PrefixCacheArgs{
 			64,
 			128,

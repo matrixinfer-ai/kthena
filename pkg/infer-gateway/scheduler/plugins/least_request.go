@@ -20,6 +20,8 @@ import (
 	"github.com/stretchr/testify/assert/yaml"
 	"istio.io/istio/pkg/slices"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2"
+
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
 )
@@ -41,7 +43,7 @@ type LeastRequestArgs struct {
 func NewLeastRequest(pluginArg runtime.RawExtension) *LeastRequest {
 	var leastRequestArgs LeastRequestArgs
 	if yaml.Unmarshal(pluginArg.Raw, &leastRequestArgs) != nil {
-		log.Errorf("Unmarshal LeastRequestArgs error, setting default value")
+		klog.Errorf("Unmarshal LeastRequestArgs error, setting default value")
 		leastRequestArgs = LeastRequestArgs{
 			10,
 		}
