@@ -52,7 +52,7 @@ gen-crd: controller-gen
 	$(CONTROLLER_GEN) crd paths="./pkg/apis/workload/..." output:crd:artifacts:config=charts/matrixinfer/charts/workload/crds
 	$(CONTROLLER_GEN) crd paths="./pkg/apis/registry/..." output:crd:artifacts:config=charts/matrixinfer/charts/registry/crds
 .PHONY: generate
-generate: controller-gen code-generator gen-crd ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+generate: controller-gen gen-crd ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 	go mod tidy
 	./hack/update-codegen.sh
@@ -60,20 +60,6 @@ generate: controller-gen code-generator gen-crd ## Generate code containing Deep
 .PHONY: gen-check
 gen-check: generate
 	git diff --exit-code
-
-# Use same code-generator version as k8s.io/api
-CODEGEN_VERSION := $(shell go list -m -f '{{.Version}}' k8s.io/api)
-CODEGEN_ROOT = $(shell go env GOMODCACHE)/k8s.io/code-generator@$(CODEGEN_VERSION)
-.PHONY: code-generator
-code-generator:
-	@echo "Installing code generation tools..."
-	@GOBIN=$(PROJECT_DIR)/bin GO111MODULE=on go install k8s.io/code-generator/cmd/client-gen@$(CODEGEN_VERSION)
-	@GOBIN=$(PROJECT_DIR)/bin GO111MODULE=on go install k8s.io/code-generator/cmd/lister-gen@$(CODEGEN_VERSION)
-	@GOBIN=$(PROJECT_DIR)/bin GO111MODULE=on go install k8s.io/code-generator/cmd/informer-gen@$(CODEGEN_VERSION)
-	@GOBIN=$(PROJECT_DIR)/bin GO111MODULE=on go install k8s.io/code-generator/cmd/applyconfiguration-gen@$(CODEGEN_VERSION)
-	@GOBIN=$(PROJECT_DIR)/bin GO111MODULE=on go install k8s.io/code-generator/cmd/deepcopy-gen@$(CODEGEN_VERSION)
-	@GOBIN=$(PROJECT_DIR)/bin GO111MODULE=on go install k8s.io/code-generator/cmd/defaulter-gen@$(CODEGEN_VERSION)
-	@GOBIN=$(PROJECT_DIR)/bin GO111MODULE=on go install k8s.io/code-generator/cmd/conversion-gen@$(CODEGEN_VERSION)
 
 .PHONY: fmt
 fmt: ## Run go fmt against code.
