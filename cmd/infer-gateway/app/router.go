@@ -84,7 +84,7 @@ func (s *Server) startRouter(ctx context.Context, router *router.Router) {
 	ctx, cancel := context.WithTimeout(context.Background(), gracefulShutdownTimeout)
 	defer cancel()
 	if err := server.Shutdown(ctx); err != nil {
-		klog.Info("Server Shutdown:", err)
+		klog.Errorf("Server shutdown failed: %v", err)
 	}
 	klog.Info("HTTP server exited")
 }
