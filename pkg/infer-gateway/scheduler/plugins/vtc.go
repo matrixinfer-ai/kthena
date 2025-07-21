@@ -1,4 +1,5 @@
 package plugins
+
 import (
 	"math"
 	"math/rand"
@@ -25,8 +26,8 @@ const BasicVTCRouterPluginName = "Basic VTC Router"
 
 // BasicVTCRouter implements the VTC routing algorithm
 type BasicVTCRouter struct {
-	name           string
-	tokenTracker   vtc.TokenTracker
+	name         string
+	tokenTracker vtc.TokenTracker
 }
 
 func NewBasicVTCRouter() *BasicVTCRouter {
@@ -89,7 +90,7 @@ func (v *BasicVTCRouter) Score(ctx *framework.Context, pods []*datastore.PodInfo
 	return scoreResults
 }
 
-// 实现TokenCountablePlugin接口
+// addTokenCount adds input and output token counts to the token tracker
 func (v *BasicVTCRouter) UpdateTokenCount(userIp string, inputTokens, outputTokens float64) {
-    v.tokenTracker.UpdateTokenCount(userIp, inputTokens, outputTokens)
+	v.tokenTracker.UpdateTokenCount(userIp, inputTokens, outputTokens)
 }

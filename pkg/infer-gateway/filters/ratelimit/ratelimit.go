@@ -56,7 +56,7 @@ func (r *TokenRateLimiter) RateLimit(model, prompt string) (int, error) {
 	limiter, exists := r.inputLimiter[model]
 	r.mutex.RUnlock()
 	if !exists {
-		return 0,nil
+		return 0, nil
 	}
 
 	size, err := r.tokenizer.CalculateTokenNum(prompt)

@@ -1,4 +1,3 @@
-
 package vtc
 
 import (
@@ -15,8 +14,8 @@ const (
 	defaultTokenTrackerMinTokens  = 1000.0 // Sensible min default value for adaptive token tracking(see vtc_basic)
 	defaultTokenTrackerMaxTokens  = 8000.0 // Sensible max default value for adaptive token tracking(see vtc_basic)
 	defaultTimeUnit               = "minutes"
-	defaultInputTokenWeight  = 1.0
-	defaultOutputTokenWeight = 2.0
+	defaultInputTokenWeight       = 1.0
+	defaultOutputTokenWeight      = 2.0
 )
 
 var (
@@ -24,8 +23,8 @@ var (
 	TokenTrackerMinTokens  = defaultTokenTrackerMinTokens
 	TokenTrackerMaxTokens  = defaultTokenTrackerMaxTokens
 	TimeUnitStr            = defaultTimeUnit
-	InputTokenWeight  = defaultInputTokenWeight
-	OutputTokenWeight = defaultOutputTokenWeight
+	InputTokenWeight       = defaultInputTokenWeight
+	OutputTokenWeight      = defaultOutputTokenWeight
 )
 
 type TimeUnit int
@@ -48,6 +47,7 @@ func (unit TimeUnit) toTimestamp(t time.Time) int64 {
 	}
 	return t.Unix()
 }
+
 // TokenTracker tracks token usage per user
 type TokenTracker interface {
 	GetTokenCount(user string) (float64, error)
@@ -58,6 +58,7 @@ type TokenTracker interface {
 
 	GetMaxTokenCount() (float64, error)
 }
+
 // bucketNode stores the data for a single time bucket in the linked list.
 type bucketNode struct {
 	timestamp  int64
@@ -127,7 +128,6 @@ func NewInMemorySlidingWindowTokenTracker() TokenTracker {
 		minTrackedToken: math.MaxFloat64, // Start high so first positive value becomes min
 		maxTrackedToken: 0.0,             // Start with zero as default max
 	}
-
 
 	return tracker
 }

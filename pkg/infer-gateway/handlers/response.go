@@ -171,30 +171,27 @@ type Usage struct {
 	TotalTokens      int `json:"total_tokens"`
 }
 
-// 从响应块中提取Token数目
+// Get Token from chunk
 func ExtractTokensFromChunk(chunk []byte) (Usage, error) {
-    var usage Usage
-    
-    // 处理流式响应前缀（如 "data: {"id":...}"）
-    chunkStr := string(chunk)
-    if strings.HasPrefix(chunkStr, streamingRespPrefix) {
-        chunkStr = strings.TrimPrefix(chunkStr, streamingRespPrefix)
-        if chunkStr == "[DONE]" {
-            return usage, nil // 结束标记，无Token数据
-        }
-    }
-    
-    // 尝试解析为完整响应
-    var openAIResp OpenAIResponseBody
-    if err := json.Unmarshal([]byte(chunkStr), &openAIResp); err == nil {
-        return openAIResp.Usage, nil
-    }
-    
-    // 尝试解析为简化的Usage结构
-    var simpleResp Response
-    if err := json.Unmarshal([]byte(chunkStr), &simpleResp); err == nil {
-        return simpleResp.Usage, nil
-    }
-    
-    return usage, fmt.Errorf("无法从响应块中提取Token数据")
+	var usage Usage
+
+	chunkStr := string(chunk)
+	if strings.HasPrefix(chunkStr, streamingRespPrefix) {
+		chunkStr = strings.TrimPrefix(chunkStr, streamingRespPrefix)
+		if chunkStr == "[DONE]" {
+			return usage, nil
+		}
+	}
+
+	var openAIResp OpenAIResponseBody
+	if err := json.Unmarshal([]byte(chunkStr), &openAIResp); err == nil {
+		return openAIResp.Usage, nil
+	}
+
+	var simpleResp Response
+	if err := json.Unmarshal([]byte(chunkStr), &simpleResp); err == nil {
+		return simpleResp.Usage, nil
+	}
+
+	return usage, fmt.Errorf("cnot extract usage from chunk: %s", chunkStr)
 }

@@ -82,8 +82,8 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 			return
 		}
 		// add client IP to modelRequest
-        clientIP := c.ClientIP()  // 获取客户端 IP (处理代理头)
-        modelRequest["client_ip"] = clientIP  // 添加到请求 map
+		clientIP := c.ClientIP()             // get client IP from gin context
+		modelRequest["client_ip"] = clientIP // add client IP to modelRequest
 		modelName, ok := modelRequest["model"].(string)
 		if !ok {
 			c.AbortWithStatusJSON(http.StatusNotFound, "model not found")
@@ -236,7 +236,7 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 						log.Warningf("解析Token失败: %v", err)
 						return
 					}
-					
+
 					// 3. outputToken count
 					if tokens.CompletionTokens > 0 {
 						atomic.AddInt32(&outputTokens, int32(tokens.CompletionTokens))
@@ -247,7 +247,7 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 			return err != io.EOF
 		})
 
-		r.scheduler.UpdateTokenUsage(clientIP, float64(inputTokens), float64( outputTokens))
+		r.scheduler.UpdateTokenUsage(clientIP, float64(inputTokens), float64(outputTokens))
 
 	}
 }

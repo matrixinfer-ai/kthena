@@ -228,13 +228,13 @@ func (s *SchedulerImpl) RunPostHooks(ctx *framework.Context) {
 func (s *SchedulerImpl) UpdateTokenUsage(userIp string, inputTokens, outputTokens float64) {
 	tokenPluginsFound := false
 	for _, plugin := range s.scorePlugins {
-        // 类型断言：检查插件是否实现了TokenCountablePlugin接口
-        if countable, ok := plugin.plugin.(framework.TokenCountablePlugin); ok {
-            countable.UpdateTokenCount(userIp, inputTokens, outputTokens)
+		// 类型断言：检查插件是否实现了TokenCountablePlugin接口
+		if countable, ok := plugin.plugin.(framework.TokenCountablePlugin); ok {
+			countable.UpdateTokenCount(userIp, inputTokens, outputTokens)
 			tokenPluginsFound = true
-        }
-    }
+		}
+	}
 	if !tokenPluginsFound {
-        log.Warnf("No plugins found to handle token counting for user %s", userIp)
-    }
+		log.Warnf("No plugins found to handle token counting for user %s", userIp)
+	}
 }
