@@ -37,7 +37,7 @@ type ModelSpec struct {
 	// +listType=map
 	// +listMapKey=name
 	Backends []ModelBackend `json:"backends"`
-	// AutoscalingPolicyRef references the autoscaler policy to be used for this model.
+	// AutoscalingPolicyRef references the autoscaling policy to be used for this model.
 	// +optional
 	AutoscalingPolicyRef corev1.LocalObjectReference `json:"autoscalingPolicyRef,omitempty"`
 	// CostExpansionRatePercent is the percentage rate at which the cost expands.
@@ -103,7 +103,7 @@ type ModelBackend struct {
 	// LoraAdapterRefs is a list of references to LoRA adapters.
 	// +optional
 	LoraAdapterRefs []corev1.LocalObjectReference `json:"loraAdapterRefs,omitempty"`
-	// AutoscalingPolicyRef references the autoscaler policy for this backend.
+	// AutoscalingPolicyRef references the autoscaling policy for this backend.
 	// +optional
 	AutoscalingPolicyRef corev1.LocalObjectReference `json:"autoscalingPolicyRef,omitempty"`
 }

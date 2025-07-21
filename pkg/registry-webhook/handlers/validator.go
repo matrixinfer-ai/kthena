@@ -281,7 +281,7 @@ func (v *ModelValidator) validateAutoscalingPolicyRefs(ctx context.Context, mode
 	return allErrs
 }
 
-// validateAutoScalingPolicyScope validates the autoscaler field usage rules for Model.
+// validateAutoScalingPolicyScope validates the autoscaling field usage rules for Model.
 func validateAutoScalingPolicyScope(model *registryv1alpha1.Model) field.ErrorList {
 	spec := model.Spec
 	var allErrs field.ErrorList
@@ -300,20 +300,20 @@ func validateAutoScalingPolicyScope(model *registryv1alpha1.Model) field.ErrorLi
 			if backend.Cost != 0 {
 				allErrs = append(allErrs, field.Forbidden(
 					field.NewPath("spec").Child("backends").Index(i).Child("cost"),
-					"cost must not be provided when model-level autoscaler is not set",
+					"cost must not be provided when model-level autoscaling is not set",
 				))
 			}
 			if backend.ScaleToZeroGracePeriod != nil {
 				allErrs = append(allErrs, field.Forbidden(
 					field.NewPath("spec").Child("backends").Index(i).Child("scaleToZeroGracePeriod"),
-					"scaleToZeroGracePeriod must not be provided when model-level autoscaler is not set",
+					"scaleToZeroGracePeriod must not be provided when model-level autoscaling is not set",
 				))
 			}
 		}
 		if spec.CostExpansionRatePercent != nil {
 			allErrs = append(allErrs, field.Forbidden(
 				field.NewPath("spec").Child("costExpansionRatePercent"),
-				"costExpansionRatePercent must not be provided when model-level autoscaler is not set",
+				"costExpansionRatePercent must not be provided when model-level autoscaling is not set",
 			))
 		}
 		for i, backend := range spec.Backends {
@@ -321,26 +321,26 @@ func validateAutoScalingPolicyScope(model *registryv1alpha1.Model) field.ErrorLi
 				allErrs = append(allErrs, field.Invalid(
 					field.NewPath("spec").Child("backends").Index(i).Child("minReplicas"),
 					backend.MinReplicas,
-					"minReplicas must be >= 1 when backend-level autoscaler is set",
+					"minReplicas must be >= 1 when backend-level autoscaling is set",
 				))
 			}
 		}
 		if allBackendAutoScalingEmpty {
-			// Case 1 (No Auto Scaling): All backend autoscaler empty
+			// Case 1 (No Auto Scaling): All backend autoscaling empty
 			// minReplicas == maxReplicas for all backends
 			for i, backend := range spec.Backends {
 				if backend.MinReplicas != backend.MaxReplicas {
 					allErrs = append(allErrs, field.Invalid(
 						field.NewPath("spec").Child("backends").Index(i),
 						fmt.Sprintf("minReplicas=%d, maxReplicas=%d", backend.MinReplicas, backend.MaxReplicas),
-						"minReplicas and maxReplicas must be equal and > 0 when no autoscaler is set",
+						"minReplicas and maxReplicas must be equal and > 0 when no autoscaling is set",
 					))
 				}
 			}
 		}
 	} else {
 		if allBackendAutoScalingEmpty {
-			// Case 3 (Global Scope): Model autoscaler set, all backend autoscaler empty
+			// Case 3 (Global Scope): Model autoscaling set, all backend autoscaling empty
 			// minReplicas >= 0 for all backends, sum(minReplicas) >= 1
 			// Cost, ScaleToZeroGracePeriod, CostExpansionRatePercent must be provided
 			minSum := int32(0)
@@ -349,20 +349,20 @@ func validateAutoScalingPolicyScope(model *registryv1alpha1.Model) field.ErrorLi
 					allErrs = append(allErrs, field.Invalid(
 						field.NewPath("spec").Child("backends").Index(i).Child("minReplicas"),
 						backend.MinReplicas,
-						"minReplicas must be >= 0 when model-level autoscaler is set",
+						"minReplicas must be >= 0 when model-level autoscaling is set",
 					))
 				}
 				minSum += backend.MinReplicas
 				if backend.Cost == 0 {
 					allErrs = append(allErrs, field.Required(
 						field.NewPath("spec").Child("backends").Index(i).Child("cost"),
-						"cost must be provided when model-level autoscaler is set",
+						"cost must be provided when model-level autoscaling is set",
 					))
 				}
 				if backend.ScaleToZeroGracePeriod == nil {
 					allErrs = append(allErrs, field.Required(
 						field.NewPath("spec").Child("backends").Index(i).Child("scaleToZeroGracePeriod"),
-						"scaleToZeroGracePeriod must be provided when model-level autoscaler is set",
+						"scaleToZeroGracePeriod must be provided when model-level autoscaling is set",
 					))
 				}
 			}
@@ -370,20 +370,20 @@ func validateAutoScalingPolicyScope(model *registryv1alpha1.Model) field.ErrorLi
 				allErrs = append(allErrs, field.Invalid(
 					field.NewPath("spec").Child("backends"),
 					minSum,
-					"sum of all minReplicas must be >= 1 when model-level autoscaler is set",
+					"sum of all minReplicas must be >= 1 when model-level autoscaling is set",
 				))
 			}
 			if spec.CostExpansionRatePercent == nil {
 				allErrs = append(allErrs, field.Required(
 					field.NewPath("spec").Child("costExpansionRatePercent"),
-					"costExpansionRatePercent must be provided and > 0 when model-level autoscaler is set",
+					"costExpansionRatePercent must be provided and > 0 when model-level autoscaling is set",
 				))
 			}
 		} else {
-			// Case 4: Both model and at least one backend set autoscaler -> error
+			// Case 4: Both model and at least one backend set autoscaling -> error
 			allErrs = append(allErrs, field.Forbidden(
 				field.NewPath("spec").Child("autoscalingPolicyRef"),
-				"spec.autoscalingPolicyRef and spec.backends[].autoscalingPolicyRef cannot both be set; choose model-level or backend-level autoscaler, not both",
+				"spec.autoscalingPolicyRef and spec.backends[].autoscalingPolicyRef cannot both be set; choose model-level or backend-level autoscaling, not both",
 			))
 		}
 	}
