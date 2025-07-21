@@ -45,5 +45,5 @@ spec:
       volumes:
         - name: scheduler-config
           configMap:
-            name: infer-gateway-config
+            name: {{ include "matrixinfer.fullname" . }}-infer-gateway-config
       serviceAccountName: infer-gateway
