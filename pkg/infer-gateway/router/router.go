@@ -26,7 +26,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"istio.io/pkg/log"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 
@@ -270,13 +269,13 @@ func proxyDecodePod(
 				if bytes.HasPrefix(line, []byte("data:")) {
 					parsed := handlers.ParseStreamRespForUsage(string(line))
 					if parsed.Usage.TotalTokens > 0 {
-						log.Debugf("Parsed usage: %+v", parsed.Usage)
+						klog.V(4).Infof("Parsed usage: %+v", parsed.Usage)
 					}
 				}
 			}
 			if err != nil {
 				if err != io.EOF {
-					log.Errorf("error reading stream body: %v", err)
+					klog.Errorf("error reading stream body: %v", err)
 				}
 				return false
 			}
