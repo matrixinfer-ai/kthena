@@ -38,4 +38,12 @@ spec:
               port: 8080
             initialDelaySeconds: 1
             periodSeconds: 5
+          volumeMounts:
+          - name: scheduler-config
+            mountPath: /etc/config/schedulerConfiguration.yaml
+            subPath: schedulerConfiguration
+      volumes:
+        - name: scheduler-config
+          configMap:
+            name: infer-gateway-config
       serviceAccountName: infer-gateway

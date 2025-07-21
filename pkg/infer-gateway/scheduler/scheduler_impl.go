@@ -21,6 +21,7 @@ import (
 	"sort"
 
 	"github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
@@ -59,37 +60,63 @@ type podInfoWithValue struct {
 }
 
 func NewScheduler(store datastore.Store) Scheduler {
-	prefixCache := plugins.NewPrefixCache(store)
+	scorePluginMap, filterPluginMap, pluginsArgMap, err := utils.LoadSchedulerConfig()
+	if err != nil {
+		log.Fatalf("failed to Load Scheduler: %v", err)
+	}
+
+	prefixCache := plugins.NewPrefixCache(store, pluginsArgMap[plugins.PrefixCachePluginName])
 	return &SchedulerImpl{
-		store: store,
-		filterPlugins: []framework.FilterPlugin{
-			// TODO: enable lora affinity when models from metrics are available.
-			// plugins.NewLoraAffinity(),
-			plugins.NewLeastRequest(),
-		},
-		scorePlugins: []*scorePlugin{
-			// TODO: set the weight of each plugin properly.
-			{
-				plugin: plugins.NewLeastRequest(),
-				weight: 1,
-			},
-			{
-				plugin: plugins.NewGPUCacheUsage(),
-				weight: 1,
-			},
-			{
-				plugin: plugins.NewLeastLatency(),
-				weight: 1,
-			},
-			{
-				plugin: prefixCache,
-				weight: 1,
-			},
-		},
+		store:         store,
+		filterPlugins: ParseFilterPlugin(filterPluginMap, pluginsArgMap),
+		scorePlugins:  GetScorePlugin(prefixCache, scorePluginMap, pluginsArgMap),
 		ScheduleHooks: []framework.ScheduleHook{
 			prefixCache,
 		},
 	}
+}
+
+func ParseFilterPlugin(filterPluginMap []string, pluginsArgMap map[string]runtime.RawExtension) []framework.FilterPlugin {
+	var list []framework.FilterPlugin
+	// TODO: enable lora affinity when models from metrics are available.
+	for _, pluginName := range filterPluginMap {
+		if factory, exist := framework.GetFilterPluginBuilder(pluginName); !exist {
+			log.Errorf("Failed to get plugin %s.", pluginName)
+			continue
+		} else {
+			plugin := factory(pluginsArgMap[pluginName])
+			list = append(list, plugin)
+		}
+	}
+	return list
+}
+
+func GetScorePlugin(prefixCache *plugins.PrefixCache, scorePluginMap map[string]int, pluginsArgMap map[string]runtime.RawExtension) []*scorePlugin {
+	var list []*scorePlugin
+	for pluginName, weight := range scorePluginMap {
+		if weight < 0 {
+			log.Errorf("Weight for plugin '%s' is invalid, value is %d. Setting to 0", pluginName, weight)
+			weight = 0
+		}
+
+		if pluginName == plugins.PrefixCachePluginName {
+			list = append(list, &scorePlugin{
+				plugin: prefixCache,
+				weight: weight,
+			})
+			continue
+		}
+
+		if pb, exist := framework.GetScorePluginBuilder(pluginName); !exist {
+			log.Errorf("Failed to get plugin %s.", pluginName)
+		} else {
+			list = append(list, &scorePlugin{
+				plugin: pb(pluginsArgMap[pluginName]),
+				weight: weight,
+			})
+		}
+	}
+	return list
 }
 
 func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.PodInfo, pdGroup *aiv1alpha1.PDGroup) (*framework.Context, error) {
