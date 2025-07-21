@@ -35,16 +35,16 @@ func TestValidateModel_ErrorFormatting(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: registryv1alpha1.ModelSpec{
-			// This will trigger validation errors for autoscaling-related fields
-			CostExpansionRatePercent: &[]int32{50}[0], // This should trigger error when autoscaling is not set
+			// This will trigger validation errors for autoscaler-related fields
+			CostExpansionRatePercent: &[]int32{50}[0], // This should trigger error when autoscaler is not set
 			Backends: []registryv1alpha1.ModelBackend{
 				{
 					Name:                   "backend1",
 					Type:                   registryv1alpha1.ModelBackendTypeVLLM,
 					MinReplicas:            1,
-					MaxReplicas:            3,                               // This should trigger error: minReplicas and maxReplicas must be equal when no autoscaling
-					Cost:                   1,                               // This should trigger error when autoscaling is not set
-					ScaleToZeroGracePeriod: &metav1.Duration{Duration: 300}, // This should trigger error when autoscaling is not set
+					MaxReplicas:            3,                               // This should trigger error: minReplicas and maxReplicas must be equal when no autoscaler
+					Cost:                   1,                               // This should trigger error when autoscaler is not set
+					ScaleToZeroGracePeriod: &metav1.Duration{Duration: 300}, // This should trigger error when autoscaler is not set
 					Workers: []registryv1alpha1.ModelWorker{
 						{
 							Type:  registryv1alpha1.ModelWorkerTypeServer,
@@ -57,9 +57,9 @@ func TestValidateModel_ErrorFormatting(t *testing.T) {
 					Name:                   "backend2",
 					Type:                   registryv1alpha1.ModelBackendTypeVLLM,
 					MinReplicas:            0,
-					MaxReplicas:            3,                               // This should trigger error: minReplicas and maxReplicas must be equal when no autoscaling
-					Cost:                   2,                               // This should trigger error when autoscaling is not set
-					ScaleToZeroGracePeriod: &metav1.Duration{Duration: 600}, // This should trigger error when autoscaling is not set
+					MaxReplicas:            3,                               // This should trigger error: minReplicas and maxReplicas must be equal when no autoscaler
+					Cost:                   2,                               // This should trigger error when autoscaler is not set
+					ScaleToZeroGracePeriod: &metav1.Duration{Duration: 600}, // This should trigger error when autoscaler is not set
 					Workers: []registryv1alpha1.ModelWorker{
 						{
 							Type:  registryv1alpha1.ModelWorkerTypeServer,

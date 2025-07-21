@@ -38,6 +38,7 @@ import (
 	listerv1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/pointer"
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
 	informersv1alpha1 "matrixinfer.ai/matrixinfer/client-go/informers/externalversions"
 	registryLister "matrixinfer.ai/matrixinfer/client-go/listers/registry/v1alpha1"
@@ -45,10 +46,10 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 	inferControllerUtils "matrixinfer.ai/matrixinfer/pkg/infer-controller/utils"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaling/algorithm"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaling/autoscaler"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaling/histogram"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaling/util"
+	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaler"
+	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaler/algorithm"
+	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaler/histogram"
+	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaler/util"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
 
 	mapset "github.com/deckarep/golang-set"
@@ -219,7 +220,7 @@ func (ac *AutoscaleController) processAutoscale(ctx context.Context, model v1alp
 				klog.InfoS("update modelInfer replicas", "correctedInstances", correctedInstances)
 				modelInferList, err := ac.listModelInferByLabel(ctx, namespace, backend.Name, model.UID)
 				if err != nil {
-					klog.Errorf("failed to list modelInfer by backendName:%s", backend.Name)
+					klog.Errorf("failed to list modelInfer by backendName: %s, error: %v", backend.Name, err)
 					return err
 				}
 				klog.InfoS("start to update")
@@ -232,7 +233,7 @@ func (ac *AutoscaleController) processAutoscale(ctx context.Context, model v1alp
 					*modelInfer.Spec.Replicas = correctedInstances
 					err := ac.updateModelInfer(ctx, &modelInfer)
 					if err != nil {
-						klog.Errorf("failed to update modelInfer replicas for modelInfer.Name:%s", modelInfer.Name)
+						klog.Errorf("failed to update modelInfer replicas for modelInfer.Name: %s, error: %v", modelInfer.Name, err)
 						return err
 					}
 				}
@@ -260,20 +261,22 @@ func (ac *AutoscaleController) processAutoscale(ctx context.Context, model v1alp
 			for key, value := range replicasMap {
 				modelInferList, err := ac.listModelInferByLabel(ctx, namespace, key, model.UID)
 				if err != nil {
-					klog.Errorf("failed to list modelInfer by backendName:%s", key)
+					klog.Errorf("failed to list modelInfer by backendName: %s, error: %v", key, err)
 					return err
 				}
 
 				klog.InfoS("start to update")
 				for _, modelInfer := range modelInferList.Items {
-					if *modelInfer.Spec.Replicas == value {
+					modelInferCopy := modelInfer.DeepCopy()
+					if *modelInferCopy.Spec.Replicas == value {
 						klog.Warning("modelInfer replicas no need to update")
 						continue
 					}
-					*modelInfer.Spec.Replicas = value
+
+					modelInferCopy.Spec.Replicas = pointer.Int32(value)
 					err := ac.updateModelInfer(ctx, &modelInfer)
 					if err != nil {
-						klog.Errorf("failed to update modelInfer replicas for modelInfer.Name:%s", modelInfer.Name)
+						klog.Errorf("failed to update modelInfer replicas for modelInfer.Name: %s, error: %v", modelInfer.Name, err)
 						return err
 					}
 				}
@@ -288,7 +291,7 @@ func (ac *AutoscaleController) processAutoscale(ctx context.Context, model v1alp
 func (ac *AutoscaleController) getAutoscalePolicy(autoscalingPolicyName string, namespace string) (*v1alpha1.AutoscalingPolicy, error) {
 	autoscalingPolicy, err := ac.autoscalingPoliciesLister.AutoscalingPolicies(namespace).Get(autoscalingPolicyName)
 	if err != nil {
-		klog.Errorf("can not get autosalingpolicyname:%s", autoscalingPolicyName)
+		klog.Errorf("can not get autosalingpolicyname: %s, error: %v", autoscalingPolicyName, err)
 		return nil, client.IgnoreNotFound(err)
 	}
 	return autoscalingPolicy, nil
@@ -300,11 +303,11 @@ func (ac *AutoscaleController) updateModelInfer(ctx context.Context, modelInfer 
 	if oldModelInfer, err := ac.client.WorkloadV1alpha1().ModelInfers(modelInfer.Namespace).Get(modelInferCtx, modelInfer.Name, metav1.GetOptions{}); err == nil {
 		modelInfer.ResourceVersion = oldModelInfer.ResourceVersion
 		if _, updateErr := ac.client.WorkloadV1alpha1().ModelInfers(modelInfer.Namespace).Update(modelInferCtx, modelInfer, metav1.UpdateOptions{}); updateErr != nil {
-			klog.Errorf("failed to update modelInfer,err:%v", updateErr)
+			klog.Errorf("failed to update modelInfer,err: %v", updateErr)
 			return updateErr
 		}
 	} else {
-		klog.Errorf("failed to get old modelInfer,err:%v", err)
+		klog.Errorf("failed to get old modelInfer,err: %v", err)
 		return err
 	}
 
@@ -359,7 +362,7 @@ func (ac *AutoscaleController) doAutoscale(ctx context.Context, namespace string
 	})
 
 	if err != nil {
-		klog.Errorf("failed to get pod list by model.UID:%s", autoscaleScope.modelId)
+		klog.Errorf("failed to get pod list by model.UID: %s", autoscaleScope.modelId)
 		return 0, true
 	}
 	if podList == nil || len(podList.Items) == 0 {
@@ -449,7 +452,7 @@ func (ac *AutoscaleController) listModelInferByLabel(ctx context.Context, namesp
 	modelInferCtx, cancel := context.WithTimeout(ctx, util.AutoscaleCtxTimeoutSeconds*time.Second)
 	defer cancel()
 	if modelInfers, err := ac.client.WorkloadV1alpha1().ModelInfers(namespace).List(modelInferCtx, listOptions); err != nil {
-		klog.Errorf("list modelInfer error:%v", err)
+		klog.Errorf("list modelInfer error: %v", err)
 		return nil, err
 	} else {
 		return modelInfers, nil
@@ -496,7 +499,7 @@ func (ac *AutoscaleController) processInstance(ctx context.Context, podList []co
 				req, _ := http.NewRequestWithContext(podCtx, http.MethodGet, url, nil)
 				resp, err := http.DefaultClient.Do(req)
 				if err != nil {
-					klog.Errorf("get metric response error:%v", err)
+					klog.Errorf("get metric response error: %v", err)
 					continue
 				}
 				defer resp.Body.Close()

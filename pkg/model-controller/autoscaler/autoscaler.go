@@ -21,9 +21,9 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaling/datastructure"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaling/histogram"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaling/util"
+	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaler/datastructure"
+	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaler/histogram"
+	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaler/util"
 )
 
 type Autoscaler struct {

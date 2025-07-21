@@ -18,7 +18,7 @@ package datastructure
 
 import (
 	"github.com/gammazero/deque"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaling/util"
+	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaler/util"
 )
 
 type snapshotRecord[T any] struct {

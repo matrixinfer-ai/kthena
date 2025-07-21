@@ -40,7 +40,7 @@ spec:
             description: ModelSpec defines the desired state of Model.
             properties:
               autoscalingPolicyRef:
-                description: AutoscalingPolicyRef references the autoscaling policy
+                description: AutoscalingPolicyRef references the autoscaler policy
                   to be used for this model.
                 properties:
                   name:
@@ -62,7 +62,7 @@ spec:
                     backend.
                   properties:
                     autoscalingPolicyRef:
-                      description: AutoscalingPolicyRef references the autoscaling
+                      description: AutoscalingPolicyRef references the autoscaler
                         policy for this backend.
                       properties:
                         name:
