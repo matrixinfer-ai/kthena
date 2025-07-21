@@ -5,7 +5,7 @@ modelController:
     # repository is the container image repository for the model-controller.
     repository: ghcr.io/matrixinfer-ai/model-controller
     # tag is the container image tag for the model-controller.
-    tag: 1.0.0
+    tag: latest
     # pullPolicy is the image pull policy for the model-controller.
     pullPolicy: IfNotPresent
     # args are the command line arguments for the model-controller.
@@ -43,7 +43,7 @@ webhook:
     # repository is the container image repository for the registry-webhook.
     repository: ghcr.io/matrixinfer-ai/registry-webhook
     # tag is the container image tag for the registry-webhook.
-    tag: 1.0.0
+    tag: latest
     # pullPolicy is the image pull policy for the registry-webhook.
     pullPolicy: IfNotPresent
     # args are the command line arguments for the registry-webhook.
