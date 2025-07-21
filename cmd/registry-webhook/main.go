@@ -45,8 +45,6 @@ func parseConfig() config {
 	pflag.StringVar(&cfg.tlsPrivateKey, "tls-private-key-file", "/etc/webhook/certs/tls.key", "File containing the x509 private key to --tls-cert-file.")
 	pflag.IntVar(&cfg.port, "port", 8443, "Secure port that the webhook listens on")
 	pflag.IntVar(&cfg.webhookTimeout, "webhook-timeout", 30, "Timeout for webhook operations in seconds")
-	pflag.Parse()
-
 	return cfg
 }
 
@@ -54,6 +52,7 @@ func main() {
 	klog.InitFlags(nil)
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	config := parseConfig()
+	pflag.Parse()
 
 	// Set up signals so we handle the first shutdown signal gracefully
 	stopCh := setupSignalHandler()
