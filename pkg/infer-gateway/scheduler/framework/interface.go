@@ -27,7 +27,10 @@ type Context struct {
 
 	Hashes []uint64
 
-	PDIndex     int
+	PDIndex int
+	// There are two cases:
+	// 1. In PD Disaggregated mode, both DecodePods and PrefillPods are set.
+	// 2. In PD Aggregated mode, only DecodePods is set, and PrefillPods is nil.
 	DecodePods  []*datastore.PodInfo
 	PrefillPods []*datastore.PodInfo
 }

@@ -23,14 +23,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
+	"k8s.io/klog/v2"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 	"sigs.k8s.io/yaml"
 )
 
 var (
-	log = logger.NewLogger("utils")
-
 	GPUCacheUsage     = "gpu_usage"
 	RequestWaitingNum = "request_waiting_num"
 	RequestRunningNum = "request_running_num"
@@ -105,19 +103,19 @@ func LoadSchedulerConfig() (map[string]int, []string, map[string]runtime.RawExte
 	}
 	var kubeSchedulerConfiguration conf.SchedulerConfiguration
 	if err := yaml.Unmarshal(data, &kubeSchedulerConfiguration); err != nil {
-		log.Errorf("failed to Unmarshal schedulerConfiguration: %v", err)
+		klog.Errorf("failed to Unmarshal schedulerConfiguration: %v", err)
 		return nil, nil, nil, fmt.Errorf("failed to Unmarshal schedulerConfiguration: %v", err)
 	}
 
 	scorePluginMap, filterPlugins, err := unmarshalPlugins(&kubeSchedulerConfiguration)
 	if err != nil {
-		log.Errorf("failed to Unmarshal Plugins: %v", err)
+		klog.Errorf("failed to Unmarshal Plugins: %v", err)
 		return nil, nil, nil, fmt.Errorf("failed to Unmarshal Plugins: %v", err)
 	}
 
 	pluginsArgMap, err := unmarshalPluginsConfig(&kubeSchedulerConfiguration)
 	if err != nil {
-		log.Errorf("failed to Unmarshal PluginsConfig: %v", err)
+		klog.Errorf("failed to Unmarshal PluginsConfig: %v", err)
 		return nil, nil, nil, fmt.Errorf("failed to Unmarshal PluginsConfig: %v", err)
 	}
 

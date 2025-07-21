@@ -31,16 +31,14 @@ import (
 	"istio.io/istio/pkg/util/sets"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog/v2"
 
 	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/backend"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
 var (
-	log = logger.NewLogger("datastore")
-
 	metricsName = []string{
 		utils.GPUCacheUsage,
 		utils.RequestWaitingNum,
@@ -235,7 +233,7 @@ func (s *store) DeleteModelServer(ms types.NamespacedName) error {
 	for _, podName := range podNames {
 		podInfo := s.pods[podName]
 		if podInfo == nil {
-			log.Warningf("pod %s not found", podName)
+			klog.Warningf("pod %s not found", podName)
 			continue
 		}
 		podInfo.RemoveModelServer(ms)
@@ -325,7 +323,7 @@ func (s *store) DeletePod(podName types.NamespacedName) error {
 		modelServers := pod.GetModelServers()
 		for modelServerName := range modelServers {
 			if s.modelServer[modelServerName] == nil {
-				log.Debugf("model server %s not found for pod %s, maybe already deleted", modelServerName, podName)
+				klog.V(4).Infof("model server %s not found for pod %s, maybe already deleted", modelServerName, podName)
 				continue
 			}
 			s.modelServer[modelServerName].deletePod(podName)
@@ -523,7 +521,7 @@ func selectFromWeightedSlice(weights []uint32) int {
 
 func (s *store) updatePodMetrics(pod *PodInfo) {
 	if pod.engine == "" {
-		log.Error("failed to find backend in pod")
+		klog.Error("failed to find backend in pod")
 		return
 	}
 
@@ -535,13 +533,13 @@ func (s *store) updatePodMetrics(pod *PodInfo) {
 
 func (s *store) updatePodModels(podInfo *PodInfo) {
 	if podInfo.engine == "" {
-		log.Error("failed to find backend in pod")
+		klog.Error("failed to find backend in pod")
 		return
 	}
 
 	models, err := backend.GetPodModels(podInfo.engine, podInfo.Pod)
 	if err != nil {
-		log.Errorf("failed to get models of pod %s/%s", podInfo.Pod.GetNamespace(), podInfo.Pod.GetName())
+		klog.Errorf("failed to get models of pod %s/%s", podInfo.Pod.GetNamespace(), podInfo.Pod.GetName())
 	}
 
 	podInfo.UpdateModels(models)
@@ -587,7 +585,7 @@ func updateGaugeMetricsInfo(podinfo *PodInfo, metricsInfo map[string]float64) {
 		if updateFunc, exist := updateFuncs[name]; exist {
 			updateFunc(metricsInfo[name])
 		} else {
-			log.Debugf("Unknow metric: %s", name)
+			klog.V(4).Infof("Unknown metric: %s", name)
 		}
 	}
 }
@@ -606,7 +604,7 @@ func updateHistogramMetrics(podinfo *PodInfo, histogramMetrics map[string]*dto.H
 		if updateFunc, exist := updateFuncs[name]; exist {
 			updateFunc(histogramMetrics[name])
 		} else {
-			log.Debugf("Unknow histogram metric: %s", name)
+			klog.V(4).Infof("Unknown histogram metric: %s", name)
 		}
 	}
 }

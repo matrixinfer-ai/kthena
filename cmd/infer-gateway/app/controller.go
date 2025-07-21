@@ -20,6 +20,8 @@ import (
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog/v2"
+
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
 	matrixinferinformers "matrixinfer.ai/matrixinfer/client-go/informers/externalversions"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/controller"
@@ -39,17 +41,17 @@ var _ Controller = &aggregatedController{}
 func startControllers(store datastore.Store, stop <-chan struct{}) Controller {
 	cfg, err := clientcmd.BuildConfigFromFlags("", "")
 	if err != nil {
-		log.Fatalf("Error building kubeconfig: %s", err.Error())
+		klog.Fatalf("Error building kubeconfig: %s", err.Error())
 	}
 
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
-		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
+		klog.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
 
 	matrixinferClient, err := clientset.NewForConfig(cfg)
 	if err != nil {
-		log.Fatalf("Error building matrixinfer clientset: %s", err.Error())
+		klog.Fatalf("Error building matrixinfer clientset: %s", err.Error())
 	}
 
 	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, 0)
@@ -63,13 +65,13 @@ func startControllers(store datastore.Store, stop <-chan struct{}) Controller {
 
 	go func() {
 		if err := modelRouteController.Run(stop); err != nil {
-			log.Fatalf("Error running model route controller: %s", err.Error())
+			klog.Fatalf("Error running model route controller: %s", err.Error())
 		}
 	}()
 
 	go func() {
 		if err := modelServerController.Run(stop); err != nil {
-			log.Fatalf("Error running model server controller: %s", err.Error())
+			klog.Fatalf("Error running model server controller: %s", err.Error())
 		}
 	}()
 

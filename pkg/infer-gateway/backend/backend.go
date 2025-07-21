@@ -21,14 +21,10 @@ import (
 
 	dto "github.com/prometheus/client_model/go"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/klog/v2"
 
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/backend/sglang"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/backend/vllm"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
-)
-
-var (
-	log = logger.NewLogger("backend")
 )
 
 type MetricsProvider interface {
@@ -46,13 +42,13 @@ var engineRegistry = map[string]MetricsProvider{
 func GetPodMetrics(engine string, pod *corev1.Pod, previousHistogram map[string]*dto.Histogram) (map[string]float64, map[string]*dto.Histogram) {
 	provider, err := GetMetricsProvider(engine)
 	if err != nil {
-		log.Errorf("Failed to get inference engine: %v", err)
+		klog.Errorf("Failed to get inference engine: %v", err)
 		return nil, nil
 	}
 
 	allMetrics, err := provider.GetPodMetrics(pod)
 	if err != nil {
-		log.Errorf("failed to get metrics of pod: %s/%s: %v", pod.GetNamespace(), pod.GetName(), err)
+		klog.Errorf("failed to get metrics of pod: %s/%s: %v", pod.GetNamespace(), pod.GetName(), err)
 		return nil, nil
 	}
 
@@ -78,7 +74,7 @@ func GetMetricsProvider(engine string) (MetricsProvider, error) {
 func GetPodModels(engine string, pod *corev1.Pod) ([]string, error) {
 	provider, err := GetMetricsProvider(engine)
 	if err != nil {
-		log.Errorf("Failed to get inference engine: %v", err)
+		klog.Errorf("Failed to get inference engine: %v", err)
 		return nil, nil
 	}
 
