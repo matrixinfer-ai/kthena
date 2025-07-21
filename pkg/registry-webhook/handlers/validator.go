@@ -264,18 +264,18 @@ func (v *ModelValidator) validateAutoscalingPolicyRefs(ctx context.Context, mode
 	var allErrs field.ErrorList
 
 	// Model-level ref
-	if name := model.Spec.AutoscalingPolicyRef.Name; name != "" {
+	if model.Spec.AutoscalingPolicy != nil {
 		// For now, we'll skip the actual client lookup since we need to adapt the client interface
 		// In a real implementation, you would check if the AutoscalingPolicy exists
-		klog.V(4).Infof("Skipping validation of AutoscalingPolicy %s in namespace %s", name, model.Namespace)
+		klog.V(4).Infof("Skipping validation of AutoscalingPolicy in namespace %s", model.Namespace)
 	}
 
 	// Backend-level refs
 	for i, backend := range model.Spec.Backends {
-		if name := backend.AutoscalingPolicyRef.Name; name != "" {
+		if backend.AutoscalingPolicy != nil {
 			// For now, we'll skip the actual client lookup since we need to adapt the client interface
 			// In a real implementation, you would check if the AutoscalingPolicy exists
-			klog.V(4).Infof("Skipping validation of AutoscalingPolicy %s for backend %d in namespace %s", name, i, model.Namespace)
+			klog.V(4).Infof("Skipping validation of AutoscalingPolicy for backend %d in namespace %s", i, model.Namespace)
 		}
 	}
 	return allErrs
@@ -286,10 +286,10 @@ func validateAutoScalingPolicyScope(model *registryv1alpha1.Model) field.ErrorLi
 	spec := model.Spec
 	var allErrs field.ErrorList
 
-	modelAutoScalingEmpty := spec.AutoscalingPolicyRef.Name == ""
+	modelAutoScalingEmpty := spec.AutoscalingPolicy == nil
 	allBackendAutoScalingEmpty := true
 	for _, backend := range spec.Backends {
-		if backend.AutoscalingPolicyRef.Name != "" {
+		if backend.AutoscalingPolicy != nil {
 			allBackendAutoScalingEmpty = false
 			break
 		}
@@ -297,7 +297,7 @@ func validateAutoScalingPolicyScope(model *registryv1alpha1.Model) field.ErrorLi
 
 	if modelAutoScalingEmpty {
 		for i, backend := range spec.Backends {
-			if backend.Cost != 0 {
+			if backend.ScalingCost != 0 {
 				allErrs = append(allErrs, field.Forbidden(
 					field.NewPath("spec").Child("backends").Index(i).Child("cost"),
 					"cost must not be provided when model-level autoscaling is not set",
@@ -317,7 +317,7 @@ func validateAutoScalingPolicyScope(model *registryv1alpha1.Model) field.ErrorLi
 			))
 		}
 		for i, backend := range spec.Backends {
-			if backend.AutoscalingPolicyRef.Name != "" && backend.MinReplicas < 1 {
+			if backend.AutoscalingPolicy != nil && backend.MinReplicas < 1 {
 				allErrs = append(allErrs, field.Invalid(
 					field.NewPath("spec").Child("backends").Index(i).Child("minReplicas"),
 					backend.MinReplicas,
@@ -353,7 +353,7 @@ func validateAutoScalingPolicyScope(model *registryv1alpha1.Model) field.ErrorLi
 					))
 				}
 				minSum += backend.MinReplicas
-				if backend.Cost == 0 {
+				if backend.ScalingCost == 0 {
 					allErrs = append(allErrs, field.Required(
 						field.NewPath("spec").Child("backends").Index(i).Child("cost"),
 						"cost must be provided when model-level autoscaling is set",

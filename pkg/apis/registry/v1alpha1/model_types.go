@@ -20,6 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 )
 
 // ModelSpec defines the desired state of Model.
@@ -37,14 +38,16 @@ type ModelSpec struct {
 	// +listType=map
 	// +listMapKey=name
 	Backends []ModelBackend `json:"backends"`
-	// AutoscalingPolicyRef references the autoscaling policy to be used for this model.
+	// AutoscalingPolicy references the autoscaling policy to be used for this model.
 	// +optional
-	AutoscalingPolicyRef corev1.LocalObjectReference `json:"autoscalingPolicyRef,omitempty"`
+	AutoscalingPolicy *AutoscalingPolicySpec `json:"autoscalingPolicy,omitempty"`
 	// CostExpansionRatePercent is the percentage rate at which the cost expands.
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=100
 	// +optional
 	CostExpansionRatePercent *int32 `json:"costExpansionRatePercent,omitempty"`
+	// ModelMatch defines the model match configuration.
+	ModelMatch v1alpha1.ModelMatch `json:"modelMatch"`
 }
 
 // ModelBackend defines the configuration for a model backend.
@@ -86,10 +89,13 @@ type ModelBackend struct {
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=1000000
 	MaxReplicas int32 `json:"maxReplicas"`
-	// Cost is the cost associated with running this backend.
+	// ScalingCost is the cost associated with running this backend.
 	// +kubebuilder:validation:Minimum=0
 	// +optional
-	Cost int32 `json:"cost,omitempty"`
+	ScalingCost int32 `json:"scalingCost,omitempty"`
+	// RouteWeight is the weight of the route for this backend.
+	// +optional
+	RouteWeight int32 `json:"routeWeight,omitempty"`
 	// ScaleToZeroGracePeriod is the duration to wait before scaling to zero.
 	// +optional
 	ScaleToZeroGracePeriod *metav1.Duration `json:"scaleToZeroGracePeriod,omitempty"`
@@ -102,7 +108,7 @@ type ModelBackend struct {
 	LoraAdapters []LoraAdapter `json:"loraAdapters,omitempty"`
 	// AutoscalingPolicyRef references the autoscaling policy for this backend.
 	// +optional
-	AutoscalingPolicyRef corev1.LocalObjectReference `json:"autoscalingPolicyRef,omitempty"`
+	AutoscalingPolicy *AutoscalingPolicySpec `json:"autoscalingPolicy,omitempty"`
 }
 
 // LoraAdapter defines a LoRA (Low-Rank Adaptation) adapter configuration.

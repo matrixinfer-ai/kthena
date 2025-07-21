@@ -18,9 +18,9 @@ package handlers
 
 import (
 	"encoding/json"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"testing"
 
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
@@ -33,8 +33,14 @@ func TestCreatePatch(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: registryv1alpha1.ModelSpec{
-			AutoscalingPolicyRef: corev1.LocalObjectReference{
-				Name: "test-policy",
+			AutoscalingPolicy: &registryv1alpha1.AutoscalingPolicySpec{
+				TolerancePercent: 0,
+				Metrics: []registryv1alpha1.AutoscalingPolicyMetric{
+					{
+						MetricName:  "test-metric",
+						TargetValue: resource.Quantity{},
+					},
+				},
 			},
 			Backends: []registryv1alpha1.ModelBackend{
 				{
