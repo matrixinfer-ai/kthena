@@ -337,6 +337,10 @@ func (mc *ModelController) updateModelInfer(ctx context.Context, model *registry
 			return err
 		}
 	}
+	// todo: we don't have to update model server every time, add condition here.
+	if err := mc.updateModelServer(ctx, model); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -391,6 +395,22 @@ func (mc *ModelController) createModelServer(ctx context.Context, model *registr
 	for _, modelServer := range modelServers {
 		if _, err := mc.client.NetworkingV1alpha1().ModelServers(model.Namespace).Create(ctx, modelServer, metav1.CreateOptions{}); err != nil {
 			klog.Errorf("create model server failed: %v", err)
+			return err
+		}
+	}
+	return nil
+}
+
+// updateModelServer updates model server
+func (mc *ModelController) updateModelServer(ctx context.Context, model *registryv1alpha1.Model) error {
+	modelServers := utils.BuildModelServer(model)
+	for _, modelServer := range modelServers {
+		if oldModelInfer, err := mc.client.NetworkingV1alpha1().ModelServers(modelServer.Namespace).Get(ctx, modelServer.Name, metav1.GetOptions{}); err == nil {
+			modelServer.ResourceVersion = oldModelInfer.ResourceVersion
+			if _, err := mc.client.NetworkingV1alpha1().ModelServers(model.Namespace).Update(ctx, modelServer, metav1.UpdateOptions{}); err != nil {
+				return err
+			}
+		} else {
 			return err
 		}
 	}
