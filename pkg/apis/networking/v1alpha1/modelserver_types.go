@@ -31,8 +31,8 @@ type ModelServerSpec struct {
 	// The inference engine used to serve the model.
 	// +kubebuilder:validation:Required
 	InferenceEngine InferenceEngine `json:"inferenceEngine"`
-	// WorkloadSelector is used to match the model servring instances.
-	// Currently they must be pods within the same namespace as modelServer object.
+	// WorkloadSelector is used to match the model serving instances.
+	// Currently, they must be pods within the same namespace as modelServer object.
 	//
 	// +kubebuilder:validation:Required
 	WorkloadSelector *WorkloadSelector `json:"workloadSelector"`
@@ -58,7 +58,7 @@ const (
 )
 
 // WorkloadSelector is used to match the model serving instances.
-// Currently they must be pods within the same namespace as modelServer object.
+// Currently, they must be pods within the same namespace as modelServer object.
 type WorkloadSelector struct {
 	// The base labels to match the model serving instances.
 	// All serving instances must match these labels.
@@ -70,7 +70,7 @@ type WorkloadSelector struct {
 }
 
 // PDGroup is used to specify the group key of PD instances.
-// Also the labels to match the model serving instances for prefill and decode.
+// Also, the labels to match the model serving instances for prefill and decode.
 type PDGroup struct {
 	// GroupKey is the key to distinguish different PD groups.
 	// Only PD instances with the same group key and value could be paired.
