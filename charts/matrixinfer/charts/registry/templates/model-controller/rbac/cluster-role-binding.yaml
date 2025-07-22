@@ -11,5 +11,5 @@ roleRef:
   name: model-controller
 subjects:
   - kind: ServiceAccount
-    name: model-controller
+    name: {{ include "matrixinfer.fullname" . }}-model-controller
     namespace: {{ .Release.Namespace }}

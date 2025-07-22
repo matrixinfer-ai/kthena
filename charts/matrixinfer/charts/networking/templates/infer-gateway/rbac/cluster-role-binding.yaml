@@ -11,5 +11,5 @@ roleRef:
   name: infer-gateway
 subjects:
   - kind: ServiceAccount
-    name: infer-gateway
+    name: {{ include "matrixinfer.fullname" . }}-infer-gateway
     namespace: {{ .Release.Namespace }}
