@@ -60,7 +60,7 @@ hell install <your-name> <archive-file-name> --namespace <namespace> \
 
 And you can even specify a customized `values.yaml` file for installation.
 ```shell
-helm install my-release my-chart -f my-values.yaml
+helm install dev-release charts/matrixinfer -f values-dev.yaml
 ```
 ### Installation Order
 
