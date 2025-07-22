@@ -99,12 +99,17 @@ type ModelBackend struct {
 	Workers []ModelWorker `json:"workers"`
 	// LoraAdapterRefs is a list of references to LoRA adapters.
 	// +optional
-	LoraAdapterRefs []corev1.LocalObjectReference `json:"loraAdapterRefs,omitempty"`
+	// LoraAdapterRefs []corev1.LocalObjectReference `json:"loraAdapterRefs,omitempty"`
+	LoraAdapters []LoraAdapter `json:"loraadapters,omitempty"'`
+
 	// AutoscalingPolicyRef references the autoscaling policy for this backend.
 	// +optional
 	AutoscalingPolicyRef corev1.LocalObjectReference `json:"autoscalingPolicyRef,omitempty"`
 }
-
+type LoraAdapter struct{
+	Name  		string
+	ArtifactURL string
+}
 // ModelBackendType defines the type of model backend.
 // +kubebuilder:validation:Enum=vLLM;vLLMDisaggregated;SGLang;MindIE;MindIEDisaggregated
 type ModelBackendType string

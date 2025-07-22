@@ -17,7 +17,7 @@ spec:
         replicas: ${PREFILL_REPLICAS}
         entryTemplate:
           spec:
-            initContainers:
+            initContainers: ${INIT_CONTAINERS}
               - name: downloader
                 imagePullPolicy: Always
                 image: ${MODEL_INFER_DOWNLOADER_IMAGE}

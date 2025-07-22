@@ -295,9 +295,9 @@ func (in *ModelBackend) DeepCopyInto(out *ModelBackend) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.LoraAdapterRefs != nil {
-		in, out := &in.LoraAdapterRefs, &out.LoraAdapterRefs
-		*out = make([]corev1.LocalObjectReference, len(*in))
+	if in.LoraAdapters != nil {
+		in, out := &in.LoraAdapters, &out.LoraAdapters
+		*out = make([]LoraAdapter, len(*in))
 		copy(*out, *in)
 	}
 	out.AutoscalingPolicyRef = in.AutoscalingPolicyRef

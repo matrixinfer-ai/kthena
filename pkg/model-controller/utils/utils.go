@@ -165,6 +165,51 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 	if err != nil {
 		return nil, err
 	}
+	if len(backend.LoraAdapters > 0){
+		loras := make([]string,0)
+		for _,adapter := range backend.LoraAdapters{
+			loras = append(loras,fmt.Sprintf("%s=%s",adapter.Name,adapter.ArtifactURL))
+		}
+		commands = append(commands,"--enable-lora","--lora-modules",strings.Join(loras," "))
+	}
+
+	initContainers := []corev1.Container{
+        {
+            Name:  model.Name + "-model-downloader",
+            Image: config.Config.GetModelInferDownloaderImage(),
+            Args: []string{
+                "--source", backend.ModelURI,
+                "--output-dir", weightsPath,
+            },
+            Env: getEnvVarOrDefault(backend, "ENDPOINT", ""),
+			EnvFrom: backend.EnvFrom,
+            VolumeMounts: []corev1.VolumeMount{{
+                Name:      cacheVolume.Name,
+                MountPath: getCachePath(backend.CacheURI),
+            }},
+        },
+    }
+
+    if len(backend.LoraAdapters) > 0 {
+        for i, adapter := range backend.LoraAdapters {
+            loraDownloader := corev1.Container{
+                Name:  fmt.Sprintf("%s-lora-downloader-%d", model.Name, i),
+                Image: config.Config.GetModelInferDownloaderImage(),
+                Args: []string{
+                    "--source", adapter.ArtifactURL,
+                    "--output-dir", getCachePath(backend.CacheURI) + getMountPath(adapter.Name),
+                },
+                Env: getEnvVarOrDefault(backend, "ENDPOINT", ""),
+				EnvFrom: backend.EnvFrom,
+                VolumeMounts: []corev1.VolumeMount{{
+                    Name:      cacheVolume.Name,
+                    MountPath: getCachePath(backend.CacheURI),
+                }},
+            }
+            initContainers = append(initContainers, loraDownloader)
+        }
+    }
+
 	data := map[string]interface{}{
 		"MODEL_INFER_TEMPLATE_METADATA": &metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-%d-%s-instance", model.Name, idx, strings.ToLower(string(backend.Type))),
@@ -182,7 +227,7 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 				},
 			},
 		},
-		"MODEL_NAME":       model.Name,
+		// "MODEL_NAME":       model.Name,
 		"BACKEND_NAME":     strings.ToLower(backend.Name),
 		"BACKEND_REPLICAS": backend.MinReplicas, // todo: backend replicas
 		"BACKEND_TYPE":     strings.ToLower(string(backend.Type)),
@@ -198,15 +243,17 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 		"VOLUMES": []*corev1.Volume{
 			cacheVolume,
 		},
-		"VOLUME_MOUNTS": []corev1.VolumeMount{{
-			Name:      cacheVolume.Name,
-			MountPath: getCachePath(backend.CacheURI),
-		}},
-		"MODEL_URL":                    backend.ModelURI,
-		"MODEL_DOWNLOAD_PATH":          modelDownloadPath,
-		"MODEL_DOWNLOAD_ENV":           getEnvVarOrDefault(backend, "ENDPOINT", ""),
-		"MODEL_DOWNLOAD_ENVFROM":       backend.EnvFrom,
-		"MODEL_INFER_DOWNLOADER_IMAGE": config.Config.GetModelInferDownloaderImage(),
+		// "VOLUME_MOUNTS": []corev1.VolumeMount{{
+		// 	Name:      cacheVolume.Name,
+		// 	MountPath: getCachePath(backend.CacheURI),
+		// }},
+		// "MODEL_URL":                    backend.ModelURI,
+		// "MODEL_DOWNLOAD_PATH":          modelDownloadPath,
+		// "MODEL_DOWNLOAD_ENV":           getEnvVarOrDefault(backend, "ENDPOINT", ""),
+		// "MODEL_DOWNLOAD_ENVFROM":       backend.EnvFrom,
+		// "MODEL_INFER_DOWNLOADER_IMAGE": config.Config.GetModelInferDownloaderImage(),
+		"INIT_CONTAINERS": initContainers,
+		
 		"MODEL_INFER_RUNTIME_IMAGE":    config.Config.GetModelInferRuntimeImage(),
 		"MODEL_INFER_RUNTIME_PORT":     getEnvValueOrDefault(backend, "RUNTIME_PORT", "8100"),
 		"MODEL_INFER_RUNTIME_URL":      getEnvValueOrDefault(backend, "RUNTIME_URL", "http://localhost:8000/metrics"),
