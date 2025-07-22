@@ -1,0 +1,17 @@
+registry:
+  modelController:
+    image:
+      tag: latest
+  webhook:
+    image:
+      tag: latest
+
+workload:
+  inferController:
+    image:
+      tag: latest
+
+networking:
+  inferGateway:
+    image:
+      tag: latest
