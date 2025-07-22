@@ -25,4 +25,4 @@ spec:
           imagePullPolicy: {{ .Values.modelController.image.pullPolicy }}
           resources:
             {{- toYaml .Values.modelController.resource | nindent 12 }}
-      serviceAccountName: model-controller
+      serviceAccountName: {{ include "matrixinfer.fullname" . }}-model-controller

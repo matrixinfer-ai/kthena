@@ -49,5 +49,5 @@ spec:
         - name: webhook-certs
           secret:
             secretName: {{ include "matrixinfer.fullname" . }}-webhook-certs
-      serviceAccountName: registry-webhook
+      serviceAccountName: {{ include "matrixinfer.fullname" . }}-webhook
 {{- end }}

@@ -24,4 +24,4 @@ spec:
           imagePullPolicy: {{ .Values.inferController.image.pullPolicy }}
           args: {{ .Values.inferController.image.args }}
           resources: {{- toYaml .Values.inferController.resource | nindent 12 }}
-      serviceAccountName: infer-controller
+      serviceAccountName: {{ include "matrixinfer.fullname" . }}-infer-controller
