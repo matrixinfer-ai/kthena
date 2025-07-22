@@ -60,7 +60,7 @@ type ModelInferSpec struct {
 
 	// RolloutStrategy defines the strategy that will be applied to update replicas
 	// +optional
-	RolloutStrategy RolloutStrategy `json:"rolloutStrategy,omitempty"`
+	RolloutStrategy *RolloutStrategy `json:"rolloutStrategy,omitempty"`
 
 	// RecoveryPolicy defines the recovery policy for the inferGroup
 	// +kubebuilder:default=InferGroupRestart
@@ -93,7 +93,7 @@ type RolloutStrategy struct {
 	Type RolloutStrategyType `json:"type"`
 
 	// RollingUpdateConfiguration defines the parameters to be used when type is RollingUpdateStrategyType.
-	// +optional
+	// optional
 	RollingUpdateConfiguration *RollingUpdateConfiguration `json:"rollingUpdateConfiguration,omitempty"`
 }
 
@@ -149,19 +149,24 @@ type TopologySpreadConstraint struct {
 	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty"`
 }
 
-type ModelInferSetConditionType string
+type ModelInferConditionType string
 
 // There is a condition type of a modelInfer
 const (
 	// ModelInferSetAvailable means the modelInfer is available,
 	// at least the minimum available groups are up and running.
-	ModelInferSetAvailable ModelInferSetConditionType = "Available"
+	ModelInferAvailable ModelInferConditionType = "Available"
 
 	// The ModelInfer enters the ModelInferSetProgressing state whenever there are ongoing changes,
 	// such as the creation of new groups or the scaling of pods within a group.
 	// A group remains in the progressing state until all its pods become ready.
 	// As long as at least one group is progressing, the entire ModelInferSet is also considered progressing.
-	ModelInferSetProgressing ModelInferSetConditionType = "Progressing"
+	ModelInferProgressing ModelInferConditionType = "Progerssing"
+
+	// ModelInferSetUpdateInProgress indicates that modelInfer is performing a rolling update.
+	// When the entry or worker template is updated, modelinfer controller enters the upgrade process and
+	// UpdateInProgress is set to true.
+	ModelInferUpdateInProgress ModelInferConditionType = "UpdateInProgress"
 )
 
 // ModelInferStatus defines the observed state of ModelInfer
@@ -169,11 +174,14 @@ type ModelInferStatus struct {
 	// Replicas track the total number of InferGroup that have been created (updated or not, ready or not)
 	Replicas int32 `json:"replicas,omitempty"`
 
+	// CurrentReplicas is the number of InferGroup created by the ModelInfer controller from the ModelInfer version
+	CurrentReplicas int32 `json:"currentReplicas,omitempty"`
+
 	// UpdatedReplicas track the number of InferGroup that have been updated (ready or not).
 	UpdatedReplicas int32 `json:"updatedReplicas,omitempty"`
 
 	// AvailableReplicas track the number of InferGroup that are in ready state (updated or not).
-	AvailableReplicas int32 `json:"availableReplicas"`
+	AvailableReplicas int32 `json:"availableReplicas,omitempty"`
 
 	// Conditions track the condition of the ModelInfer.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`

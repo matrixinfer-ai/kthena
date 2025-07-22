@@ -74,6 +74,9 @@ import (
 	"fmt"
 
 	"github.com/cespare/xxhash"
+	"github.com/stretchr/testify/assert/yaml"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2"
 
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
@@ -81,15 +84,6 @@ import (
 )
 
 const PrefixCachePluginName = "prefix-cache"
-
-const (
-	// Default token block size of vLLM is 16, and a good guess of average characters per token is 4.
-	// So we use 64 as the default block size.
-	BlockSizeToHash = 64
-	// TODO: make these parameters configurable.
-	MaxBlocksToMatch = 128
-	MaxHashCacheSize = 50000
-)
 
 var _ framework.ScorePlugin = &PrefixCache{}
 
@@ -101,15 +95,33 @@ type PrefixCache struct {
 	store            *cache.ModelPrefixStore
 }
 
-func NewPrefixCache(store datastore.Store) *PrefixCache {
+type PrefixCacheArgs struct {
+	BlockSizeToHash  int `yaml:"blockSizeToHash,omitempty"`
+	MaxBlocksToMatch int `yaml:"maxBlocksToMatch,omitempty"`
+	MaxHashCacheSize int `yaml:"maxHashCacheSize,omitempty"`
+}
+
+// Default token block size of vLLM is 16, and a good guess of average characters per token is 4.
+// So we use 64 as the default block size.
+func NewPrefixCache(store datastore.Store, pluginArg runtime.RawExtension) *PrefixCache {
+	var prefixCacheArgs PrefixCacheArgs
+	if yaml.Unmarshal(pluginArg.Raw, &prefixCacheArgs) != nil {
+		klog.Errorf("Unmarshal PrefixCacheArgs error, setting default value")
+		prefixCacheArgs = PrefixCacheArgs{
+			64,
+			128,
+			50000,
+		}
+	}
+
 	p := &PrefixCache{
 		name: PrefixCachePluginName,
 
-		blockSizeToHash:  BlockSizeToHash,
-		maxBlocksToMatch: MaxBlocksToMatch,
+		blockSizeToHash:  prefixCacheArgs.BlockSizeToHash,
+		maxBlocksToMatch: prefixCacheArgs.MaxBlocksToMatch,
 	}
 	// Initialize store with default values
-	p.store = cache.NewModelPrefixStore(store, MaxHashCacheSize, 5) // TODO: make these configurable
+	p.store = cache.NewModelPrefixStore(store, prefixCacheArgs.MaxHashCacheSize, 5) // TODO: make these configurable
 	return p
 }
 

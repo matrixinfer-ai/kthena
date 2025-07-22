@@ -22,10 +22,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 )
 
-// HashModelInferRevision hashes the contents of modelinfer using FNV hashing.
-func HashModelInferRevision(revision interface{}) string {
+// Revision calculates the revision of an object using FNV hashing.
+func Revision(obj interface{}) string {
 	hasher := fnv.New32()
-	DeepHashObject(hasher, revision)
+	DeepHashObject(hasher, obj)
 	return rand.SafeEncodeString(fmt.Sprint(hasher.Sum32()))
 }
 

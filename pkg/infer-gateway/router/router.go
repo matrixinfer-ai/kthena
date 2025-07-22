@@ -17,6 +17,7 @@ limitations under the License.
 package router
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -26,18 +27,15 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog/v2"
 
 	"matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/filters/ratelimit"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/handlers"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
-)
-
-var (
-	log = logger.NewLogger("router")
 )
 
 type Router struct {
@@ -53,10 +51,10 @@ func NewRouter(store datastore.Store) *Router {
 			if data.ModelRoute == nil || data.ModelRoute.Spec.RateLimit == nil {
 				return
 			}
-			log.Infof("add or update rate limit for model %s", data.ModelName)
+			klog.Infof("add or update rate limit for model %s", data.ModelName)
 			loadRateLimiter.AddOrUpdateLimiter(data.ModelName, data.ModelRoute.Spec.RateLimit)
 		} else if data.EventType == datastore.EventDelete {
-			log.Infof("delete rate limit for model %s", data.ModelName)
+			klog.Infof("delete rate limit for model %s", data.ModelName)
 			loadRateLimiter.DeleteLimiter(data.ModelName)
 		}
 	})
@@ -95,11 +93,11 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusNotFound, fmt.Sprintf("can't find corresponding model server: %v", err))
 			return
 		}
-		log.Debugf("modelServer is %v, is_lora: %v", modelServerName, isLora)
+		klog.V(4).Infof("modelServer is %v, is_lora: %v", modelServerName, isLora)
 
 		pods, modelServer, err := r.getPodsAndServer(modelServerName)
 		if err != nil {
-			log.Errorf("failed to get pods and model server: %v, %v", modelServerName, err)
+			klog.Errorf("failed to get pods and model server: %v, %v", modelServerName, err)
 			c.AbortWithStatusJSON(http.StatusNotFound, fmt.Sprintf("can't find model server: %v", modelServerName))
 			return
 		}
@@ -129,7 +127,7 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 
 		// step 7: proxy to pods
 		if err := r.proxyModelEndpoint(c, req, ctx, modelRequest, port); err != nil {
-			log.Errorf("request failed: %v", err)
+			klog.Errorf("request failed: %v", err)
 			return
 		}
 	}
@@ -152,7 +150,7 @@ func parseModelRequest(c *gin.Context) (ModelRequest, error) {
 		c.AbortWithStatusJSON(http.StatusNotFound, "model not found")
 		return nil, fmt.Errorf("model not found")
 	}
-	log.Debugf("model name is %v", modelName)
+	klog.V(4).Infof("model name is %v", modelName)
 
 	return modelRequest, nil
 }
@@ -179,6 +177,8 @@ func (r *Router) proxyModelEndpoint(
 	// build request
 	var decodeRequest, prefillRequest *http.Request
 	var err error
+
+	stream := isStreaming(modelRequest)
 	if ctx.DecodePods == nil {
 		c.AbortWithStatusJSON(http.StatusNotFound, "no pod meets the requirements")
 		return fmt.Errorf("no pod meets the requirements")
@@ -201,15 +201,15 @@ func (r *Router) proxyModelEndpoint(
 		if ctx.DecodePods[i] != nil {
 			if ctx.PrefillPods != nil && len(ctx.PrefillPods) > i {
 				// PD disaggregated if there is a perfill pod. Dispatch to perfill pod first before dispatching to decode pod.
-				log.Debugf("prefill pod is %v", ctx.PrefillPods[i].Pod.Name)
+				klog.V(4).Infof("prefill pod is %v", ctx.PrefillPods[i].Pod.Name)
 				if err := proxyPrefillPod(prefillRequest, ctx.PrefillPods[i].Pod.Status.PodIP, port); err != nil {
-					log.Errorf("prefill pod request error: %v", err)
+					klog.Errorf("prefill pod request error: %v", err)
 					continue
 				}
 			}
 			// Request dispatched to the decode pod.
-			if err := proxyDecodePod(c, decodeRequest, ctx.DecodePods[i].Pod.Status.PodIP, port); err != nil {
-				log.Errorf("decode pod request error: %v", err)
+			if err := proxyDecodePod(c, decodeRequest, ctx.DecodePods[i].Pod.Status.PodIP, port, stream); err != nil {
+				klog.Errorf("decode pod request error: %v", err)
 				continue
 			}
 			// recoder in prefix cache
@@ -241,6 +241,7 @@ func proxyDecodePod(
 	req *http.Request,
 	podIP string,
 	port int32,
+	stream bool,
 ) error {
 	resp, err := doRequest(req, podIP, port)
 	if err != nil {
@@ -252,15 +253,52 @@ func proxyDecodePod(
 		}
 	}
 	defer resp.Body.Close()
-	c.Stream(func(w io.Writer) bool {
-		buf := make([]byte, 512)
-		n, err := resp.Body.Read(buf)
-		if n > 0 {
-			// add error check
-			_, _ = w.Write(buf[:n])
+
+	c.Status(resp.StatusCode)
+
+	if stream {
+		// If the request is a streaming request, we need to stream the response body.
+		// Stream response: read and forward each event (line) one by one, and parse usage if present
+		c.Status(resp.StatusCode)
+		reader := bufio.NewReader(resp.Body)
+		c.Stream(func(w io.Writer) bool {
+			line, err := reader.ReadBytes('\n')
+			if len(line) > 0 {
+				w.Write(line)
+				// Try to parse usage from this line, assuming it's a data line
+				if bytes.HasPrefix(line, []byte("data:")) {
+					parsed := handlers.ParseStreamRespForUsage(string(line))
+					if parsed.Usage.TotalTokens > 0 {
+						klog.V(4).Infof("Parsed usage: %+v", parsed.Usage)
+					}
+				}
+			}
+			if err != nil {
+				if err != io.EOF {
+					klog.Errorf("error reading stream body: %v", err)
+				}
+				return false
+			}
+			return true
+		})
+	} else {
+		// Non-stream: efficiently stream response while capturing for parsing
+		var buf bytes.Buffer
+		teeReader := io.TeeReader(resp.Body, &buf)
+
+		_, err := io.Copy(c.Writer, teeReader)
+		if err != nil {
+			klog.Errorf("copy response to downstream failed: %v", err)
+			return nil
 		}
-		return err != io.EOF
-	})
+
+		// Parse usage if present
+		parsed, _ := handlers.ParseOpenAIResponseBody(buf.Bytes())
+		if parsed != nil && parsed.Usage.TotalTokens > 0 {
+			klog.V(4).Infof("Parsed usage: %+v", parsed.Usage)
+		}
+	}
+
 	return nil
 }
 
@@ -284,16 +322,22 @@ func doRequest(
 	return resp, nil
 }
 
-func buildPrefillRequest(req *http.Request, modelRequest ModelRequest) (*http.Request, error) {
-	info := make(map[string]interface{})
-	for k, v := range modelRequest {
-		info[k] = v
+// isStreaming checks if the given model request has streaming enabled
+func isStreaming(modelRequest ModelRequest) bool {
+	if v, ok := modelRequest["stream"]; ok {
+		if stream, isBool := v.(bool); isBool && stream {
+			return true
+		}
 	}
-	info["max_tokens"] = 1
-	delete(info, "stream")
-	delete(info, "stream_options")
+	return false
+}
 
-	body, err := json.Marshal(info)
+func buildPrefillRequest(req *http.Request, modelRequest ModelRequest) (*http.Request, error) {
+	// In PD disaggregated mode, we need to send a prefill request to the prefill pod with non stream mode.
+	delete(modelRequest, "stream")
+	delete(modelRequest, "stream_options")
+
+	body, err := json.Marshal(modelRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -308,7 +352,26 @@ func buildPrefillRequest(req *http.Request, modelRequest ModelRequest) (*http.Re
 }
 
 func buildDecodeRequest(req *http.Request, modelRequest ModelRequest) (*http.Request, error) {
-	body, err := json.Marshal(modelRequest)
+	// Create a copy of the request to avoid modifying the original
+	requestCopy := make(ModelRequest)
+	for k, v := range modelRequest {
+		requestCopy[k] = v
+	}
+
+	// Check if streaming is enabled
+	if isStreaming(requestCopy) {
+		// For streaming requests, add stream_options to include token usage
+		requestCopy["stream_options"] = map[string]interface{}{
+			"include_usage": true,
+		}
+	} else {
+		// For non-streaming requests, ensure we request usage information
+		// Most OpenAI-compatible APIs return usage by default for non-streaming,
+		// but we can be explicit about it
+		requestCopy["include_usage"] = true
+	}
+
+	body, err := json.Marshal(requestCopy)
 	if err != nil {
 		return nil, err
 	}

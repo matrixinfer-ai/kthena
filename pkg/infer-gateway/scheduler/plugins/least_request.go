@@ -17,26 +17,41 @@ limitations under the License.
 package plugins
 
 import (
+	"github.com/stretchr/testify/assert/yaml"
 	"istio.io/istio/pkg/slices"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2"
+
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
 )
 
-const MaxWaitingRequests = 10
 const LeastRequestPluginName = "least-request"
 
-var _ framework.FilterPlugin = &LeastRequest{}
 var _ framework.ScorePlugin = &LeastRequest{}
+var _ framework.FilterPlugin = &LeastRequest{}
 
 type LeastRequest struct {
 	name              string
 	maxWaitingRequest int
 }
 
-func NewLeastRequest() *LeastRequest {
+type LeastRequestArgs struct {
+	MaxWaitingRequests int `yaml:"maxWaitingRequests,omitempty"`
+}
+
+func NewLeastRequest(pluginArg runtime.RawExtension) *LeastRequest {
+	var leastRequestArgs LeastRequestArgs
+	if yaml.Unmarshal(pluginArg.Raw, &leastRequestArgs) != nil {
+		klog.Errorf("Unmarshal LeastRequestArgs error, setting default value")
+		leastRequestArgs = LeastRequestArgs{
+			10,
+		}
+	}
+
 	return &LeastRequest{
 		name:              LeastRequestPluginName,
-		maxWaitingRequest: MaxWaitingRequests,
+		maxWaitingRequest: leastRequestArgs.MaxWaitingRequests,
 	}
 }
 

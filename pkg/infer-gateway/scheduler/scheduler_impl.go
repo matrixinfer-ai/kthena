@@ -20,18 +20,14 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2"
 
 	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
-)
-
-var (
-	log = logger.NewLogger("scheduler")
 )
 
 const (
@@ -59,37 +55,63 @@ type podInfoWithValue struct {
 }
 
 func NewScheduler(store datastore.Store) Scheduler {
-	prefixCache := plugins.NewPrefixCache(store)
+	scorePluginMap, filterPluginMap, pluginsArgMap, err := utils.LoadSchedulerConfig()
+	if err != nil {
+		klog.Fatalf("failed to Load Scheduler: %v", err)
+	}
+
+	prefixCache := plugins.NewPrefixCache(store, pluginsArgMap[plugins.PrefixCachePluginName])
 	return &SchedulerImpl{
-		store: store,
-		filterPlugins: []framework.FilterPlugin{
-			// TODO: enable lora affinity when models from metrics are available.
-			// plugins.NewLoraAffinity(),
-			plugins.NewLeastRequest(),
-		},
-		scorePlugins: []*scorePlugin{
-			// TODO: set the weight of each plugin properly.
-			{
-				plugin: plugins.NewLeastRequest(),
-				weight: 1,
-			},
-			{
-				plugin: plugins.NewGPUCacheUsage(),
-				weight: 1,
-			},
-			{
-				plugin: plugins.NewLeastLatency(),
-				weight: 1,
-			},
-			{
-				plugin: prefixCache,
-				weight: 1,
-			},
-		},
+		store:         store,
+		filterPlugins: ParseFilterPlugin(filterPluginMap, pluginsArgMap),
+		scorePlugins:  GetScorePlugin(prefixCache, scorePluginMap, pluginsArgMap),
 		ScheduleHooks: []framework.ScheduleHook{
 			prefixCache,
 		},
 	}
+}
+
+func ParseFilterPlugin(filterPluginMap []string, pluginsArgMap map[string]runtime.RawExtension) []framework.FilterPlugin {
+	var list []framework.FilterPlugin
+	// TODO: enable lora affinity when models from metrics are available.
+	for _, pluginName := range filterPluginMap {
+		if factory, exist := framework.GetFilterPluginBuilder(pluginName); !exist {
+			klog.Errorf("Failed to get plugin %s.", pluginName)
+			continue
+		} else {
+			plugin := factory(pluginsArgMap[pluginName])
+			list = append(list, plugin)
+		}
+	}
+	return list
+}
+
+func GetScorePlugin(prefixCache *plugins.PrefixCache, scorePluginMap map[string]int, pluginsArgMap map[string]runtime.RawExtension) []*scorePlugin {
+	var list []*scorePlugin
+	for pluginName, weight := range scorePluginMap {
+		if weight < 0 {
+			klog.Errorf("Weight for plugin '%s' is invalid, value is %d. Setting to 0", pluginName, weight)
+			weight = 0
+		}
+
+		if pluginName == plugins.PrefixCachePluginName {
+			list = append(list, &scorePlugin{
+				plugin: prefixCache,
+				weight: weight,
+			})
+			continue
+		}
+
+		if pb, exist := framework.GetScorePluginBuilder(pluginName); !exist {
+			klog.Errorf("Failed to get plugin %s.", pluginName)
+		} else {
+			list = append(list, &scorePlugin{
+				plugin: pb(pluginsArgMap[pluginName]),
+				weight: weight,
+			})
+		}
+	}
+	return list
 }
 
 func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.PodInfo, pdGroup *aiv1alpha1.PDGroup) (*framework.Context, error) {
@@ -131,7 +153,7 @@ func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.P
 		}
 	}
 
-	log.Debugf("Running score plugins for decode pod")
+	klog.V(4).Info("Running score plugins for decode pod")
 	scores, err := s.RunScorePlugins(pods, ctx)
 	if err != nil {
 		return nil, err
@@ -152,7 +174,7 @@ func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.P
 				return nil, fmt.Errorf("no prefill pod found")
 			}
 
-			log.Debugf("Running score plugins for prefill pod")
+			klog.V(4).Info("Running score plugins for prefill pod")
 			scores, err = s.RunScorePlugins(selectedPods, ctx)
 			if err != nil {
 				return nil, err
@@ -182,10 +204,10 @@ func (s *SchedulerImpl) RunScorePlugins(pods []*datastore.PodInfo, ctx *framewor
 	res := make(map[*datastore.PodInfo]int)
 	for _, scorePlugin := range s.scorePlugins {
 		scores := scorePlugin.plugin.Score(ctx, pods)
-		log.Debugf("ScorePlugin: %s", scorePlugin.plugin.Name())
+		klog.V(4).Infof("ScorePlugin: %s", scorePlugin.plugin.Name())
 		for k, v := range scores {
 			if k.Pod != nil {
-				log.Debugf("Pod: %s/%s, Score: %d", k.Pod.Namespace, k.Pod.Name, v)
+				klog.V(4).Infof("Pod: %s/%s, Score: %d", k.Pod.Namespace, k.Pod.Name, v)
 			}
 			if _, ok := res[k]; !ok {
 				res[k] = v * scorePlugin.weight
@@ -195,11 +217,11 @@ func (s *SchedulerImpl) RunScorePlugins(pods []*datastore.PodInfo, ctx *framewor
 		}
 	}
 
-	if log.Logger != nil && log.Logger.IsLevelEnabled(logrus.DebugLevel) {
-		log.Debugf("Final Pod Scores:")
+	if klog.V(4).Enabled() {
+		klog.Info("Final Pod Scores:")
 		for k, v := range res {
 			if k.Pod != nil {
-				log.Debugf("  Pod: %s/%s, Final Score: %d", k.Pod.Namespace, k.Pod.Name, v)
+				klog.Infof("  Pod: %s/%s, Final Score: %d", k.Pod.Namespace, k.Pod.Name, v)
 			}
 		}
 	}

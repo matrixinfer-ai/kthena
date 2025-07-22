@@ -19,24 +19,42 @@ package plugins
 import (
 	"math"
 
+	"github.com/stretchr/testify/assert/yaml"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2"
+
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
 )
 
 var _ framework.ScorePlugin = &LeastLatency{}
 
+const LeastLatencyPluginName = "least-latency"
+
 // MaxScore is the highest possible score a pod can receive
 const MaxScore = 100.0
-const TTFTTPOTWeightFactor = 0.5
-const LeastLatencyPluginName = "least latency"
 
 type LeastLatency struct {
-	name string
+	name                 string
+	TTFTTPOTWeightFactor float64
 }
 
-func NewLeastLatency() *LeastLatency {
+type LeastLatencyArgs struct {
+	TTFTTPOTWeightFactor float64 `yaml:"TTFTTPOTWeightFactor,omitempty"`
+}
+
+func NewLeastLatency(pluginArg runtime.RawExtension) *LeastLatency {
+	var leastLatencyArgs LeastLatencyArgs
+	if yaml.Unmarshal(pluginArg.Raw, &leastLatencyArgs) != nil {
+		klog.Errorf("Unmarshal LeastLatencyArgs error, setting default value")
+		leastLatencyArgs = LeastLatencyArgs{
+			0.5,
+		}
+	}
+
 	return &LeastLatency{
-		name: LeastLatencyPluginName,
+		name:                 LeastLatencyPluginName,
+		TTFTTPOTWeightFactor: leastLatencyArgs.TTFTTPOTWeightFactor,
 	}
 }
 
@@ -69,7 +87,7 @@ func (l *LeastLatency) Score(ctx *framework.Context, pods []*datastore.PodInfo) 
 		if maxTPOT > minTPOT {
 			scoreTPOT = MaxScore * (maxTPOT - info.TPOT) / (maxTPOT - minTPOT)
 		}
-		scoreResults[info] = int(scoreTTFT*TTFTTPOTWeightFactor + scoreTPOT*(1-TTFTTPOTWeightFactor))
+		scoreResults[info] = int(scoreTTFT*l.TTFTTPOTWeightFactor + scoreTPOT*(1-l.TTFTTPOTWeightFactor))
 	}
 
 	return scoreResults

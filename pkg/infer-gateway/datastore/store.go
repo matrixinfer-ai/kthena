@@ -31,16 +31,14 @@ import (
 	"istio.io/istio/pkg/util/sets"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog/v2"
 
 	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/backend"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/logger"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
 var (
-	log = logger.NewLogger("datastore")
-
 	metricsName = []string{
 		utils.GPUCacheUsage,
 		utils.RequestWaitingNum,
@@ -85,7 +83,7 @@ type Store interface {
 	// Add modelServer which are selected by modelServer.Spec.WorkloadSelector
 	AddOrUpdateModelServer(modelServer *aiv1alpha1.ModelServer, pods sets.Set[types.NamespacedName]) error
 	// Delete modelServer
-	DeleteModelServer(modelServer *aiv1alpha1.ModelServer) error
+	DeleteModelServer(name types.NamespacedName) error
 	// Get modelServer
 	GetModelServer(name types.NamespacedName) *aiv1alpha1.ModelServer
 	GetPodsByModelServer(name types.NamespacedName) ([]*PodInfo, error)
@@ -212,15 +210,16 @@ func (s *store) AddOrUpdateModelServer(ms *aiv1alpha1.ModelServer, pods sets.Set
 	} else {
 		s.modelServer[name].modelServer = ms
 	}
-	// donot operate s.pods here, which are done within pod handler
-	s.modelServer[name].pods = pods
+	if len(pods) != 0 {
+		// donot operate s.pods here, which are done within pod handler
+		s.modelServer[name].pods = pods
+	}
 
 	return nil
 }
 
-func (s *store) DeleteModelServer(ms *aiv1alpha1.ModelServer) error {
-	name := utils.GetNamespaceName(ms)
-	modelserver, ok := s.modelServer[name]
+func (s *store) DeleteModelServer(ms types.NamespacedName) error {
+	modelserver, ok := s.modelServer[ms]
 	if !ok {
 		return nil
 	}
@@ -229,15 +228,15 @@ func (s *store) DeleteModelServer(ms *aiv1alpha1.ModelServer) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	// delete the model server from the store
-	delete(s.modelServer, name)
+	delete(s.modelServer, ms)
 	// then delete the model server from all pod info
 	for _, podName := range podNames {
 		podInfo := s.pods[podName]
 		if podInfo == nil {
-			log.Warningf("pod %s not found", podName)
+			klog.Warningf("pod %s not found", podName)
 			continue
 		}
-		podInfo.RemoveModelServer(name)
+		podInfo.RemoveModelServer(ms)
 		if podInfo.GetModelServerCount() == 0 {
 			delete(s.pods, podName)
 		}
@@ -279,7 +278,6 @@ func (s *store) GetPodsByModelServer(name types.NamespacedName) ([]*PodInfo, err
 
 func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.ModelServer) error {
 	podName := utils.GetNamespaceName(pod)
-	// TODO: check if pod is already in the store, use the existing PodInfo if exists
 	newPodInfo := &PodInfo{
 		Pod:         pod,
 		modelServer: sets.Set[types.NamespacedName]{},
@@ -292,13 +290,29 @@ func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.Model
 		newPodInfo.AddModelServer(modelServerName)
 		// NOTE: even if a pod belongs to multiple model servers, the backend should be the same
 		newPodInfo.engine = string(modelServer.Spec.InferenceEngine)
-		s.modelServer[modelServerName].addPod(podName)
+		if ms, ok := s.modelServer[modelServerName]; ok {
+			ms.addPod(podName)
+		}
 	}
+
+	oldPodInfo := s.pods[podName]
+	if oldPodInfo != nil {
+		oldModelServers := oldPodInfo.GetModelServers()
+		// Handle the case where the pod is no longer belong to some model servers
+		for msName := range oldModelServers.Difference(newPodInfo.modelServer) {
+			if ms, ok := s.modelServer[msName]; ok {
+				ms.deletePod(podName)
+			}
+		}
+	}
+
 	s.pods[podName] = newPodInfo
 	s.mutex.Unlock()
 
-	s.updatePodMetrics(newPodInfo)
-	s.updatePodModels(newPodInfo)
+	if oldPodInfo == nil {
+		s.updatePodMetrics(newPodInfo)
+		s.updatePodModels(newPodInfo)
+	}
 
 	return nil
 }
@@ -308,6 +322,10 @@ func (s *store) DeletePod(podName types.NamespacedName) error {
 	if pod, ok := s.pods[podName]; ok {
 		modelServers := pod.GetModelServers()
 		for modelServerName := range modelServers {
+			if s.modelServer[modelServerName] == nil {
+				klog.V(4).Infof("model server %s not found for pod %s, maybe already deleted", modelServerName, podName)
+				continue
+			}
 			s.modelServer[modelServerName].deletePod(podName)
 		}
 		delete(s.pods, podName)
@@ -503,7 +521,7 @@ func selectFromWeightedSlice(weights []uint32) int {
 
 func (s *store) updatePodMetrics(pod *PodInfo) {
 	if pod.engine == "" {
-		log.Error("failed to find backend in pod")
+		klog.Error("failed to find backend in pod")
 		return
 	}
 
@@ -515,13 +533,13 @@ func (s *store) updatePodMetrics(pod *PodInfo) {
 
 func (s *store) updatePodModels(podInfo *PodInfo) {
 	if podInfo.engine == "" {
-		log.Error("failed to find backend in pod")
+		klog.Error("failed to find backend in pod")
 		return
 	}
 
 	models, err := backend.GetPodModels(podInfo.engine, podInfo.Pod)
 	if err != nil {
-		log.Errorf("failed to get models of pod %s/%s", podInfo.Pod.GetNamespace(), podInfo.Pod.GetName())
+		klog.Errorf("failed to get models of pod %s/%s", podInfo.Pod.GetNamespace(), podInfo.Pod.GetName())
 	}
 
 	podInfo.UpdateModels(models)
@@ -567,7 +585,7 @@ func updateGaugeMetricsInfo(podinfo *PodInfo, metricsInfo map[string]float64) {
 		if updateFunc, exist := updateFuncs[name]; exist {
 			updateFunc(metricsInfo[name])
 		} else {
-			log.Debugf("Unknow metric: %s", name)
+			klog.V(4).Infof("Unknown metric: %s", name)
 		}
 	}
 }
@@ -586,7 +604,7 @@ func updateHistogramMetrics(podinfo *PodInfo, histogramMetrics map[string]*dto.H
 		if updateFunc, exist := updateFuncs[name]; exist {
 			updateFunc(histogramMetrics[name])
 		} else {
-			log.Debugf("Unknow histogram metric: %s", name)
+			klog.V(4).Infof("Unknown histogram metric: %s", name)
 		}
 	}
 }

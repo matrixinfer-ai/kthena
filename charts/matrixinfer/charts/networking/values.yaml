@@ -1,0 +1,18 @@
+inferGateway:
+  # replicas is the number of infer-gateway instances to run.
+  replicas: 1
+  image:
+    # repository is the container image repository for the infer-gateway.
+    repository: ghcr.io/matrixinfer-ai/infer-gateway
+    # tag is the container image tag for the infer-gateway.
+    tag: 1.0.0
+    # pullPolicy is the image pull policy for the infer-gateway.
+    pullPolicy: IfNotPresent
+  # resource defines the resource limits and requests for the infer-gateway.
+  resource:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi

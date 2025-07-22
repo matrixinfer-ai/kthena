@@ -20,14 +20,12 @@ import (
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog/v2"
+
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
 	matrixinferinformers "matrixinfer.ai/matrixinfer/client-go/informers/externalversions"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/controller"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
-)
-
-const (
-	workerNum = 2
 )
 
 type Controller interface {
@@ -43,23 +41,22 @@ var _ Controller = &aggregatedController{}
 func startControllers(store datastore.Store, stop <-chan struct{}) Controller {
 	cfg, err := clientcmd.BuildConfigFromFlags("", "")
 	if err != nil {
-		log.Fatalf("Error building kubeconfig: %s", err.Error())
+		klog.Fatalf("Error building kubeconfig: %s", err.Error())
 	}
 
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
-		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
+		klog.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
 
 	matrixinferClient, err := clientset.NewForConfig(cfg)
 	if err != nil {
-		log.Fatalf("Error building matrixinfer clientset: %s", err.Error())
+		klog.Fatalf("Error building matrixinfer clientset: %s", err.Error())
 	}
 
 	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, 0)
 	matrixinferInformerFactory := matrixinferinformers.NewSharedInformerFactory(matrixinferClient, 0)
 
-	podController := controller.NewPodController(kubeInformerFactory, matrixinferInformerFactory, store)
 	modelRouteController := controller.NewModelRouteController(matrixinferInformerFactory, store)
 	modelServerController := controller.NewModelServerController(matrixinferInformerFactory, kubeInformerFactory, store)
 
@@ -67,26 +64,19 @@ func startControllers(store datastore.Store, stop <-chan struct{}) Controller {
 	matrixinferInformerFactory.Start(stop)
 
 	go func() {
-		if err := podController.Run(workerNum, stop); err != nil {
-			log.Fatalf("Error running pod controller: %s", err.Error())
+		if err := modelRouteController.Run(stop); err != nil {
+			klog.Fatalf("Error running model route controller: %s", err.Error())
 		}
 	}()
 
 	go func() {
-		if err := modelRouteController.Run(workerNum, stop); err != nil {
-			log.Fatalf("Error running model route controller: %s", err.Error())
-		}
-	}()
-
-	go func() {
-		if err := modelServerController.Run(workerNum, stop); err != nil {
-			log.Fatalf("Error running model server controller: %s", err.Error())
+		if err := modelServerController.Run(stop); err != nil {
+			klog.Fatalf("Error running model server controller: %s", err.Error())
 		}
 	}()
 
 	return &aggregatedController{
 		controllers: []Controller{
-			podController,
 			modelRouteController,
 			modelServerController,
 		},

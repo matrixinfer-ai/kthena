@@ -1,0 +1,24 @@
+registry:
+  # enabled is a flag to enable or disable the registry subchart. Default is true.
+  enabled: true
+  webhook:
+    enabled: true
+
+workload:
+  # enabled is a flag to enable or disable the workload subchart. Default is true.
+  enabled: true
+
+networking:
+  # enabled is a flag to enable or disable the networking subchart. Default is true.
+  enabled: true
+
+global:
+  certManager:
+    # Enable or disable cert-manager integration for all subcharts.
+    # If set to true, this chart will attempt to create cert-manager resources (Issuer, Certificate, etc.)
+    # for all components that support it.
+    #
+    # IMPORTANT:
+    # - cert-manager must be installed in your cluster before enabling this option.
+    #   See: https://cert-manager.io/docs/installation/
+    enabled: true

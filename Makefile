@@ -48,9 +48,9 @@ help: ## Display this help.
 
 .PHONY: gen-crd
 gen-crd: controller-gen 
-	$(CONTROLLER_GEN) crd paths="./pkg/apis/networking/..." output:crd:artifacts:config=manifests/crd/infer-gateway
-	$(CONTROLLER_GEN) crd paths="./pkg/apis/workload/..." output:crd:artifacts:config=manifests/crd/infer-controller
-	$(CONTROLLER_GEN) crd paths="./pkg/apis/registry/..." output:crd:artifacts:config=manifests/crd/model-controller
+	$(CONTROLLER_GEN) crd paths="./pkg/apis/networking/..." output:crd:artifacts:config=charts/matrixinfer/charts/networking/crds
+	$(CONTROLLER_GEN) crd paths="./pkg/apis/workload/..." output:crd:artifacts:config=charts/matrixinfer/charts/workload/crds
+	$(CONTROLLER_GEN) crd paths="./pkg/apis/registry/..." output:crd:artifacts:config=charts/matrixinfer/charts/registry/crds
 .PHONY: generate
 generate: controller-gen code-generator gen-crd ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
@@ -149,27 +149,32 @@ docker-push: docker-build-gateway docker-build-modelinfer docker-build-modelcont
 # PLATFORMS defines the target platforms for the images be built to provide support to multiple
 # architectures.
 PLATFORMS ?= linux/arm64,linux/amd64
+
+# Make sure Buildx is set up:
+#   docker buildx create --name mybuilder --driver docker-container --use
+#   docker buildx inspect --bootstrap
+
 .PHONY: docker-buildx
 docker-buildx: ## Build and push docker image for cross-platform support
 	$(CONTAINER_TOOL) buildx build \
 		--platform ${PLATFORMS} \
 		-t ${IMG_GATEWAY} \
-		-f Dockerfile.gateway \
+		-f docker/Dockerfile.gateway \
 		--push .
 	$(CONTAINER_TOOL) buildx build \
 		--platform ${PLATFORMS}\
 		-t ${IMG_MODELINFER} \
-		-f Dockerfile.modelinfer \
+		-f docker/Dockerfile.modelinfer \
 		--push .
 	$(CONTAINER_TOOL) buildx build \
 		--platform ${PLATFORMS} \
 		-t ${IMG_MODELCONTROLLER} \
-		-f Dockerfile.modelcontroller \
+		-f docker/Dockerfile.modelcontroller \
 		--push .
 	$(CONTAINER_TOOL) buildx build \
 		--platform ${PLATFORMS} \
 		-t ${IMG_REGISTRY_WEBHOOK} \
-		-f Dockerfile.registry.webhook \
+		-f docker/Dockerfile.registry.webhook \
 		--push .
 
 .PHONY: build-installer

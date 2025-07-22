@@ -17,6 +17,7 @@ limitations under the License.
 package datastore
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -30,12 +31,13 @@ import (
 // Store is an interface for storing and retrieving data
 type Store interface {
 	GetInferGroupByModelInfer(modelInferName types.NamespacedName) ([]InferGroup, error)
+	GetInferGroup(modelInferName types.NamespacedName, inferGroupName string) *InferGroup
 	GetRunningPodNumByInferGroup(modelInferName types.NamespacedName, inferGroupName string) (int, error)
 	GetInferGroupStatus(modelInferName types.NamespacedName, inferGroupName string) InferGroupStatus
 	DeleteModelInfer(modelInferName types.NamespacedName)
 	DeleteInferGroup(modelInferName types.NamespacedName, inferGroupName string)
-	AddInferGroup(modelInferName types.NamespacedName, idx int)
-	AddRunningPodToInferGroup(modelInferName types.NamespacedName, inferGroupName string, pod string)
+	AddInferGroup(modelInferName types.NamespacedName, idx int, revision string)
+	AddRunningPodToInferGroup(modelInferName types.NamespacedName, inferGroupName string, pod string, revision string)
 	DeleteRunningPodFromInferGroup(modelInferName types.NamespacedName, inferGroupName string, pod string)
 	UpdateInferGroupStatus(modelInferName types.NamespacedName, inferGroupName string, Status InferGroupStatus) error
 }
@@ -51,6 +53,7 @@ type store struct {
 type InferGroup struct {
 	Name        string
 	runningPods map[string]struct{} // Map of pod names in this infer group
+	Revision    string
 	Status      InferGroupStatus
 }
 
@@ -60,9 +63,11 @@ const (
 	InferGroupRunning  InferGroupStatus = "Running"
 	InferGroupCreating InferGroupStatus = "Creating"
 	InferGroupDeleting InferGroupStatus = "Deleting"
-	InferGroupUpdating InferGroupStatus = "Updating"
+	// InferGroupUpdating InferGroupStatus = "Updating"
 	InferGroupNotFound InferGroupStatus = "NotFound"
 )
+
+var ErrInferGroupNotFound = errors.New("infer group not found")
 
 func New() (Store, error) {
 	return &store{
@@ -76,7 +81,7 @@ func (s *store) GetInferGroupByModelInfer(modelInferName types.NamespacedName) (
 	inferGroups, ok := s.inferGroup[modelInferName]
 	if !ok {
 		s.mutex.RUnlock()
-		return nil, fmt.Errorf("failed to found group of model infer %s", modelInferName)
+		return nil, ErrInferGroupNotFound
 	}
 	// sort inferGroups by name
 	inferGroupsSlice := make([]InferGroup, 0, len(inferGroups))
@@ -109,6 +114,18 @@ func (s *store) GetRunningPodNumByInferGroup(modelInferName types.NamespacedName
 	return len(group.runningPods), nil
 }
 
+// GetInferGroup returns the GetInferGroup
+func (s *store) GetInferGroup(modelInferName types.NamespacedName, inferGroupName string) *InferGroup {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	groups, ok := s.inferGroup[modelInferName]
+	if !ok {
+		return nil
+	}
+
+	return groups[inferGroupName]
+}
+
 // GetInferGroupStatus returns the status of inferGroup
 func (s *store) GetInferGroupStatus(modelInferName types.NamespacedName, inferGroupName string) InferGroupStatus {
 	s.mutex.RLock()
@@ -139,7 +156,7 @@ func (s *store) DeleteInferGroup(modelInferName types.NamespacedName, inferGroup
 }
 
 // AddInferGroup add inferGroup item of one modelInfer
-func (s *store) AddInferGroup(modelInferName types.NamespacedName, idx int) {
+func (s *store) AddInferGroup(modelInferName types.NamespacedName, idx int, revision string) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -147,6 +164,7 @@ func (s *store) AddInferGroup(modelInferName types.NamespacedName, idx int) {
 		Name:        utils.GenerateInferGroupName(modelInferName.Name, idx),
 		runningPods: make(map[string]struct{}),
 		Status:      InferGroupCreating,
+		Revision:    revision,
 	}
 
 	if _, ok := s.inferGroup[modelInferName]; !ok {
@@ -156,7 +174,7 @@ func (s *store) AddInferGroup(modelInferName types.NamespacedName, idx int) {
 }
 
 // AddRunningPodToInferGroup add inferGroup in runningPodOfInferGroup map
-func (s *store) AddRunningPodToInferGroup(modelInferName types.NamespacedName, inferGroupName string, runningPodName string) {
+func (s *store) AddRunningPodToInferGroup(modelInferName types.NamespacedName, inferGroupName string, runningPodName string, revision string) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	if _, ok := s.inferGroup[modelInferName]; !ok {
@@ -171,6 +189,7 @@ func (s *store) AddRunningPodToInferGroup(modelInferName types.NamespacedName, i
 			Name:        inferGroupName,
 			runningPods: map[string]struct{}{runningPodName: {}},
 			Status:      InferGroupCreating,
+			Revision:    revision,
 		}
 		s.inferGroup[modelInferName][inferGroupName] = group
 		return

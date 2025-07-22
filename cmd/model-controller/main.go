@@ -18,11 +18,12 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
 
 	"github.com/spf13/pflag"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,12 +38,11 @@ import (
 )
 
 const (
-	defaultLeaseDuration   = 15 * time.Second
-	defaultRenewDeadline   = 10 * time.Second
-	defaultRetryPeriod     = 2 * time.Second
-	leaderElectionId       = "matrixinfer.model-controller"
-	inClusterNamespacePath = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
-	leaseName              = "lease.matrixinfer.model-controller"
+	defaultLeaseDuration = 15 * time.Second
+	defaultRenewDeadline = 10 * time.Second
+	defaultRetryPeriod   = 2 * time.Second
+	leaderElectionId     = "matrixinfer.model-controller"
+	leaseName            = "lease.matrixinfer.model-controller"
 )
 
 // main starts model controller.
@@ -126,7 +126,7 @@ func initLeaderElector(kubeClient kubernetes.Interface, mc *controller.ModelCont
 
 // newResourceLock returns a lease lock which is used to elect leader
 func newResourceLock(client kubernetes.Interface) (*resourcelock.LeaseLock, error) {
-	namespace, err := getInClusterNameSpace()
+	namespace, err := utils.GetInClusterNameSpace()
 	if err != nil {
 		return nil, err
 	}
@@ -146,19 +146,4 @@ func newResourceLock(client kubernetes.Interface) (*resourcelock.LeaseLock, erro
 			Identity: id,
 		},
 	}, nil
-}
-
-// getInClusterNameSpace gets the namespace of model controller
-func getInClusterNameSpace() (string, error) {
-	if _, err := os.Stat(inClusterNamespacePath); os.IsNotExist(err) {
-		return "", fmt.Errorf("not running in-cluster, please specify namespace")
-	} else if err != nil {
-		return "", fmt.Errorf("error checking namespace file: %v", err)
-	}
-	// Load the namespace file and return its content
-	namespace, err := os.ReadFile(inClusterNamespacePath)
-	if err != nil {
-		return "", fmt.Errorf("error reading namespace file: %v", err)
-	}
-	return string(namespace), nil
 }

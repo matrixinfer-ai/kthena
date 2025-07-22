@@ -27,22 +27,25 @@ type Context struct {
 
 	Hashes []uint64
 
-	PDIndex     int
+	PDIndex int
+	// There are two cases:
+	// 1. In PD Disaggregated mode, both DecodePods and PrefillPods are set.
+	// 2. In PD Aggregated mode, only DecodePods is set, and PrefillPods is nil.
 	DecodePods  []*datastore.PodInfo
 	PrefillPods []*datastore.PodInfo
 }
 
-// FilterPlugin is an interface that is used to filter valid pods that can be sent request to.
-type FilterPlugin interface {
-	Name() string
-	Filter(ctx *Context, pods []*datastore.PodInfo) []*datastore.PodInfo
-}
-
-// ScorePlugin is an interface that is used to rank pods that have passed the filter plugins.
-// Note each plugin should generate score for a pod within [0, 100]
 type ScorePlugin interface {
 	Name() string
+	// Score is a method that is used to rank pods that have passed the filter plugins.
+	// Note each plugin should generate score for a pod within [0, 100]
 	Score(ctx *Context, pods []*datastore.PodInfo) map[*datastore.PodInfo]int
+}
+
+type FilterPlugin interface {
+	Name() string
+	// Filter is a method that is used to filter valid pods that can be sent request to.
+	Filter(ctx *Context, pods []*datastore.PodInfo) []*datastore.PodInfo
 }
 
 // PostHook is an interface that is executed after the scheduling is complete.

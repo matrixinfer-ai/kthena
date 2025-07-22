@@ -20,6 +20,8 @@ import (
 	"context"
 
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/klog/v2"
+
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 )
 
@@ -46,9 +48,9 @@ func (s *Server) Run(ctx context.Context) {
 	// Start store's periodic update loop after controllers have synced
 	go func() {
 		if !cache.WaitForCacheSync(ctx.Done(), s.controllers.HasSynced) {
-			log.Fatalf("Failed to sync controllers")
+			klog.Fatalf("Failed to sync controllers")
 		}
-		log.Infof("Controllers have synced, starting store periodic update loop")
+		klog.Infof("Controllers have synced, starting store periodic update loop")
 		store.Run(ctx)
 	}()
 	// start router

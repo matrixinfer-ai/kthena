@@ -59,9 +59,9 @@ func TestHashModelInferRevision(t *testing.T) {
 		WorkerTemplate: nil,
 	}
 
-	hash1 := HashModelInferRevision(role1)
-	hash2 := HashModelInferRevision(role2)
-	hash3 := HashModelInferRevision(role3)
+	hash1 := Revision(role1)
+	hash2 := Revision(role2)
+	hash3 := Revision(role3)
 
 	if hash1 == hash2 {
 		t.Errorf("Hash should be different for different objects, got %s and %s", hash1, hash3)

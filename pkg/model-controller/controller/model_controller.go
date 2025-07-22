@@ -199,7 +199,7 @@ func (mc *ModelController) isModelInferActive(ctx context.Context, model *regist
 		return fmt.Errorf("model infer number not equal to backend number")
 	}
 	for _, modelInfer := range modelInferList.Items {
-		if !meta.IsStatusConditionPresentAndEqual(modelInfer.Status.Conditions, string(workload.ModelInferSetAvailable), metav1.ConditionTrue) {
+		if !meta.IsStatusConditionPresentAndEqual(modelInfer.Status.Conditions, string(workload.ModelInferAvailable), metav1.ConditionTrue) {
 			// requeue until all Model Infers are active
 			klog.InfoS("model infer is not active", "model infer", modelInfer.Name, "namespace", modelInfer.Namespace)
 			return nil
@@ -328,8 +328,13 @@ func (mc *ModelController) updateModelInfer(ctx context.Context, model *registry
 }
 
 func (mc *ModelController) loadConfigFromConfigMap() {
-	// todo configmap namespace and name is hard-code
-	cm, err := mc.kubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), ConfigMapName, metav1.GetOptions{})
+	namespace, err := utils.GetInClusterNameSpace()
+	// when not running in cluster, namespace is default
+	if err != nil {
+		klog.Error(err)
+		namespace = "default"
+	}
+	cm, err := mc.kubeClient.CoreV1().ConfigMaps(namespace).Get(context.Background(), ConfigMapName, metav1.GetOptions{})
 	if err != nil {
 		klog.Warningf("ConfigMap does not exist. Error: %v", err)
 		return
