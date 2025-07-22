@@ -21,7 +21,7 @@ set -o pipefail
 SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 
 # Get the code-generator version and root
-CODEGEN_VERSION=$(go list -m -f '{{.Version}}' k8s.io/api)
+CODEGEN_VERSION=$(go list -m -f '{{.Version}}' k8s.io/code-generator)
 CODEGEN_ROOT=$(go env GOMODCACHE)/k8s.io/code-generator@${CODEGEN_VERSION}
 
 # Use kube_codegen.sh directly from the module cache (no copying needed)
