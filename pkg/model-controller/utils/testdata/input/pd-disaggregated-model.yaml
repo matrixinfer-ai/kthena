@@ -9,49 +9,57 @@ spec:
   owner: example
   backends:
     - name: ds-r1-qwen-7b-pd
-      type: vLLMDisaggregated
+      type: "vLLMDisaggregated"
       modelURI: s3://aios_models/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
       cacheURI: hostpath:///cache
       maxReplicas: 1
       minReplicas: 1
       env:
-        - name: ENDPOINT
-          value: https://obs.test.com
+        - name: "ENDPOINT"
+          value: "https://obs.test.com"
       envFrom:
         - secretRef:
             name: downloader-secrets
       workers:
-        - image: vllm-prefill:latest
+        - type: prefill
+          image: vllm-prefill:latest
           pods: 1
           replicas: 1
           config:
-            served-model-name: ds-r1-qwen-7b-pd
+            served-model-name: "ds-r1-qwen-7b-pd"
             tensor-parallel-size: 16
             gpu-memory-utilization: 0.99
             disable-frontend-multiprocessing: ""
             max-model-len: 2048
             trust-remote-code: ""
-            quantization: ascend
+            quantization: "ascend"
           resources:
-            requests:
-              cpu: 100m
+            limits:
+              cpu: "16"
               huawei.com/ascend-1980: "1"
               memory: 1Gi
-          type: prefill
-        - image: vllm-decode:latest
+            requests:
+              cpu: "16"
+              huawei.com/ascend-1980: "1"
+              memory: 1Gi
+        - type: decode
+          image: vllm-decode:latest
           pods: 1
           replicas: 1
           config:
-            served-model-name: ds-r1-qwen-7b-pd
+            served-model-name: "ds-r1-qwen-7b-pd"
             tensor-parallel-size: 16
             gpu-memory-utilization: 0.95
             disable-frontend-multiprocessing: ""
             max-model-len: 1024
             trust-remote-code: ""
-            quantization: ascend
+            quantization: "ascend"
           resources:
-            requests:
-              cpu: 100m
+            limits:
+              cpu: "16"
               huawei.com/ascend-1980: "1"
               memory: 1Gi
-          type: decode
+            requests:
+              cpu: "16"
+              huawei.com/ascend-1980: "1"
+              memory: 1Gi
