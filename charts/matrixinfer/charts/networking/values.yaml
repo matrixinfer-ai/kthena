@@ -5,7 +5,7 @@ inferGateway:
     # repository is the container image repository for the infer-gateway.
     repository: ghcr.io/matrixinfer-ai/infer-gateway
     # tag is the container image tag for the infer-gateway.
-    tag: latest
+    tag: 1.0.0
     # pullPolicy is the image pull policy for the infer-gateway.
     pullPolicy: IfNotPresent
   # resource defines the resource limits and requests for the infer-gateway.
