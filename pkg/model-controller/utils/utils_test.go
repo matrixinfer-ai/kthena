@@ -140,6 +140,11 @@ func TestBuildModelServer(t *testing.T) {
 			input:    loadYAML[registry.Model](t, "testdata/input/pd-disaggregated-model.yaml"),
 			expected: []*networking.ModelServer{loadYAML[networking.ModelServer](t, "testdata/expected/pd-model-server.yaml")},
 		},
+		{
+			name:     "normal case",
+			input:    loadYAML[registry.Model](t, "testdata/input/model.yaml"),
+			expected: []*networking.ModelServer{loadYAML[networking.ModelServer](t, "testdata/expected/model-server.yaml")},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
