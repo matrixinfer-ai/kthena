@@ -1,0 +1,28 @@
+apiVersion: networking.matrixinfer.ai/v1alpha1
+kind: ModelServer
+metadata:
+  name: ds-r1-qwen-7b-pd
+  namespace: demo
+  ownerReferences:
+    - apiVersion: registry.matrixinfer.ai/v1alpha1
+      kind: Model
+      name: ds-r1-qwen-7b-pd
+      uid: randomUID
+spec:
+  model: "ds-r1-qwen-7b-pd"
+  inferenceEngine: "vLLM"
+  workloadSelector:
+    matchLabels:
+      model.uid: "randomUID"
+    pdGroup:
+      groupKey: "modelinfer.matrixinfer.ai/group-name"
+      prefillLabels:
+        modelinfer.matrixinfer.ai/role: prefill
+      decodeLabels:
+        modelinfer.matrixinfer.ai/role: decode
+  workloadPort:
+    port: 8000
+  trafficPolicy:
+    retry:
+      attempts: 5
+      retryInterval: 0s

@@ -23,6 +23,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/stretchr/testify/assert"
+	networking "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 )
@@ -103,13 +104,13 @@ func TestBuildModelInferCR(t *testing.T) {
 	}{
 		{
 			name:     "CacheVolume_HuggingFace_HostPath",
-			input:    loadInputYAML(t, "testdata/input/model.yaml"),
-			expected: []*workload.ModelInfer{loadExpectedYAML(t, "testdata/expected/model-infer.yaml")},
+			input:    loadYAML[registry.Model](t, "testdata/input/model.yaml"),
+			expected: []*workload.ModelInfer{loadYAML[workload.ModelInfer](t, "testdata/expected/model-infer.yaml")},
 		},
 		{
 			name:     "PD disaggregation",
-			input:    loadInputYAML(t, "testdata/input/pd-disaggregated-model.yaml"),
-			expected: []*workload.ModelInfer{loadExpectedYAML(t, "testdata/expected/disaggregated-model-infer.yaml")},
+			input:    loadYAML[registry.Model](t, "testdata/input/pd-disaggregated-model.yaml"),
+			expected: []*workload.ModelInfer{loadYAML[workload.ModelInfer](t, "testdata/expected/disaggregated-model-infer.yaml")},
 		},
 	}
 	for _, tt := range tests {
@@ -128,26 +129,36 @@ func TestBuildModelInferCR(t *testing.T) {
 	}
 }
 
-func loadExpectedYAML(t *testing.T, path string) *workload.ModelInfer {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("Failed to read YAML: %v", err)
+func TestBuildModelServer(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    *registry.Model
+		expected []*networking.ModelServer
+	}{
+		{
+			name:     "PD disaggregation",
+			input:    loadYAML[registry.Model](t, "testdata/input/pd-disaggregated-model.yaml"),
+			expected: []*networking.ModelServer{loadYAML[networking.ModelServer](t, "testdata/expected/pd-model-server.yaml")},
+		},
 	}
-	var infer workload.ModelInfer
-	if err := yaml.Unmarshal(data, &infer); err != nil {
-		t.Fatalf("Failed to unmarshal YAML: %v", err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := BuildModelServer(tt.input)
+			actualYAML, _ := yaml.Marshal(got)
+			expectedYAML, _ := yaml.Marshal(tt.expected)
+			assert.Equal(t, string(expectedYAML), string(actualYAML))
+		})
 	}
-	return &infer
 }
 
-func loadInputYAML(t *testing.T, path string) *registry.Model {
+func loadYAML[T any](t *testing.T, path string) *T {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("Failed to read YAML: %v", err)
 	}
-	var model registry.Model
-	if err := yaml.Unmarshal(data, &model); err != nil {
+	var expected T
+	if err := yaml.Unmarshal(data, &expected); err != nil {
 		t.Fatalf("Failed to unmarshal YAML: %v", err)
 	}
-	return &model
+	return &expected
 }
