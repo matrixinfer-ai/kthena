@@ -18,6 +18,7 @@ package algorithm
 
 import (
 	"math"
+
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaler"
 
 	"matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
