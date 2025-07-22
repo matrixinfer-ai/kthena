@@ -257,6 +257,21 @@ func TestGetRecommendedInstances(t *testing.T) {
 			expectedSkip:        false,
 		},
 		{
+			name: "givenUnreadyInstances_whenShouldScaleUp_thenThreatUnreadyInstancesAsZero",
+			args: GetRecommendedInstancesArgs{
+				MinInstances:          int32(1),
+				MaxInstances:          int32(100),
+				CurrentInstancesCount: int32(18),
+				Tolerance:             0.0,
+				MetricTargets:         MetricsMap{"a": 1.0},
+				UnreadyInstancesCount: int32(10),
+				ReadyInstancesMetrics: slices.Repeat([]MetricsMap{{"a": 3.9}}, 8),
+				ExternalMetrics:       MetricsMap{},
+			},
+			expectedRecommended: int32(32),
+			expectedSkip:        false,
+		},
+		{
 			name: "givenTooManyUnreadyInstances_whenEstimatedResultIsOpposite_thenReturnCurrent",
 			args: GetRecommendedInstancesArgs{
 				MinInstances:          int32(1),
@@ -318,24 +333,6 @@ func TestGetRecommendedInstances(t *testing.T) {
 				UnreadyInstancesCount: int32(0),
 				ReadyInstancesMetrics: slices.Concat(
 					slices.Repeat([]MetricsMap{{}}, 50),
-					slices.Repeat([]MetricsMap{{"a": 2.9}}, 8),
-				),
-				ExternalMetrics: MetricsMap{},
-			},
-			expectedRecommended: int32(58),
-			expectedSkip:        false,
-		},
-		{
-			name: "givenTooManyNonExistingInstances_whenEstimatedResultIsOpposite_thenReturnCurrent",
-			args: GetRecommendedInstancesArgs{
-				MinInstances:          int32(1),
-				MaxInstances:          int32(100),
-				CurrentInstancesCount: int32(58),
-				Tolerance:             0.0,
-				MetricTargets:         MetricsMap{"a": 1.0},
-				UnreadyInstancesCount: int32(0),
-				ReadyInstancesMetrics: slices.Concat(
-					slices.Repeat([]MetricsMap{{}}, 4),
 					slices.Repeat([]MetricsMap{{"a": 2.9}}, 8),
 				),
 				ExternalMetrics: MetricsMap{},
