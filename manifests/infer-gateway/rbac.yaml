@@ -1,0 +1,49 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: infer-gateway
+rules:
+- apiGroups:
+  - networking.matrixinfer.ai
+  resources:
+  - modelroutes
+  - modelservers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.matrixinfer.ai
+  resources:
+  - modelroutes/status
+  - modelservers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: infer-gateway
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: infer-gateway
+subjects:
+- kind: ServiceAccount
+  name: infer-gateway
+  namespace: matrixinfer-system
