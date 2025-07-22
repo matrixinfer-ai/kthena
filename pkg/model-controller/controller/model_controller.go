@@ -19,7 +19,6 @@ package controller
 import (
 	"context"
 	"fmt"
-
 	workloadLister "matrixinfer.ai/matrixinfer/client-go/listers/workload/v1alpha1"
 
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -40,10 +39,12 @@ import (
 )
 
 const (
-	ModelInitsReason    = "ModelInits"
-	ModelUpdatingReason = "ModelUpdating"
-	ModelActiveReason   = "ModelActive"
-	ConfigMapName       = "model-config-map"
+	ModelInitsReason              = "ModelInits"
+	ModelUpdatingReason           = "ModelUpdating"
+	ModelActiveReason             = "ModelActive"
+	CreateModelServerFailedReason = "CreateModelServerFailed"
+	CreateModelRouteFailedReason  = "CreateModelRouteFailed"
+	ConfigMapName                 = "model-config-map"
 )
 
 type ModelController struct {
@@ -189,7 +190,8 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 	return mc.isModelInferActive(ctx, model)
 }
 
-// isModelInferActive checks all Model Infers that belong to this model are available
+// isModelInferActive checks all Model Infers that belong to this model are available.
+// When all Model Infers are available, the model is active. Then it creates Model Server and Model Route
 func (mc *ModelController) isModelInferActive(ctx context.Context, model *registryv1alpha1.Model) error {
 	modelInferList, err := mc.listModelInferByLabel(ctx, model)
 	if err != nil {
@@ -213,6 +215,17 @@ func (mc *ModelController) isModelInferActive(ctx context.Context, model *regist
 		metav1.ConditionFalse, ModelActiveReason, "Model not updating"))
 	if err := mc.updateModelStatus(ctx, model); err != nil {
 		klog.Errorf("update model status failed: %v", err)
+		return err
+	}
+	if err := mc.createModelServer(ctx, model); err != nil {
+		meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeFailed),
+			metav1.ConditionTrue, CreateModelServerFailedReason, "Creating model server failed"))
+		meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeActive),
+			metav1.ConditionFalse, CreateModelServerFailedReason, "Model is not active due to failed create model server"))
+		if err := mc.updateModelStatus(ctx, model); err != nil {
+			klog.Errorf("update model status failed: %v", err)
+			return err
+		}
 		return err
 	}
 	return nil
@@ -369,4 +382,17 @@ func (mc *ModelController) triggerModel(old interface{}, new interface{}) {
 			mc.enqueueModel(model)
 		}
 	}
+}
+
+// createModelServer creates model server when model infer is available
+func (mc *ModelController) createModelServer(ctx context.Context, model *registryv1alpha1.Model) error {
+	klog.Info("Model Infer is active, start to create model server")
+	modelServers := utils.BuildModelServer(model)
+	for _, modelServer := range modelServers {
+		if _, err := mc.client.NetworkingV1alpha1().ModelServers(model.Namespace).Create(ctx, modelServer, metav1.CreateOptions{}); err != nil {
+			klog.Errorf("create model server failed: %v", err)
+			return err
+		}
+	}
+	return nil
 }
