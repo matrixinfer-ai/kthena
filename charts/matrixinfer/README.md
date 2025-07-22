@@ -115,7 +115,21 @@ helm uninstall <your-name>
 
 ## Test
 
+### Lint
 ```shell
 cd charts/matrixinfer
 helm lint
+```
+### Validate
+```shell
+helm template test-release charts/matrixinfer --validate
+```
+### Debug
+```shell
+helm template test-release charts/matrixinfer --debug
+```
+
+### Dry-run
+```shell
+helm install test-release charts/matrixinfer --dry-run
 ```
