@@ -556,7 +556,7 @@ func BuildModelServer(model *registry.Model) []*networking.ModelServer {
 				APIVersion: networking.GroupVersion.String(),
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      fmt.Sprintf("%s-%d-%s-instance", model.Name, idx, strings.ToLower(string(backend.Type))),
+				Name:      fmt.Sprintf("%s-%d-%s-server", model.Name, idx, strings.ToLower(string(backend.Type))),
 				Namespace: model.Namespace,
 				OwnerReferences: []metav1.OwnerReference{
 					{
