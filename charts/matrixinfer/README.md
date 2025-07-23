@@ -1,7 +1,5 @@
 # Introduction
 
----
-
 This is the [helm](https://helm.sh/) that MatrixInfer used to deploy on Kubernetes.
 
 Files in `crds/` are custom resource definitions, which are used to define the custom resources used by MatrixInfer.
@@ -19,8 +17,6 @@ it.
 
 # Usage
 
----
-
 prerequisite
 
 - [helm](https://helm.sh/docs/intro/install/) installed
@@ -28,7 +24,6 @@ prerequisite
 
 ## Install
 
----
 
 Syntax:
 ```shell
@@ -99,19 +94,13 @@ After that, it installs resources from the `/templates` directory in the followi
 HELM manages the installation of CRDs. However, if you need to uninstall or update a CRD, please use `kubectl apply` or `kubectl delete`.   
 For more details on the reasoning behind this, see [this explanation](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/#some-caveats-and-explanations) and [these limitations](https://helm.sh/docs/topics/charts/#limitations-on-crds).
 
----
-
 ## Uninstall
-
----
 
 ```shell
 helm uninstall <release-name>
 ```
 
 ## Test
-
----
 
 ### Lint
 ```shell
@@ -132,8 +121,6 @@ helm install test-release charts/matrixinfer --dry-run
 ```
 
 ## Distribution
-
----
 
 You have two options for distributing the Helm chart:
 
