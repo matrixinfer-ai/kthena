@@ -110,7 +110,7 @@ func (mc *ModelController) processNextWorkItem(ctx context.Context) bool {
 	return true
 }
 
-func (mc *ModelController) createModel(obj interface{}) {
+func (mc *ModelController) createModel(obj any) {
 	model, ok := obj.(*registryv1alpha1.Model)
 	if !ok {
 		klog.Error("failed to parse Model when createModel")
@@ -128,7 +128,7 @@ func (mc *ModelController) enqueueModel(model *registryv1alpha1.Model) {
 	}
 }
 
-func (mc *ModelController) updateModel(old interface{}, new interface{}) {
+func (mc *ModelController) updateModel(old any, new any) {
 	newModel, ok := new.(*registryv1alpha1.Model)
 	if !ok {
 		klog.Error("failed to parse new Model type when updateModel")
@@ -145,7 +145,7 @@ func (mc *ModelController) updateModel(old interface{}, new interface{}) {
 	}
 }
 
-func (mc *ModelController) deleteModel(obj interface{}) {
+func (mc *ModelController) deleteModel(obj any) {
 	model, ok := obj.(*registryv1alpha1.Model)
 	if !ok {
 		klog.Error("failed to parse Model when deleteModel")
@@ -415,7 +415,7 @@ func (mc *ModelController) loadConfigFromConfigMap() {
 }
 
 // When model infer status changed, model reconciles
-func (mc *ModelController) triggerModel(old interface{}, new interface{}) {
+func (mc *ModelController) triggerModel(old any, new any) {
 	newModelInfer, ok := new.(*workload.ModelInfer)
 	if !ok {
 		klog.Error("failed to parse new ModelInfer")
