@@ -48,11 +48,11 @@ import (
 	workloadLister "matrixinfer.ai/matrixinfer/client-go/listers/workload/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
+	"matrixinfer.ai/matrixinfer/pkg/autoscaler"
+	"matrixinfer.ai/matrixinfer/pkg/autoscaler/algorithm"
+	"matrixinfer.ai/matrixinfer/pkg/autoscaler/histogram"
+	"matrixinfer.ai/matrixinfer/pkg/autoscaler/util"
 	inferControllerUtils "matrixinfer.ai/matrixinfer/pkg/infer-controller/utils"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaler"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaler/algorithm"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaler/histogram"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaler/util"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
 )
 
@@ -73,7 +73,7 @@ type AutoscaleController struct {
 	autoscalerMap               map[string]*autoscaler.Autoscaler
 }
 
-func NewAutoscaleController(kubeClient kubernetes.Interface, client clientset.Interface, namespace string) *AutoscaleController {
+func NewAutoscaleController(kubeClient kubernetes.Interface, client clientset.Interface) *AutoscaleController {
 	informerFactory := informersv1alpha1.NewSharedInformerFactory(client, 0)
 	modelInformer := informerFactory.Registry().V1alpha1().Models()
 	modelInferInformer := informerFactory.Workload().V1alpha1().ModelInfers()
@@ -94,7 +94,6 @@ func NewAutoscaleController(kubeClient kubernetes.Interface, client clientset.In
 	ac := &AutoscaleController{
 		kubeClient:                  kubeClient,
 		client:                      client,
-		namespace:                   namespace,
 		autoscalingPoliciesLister:   autoscalingPoliciesInformer.Lister(),
 		autoscalingPoliciesInformer: autoscalingPoliciesInformer.Informer(),
 		modelsLister:                modelInformer.Lister(),
@@ -108,7 +107,7 @@ func NewAutoscaleController(kubeClient kubernetes.Interface, client clientset.In
 	return ac
 }
 
-func (ac *AutoscaleController) Run(ctx context.Context) {
+func (ac *AutoscaleController) Run(ctx context.Context, workers int) {
 	defer utilruntime.HandleCrash()
 
 	// start informers
@@ -140,7 +139,7 @@ func (ac *AutoscaleController) Reconcile(ctx context.Context) {
 	defer cancel()
 	modelList, err := ac.client.RegistryV1alpha1().Models(ac.namespace).List(modelCtx, metav1.ListOptions{})
 	if err != nil {
-		klog.Errorf("failed to list model,err:%v", err)
+		klog.Errorf("failed to list model, err:%v", err)
 		return
 	}
 

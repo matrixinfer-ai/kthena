@@ -20,7 +20,7 @@ import (
 	"math"
 
 	"matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaler"
+	"matrixinfer.ai/matrixinfer/pkg/autoscaler"
 )
 
 type GetCorrectedInstancesArgs struct {
