@@ -526,7 +526,7 @@ func GetInClusterNameSpace() (string, error) {
 // Each model backend will create one model server.
 func BuildModelServer(model *registry.Model) []*networking.ModelServer {
 	var modelServers []*networking.ModelServer
-	for _, backend := range model.Spec.Backends {
+	for idx, backend := range model.Spec.Backends {
 		var inferenceEngine networking.InferenceEngine
 		switch backend.Type {
 		case registry.ModelBackendTypeVLLM, registry.ModelBackendTypeVLLMDisaggregated:
@@ -556,7 +556,7 @@ func BuildModelServer(model *registry.Model) []*networking.ModelServer {
 				APIVersion: networking.GroupVersion.String(),
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      model.Name,
+				Name:      fmt.Sprintf("%s-%d-%s-instance", model.Name, idx, strings.ToLower(string(backend.Type))),
 				Namespace: model.Namespace,
 				OwnerReferences: []metav1.OwnerReference{
 					{

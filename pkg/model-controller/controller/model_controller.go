@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 
 	workloadLister "matrixinfer.ai/matrixinfer/client-go/listers/workload/v1alpha1"
@@ -339,7 +340,6 @@ func (mc *ModelController) updateModelInfer(ctx context.Context, model *registry
 			return err
 		}
 	}
-	// todo: we don't have to update model server every time, add condition here.
 	if err := mc.updateModelServer(ctx, model); err != nil {
 		return err
 	}
@@ -423,6 +423,9 @@ func (mc *ModelController) updateModelServer(ctx context.Context, model *registr
 			}
 			klog.Errorf("failed to get ModelServer %s: %v", klog.KObj(modelServer), err)
 			return err
+		}
+		if equality.Semantic.DeepEqual(oldModelServer.Spec, modelServer.Spec) {
+			continue
 		}
 		modelServer.ResourceVersion = oldModelServer.ResourceVersion
 		if _, err := mc.client.NetworkingV1alpha1().ModelServers(model.Namespace).Update(ctx, modelServer, metav1.UpdateOptions{}); err != nil {
