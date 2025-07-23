@@ -30,8 +30,6 @@ modelController:
   downloader:
     # accessKey is the access key for the downloader.
     accessKey: ""
-    # endpoint is the endpoint for the downloader.
-    endpoint: ""
     # secretKey is the secret key for the downloader.
     secretKey: ""
 
