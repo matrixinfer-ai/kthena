@@ -50,10 +50,10 @@ By default, all subcharts will be installed. If you want to specify which of the
 
 ```shell
 # this will only install workload subchart, and disable registry and networking subcharts
-hell install <your-name> <archive-file-name> --namespace <namespace> \
+helm install <your-name> <archive-file-name> --namespace <namespace> \
   --set registry.enabled=false,networking.enabled=false
 # or
-hell install <your-name> <archive-file-name> --namespace <namespace> \
+helm install <your-name> <archive-file-name> --namespace <namespace> \
   --set registry.enabled=false \
   --set networking.enabled=false
 ```
