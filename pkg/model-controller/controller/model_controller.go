@@ -49,7 +49,6 @@ const (
 	CreateModelServerFailedReason = "CreateModelServerFailed"
 	CreateModelRouteFailedReason  = "CreateModelRouteFailed"
 	ConfigMapName                 = "model-config-map"
-	ModelInferNotAvailable        = "ModelInferNotAvailable"
 )
 
 type ModelController struct {
@@ -197,11 +196,11 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 			return err
 		}
 	}
-	err = mc.isModelInferActive(ctx, model)
-	if err != nil {
-		if err.Error() == ModelInferNotAvailable {
-			return nil
-		}
+	modelInferActive, err := mc.isModelInferActive(ctx, model)
+	if err != nil || !modelInferActive {
+		return err
+	}
+	if err := mc.setModelActiveCondition(ctx, model); err != nil {
 		return err
 	}
 	if err := mc.createModelServer(ctx, model); err != nil {
@@ -227,28 +226,26 @@ func (mc *ModelController) setModelServerFailedCondition(ctx context.Context, mo
 	return nil
 }
 
-// isModelInferActive checks if all Model Infers for a model are available.
-// Return model infer not active error if any Model Infer is not available.
-// Return nil if all Model Infers are available.
-func (mc *ModelController) isModelInferActive(ctx context.Context, model *registryv1alpha1.Model) error {
+// isModelInferActive returns true if all Model Infers are available.
+func (mc *ModelController) isModelInferActive(ctx context.Context, model *registryv1alpha1.Model) (bool, error) {
 	// List all Model Infers associated with the model
 	modelInferList, err := mc.listModelInferByLabel(ctx, model)
 	if err != nil {
-		return err
+		return false, err
 	}
 	// Ensure the number of Model Infers matches the number of backends
 	if len(modelInferList.Items) != len(model.Spec.Backends) {
-		return fmt.Errorf("model infer number not equal to backend number")
+		return false, fmt.Errorf("model infer number not equal to backend number")
 	}
 	// Check if all Model Infers are available
 	for _, modelInfer := range modelInferList.Items {
 		if !meta.IsStatusConditionPresentAndEqual(modelInfer.Status.Conditions, string(workload.ModelInferAvailable), metav1.ConditionTrue) {
 			// requeue until all Model Infers are active
 			klog.InfoS("model infer is not available", "model infer", modelInfer.Name, "namespace", modelInfer.Namespace)
-			return errors.New(ModelInferNotAvailable)
+			return false, nil
 		}
 	}
-	return mc.setModelActiveCondition(ctx, model)
+	return true, nil
 }
 
 // setModelActiveCondition sets model conditions when all Model Infers are active.
