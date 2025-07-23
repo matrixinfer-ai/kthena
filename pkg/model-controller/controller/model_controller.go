@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 
@@ -244,7 +245,7 @@ func (mc *ModelController) isModelInferActive(ctx context.Context, model *regist
 		if !meta.IsStatusConditionPresentAndEqual(modelInfer.Status.Conditions, string(workload.ModelInferAvailable), metav1.ConditionTrue) {
 			// requeue until all Model Infers are active
 			klog.InfoS("model infer is not available", "model infer", modelInfer.Name, "namespace", modelInfer.Namespace)
-			return fmt.Errorf(ModelInferNotAvailable)
+			return errors.New(ModelInferNotAvailable)
 		}
 	}
 	return mc.setModelActiveCondition(ctx, model)
