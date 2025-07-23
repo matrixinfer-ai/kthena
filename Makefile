@@ -106,11 +106,13 @@ build: generate fmt vet
 	go build -o bin/infer-gateway cmd/infer-gateway/main.go
 	go build -o bin/model-controller cmd/model-controller/main.go
 	go build -o bin/registry-webhook cmd/registry-webhook/main.go
+	go build -o bin/infer-webhook cmd/modelinfer-webhook/main.go
 
 IMG_MODELINFER ?= ${HUB}/infer-controller:${TAG}
 IMG_MODELCONTROLLER ?= ${HUB}/model-controller:${TAG}
 IMG_GATEWAY ?= ${HUB}/infer-gateway:${TAG}
 IMG_REGISTRY_WEBHOOK ?= ${HUB}/registry-webhook:${TAG}
+IMG_MODELINFER_WEBHOOK ?= ${HUB}/modelinfer-webhook:${TAG}
 
 .PHONY: docker-build-gateway
 docker-build-gateway: generate
@@ -128,12 +130,17 @@ docker-build-modelcontroller: generate
 docker-build-registry-webhook: generate
 	$(CONTAINER_TOOL) build -t ${IMG_REGISTRY_WEBHOOK} -f docker/Dockerfile.registry.webhook .
 
+.PHONY: docker-build-modelinfer-webhook
+docker-build-modelinfer-webhook: generate
+	$(CONTAINER_TOOL) build -t ${IMG_MODELINFER_WEBHOOK} -f docker/Dockerfile.modelinfer.webhook .
+
 .PHONY: docker-push
-docker-push: docker-build-gateway docker-build-modelinfer docker-build-modelcontroller ## Push all images to the registry.
+docker-push: docker-build-gateway docker-build-modelinfer docker-build-modelcontroller docker-build-registry-webhook docker-build-modelinfer-webhook ## Push all images to the registry.
 	$(CONTAINER_TOOL) push ${IMG_GATEWAY}
 	$(CONTAINER_TOOL) push ${IMG_MODELINFER}
 	$(CONTAINER_TOOL) push ${IMG_MODELCONTROLLER}
 	$(CONTAINER_TOOL) push ${IMG_REGISTRY_WEBHOOK}
+	$(CONTAINER_TOOL) push ${IMG_MODELINFER_WEBHOOK}
 
 # PLATFORMS defines the target platforms for the images be built to provide support to multiple
 # architectures.
@@ -164,6 +171,11 @@ docker-buildx: ## Build and push docker image for cross-platform support
 		--platform ${PLATFORMS} \
 		-t ${IMG_REGISTRY_WEBHOOK} \
 		-f docker/Dockerfile.registry.webhook \
+		--push .
+	$(CONTAINER_TOOL) buildx build \
+		--platform ${PLATFORMS} \
+		-t ${IMG_MODELINFER_WEBHOOK} \
+		-f Dockerfile.modelinfer.webhook \
 		--push .
 
 .PHONY: build-installer
