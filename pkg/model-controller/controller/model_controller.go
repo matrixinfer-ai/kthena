@@ -48,6 +48,7 @@ const (
 	CreateModelServerFailedReason = "CreateModelServerFailed"
 	CreateModelRouteFailedReason  = "CreateModelRouteFailed"
 	ConfigMapName                 = "model-config-map"
+	ModelInferNotAvailable        = "ModelInferNotAvailable"
 )
 
 type ModelController struct {
@@ -195,26 +196,62 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 			return err
 		}
 	}
-	return mc.isModelInferActive(ctx, model)
+	err = mc.isModelInferActive(ctx, model)
+	if err != nil {
+		if err.Error() == ModelInferNotAvailable {
+			return nil
+		}
+		return err
+	}
+	if err := mc.createModelServer(ctx, model); err != nil {
+		updateError := mc.setModelServerFailedCondition(ctx, model)
+		if updateError != nil {
+			return updateError
+		}
+		return err
+	}
+	return nil
 }
 
-// isModelInferActive checks all Model Infers that belong to this model are available.
-// When all Model Infers are available, the model is active. Then it creates Model Server and Model Route
+// setModelServerFailedCondition sets model server conditions when creating model server failed.
+func (mc *ModelController) setModelServerFailedCondition(ctx context.Context, model *registryv1alpha1.Model) error {
+	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeFailed),
+		metav1.ConditionTrue, CreateModelServerFailedReason, "Creating model server failed"))
+	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeActive),
+		metav1.ConditionFalse, CreateModelServerFailedReason, "Model is not active due to failed create model server"))
+	if err := mc.updateModelStatus(ctx, model); err != nil {
+		klog.Errorf("update model status failed: %v", err)
+		return err
+	}
+	return nil
+}
+
+// isModelInferActive checks if all Model Infers for a model are available.
+// Return model infer not active error if any Model Infer is not available.
+// Return nil if all Model Infers are available.
 func (mc *ModelController) isModelInferActive(ctx context.Context, model *registryv1alpha1.Model) error {
+	// List all Model Infers associated with the model
 	modelInferList, err := mc.listModelInferByLabel(ctx, model)
 	if err != nil {
 		return err
 	}
+	// Ensure the number of Model Infers matches the number of backends
 	if len(modelInferList.Items) != len(model.Spec.Backends) {
 		return fmt.Errorf("model infer number not equal to backend number")
 	}
+	// Check if all Model Infers are available
 	for _, modelInfer := range modelInferList.Items {
 		if !meta.IsStatusConditionPresentAndEqual(modelInfer.Status.Conditions, string(workload.ModelInferAvailable), metav1.ConditionTrue) {
 			// requeue until all Model Infers are active
-			klog.InfoS("model infer is not active", "model infer", modelInfer.Name, "namespace", modelInfer.Namespace)
-			return nil
+			klog.InfoS("model infer is not available", "model infer", modelInfer.Name, "namespace", modelInfer.Namespace)
+			return fmt.Errorf(ModelInferNotAvailable)
 		}
 	}
+	return mc.setModelActiveCondition(ctx, model)
+}
+
+// setModelActiveCondition sets model conditions when all Model Infers are active.
+func (mc *ModelController) setModelActiveCondition(ctx context.Context, model *registryv1alpha1.Model) error {
 	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeActive),
 		metav1.ConditionTrue, ModelActiveReason, "Model is active"))
 	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeInitializing),
@@ -223,17 +260,6 @@ func (mc *ModelController) isModelInferActive(ctx context.Context, model *regist
 		metav1.ConditionFalse, ModelActiveReason, "Model not updating"))
 	if err := mc.updateModelStatus(ctx, model); err != nil {
 		klog.Errorf("update model status failed: %v", err)
-		return err
-	}
-	if err := mc.createModelServer(ctx, model); err != nil {
-		meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeFailed),
-			metav1.ConditionTrue, CreateModelServerFailedReason, "Creating model server failed"))
-		meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeActive),
-			metav1.ConditionFalse, CreateModelServerFailedReason, "Model is not active due to failed create model server"))
-		if err := mc.updateModelStatus(ctx, model); err != nil {
-			klog.Errorf("update model status failed: %v", err)
-			return err
-		}
 		return err
 	}
 	return nil
