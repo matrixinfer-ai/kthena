@@ -188,7 +188,12 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 	}
 	if model.Generation != model.Status.ObservedGeneration {
 		klog.Info("model generation is not equal to observed generation, update model infer")
-		return mc.updateModelInfer(ctx, model)
+		if err := mc.updateModelInfer(ctx, model); err != nil {
+			return err
+		}
+		if err := mc.updateModelServer(ctx, model); err != nil {
+			return err
+		}
 	}
 	return mc.isModelInferActive(ctx, model)
 }
@@ -339,9 +344,6 @@ func (mc *ModelController) updateModelInfer(ctx context.Context, model *registry
 		} else {
 			return err
 		}
-	}
-	if err := mc.updateModelServer(ctx, model); err != nil {
-		return err
 	}
 	return nil
 }
