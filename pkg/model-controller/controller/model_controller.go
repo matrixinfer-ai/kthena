@@ -189,6 +189,9 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 	}
 	if model.Generation != model.Status.ObservedGeneration {
 		klog.Info("model generation is not equal to observed generation, update model infer")
+		if err := mc.setModelUpdateCondition(ctx, model); err != nil {
+			return err
+		}
 		if err := mc.updateModelInfer(ctx, model); err != nil {
 			return err
 		}
@@ -346,6 +349,36 @@ func (mc *ModelController) listModelInferByLabel(ctx context.Context, model *reg
 
 // updateModelInfer updates model infer when model changed
 func (mc *ModelController) updateModelInfer(ctx context.Context, model *registryv1alpha1.Model) error {
+	modelInfers, err := utils.BuildModelInferCR(model)
+	if err != nil {
+		return err
+	}
+	for _, modelInfer := range modelInfers {
+		oldModelInfer, err := mc.client.WorkloadV1alpha1().ModelInfers(modelInfer.Namespace).Get(ctx, modelInfer.Name, metav1.GetOptions{})
+		if err != nil {
+			if errors.IsNotFound(err) {
+				if _, err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Create(ctx, modelInfer, metav1.CreateOptions{}); err != nil {
+					klog.Errorf("failed to create ModelInfer %s: %v", klog.KObj(modelInfer), err)
+					return err
+				}
+				continue
+			}
+			klog.Errorf("failed to get ModelInfer %s: %v", klog.KObj(modelInfer), err)
+			return err
+		}
+		if equality.Semantic.DeepEqual(oldModelInfer.Spec, modelInfer.Spec) {
+			continue
+		}
+		modelInfer.ResourceVersion = oldModelInfer.ResourceVersion
+		if _, err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Update(ctx, modelInfer, metav1.UpdateOptions{}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// setModelUpdateCondition sets model condition to updating
+func (mc *ModelController) setModelUpdateCondition(ctx context.Context, model *registryv1alpha1.Model) error {
 	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeActive),
 		metav1.ConditionFalse, ModelUpdatingReason, "Model is updating, not ready yet"))
 	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeUpdating),
@@ -353,21 +386,6 @@ func (mc *ModelController) updateModelInfer(ctx context.Context, model *registry
 	if err := mc.updateModelStatus(ctx, model); err != nil {
 		klog.Errorf("update model status failed: %v", err)
 		return err
-	}
-	modelInfers, err := utils.BuildModelInferCR(model)
-	if err != nil {
-		return err
-	}
-	for _, modelInfer := range modelInfers {
-		// Get modelInfer resource version to update it
-		if oldModelInfer, err := mc.client.WorkloadV1alpha1().ModelInfers(modelInfer.Namespace).Get(ctx, modelInfer.Name, metav1.GetOptions{}); err == nil {
-			modelInfer.ResourceVersion = oldModelInfer.ResourceVersion
-			if _, err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Update(ctx, modelInfer, metav1.UpdateOptions{}); err != nil {
-				return err
-			}
-		} else {
-			return err
-		}
 	}
 	return nil
 }
