@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/api/errors"
 
 	workloadLister "matrixinfer.ai/matrixinfer/client-go/listers/workload/v1alpha1"
 
@@ -395,6 +396,10 @@ func (mc *ModelController) createModelServer(ctx context.Context, model *registr
 	modelServers := utils.BuildModelServer(model)
 	for _, modelServer := range modelServers {
 		if _, err := mc.client.NetworkingV1alpha1().ModelServers(model.Namespace).Create(ctx, modelServer, metav1.CreateOptions{}); err != nil {
+			if errors.IsAlreadyExists(err) {
+				klog.V(4).InfoS("ModelServer already exists, skipping creation", "modelServer", klog.KObj(modelServer))
+				continue
+			}
 			klog.Errorf("create model server failed: %v", err)
 			return err
 		}
@@ -406,12 +411,22 @@ func (mc *ModelController) createModelServer(ctx context.Context, model *registr
 func (mc *ModelController) updateModelServer(ctx context.Context, model *registryv1alpha1.Model) error {
 	modelServers := utils.BuildModelServer(model)
 	for _, modelServer := range modelServers {
-		if oldModelInfer, err := mc.client.NetworkingV1alpha1().ModelServers(modelServer.Namespace).Get(ctx, modelServer.Name, metav1.GetOptions{}); err == nil {
-			modelServer.ResourceVersion = oldModelInfer.ResourceVersion
-			if _, err := mc.client.NetworkingV1alpha1().ModelServers(model.Namespace).Update(ctx, modelServer, metav1.UpdateOptions{}); err != nil {
-				return err
+		oldModelServer, err := mc.client.NetworkingV1alpha1().ModelServers(modelServer.Namespace).Get(ctx, modelServer.Name, metav1.GetOptions{})
+		if err != nil {
+			if errors.IsNotFound(err) {
+				// ModelServer doesn't exist, create it.
+				if _, err := mc.client.NetworkingV1alpha1().ModelServers(model.Namespace).Create(ctx, modelServer, metav1.CreateOptions{}); err != nil {
+					klog.Errorf("failed to create ModelServer %s: %v", klog.KObj(modelServer), err)
+					return err
+				}
+				continue
 			}
-		} else {
+			klog.Errorf("failed to get ModelServer %s: %v", klog.KObj(modelServer), err)
+			return err
+		}
+		modelServer.ResourceVersion = oldModelServer.ResourceVersion
+		if _, err := mc.client.NetworkingV1alpha1().ModelServers(model.Namespace).Update(ctx, modelServer, metav1.UpdateOptions{}); err != nil {
+			klog.Errorf("failed to update ModelServer %s: %v", klog.KObj(modelServer), err)
 			return err
 		}
 	}
