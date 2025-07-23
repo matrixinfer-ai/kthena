@@ -535,7 +535,7 @@ func BuildModelServer(model *registry.Model) []*networking.ModelServer {
 			inferenceEngine = networking.SGLang
 		case registry.ModelBackendTypeMindIE, registry.ModelBackendTypeMindIEDisaggregated:
 			klog.Warning("Not support MindIE backend yet, please use vLLM or SGLang backend")
-			return nil
+return modelServers
 		}
 		var pdGroup *networking.PDGroup
 		switch backend.Type {
