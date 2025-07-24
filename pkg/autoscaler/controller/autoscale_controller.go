@@ -73,7 +73,7 @@ type AutoscaleController struct {
 	autoscalerMap               map[string]*autoscaler.Autoscaler
 }
 
-func NewAutoscaleController(kubeClient kubernetes.Interface, client clientset.Interface) *AutoscaleController {
+func NewAutoscaleController(kubeClient kubernetes.Interface, client clientset.Interface, namespace string) *AutoscaleController {
 	informerFactory := informersv1alpha1.NewSharedInformerFactory(client, 0)
 	modelInformer := informerFactory.Registry().V1alpha1().Models()
 	modelInferInformer := informerFactory.Workload().V1alpha1().ModelInfers()
@@ -93,6 +93,7 @@ func NewAutoscaleController(kubeClient kubernetes.Interface, client clientset.In
 	podsInformer := kubeInformerFactory.Core().V1().Pods()
 	ac := &AutoscaleController{
 		kubeClient:                  kubeClient,
+		namespace:                   namespace,
 		client:                      client,
 		autoscalingPoliciesLister:   autoscalingPoliciesInformer.Lister(),
 		autoscalingPoliciesInformer: autoscalingPoliciesInformer.Informer(),
@@ -107,7 +108,7 @@ func NewAutoscaleController(kubeClient kubernetes.Interface, client clientset.In
 	return ac
 }
 
-func (ac *AutoscaleController) Run(ctx context.Context, workers int) {
+func (ac *AutoscaleController) Run(ctx context.Context) {
 	defer utilruntime.HandleCrash()
 
 	// start informers

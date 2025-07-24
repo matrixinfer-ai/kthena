@@ -48,7 +48,6 @@ const (
 func main() {
 	var kubeconfig string
 	var master string
-	var workers int
 	var enableLeaderElection bool
 
 	klog.InitFlags(nil)
@@ -56,7 +55,6 @@ func main() {
 
 	pflag.StringVar(&kubeconfig, "kubeconfig", "", "kubeconfig file path")
 	pflag.StringVar(&master, "master", "", "master URL")
-	pflag.IntVar(&workers, "workers", 5, "number of workers to run")
 	pflag.BoolVar(&enableLeaderElection, "leader-elect", false, "Enable leader election for controller. "+
 		"Enabling this will ensure there is only one active model controller. Default is false.")
 
@@ -82,8 +80,13 @@ func main() {
 	if err != nil {
 		klog.Fatalf("failed to create Autoscaler client: %v", err)
 	}
+
+	namespace, err := utils.GetInClusterNameSpace()
+	if err != nil {
+		klog.Fatalf("failed to create Autoscaler client: %v", err)
+	}
 	// create Autoscale controller
-	asc := controller.NewAutoscaleController(kubeClient, autoscalingClient)
+	asc := controller.NewAutoscaleController(kubeClient, autoscalingClient, namespace)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -96,22 +99,22 @@ func main() {
 		cancel()
 	}()
 	if enableLeaderElection {
-		leaderElector, err := initLeaderElector(kubeClient, asc, workers)
+		leaderElector, err := initLeaderElector(kubeClient, asc, namespace)
 		if err != nil {
 			panic(err)
 		}
 		// Start the leader elector process
 		leaderElector.Run(ctx)
 	} else {
-		go asc.Run(ctx, workers)
+		go asc.Run(ctx)
 		klog.Info("Started autoscaler without leader election")
 	}
 	<-ctx.Done()
 }
 
 // initLeaderElector inits a leader elector for leader election
-func initLeaderElector(kubeClient kubernetes.Interface, mc *controller.AutoscaleController, workers int) (*leaderelection.LeaderElector, error) {
-	resourceLock, err := newResourceLock(kubeClient)
+func initLeaderElector(kubeClient kubernetes.Interface, mc *controller.AutoscaleController, namespace string) (*leaderelection.LeaderElector, error) {
+	resourceLock, err := newResourceLock(kubeClient, namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +125,7 @@ func initLeaderElector(kubeClient kubernetes.Interface, mc *controller.Autoscale
 		RetryPeriod:   defaultRetryPeriod,
 		Callbacks: leaderelection.LeaderCallbacks{
 			OnStartedLeading: func(ctx context.Context) {
-				go mc.Run(ctx, workers)
+				go mc.Run(ctx)
 				klog.Info("Started autoscaler as leader")
 			},
 			OnStoppedLeading: func() {
@@ -139,11 +142,7 @@ func initLeaderElector(kubeClient kubernetes.Interface, mc *controller.Autoscale
 }
 
 // newResourceLock returns a lease lock which is used to elect leader
-func newResourceLock(client kubernetes.Interface) (*resourcelock.LeaseLock, error) {
-	namespace, err := utils.GetInClusterNameSpace()
-	if err != nil {
-		return nil, err
-	}
+func newResourceLock(client kubernetes.Interface, namespace string) (*resourcelock.LeaseLock, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, err
