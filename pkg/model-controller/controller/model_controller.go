@@ -314,7 +314,6 @@ func NewModelController(kubeClient kubernetes.Interface, client clientset.Interf
 		workQueue: workqueue.NewTypedRateLimitingQueueWithConfig(workqueue.DefaultTypedControllerRateLimiter[any](),
 			workqueue.TypedRateLimitingQueueConfig[any]{}),
 	}
-	klog.Info("Set the Model event handler")
 	_, err := modelInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    mc.createModel,
 		UpdateFunc: mc.updateModel,
@@ -392,25 +391,26 @@ func (mc *ModelController) setModelUpdateCondition(ctx context.Context, model *r
 
 func (mc *ModelController) loadConfigFromConfigMap() {
 	namespace, err := utils.GetInClusterNameSpace()
-	// when not running in cluster, namespace is default
-	if err != nil {
-		klog.Error(err)
-		namespace = "default"
+	// When run locally, namespace will be empty, default value of downloader image and runtime image will be used.
+	// So we don't need to read ConfigMap in this case.
+	if len(namespace) == 0 {
+		klog.Warning(err)
+		return
 	}
 	cm, err := mc.kubeClient.CoreV1().ConfigMaps(namespace).Get(context.Background(), ConfigMapName, metav1.GetOptions{})
 	if err != nil {
 		klog.Warningf("ConfigMap does not exist. Error: %v", err)
 		return
 	}
-	if modelInferDownloaderImage, ok := cm.Data["model_infer_downloader_image"]; !ok {
-		klog.Errorf("failed to load modelInferDownloaderImage: %v", err)
-	} else {
+	if modelInferDownloaderImage, ok := cm.Data["model_infer_downloader_image"]; ok {
 		config.Config.SetModelInferDownloaderImage(modelInferDownloaderImage)
-	}
-	if modelInferRuntimeImage, ok := cm.Data["model_infer_runtime_image"]; !ok {
-		klog.Errorf("failed to load model_infer_runtime_image: %v", err)
 	} else {
+		klog.Warning("Failed to load model infer Downloader Image. Use Default Value.")
+	}
+	if modelInferRuntimeImage, ok := cm.Data["model_infer_runtime_image"]; ok {
 		config.Config.SetModelInferRuntimeImage(modelInferRuntimeImage)
+	} else {
+		klog.Warning("Failed to load model infer Runtime Image. Use Default Value.")
 	}
 }
 

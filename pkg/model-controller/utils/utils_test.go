@@ -17,7 +17,6 @@ limitations under the License.
 package utils
 
 import (
-	"os"
 	"testing"
 
 	"sigs.k8s.io/yaml"
@@ -104,13 +103,13 @@ func TestBuildModelInferCR(t *testing.T) {
 	}{
 		{
 			name:     "CacheVolume_HuggingFace_HostPath",
-			input:    loadYAML[registry.Model](t, "testdata/input/model.yaml"),
-			expected: []*workload.ModelInfer{loadYAML[workload.ModelInfer](t, "testdata/expected/model-infer.yaml")},
+			input:    LoadYAML[registry.Model](t, "testdata/input/model.yaml"),
+			expected: []*workload.ModelInfer{LoadYAML[workload.ModelInfer](t, "testdata/expected/model-infer.yaml")},
 		},
 		{
 			name:     "PD disaggregation",
-			input:    loadYAML[registry.Model](t, "testdata/input/pd-disaggregated-model.yaml"),
-			expected: []*workload.ModelInfer{loadYAML[workload.ModelInfer](t, "testdata/expected/disaggregated-model-infer.yaml")},
+			input:    LoadYAML[registry.Model](t, "testdata/input/pd-disaggregated-model.yaml"),
+			expected: []*workload.ModelInfer{LoadYAML[workload.ModelInfer](t, "testdata/expected/disaggregated-model-infer.yaml")},
 		},
 	}
 	for _, tt := range tests {
@@ -137,13 +136,13 @@ func TestBuildModelServer(t *testing.T) {
 	}{
 		{
 			name:     "PD disaggregation",
-			input:    loadYAML[registry.Model](t, "testdata/input/pd-disaggregated-model.yaml"),
-			expected: []*networking.ModelServer{loadYAML[networking.ModelServer](t, "testdata/expected/pd-model-server.yaml")},
+			input:    LoadYAML[registry.Model](t, "testdata/input/pd-disaggregated-model.yaml"),
+			expected: []*networking.ModelServer{LoadYAML[networking.ModelServer](t, "testdata/expected/pd-model-server.yaml")},
 		},
 		{
 			name:     "normal case",
-			input:    loadYAML[registry.Model](t, "testdata/input/model.yaml"),
-			expected: []*networking.ModelServer{loadYAML[networking.ModelServer](t, "testdata/expected/model-server.yaml")},
+			input:    LoadYAML[registry.Model](t, "testdata/input/model.yaml"),
+			expected: []*networking.ModelServer{LoadYAML[networking.ModelServer](t, "testdata/expected/model-server.yaml")},
 		},
 	}
 	for _, tt := range tests {
@@ -154,16 +153,4 @@ func TestBuildModelServer(t *testing.T) {
 			assert.Equal(t, string(expectedYAML), string(actualYAML))
 		})
 	}
-}
-
-func loadYAML[T any](t *testing.T, path string) *T {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("Failed to read YAML: %v", err)
-	}
-	var expected T
-	if err := yaml.Unmarshal(data, &expected); err != nil {
-		t.Fatalf("Failed to unmarshal YAML: %v", err)
-	}
-	return &expected
 }
