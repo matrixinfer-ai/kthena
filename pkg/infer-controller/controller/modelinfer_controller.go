@@ -369,12 +369,20 @@ func (c *ModelInferController) Run(ctx context.Context, workers int) {
 // we need to check the number of pods in the inferGroup to avoid losing pod events during controller downtime.
 // ModelInfer controller will sync all ModelInfers after the initial sync. Related inferGroups will be created when syncing pods.
 func (c *ModelInferController) syncAll() {
-	pods, _ := c.podsLister.List(labels.Everything())
+	pods, err := c.podsLister.List(labels.Everything())
+	if err != nil {
+		klog.Errorf("cannot list pods during initial synchronization: %v", err)
+		return
+	}
 	for _, pod := range pods {
 		c.addPod(pod)
 	}
 
-	miList, _ := c.modelInfersLister.List(labels.Everything())
+	miList, err := c.modelInfersLister.List(labels.Everything())
+	if err != nil {
+		klog.Errorf("cannot list modelInfers during initial synchronization: %v", err)
+		return
+	}
 	for _, mi := range miList {
 		inferGroupList, err := c.store.GetInferGroupByModelInfer(utils.GetNamespaceName(mi))
 		if err != nil {
@@ -511,9 +519,9 @@ func (c *ModelInferController) manageReplicas(ctx context.Context, mi *workloadv
 				// If an error occurs during the creation, group status will be set to error and the group waits rebuild.
 				statusErr := c.store.UpdateInferGroupStatus(utils.GetNamespaceName(mi), utils.GenerateInferGroupName(mi.Name, idx), datastore.InferGroupError)
 				if statusErr != nil {
-					return fmt.Errorf("create infer group failed: %v, and set group status err: %v", err, statusErr)
+					return fmt.Errorf("create infer group failed: %w, and set group status err: %w", err, statusErr)
 				}
-				return fmt.Errorf("create infer group failed: %v", err)
+				return fmt.Errorf("create infer group failed: %w", err)
 			}
 		}
 	}
