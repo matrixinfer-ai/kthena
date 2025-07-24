@@ -264,7 +264,7 @@ func proxyDecodePod(
 		c.Stream(func(w io.Writer) bool {
 			line, err := reader.ReadBytes('\n')
 			if len(line) > 0 {
-				w.Write(line)
+				_, _ = w.Write(line)
 				// Try to parse usage from this line, assuming it's a data line
 				if bytes.HasPrefix(line, []byte("data:")) {
 					parsed := handlers.ParseStreamRespForUsage(string(line))

@@ -1,0 +1,28 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: modelinfer-validating-webhook
+  labels:
+    app: modelinfer-webhook
+  annotations:
+    cert-manager.io/inject-ca-from: matrixinfer-system/modelinfer-webhook-cert
+webhooks:
+- name: validate-modelinfer-matrixinfer-ai-v1alpha1-modelinfer.matrixinfer.ai
+  admissionReviewVersions: ["v1"]
+  sideEffects: None
+  failurePolicy: Fail
+  timeoutSeconds: 30
+  clientConfig:
+    service:
+      name: modelinfer-webhook
+      namespace: matrixinfer-system
+      path: "/validate-matrixinfer-ai-v1alpha1-modelinfer"
+      port: 443
+    # need ca cert
+    caBundle: ""
+  rules:
+  - apiGroups: ["workload.matrixinfer.ai"]
+    apiVersions: ["v1alpha1"]
+    resources: ["modelinfers"]
+    operations: ["CREATE", "UPDATE"]
+    scope: "Namespaced"
