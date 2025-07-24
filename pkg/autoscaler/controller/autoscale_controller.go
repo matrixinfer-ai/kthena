@@ -422,7 +422,7 @@ func (ac *AutoscaleController) doAutoscale(ctx context.Context, namespace string
 		return correctedInstances, skip
 	}
 
-	if recommendedInstances*100 >= currentInstancesCount*(*autoscalePolicy.Spec.Behavior.ScaleUp.PanicPolicy.PanicThresholdPercent) {
+	if autoscalePolicy.Spec.Behavior.ScaleUp.PanicPolicy.PanicThresholdPercent != nil && recommendedInstances*100 >= currentInstancesCount*(*autoscalePolicy.Spec.Behavior.ScaleUp.PanicPolicy.PanicThresholdPercent) {
 		scopeAutoscaler.RefreshPanicMode()
 	}
 	correctedInstances = algorithm.GetCorrectedInstances(algorithm.GetCorrectedInstancesArgs{
