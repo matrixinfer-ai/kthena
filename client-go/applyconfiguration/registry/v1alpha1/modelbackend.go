@@ -38,7 +38,7 @@ type ModelBackendApplyConfiguration struct {
 	Cost                   *int32                             `json:"cost,omitempty"`
 	ScaleToZeroGracePeriod *metav1.Duration                   `json:"scaleToZeroGracePeriod,omitempty"`
 	Workers                []ModelWorkerApplyConfiguration    `json:"workers,omitempty"`
-	LoraAdapterRefs        []v1.LocalObjectReference          `json:"loraAdapterRefs,omitempty"`
+	LoraAdapters           []LoraAdapterApplyConfiguration    `json:"loraAdapters,omitempty"`
 	AutoscalingPolicyRef   *v1.LocalObjectReference           `json:"autoscalingPolicyRef,omitempty"`
 }
 
@@ -145,12 +145,15 @@ func (b *ModelBackendApplyConfiguration) WithWorkers(values ...*ModelWorkerApply
 	return b
 }
 
-// WithLoraAdapterRefs adds the given value to the LoraAdapterRefs field in the declarative configuration
+// WithLoraAdapters adds the given value to the LoraAdapters field in the declarative configuration
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
-// If called multiple times, values provided by each call will be appended to the LoraAdapterRefs field.
-func (b *ModelBackendApplyConfiguration) WithLoraAdapterRefs(values ...v1.LocalObjectReference) *ModelBackendApplyConfiguration {
+// If called multiple times, values provided by each call will be appended to the LoraAdapters field.
+func (b *ModelBackendApplyConfiguration) WithLoraAdapters(values ...*LoraAdapterApplyConfiguration) *ModelBackendApplyConfiguration {
 	for i := range values {
-		b.LoraAdapterRefs = append(b.LoraAdapterRefs, values[i])
+		if values[i] == nil {
+			panic("nil value passed to WithLoraAdapters")
+		}
+		b.LoraAdapters = append(b.LoraAdapters, *values[i])
 	}
 	return b
 }
