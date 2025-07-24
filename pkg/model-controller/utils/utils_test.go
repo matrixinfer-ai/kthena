@@ -17,14 +17,14 @@ limitations under the License.
 package utils
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	"testing"
-
-	"sigs.k8s.io/yaml"
 
 	"github.com/stretchr/testify/assert"
 	networking "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
+	"sigs.k8s.io/yaml"
 )
 
 func TestGetMountPath(t *testing.T) {
@@ -151,6 +151,80 @@ func TestBuildModelServer(t *testing.T) {
 			actualYAML, _ := yaml.Marshal(got)
 			expectedYAML, _ := yaml.Marshal(tt.expected)
 			assert.Equal(t, string(expectedYAML), string(actualYAML))
+		})
+	}
+}
+
+func TestBuildCacheVolume(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        *registry.ModelBackend
+		expected     *corev1.Volume
+		expectErrMsg string
+	}{
+		{
+			name: "empty cache URI",
+			input: &registry.ModelBackend{
+				Name:     "test-backend",
+				CacheURI: "",
+			},
+			expected: &corev1.Volume{
+				Name: "test-backend-weights",
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
+		},
+		{
+			name: "PVC URI",
+			input: &registry.ModelBackend{
+				Name:     "test-backend",
+				CacheURI: "pvc://test-pvc",
+			},
+			expected: &corev1.Volume{
+				Name: "test-backend-weights",
+				VolumeSource: corev1.VolumeSource{
+					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+						ClaimName: "test-pvc",
+					},
+				},
+			},
+		},
+		{
+			name: "HostPath URI",
+			input: &registry.ModelBackend{
+				Name:     "test-backend",
+				CacheURI: "hostpath://test/path",
+			},
+			expected: &corev1.Volume{
+				Name: "test-backend-weights",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: "test/path",
+						Type: func() *corev1.HostPathType { typ := corev1.HostPathDirectoryOrCreate; return &typ }(),
+					},
+				},
+			},
+		},
+		{
+			name: "invalid URI",
+			input: &registry.ModelBackend{
+				Name:     "test-backend",
+				CacheURI: "hostPath://invalid/path",
+			},
+			expectErrMsg: "not support prefix in CacheURI: hostPath://invalid/path",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := buildCacheVolume(tt.input)
+			if len(tt.expectErrMsg) != 0 {
+				assert.Contains(t, err.Error(), tt.expectErrMsg)
+				return
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.Equal(t, tt.expected, got)
 		})
 	}
 }
