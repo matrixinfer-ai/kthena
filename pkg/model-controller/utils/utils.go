@@ -90,6 +90,26 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 		return nil, err
 	}
 	modelDownloadPath := getCachePath(backend.CacheURI) + getMountPath(backend.ModelURI)
+
+	// Build an initial container list including model downloader container
+	initContainers := []corev1.Container{
+		{
+			Name:            model.Name + "-model-downloader",
+			ImagePullPolicy: "Always",
+			Image:           config.Config.GetModelInferDownloaderImage(),
+			Args: []string{
+				"--source", backend.ModelURI,
+				"--output-dir", modelDownloadPath,
+			},
+			Env:     getEnvVarOrDefault(backend, "ENDPOINT", ""),
+			EnvFrom: backend.EnvFrom,
+			VolumeMounts: []corev1.VolumeMount{{
+				Name:      cacheVolume.Name,
+				MountPath: getCachePath(backend.CacheURI),
+			}},
+		},
+	}
+
 	var preFillCommand []string
 	var decodeCommand []string
 	for _, worker := range backend.Workers {
@@ -104,6 +124,14 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 				return nil, err
 			}
 		}
+	}
+
+	// Handle LoRA adapters
+	if len(backend.LoraAdapters) > 0 {
+		loraCommands, loraContainers := buildLoraComponents(model, backend, cacheVolume.Name)
+		preFillCommand = append(preFillCommand, loraCommands...)
+		decodeCommand = append(decodeCommand, loraCommands...)
+		initContainers = append(initContainers, loraContainers...)
 	}
 	data := map[string]interface{}{
 		"MODEL_INFER_TEMPLATE_METADATA": &metav1.ObjectMeta{
@@ -132,6 +160,7 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 		"MODEL_URL":                    backend.ModelURI,
 		"BACKEND_REPLICAS":             backend.MinReplicas, // todo: backend replicas
 		"MODEL_DOWNLOAD_ENVFROM":       backend.EnvFrom,
+		"INIT_CONTAINERS":              initContainers,
 		"ENGINE_PREFILL_COMMAND":       preFillCommand,
 		"ENGINE_DECODE_COMMAND":        decodeCommand,
 		"MODEL_DOWNLOAD_PATH":          modelDownloadPath,
@@ -210,7 +239,7 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 				},
 			},
 		},
-		// "MODEL_NAME":       model.Name,
+		"MODEL_NAME":       model.Name,
 		"BACKEND_NAME":     strings.ToLower(backend.Name),
 		"BACKEND_REPLICAS": backend.MinReplicas, // todo: backend replicas
 		"BACKEND_TYPE":     strings.ToLower(string(backend.Type)),
@@ -226,7 +255,16 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 		"VOLUMES": []*corev1.Volume{
 			cacheVolume,
 		},
-		"INIT_CONTAINERS": initContainers,
+		"VOLUME_MOUNTS": []corev1.VolumeMount{{
+			Name:      cacheVolume.Name,
+			MountPath: getCachePath(backend.CacheURI),
+		}},
+		"MODEL_URL":                    backend.ModelURI,
+		"MODEL_DOWNLOAD_PATH":          modelDownloadPath,
+		"MODEL_DOWNLOAD_ENV":           getEnvVarOrDefault(backend, "ENDPOINT", ""),
+		"MODEL_DOWNLOAD_ENVFROM":       backend.EnvFrom,
+		"MODEL_INFER_DOWNLOADER_IMAGE": config.Config.GetModelInferDownloaderImage(),
+		"INIT_CONTAINERS":              initContainers,
 
 		"MODEL_INFER_RUNTIME_IMAGE":  config.Config.GetModelInferRuntimeImage(),
 		"MODEL_INFER_RUNTIME_PORT":   getEnvValueOrDefault(backend, "RUNTIME_PORT", "8100"),

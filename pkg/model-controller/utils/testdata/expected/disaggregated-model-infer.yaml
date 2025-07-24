@@ -108,12 +108,15 @@ spec:
                   - s3://aios_models/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
                   - --output-dir
                   - /cache/568a486051fd302c338d84946c4f3d48
+                env:
+                  - name: ENDPOINT
+                    value: https://obs.test.com
                 envFrom:
                   - secretRef:
                       name: downloader-secrets
                 image: matrixinfer/downloader:latest
                 imagePullPolicy: Always
-                name: downloader
+                name: ds-r1-qwen-7b-pd-model-downloader
                 resources: {}
                 volumeMounts:
                   - mountPath: /cache
