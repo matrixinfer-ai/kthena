@@ -18,6 +18,15 @@ rules:
   - apiGroups:
       - registry.matrixinfer.ai
     resources:
+      - models
+    verbs:
+      - get
+      - list
+      - patch
+      - watch
+  - apiGroups:
+      - registry.matrixinfer.ai
+    resources:
       - autoscalingpolicies/finalizers
     verbs:
       - update
@@ -47,6 +56,14 @@ rules:
       - modelinfers/status
     verbs:
       - get
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+      - list
+      - watch
   - apiGroups:
       - coordination.k8s.io
     resources:
