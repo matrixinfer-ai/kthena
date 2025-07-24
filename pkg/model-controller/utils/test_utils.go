@@ -2,8 +2,9 @@ package utils
 
 import (
 	"os"
-	"sigs.k8s.io/yaml"
 	"testing"
+
+	"sigs.k8s.io/yaml"
 )
 
 // LoadYAML transfer yaml data into a struct of type T.

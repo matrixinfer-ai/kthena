@@ -22,7 +22,7 @@ spec:
             name: test-secret
       workers:
         - image: vllm-server:latest
-          pods: 1
+          pods: 2
           config:
             block-size: 128
             gpu-memory-utilization: 0.9
