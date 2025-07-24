@@ -70,3 +70,16 @@ rules:
       - update
       - patch
       - delete
+  - apiGroups:
+      - networking.matrixinfer.ai
+    resources:
+      - modelroutes
+      - modelservers
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch

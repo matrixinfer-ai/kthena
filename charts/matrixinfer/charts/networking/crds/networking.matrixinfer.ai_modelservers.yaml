@@ -99,8 +99,8 @@ spec:
                 type: object
               workloadSelector:
                 description: |-
-                  WorkloadSelector is used to match the model servring instances.
-                  Currently they must be pods within the same namespace as modelServer object.
+                  WorkloadSelector is used to match the model serving instances.
+                  Currently, they must be pods within the same namespace as modelServer object.
                 properties:
                   matchLabels:
                     additionalProperties:
