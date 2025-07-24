@@ -32,17 +32,7 @@ spec:
         entryTemplate:
           metadata: ${SERVER_ENTRY_TEMPLATE_METADATA}
           spec:
-            initContainers: ${INIT_CONTAINERS} 
-              - args:
-                  - --source
-                  - ${MODEL_URL}
-                  - --output-dir
-                  - ${MODEL_DOWNLOAD_PATH}
-                env: ${MODEL_DOWNLOAD_ENV}
-                envFrom: ${MODEL_DOWNLOAD_ENVFROM}
-                image: ${MODEL_INFER_DOWNLOADER_IMAGE}
-                name: ${MODEL_NAME}-downloader
-                volumeMounts: ${VOLUME_MOUNTS}
+            initContainers: ${INIT_CONTAINERS}
             terminationGracePeriodSeconds: 300
             volumes: ${VOLUMES}
             containers:

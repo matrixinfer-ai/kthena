@@ -97,19 +97,24 @@ type ModelBackend struct {
 	// +kubebuilder:validation:MinItems=1
 	// +kubebuilder:validation:MaxItems=1000
 	Workers []ModelWorker `json:"workers"`
-	// LoraAdapterRefs is a list of references to LoRA adapters.
+	// LoraAdapter is a list of LoRA adapters.
 	// +optional
-	// LoraAdapterRefs []corev1.LocalObjectReference `json:"loraAdapterRefs,omitempty"`
-	LoraAdapters []LoraAdapter `json:"loraadapters,omitempty"'`
-
+	LoraAdapters []LoraAdapter `json:"loraAdapters,omitempty"`
 	// AutoscalingPolicyRef references the autoscaling policy for this backend.
 	// +optional
 	AutoscalingPolicyRef corev1.LocalObjectReference `json:"autoscalingPolicyRef,omitempty"`
 }
-type LoraAdapter struct{
-	Name  		string
-	ArtifactURL string
+
+// LoraAdapter defines a LoRA (Low-Rank Adaptation) adapter configuration
+// LoraAdapter defines a LoRA (Low-Rank Adaptation) adapter configuration.
+type LoraAdapter struct {
+	// Name is the name of the LoRA adapter.
+	Name string `json:"name"`
+	// ArtifactURL is the URL where the LoRA adapter artifact is stored.
+	// +kubebuilder:validation:Pattern=`^(hf://|s3://|pvc://).+`
+	ArtifactURL string `json:"artifactURL"`
 }
+
 // ModelBackendType defines the type of model backend.
 // +kubebuilder:validation:Enum=vLLM;vLLMDisaggregated;SGLang;MindIE;MindIEDisaggregated
 type ModelBackendType string

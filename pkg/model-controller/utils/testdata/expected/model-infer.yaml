@@ -62,6 +62,9 @@ spec:
                   - --tensor-parallel-size
                   - "2"
                   - --trust-remote-code
+                  - --enable-lora
+                  - --lora-modules
+                  - lora-sql=/tmp/test/11e9a15be1e19ff056520bf67eaeb688
                 image: vllm-server:latest
                 lifecycle:
                   preStop:
@@ -116,8 +119,25 @@ spec:
                 envfrom:
                   - secretRef:
                       name: "test-secret"
-                name: test-model-downloader
+                name: test-model-model-downloader
                 resources: {}
+                volumeMounts:
+                  - mountPath: /tmp/test
+                    name: backend1-weights
+              - args:
+                  - --source
+                  - s3://aios_models/deepseek-ai/DeepSeek-V3-W8A8/vllm-ascend-lora
+                  - --output-dir
+                  - /tmp/test/11e9a15be1e19ff056520bf67eaeb688
+                env:
+                  - name: ENDPOINT
+                    value: https://obs.test.com
+                envFrom:
+                  - secretRef:
+                      name: "test-secret"
+                image: matrixinfer/downloader:latest
+                name: test-model-lora-downloader-0
+                resources: { }
                 volumeMounts:
                   - mountPath: /tmp/test
                     name: backend1-weights
