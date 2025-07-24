@@ -5,7 +5,6 @@ go 1.24.0
 require (
 	github.com/agiledragon/gomonkey/v2 v2.13.0
 	github.com/cespare/xxhash v1.1.0
-	github.com/deckarep/golang-set v1.8.0
 	github.com/gammazero/deque v1.0.0
 	github.com/gin-gonic/gin v1.10.0
 	github.com/google/uuid v1.6.0

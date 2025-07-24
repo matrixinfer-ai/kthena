@@ -32,7 +32,7 @@ func Test_maximumRecordSlidingWindow(t *testing.T) {
 
 	window := NewMaximumRecordSlidingWindow[int](10000)
 
-	best, ok := window.GetBest()
+	_, ok := window.GetBest()
 	assert.False(ok)
 
 	window.getCurrentTimestamp = dateFunc(1)
@@ -47,7 +47,7 @@ func Test_maximumRecordSlidingWindow(t *testing.T) {
 	window.getCurrentTimestamp = dateFunc(7)
 	window.Append(2)
 
-	best, ok = window.GetBest()
+	best, ok := window.GetBest()
 	assert.Equal(6, best)
 	assert.True(ok)
 
@@ -67,7 +67,7 @@ func Test_maximumRecordSlidingWindow(t *testing.T) {
 	assert.True(ok)
 
 	window.getCurrentTimestamp = dateFunc(18)
-	best, ok = window.GetBest()
+	_, ok = window.GetBest()
 	assert.False(ok)
 }
 
@@ -76,7 +76,7 @@ func Test_minimumRecordSlidingWindow(t *testing.T) {
 
 	window := NewMinimumRecordSlidingWindow[int](10000)
 
-	best, ok := window.GetBest()
+	_, ok := window.GetBest()
 	assert.False(ok)
 
 	window.getCurrentTimestamp = dateFunc(1)
@@ -91,7 +91,7 @@ func Test_minimumRecordSlidingWindow(t *testing.T) {
 	window.getCurrentTimestamp = dateFunc(7)
 	window.Append(7)
 
-	best, ok = window.GetBest()
+	best, ok := window.GetBest()
 	assert.Equal(3, best)
 	assert.True(ok)
 
@@ -111,7 +111,7 @@ func Test_minimumRecordSlidingWindow(t *testing.T) {
 	assert.True(ok)
 
 	window.getCurrentTimestamp = dateFunc(18)
-	best, ok = window.GetBest()
+	_, ok = window.GetBest()
 	assert.False(ok)
 }
 
@@ -266,7 +266,7 @@ func Test_snapshotSlidingWindow(t *testing.T) {
 
 	window := NewSnapshotSlidingWindow[string](10000, 15000)
 
-	last, ok := window.GetLastUnfreshSnapshot()
+	_, ok := window.GetLastUnfreshSnapshot()
 	assert.False(ok)
 
 	window.getCurrentTimestamp = dateFunc(1)
@@ -281,11 +281,11 @@ func Test_snapshotSlidingWindow(t *testing.T) {
 	window.getCurrentTimestamp = dateFunc(7)
 	window.Append("abc")
 
-	last, ok = window.GetLastUnfreshSnapshot()
+	_, ok = window.GetLastUnfreshSnapshot()
 	assert.False(ok)
 
 	window.getCurrentTimestamp = dateFunc(12)
-	last, ok = window.GetLastUnfreshSnapshot()
+	last, ok := window.GetLastUnfreshSnapshot()
 	assert.Equal("foo", last)
 	assert.True(ok)
 
@@ -310,7 +310,7 @@ func Test_snapshotSlidingWindow(t *testing.T) {
 	assert.True(ok)
 
 	window.getCurrentTimestamp = dateFunc(23)
-	last, ok = window.GetLastUnfreshSnapshot()
+	_, ok = window.GetLastUnfreshSnapshot()
 	assert.False(ok)
 }
 

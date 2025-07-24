@@ -219,7 +219,7 @@ func validatorReplicas(mi *workloadv1alpha1.ModelInfer) field.ErrorList {
 		))
 	}
 
-	if mi.Spec.Template.Roles == nil || len(mi.Spec.Template.Roles) == 0 {
+	if len(mi.Spec.Template.Roles) == 0 {
 		allErrs = append(allErrs, field.Invalid(
 			field.NewPath("spec").Child("template").Child("roles"),
 			mi.Spec.Template.Roles,
