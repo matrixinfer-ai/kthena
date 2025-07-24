@@ -15,7 +15,7 @@ spec:
       maxReplicas: 1
       minReplicas: 1
       env:
-        - name: "ENDPOINT"
+        - name: ENDPOINT
           value: "https://obs.test.com"
       envFrom:
         - secretRef:
