@@ -96,22 +96,25 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 		klog.V(4).Infof("modelServer is %v, is_lora: %v", modelServerName, isLora)
 
 		pods, modelServer, err := r.getPodsAndServer(modelServerName)
-		if err != nil {
+		if err != nil || len(pods) == 0 {
 			klog.Errorf("failed to get pods and model server: %v, %v", modelServerName, err)
 			c.AbortWithStatusJSON(http.StatusNotFound, fmt.Sprintf("can't find model server: %v", modelServerName))
 			return
 		}
-		pdGroup := modelServer.Spec.WorkloadSelector.PDGroup
 		model := modelServer.Spec.Model
-		port := modelServer.Spec.WorkloadPort.Port
-
 		// step 4: Overwrite model.
 		if model != nil && !isLora {
 			modelRequest["model"] = *model
 		}
 
+		ctx := &framework.Context{
+			Model:   modelName,
+			Prompt:  prompt,
+			PDGroup: modelServer.Spec.WorkloadSelector.PDGroup,
+		}
+
 		// step 5: call scheduler.Schedule. Get top n decode pods and perfill pods
-		ctx, err := r.scheduler.Schedule(modelRequest, pods, pdGroup)
+		err = r.scheduler.Schedule(ctx, pods)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, fmt.Sprintf("can't schedule to target pod: %v", err))
 			return
@@ -126,7 +129,7 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 		}
 
 		// step 7: proxy to pods
-		if err := r.proxyModelEndpoint(c, req, ctx, modelRequest, port); err != nil {
+		if err := r.proxyModelEndpoint(c, req, ctx, modelRequest, modelServer.Spec.WorkloadPort.Port); err != nil {
 			klog.Errorf("request failed: %v", err)
 			return
 		}
@@ -167,6 +170,28 @@ func (r *Router) getPodsAndServer(modelServerName types.NamespacedName) ([]*data
 	return pods, modelServer, nil
 }
 
+func (r *Router) proxy(
+	c *gin.Context,
+	req *http.Request,
+	ctx *framework.Context,
+	stream bool,
+	port int32,
+) error {
+	for i := 0; i < len(ctx.BestPods); i++ {
+		// Request dispatched to the pod.
+		if err := proxyDecodePod(c, req, ctx.BestPods[i].Pod.Status.PodIP, port, stream); err != nil {
+			klog.Errorf(" pod request error: %v", err)
+			continue
+		}
+		// record in prefix cache
+		r.scheduler.RunPostHooks(ctx, i)
+		return nil
+
+	}
+	c.AbortWithStatusJSON(http.StatusNotFound, "request to all pods failed")
+	return fmt.Errorf("request to all pods failed")
+}
+
 func (r *Router) proxyModelEndpoint(
 	c *gin.Context,
 	req *http.Request,
@@ -179,43 +204,45 @@ func (r *Router) proxyModelEndpoint(
 	var err error
 
 	stream := isStreaming(modelRequest)
-	if ctx.DecodePods == nil {
-		c.AbortWithStatusJSON(http.StatusNotFound, "no pod meets the requirements")
-		return fmt.Errorf("no pod meets the requirements")
-	} else {
-		decodeRequest, err = buildDecodeRequest(req, modelRequest)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, fmt.Sprintf("failed to build request of decode: %v", err))
-			return fmt.Errorf("failed to build request of decode: %v", err)
-		}
-	}
-	if ctx.PrefillPods != nil {
-		prefillRequest, err = buildPrefillRequest(req, modelRequest)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, fmt.Sprintf("failed to build request of prefill: %v", err))
-			return fmt.Errorf("failed to build request of prefill: %v", err)
-		}
+
+	decodeRequest, err = buildDecodeRequest(req, modelRequest)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, fmt.Sprintf("failed to build request of decode: %v", err))
+		return fmt.Errorf("failed to build request of decode: %v", err)
 	}
 
-	for i := range ctx.DecodePods {
-		if ctx.DecodePods[i] != nil {
-			if ctx.PrefillPods != nil && len(ctx.PrefillPods) > i {
-				// PD disaggregated if there is a perfill pod. Dispatch to perfill pod first before dispatching to decode pod.
-				klog.V(4).Infof("prefill pod is %v", ctx.PrefillPods[i].Pod.Name)
-				if err := proxyPrefillPod(prefillRequest, ctx.PrefillPods[i].Pod.Status.PodIP, port); err != nil {
-					klog.Errorf("prefill pod request error: %v", err)
-					continue
-				}
-			}
-			// Request dispatched to the decode pod.
-			if err := proxyDecodePod(c, decodeRequest, ctx.DecodePods[i].Pod.Status.PodIP, port, stream); err != nil {
-				klog.Errorf("decode pod request error: %v", err)
-				continue
-			}
-			// recoder in prefix cache
-			r.scheduler.RunPostHooks(ctx, i)
-			return nil
+	// proxy to pd aggregated pod
+	if ctx.BestPods != nil {
+		return r.proxy(c, decodeRequest, ctx, stream, port)
+	}
+
+	// build prefill request
+	prefillRequest, err = buildPrefillRequest(req, modelRequest)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, fmt.Sprintf("failed to build request of prefill: %v", err))
+		return fmt.Errorf("failed to build request of prefill: %v", err)
+	}
+
+	maxRetry := len(ctx.DecodePods)
+	if len(ctx.PrefillPods) < maxRetry {
+		maxRetry = len(ctx.PrefillPods)
+	}
+	for i := 0; i < maxRetry; i++ {
+		// Dispatch to prefill pod first before dispatching to decode pod.
+		klog.V(4).Infof("prefill pod is %v", ctx.PrefillPods[i].Pod.Name)
+		if err := proxyPrefillPod(prefillRequest, ctx.PrefillPods[i].Pod.Status.PodIP, port); err != nil {
+			klog.Errorf("prefill pod request error: %v", err)
+			continue
 		}
+
+		// Request dispatched to the decode pod.
+		if err := proxyDecodePod(c, decodeRequest, ctx.DecodePods[i].Pod.Status.PodIP, port, stream); err != nil {
+			klog.Errorf("decode pod request error: %v", err)
+			continue
+		}
+		// record in prefix cache
+		r.scheduler.RunPostHooks(ctx, i)
+		return nil
 	}
 	c.AbortWithStatusJSON(http.StatusNotFound, "request to all pods failed")
 	return fmt.Errorf("request to all pods failed")
@@ -353,25 +380,25 @@ func buildPrefillRequest(req *http.Request, modelRequest ModelRequest) (*http.Re
 
 func buildDecodeRequest(req *http.Request, modelRequest ModelRequest) (*http.Request, error) {
 	// Create a copy of the request to avoid modifying the original
-	requestCopy := make(ModelRequest)
+	requestBody := make(ModelRequest)
 	for k, v := range modelRequest {
-		requestCopy[k] = v
+		requestBody[k] = v
 	}
 
 	// Check if streaming is enabled
-	if isStreaming(requestCopy) {
+	if isStreaming(requestBody) {
 		// For streaming requests, add stream_options to include token usage
-		requestCopy["stream_options"] = map[string]interface{}{
+		requestBody["stream_options"] = map[string]interface{}{
 			"include_usage": true,
 		}
 	} else {
 		// For non-streaming requests, ensure we request usage information
 		// Most OpenAI-compatible APIs return usage by default for non-streaming,
 		// but we can be explicit about it
-		requestCopy["include_usage"] = true
+		requestBody["include_usage"] = true
 	}
 
-	body, err := json.Marshal(requestCopy)
+	body, err := json.Marshal(requestBody)
 	if err != nil {
 		return nil, err
 	}
