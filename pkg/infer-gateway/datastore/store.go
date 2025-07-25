@@ -603,7 +603,7 @@ func selectFromWeightedSlice(weights []uint32) int {
 
 func (s *store) updatePodMetrics(pod *PodInfo) {
 	if pod.engine == "" {
-		klog.Error("failed to find backend in pod")
+		klog.V(2).Info("failed to find backend in pod")
 		return
 	}
 
@@ -615,7 +615,7 @@ func (s *store) updatePodMetrics(pod *PodInfo) {
 
 func (s *store) updatePodModels(podInfo *PodInfo) {
 	if podInfo.engine == "" {
-		klog.Error("failed to find backend in pod")
+		klog.V(2).Info("failed to find backend in pod")
 		return
 	}
 
