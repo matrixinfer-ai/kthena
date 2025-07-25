@@ -229,6 +229,9 @@ func (r *Router) proxyModelEndpoint(
 		maxRetry = len(ctx.PrefillPods)
 	}
 	for i := 0; i < maxRetry; i++ {
+		if ctx.PrefillPods[i] == nil || ctx.DecodePods[i] == nil {
+			continue
+		}
 		// Dispatch to prefill pod first before dispatching to decode pod.
 		klog.V(4).Infof("prefill pod is %v", ctx.PrefillPods[i].Pod.Name)
 		if err := proxyPrefillPod(prefillRequest, ctx.PrefillPods[i].Pod.Status.PodIP, port); err != nil {

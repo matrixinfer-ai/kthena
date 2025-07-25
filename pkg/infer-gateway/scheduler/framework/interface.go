@@ -33,7 +33,6 @@ type Context struct {
 	// ModelServer information for efficient PDGroup scheduling
 	ModelServerName types.NamespacedName
 	PDGroup         *aiv1alpha1.PDGroup
-	PDIndex         int
 	// 1. In PD Disaggregated mode, both DecodePods and PrefillPods are set.
 	DecodePods  []*datastore.PodInfo
 	PrefillPods []*datastore.PodInfo

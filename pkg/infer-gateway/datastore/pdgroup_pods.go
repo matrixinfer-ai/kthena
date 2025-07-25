@@ -88,38 +88,6 @@ func (p *PDGroupPods) GetPrefillPods() []types.NamespacedName {
 	return p.prefillPods.UnsortedList()
 }
 
-// GetDecodePodsByGroupValue returns decode pods for a specific group value
-func (p *PDGroupPods) GetDecodePodsByGroupValue(groupValue string, podInfoMap map[types.NamespacedName]*PodInfo, pdGroupKey string) []types.NamespacedName {
-	p.mutex.RLock()
-	defer p.mutex.RUnlock()
-	
-	var result []types.NamespacedName
-	for podName := range p.decodePods {
-		if podInfo, exists := podInfoMap[podName]; exists {
-			if podInfo.Pod.Labels != nil && podInfo.Pod.Labels[pdGroupKey] == groupValue {
-				result = append(result, podName)
-			}
-		}
-	}
-	return result
-}
-
-// GetPrefillPodsByGroupValue returns prefill pods for a specific group value
-func (p *PDGroupPods) GetPrefillPodsByGroupValue(groupValue string, podInfoMap map[types.NamespacedName]*PodInfo, pdGroupKey string) []types.NamespacedName {
-	p.mutex.RLock()
-	defer p.mutex.RUnlock()
-	
-	var result []types.NamespacedName
-	for podName := range p.prefillPods {
-		if podInfo, exists := podInfoMap[podName]; exists {
-			if podInfo.Pod.Labels != nil && podInfo.Pod.Labels[pdGroupKey] == groupValue {
-				result = append(result, podName)
-			}
-		}
-	}
-	return result
-}
-
 // IsEmpty returns true if both decode and prefill pod sets are empty
 func (p *PDGroupPods) IsEmpty() bool {
 	p.mutex.RLock()

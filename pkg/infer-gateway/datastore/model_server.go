@@ -71,93 +71,57 @@ func (m *modelServer) categorizePodForPDGroup(podName types.NamespacedName, podL
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	// Check if this modelServer has PDGroup configuration
-	if m.modelServer.Spec.WorkloadSelector == nil || m.modelServer.Spec.WorkloadSelector.PDGroup == nil {
+	pdGroupValue := m.getPDGroupName(podLabels)
+	if pdGroupValue == "" {
 		return
 	}
-
-	// Check if podLabels is nil
-	if podLabels == nil {
-		return
-	}
-
-	pdGroup := m.modelServer.Spec.WorkloadSelector.PDGroup
-
-	// Get the PD group value from pod labels
-	pdGroupValue, hasPDGroupKey := podLabels[pdGroup.GroupKey]
-	if !hasPDGroupKey {
-		return // Pod doesn't have the required PD group key
-	}
-
 	// Get or create PDGroupPods for this group value
 	if _, exists := m.pdGroups[pdGroupValue]; !exists {
 		m.pdGroups[pdGroupValue] = NewPDGroupPods()
 	}
 	pdGroupPods := m.pdGroups[pdGroupValue]
-
+	pdGroup := m.modelServer.Spec.WorkloadSelector.PDGroup
 	// Check if pod matches decode labels
-	isDecodePod := m.matchesLabels(podLabels, pdGroup.DecodeLabels)
+	isDecodePod := matchesLabels(podLabels, pdGroup.DecodeLabels)
 	if isDecodePod {
 		pdGroupPods.AddDecodePod(podName)
+		return
 	}
 
 	// Check if pod matches prefill labels
-	isPrefillPod := m.matchesLabels(podLabels, pdGroup.PrefillLabels)
+	isPrefillPod := matchesLabels(podLabels, pdGroup.PrefillLabels)
 	if isPrefillPod {
 		pdGroupPods.AddPrefillPod(podName)
 	}
 }
 
+// getPDGroupName returns the PD group name for a given pod
+func (m *modelServer) getPDGroupName(podLabels map[string]string) string {
+	if m.modelServer.Spec.WorkloadSelector == nil || m.modelServer.Spec.WorkloadSelector.PDGroup == nil {
+		return ""
+	}
+
+	pdGroup := m.modelServer.Spec.WorkloadSelector.PDGroup
+	return podLabels[pdGroup.GroupKey]
+}
+
 // removePodFromPDGroups removes a pod from all PDGroup categorizations
-func (m *modelServer) removePodFromPDGroups(podName types.NamespacedName) {
+func (m *modelServer) removePodFromPDGroups(podName types.NamespacedName, labels map[string]string) {
+	pdGroupName := m.getPDGroupName(labels)
+	if pdGroupName == "" {
+		return
+	}
+
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-
-	// Remove pod from all PD groups
-	for groupValue, pdGroupPods := range m.pdGroups {
-		pdGroupPods.RemovePod(podName)
-
+	if pdGroup, ok := m.pdGroups[pdGroupName]; ok {
+		pdGroup.RemovePod(podName)
 		// Clean up empty PDGroupPods
-		if pdGroupPods.IsEmpty() {
-			delete(m.pdGroups, groupValue)
+		if pdGroup.IsEmpty() {
+			delete(m.pdGroups, pdGroupName)
 		}
 	}
-}
 
-// matchesLabels checks if pod labels match the required labels
-func (m *modelServer) matchesLabels(podLabels map[string]string, requiredLabels map[string]string) bool {
-	if len(requiredLabels) == 0 {
-		return false // No required labels means no match
-	}
-
-	for key, value := range requiredLabels {
-		if podLabels[key] != value {
-			return false
-		}
-	}
-	return true
-}
-
-// getDecodePods returns decode pods for a specific PD group value
-func (m *modelServer) getDecodePods(pdGroupValue string) []types.NamespacedName {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-
-	if pdGroupPods, exists := m.pdGroups[pdGroupValue]; exists {
-		return pdGroupPods.GetDecodePods()
-	}
-	return nil
-}
-
-// getPrefillPods returns prefill pods for a specific PD group value
-func (m *modelServer) getPrefillPods(pdGroupValue string) []types.NamespacedName {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-
-	if pdGroupPods, exists := m.pdGroups[pdGroupValue]; exists {
-		return pdGroupPods.GetPrefillPods()
-	}
-	return nil
 }
 
 // getAllDecodePods returns all decode pods across all PD groups
@@ -185,10 +149,7 @@ func (m *modelServer) getAllPrefillPods() []types.NamespacedName {
 }
 
 // getPrefillPodsForDecodeGroup returns prefill pods that match the same PD group as a decode pod
-func (m *modelServer) getPrefillPodsForDecodeGroup(decodePodName types.NamespacedName, podInfoMap map[types.NamespacedName]*PodInfo) []types.NamespacedName {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-
+func (m *modelServer) getPrefillPodsForDecodeGroup(pod *PodInfo) []types.NamespacedName {
 	// Check if this modelServer has PDGroup configuration
 	if m.modelServer.Spec.WorkloadSelector == nil || m.modelServer.Spec.WorkloadSelector.PDGroup == nil {
 		return nil
@@ -196,21 +157,31 @@ func (m *modelServer) getPrefillPodsForDecodeGroup(decodePodName types.Namespace
 
 	pdGroup := m.modelServer.Spec.WorkloadSelector.PDGroup
 
-	// Get the decode pod's PD group value
-	decodePodInfo, exists := podInfoMap[decodePodName]
-	if !exists || decodePodInfo.Pod.Labels == nil {
-		return nil
-	}
-
-	pdGroupValue, hasPDGroupKey := decodePodInfo.Pod.Labels[pdGroup.GroupKey]
+	pdGroupValue, hasPDGroupKey := pod.Pod.Labels[pdGroup.GroupKey]
 	if !hasPDGroupKey {
 		return nil
 	}
 
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
 	// Return prefill pods for the same PD group value
 	if pdGroupPods, exists := m.pdGroups[pdGroupValue]; exists {
-		return pdGroupPods.GetPrefillPodsByGroupValue(pdGroupValue, podInfoMap, pdGroup.GroupKey)
+		return pdGroupPods.GetPrefillPods()
 	}
 
 	return nil
+}
+
+// matchesLabels checks if pod labels match the required labels
+func matchesLabels(podLabels map[string]string, requiredLabels map[string]string) bool {
+	if len(requiredLabels) == 0 {
+		return false // No required labels means no match
+	}
+
+	for key, value := range requiredLabels {
+		if podLabels[key] != value {
+			return false
+		}
+	}
+	return true
 }

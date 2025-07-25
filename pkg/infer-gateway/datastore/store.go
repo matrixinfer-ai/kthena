@@ -331,15 +331,19 @@ func (s *store) GetPrefillPods(modelServerName types.NamespacedName) ([]*PodInfo
 func (s *store) GetPrefillPodsForDecodeGroup(modelServerName types.NamespacedName, decodePodName types.NamespacedName) ([]*PodInfo, error) {
 	s.mutex.RLock()
 	ms, ok := s.modelServer[modelServerName]
-	s.mutex.RUnlock()
 	if !ok {
+		s.mutex.RUnlock()
 		return nil, fmt.Errorf("model server not found: %v", modelServerName)
 	}
 
-	s.mutex.RLock()
-	prefillPodNames := ms.getPrefillPodsForDecodeGroup(decodePodName, s.pods)
+	pod, ok := s.pods[decodePodName]
+	if !ok {
+		s.mutex.RUnlock()
+		return nil, fmt.Errorf("pod not found: %v", decodePodName)
+	}
 	s.mutex.RUnlock()
 
+	prefillPodNames := ms.getPrefillPodsForDecodeGroup(pod)
 	prefillPods := make([]*PodInfo, 0, len(prefillPodNames))
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
