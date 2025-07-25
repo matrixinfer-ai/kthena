@@ -181,12 +181,32 @@ spec:
                   - s3://aios_models/deepseek-ai/DeepSeek-V3-W8A8/vllm-ascend
                   - --output-dir
                   - /tmp/test/13a7c4d58031cdc502ca1bb4a592f2b9
+                image: matrixinfer/downloader:latest
                 env:
                   - name: "ENDPOINT"
                     value: "https://obs.test.com"
+                envfrom:
+                  - secretRef:
+                      name: "test-secret"
+                name: test-model-model-downloader
+                resources: { }
+                volumeMounts:
+                  - mountPath: /tmp/test
+                    name: backend1-weights
+              - args:
+                  - --source
+                  - s3://aios_models/deepseek-ai/DeepSeek-V3-W8A8/vllm-ascend-lora
+                  - --output-dir
+                  - /tmp/test/11e9a15be1e19ff056520bf67eaeb688
+                env:
+                  - name: ENDPOINT
+                    value: https://obs.test.com
+                envFrom:
+                  - secretRef:
+                      name: "test-secret"
                 image: matrixinfer/downloader:latest
-                name: downloader
-                resources: {}
+                name: test-model-lora-downloader-0
+                resources: { }
                 volumeMounts:
                   - mountPath: /tmp/test
                     name: backend1-weights

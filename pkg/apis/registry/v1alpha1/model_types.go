@@ -108,6 +108,7 @@ type ModelBackend struct {
 // LoraAdapter defines a LoRA (Low-Rank Adaptation) adapter configuration.
 type LoraAdapter struct {
 	// Name is the name of the LoRA adapter.
+	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
 	Name string `json:"name"`
 	// ArtifactURL is the URL where the LoRA adapter artifact is stored.
 	// +kubebuilder:validation:Pattern=`^(hf://|s3://|pvc://).+`
