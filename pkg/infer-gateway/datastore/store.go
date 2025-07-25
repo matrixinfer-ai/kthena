@@ -385,7 +385,7 @@ func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.Model
 			if ms, ok := s.modelServer[msName]; ok {
 				ms.deletePod(podName)
 				// Remove from PDGroup categorizations
-				ms.removePodFromPDGroups(podName)
+				ms.removePodFromPDGroups(podName, oldPodInfo.Pod.Labels)
 			}
 		}
 	}
@@ -412,7 +412,7 @@ func (s *store) DeletePod(podName types.NamespacedName) error {
 			}
 			s.modelServer[modelServerName].deletePod(podName)
 			// Remove from PDGroup categorizations
-			s.modelServer[modelServerName].removePodFromPDGroups(podName)
+			s.modelServer[modelServerName].removePodFromPDGroups(podName, pod.Pod.Labels)
 		}
 		delete(s.pods, podName)
 	}

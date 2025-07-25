@@ -187,7 +187,6 @@ func (r *Router) proxy(
 		// record in prefix cache
 		r.scheduler.RunPostHooks(ctx, i)
 		return nil
-
 	}
 	c.AbortWithStatusJSON(http.StatusNotFound, "request to all pods failed")
 	return fmt.Errorf("request to all pods failed")

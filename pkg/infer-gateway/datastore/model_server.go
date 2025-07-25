@@ -121,7 +121,6 @@ func (m *modelServer) removePodFromPDGroups(podName types.NamespacedName, labels
 			delete(m.pdGroups, pdGroupName)
 		}
 	}
-
 }
 
 // getAllDecodePods returns all decode pods across all PD groups
