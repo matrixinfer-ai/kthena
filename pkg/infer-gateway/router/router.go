@@ -108,9 +108,10 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 		}
 
 		ctx := &framework.Context{
-			Model:   modelName,
-			Prompt:  prompt,
-			PDGroup: modelServer.Spec.WorkloadSelector.PDGroup,
+			Model:           modelName,
+			Prompt:          prompt,
+			ModelServerName: modelServerName,
+			PDGroup:         modelServer.Spec.WorkloadSelector.PDGroup,
 		}
 
 		// step 5: call scheduler.Schedule. Get top n decode pods and perfill pods

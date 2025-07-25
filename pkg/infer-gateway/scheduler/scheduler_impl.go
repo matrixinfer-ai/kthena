@@ -21,6 +21,7 @@ import (
 	"sort"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
@@ -120,15 +121,16 @@ func (s *SchedulerImpl) Schedule(ctx *framework.Context, pods []*datastore.PodIn
 		return err
 	}
 
-	var pdFilter *plugins.PDFilter
 	if ctx.PDGroup != nil {
-		// Initialize PDFilter plugin if PD disaggregation is enabled.
-
-		// First filter out decode pods.
-		// NOTE: Further optimization can be done on whether to filter out decode pod or prefill pod first,
-		// or even how to select the best PD group.
-		pdFilter = plugins.NewPDFilter(ctx.PDGroup)
-		decodePods := pdFilter.FilterDecodeInstances(ctx, pods)
+		// Use optimized PDGroup scheduling with pre-categorized pods from store
+		klog.V(4).Info("Using optimized PD disaggregated scheduling")
+		
+		// Get decode pods directly from store (O(1) lookup)
+		decodePods, err := s.store.GetDecodePods(ctx.ModelServerName)
+		if err != nil {
+			return fmt.Errorf("failed to get decode pods: %v", err)
+		}
+		
 		if len(decodePods) == 0 {
 			return fmt.Errorf("no decode pod found")
 		}
@@ -142,13 +144,21 @@ func (s *SchedulerImpl) Schedule(ctx *framework.Context, pods []*datastore.PodIn
 		topNDecodePods := TopNPodInfos(scores, topN)
 		ctx.DecodePods = topNDecodePods
 		prefillPods := make([]*datastore.PodInfo, len(topNDecodePods))
-		for i := range ctx.DecodePods {
+		
+		for i, decodePod := range ctx.DecodePods {
 			ctx.PDIndex = i
-			// Filter prefill pods if PD disaggregation is enabled.
-			// Also make sure the prefill pod is in the same infer group of decode pod we get before.
-			selectedPods := pdFilter.FilterPrefillInstances(ctx, pods)
+			// Get prefill pods for the same PD group as the decode pod (O(1) lookup)
+			selectedPods, err := s.store.GetPrefillPodsForDecodeGroup(ctx.ModelServerName, 
+				types.NamespacedName{
+					Namespace: decodePod.Pod.Namespace,
+					Name:      decodePod.Pod.Name,
+				})
+			if err != nil {
+				return fmt.Errorf("failed to get prefill pods for decode group: %v", err)
+			}
+			
 			if len(selectedPods) == 0 {
-				return fmt.Errorf("no prefill pod found")
+				return fmt.Errorf("no prefill pod found for decode pod %s/%s", decodePod.Pod.Namespace, decodePod.Pod.Name)
 			}
 
 			klog.V(4).Info("Running score plugins for prefill pod")

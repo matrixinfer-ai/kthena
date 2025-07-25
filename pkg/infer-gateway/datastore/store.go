@@ -100,6 +100,11 @@ type Store interface {
 	AddOrUpdateModelRoute(mr *aiv1alpha1.ModelRoute) error
 	DeleteModelRoute(namespacedName string) error
 
+	// PDGroup methods for efficient PD scheduling
+	GetDecodePods(modelServerName types.NamespacedName) ([]*PodInfo, error)
+	GetPrefillPods(modelServerName types.NamespacedName) ([]*PodInfo, error)
+	GetPrefillPodsForDecodeGroup(modelServerName types.NamespacedName, decodePodName types.NamespacedName) ([]*PodInfo, error)
+
 	// New methods for callback management
 	RegisterCallback(kind string, callback CallbackFunc)
 	// Run to update pod info periodically
@@ -276,6 +281,77 @@ func (s *store) GetPodsByModelServer(name types.NamespacedName) ([]*PodInfo, err
 	return pods, nil
 }
 
+// GetDecodePods returns all decode pods for a given model server
+func (s *store) GetDecodePods(modelServerName types.NamespacedName) ([]*PodInfo, error) {
+	s.mutex.RLock()
+	ms, ok := s.modelServer[modelServerName]
+	s.mutex.RUnlock()
+	if !ok {
+		return nil, fmt.Errorf("model server not found: %v", modelServerName)
+	}
+
+	decodePodNames := ms.getAllDecodePods()
+	decodePods := make([]*PodInfo, 0, len(decodePodNames))
+
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	for _, podName := range decodePodNames {
+		if podInfo, exists := s.pods[podName]; exists {
+			decodePods = append(decodePods, podInfo)
+		}
+	}
+
+	return decodePods, nil
+}
+
+// GetPrefillPods returns all prefill pods for a given model server
+func (s *store) GetPrefillPods(modelServerName types.NamespacedName) ([]*PodInfo, error) {
+	s.mutex.RLock()
+	ms, ok := s.modelServer[modelServerName]
+	s.mutex.RUnlock()
+	if !ok {
+		return nil, fmt.Errorf("model server not found: %v", modelServerName)
+	}
+
+	prefillPodNames := ms.getAllPrefillPods()
+	prefillPods := make([]*PodInfo, 0, len(prefillPodNames))
+
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	for _, podName := range prefillPodNames {
+		if podInfo, exists := s.pods[podName]; exists {
+			prefillPods = append(prefillPods, podInfo)
+		}
+	}
+
+	return prefillPods, nil
+}
+
+// GetPrefillPodsForDecodeGroup returns prefill pods that match the same PD group as the decode pod
+func (s *store) GetPrefillPodsForDecodeGroup(modelServerName types.NamespacedName, decodePodName types.NamespacedName) ([]*PodInfo, error) {
+	s.mutex.RLock()
+	ms, ok := s.modelServer[modelServerName]
+	s.mutex.RUnlock()
+	if !ok {
+		return nil, fmt.Errorf("model server not found: %v", modelServerName)
+	}
+
+	s.mutex.RLock()
+	prefillPodNames := ms.getPrefillPodsForDecodeGroup(decodePodName, s.pods)
+	s.mutex.RUnlock()
+
+	prefillPods := make([]*PodInfo, 0, len(prefillPodNames))
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	for _, podName := range prefillPodNames {
+		if podInfo, exists := s.pods[podName]; exists {
+			prefillPods = append(prefillPods, podInfo)
+		}
+	}
+
+	return prefillPods, nil
+}
+
 func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.ModelServer) error {
 	podName := utils.GetNamespaceName(pod)
 	newPodInfo := &PodInfo{
@@ -292,6 +368,8 @@ func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.Model
 		newPodInfo.engine = string(modelServer.Spec.InferenceEngine)
 		if ms, ok := s.modelServer[modelServerName]; ok {
 			ms.addPod(podName)
+			// Categorize the pod for PDGroup scheduling
+			ms.categorizePodForPDGroup(podName, pod.Labels)
 		}
 	}
 
@@ -302,6 +380,8 @@ func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.Model
 		for msName := range oldModelServers.Difference(newPodInfo.modelServer) {
 			if ms, ok := s.modelServer[msName]; ok {
 				ms.deletePod(podName)
+				// Remove from PDGroup categorizations
+				ms.removePodFromPDGroups(podName)
 			}
 		}
 	}
@@ -327,6 +407,8 @@ func (s *store) DeletePod(podName types.NamespacedName) error {
 				continue
 			}
 			s.modelServer[modelServerName].deletePod(podName)
+			// Remove from PDGroup categorizations
+			s.modelServer[modelServerName].removePodFromPDGroups(podName)
 		}
 		delete(s.pods, podName)
 	}
