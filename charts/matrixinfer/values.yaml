@@ -9,10 +9,6 @@ workload:
   enabled: true
   webhook:
     enabled: true
-    # certManager is a flag to enable or disable cert-manager integration for the webhook.
-    # If set to true, this chart will attempt to create cert-manager resources (Issuer, Certificate, etc.)
-    # for the webhook component.
-    certManager: true
 
 networking:
   # enabled is a flag to enable or disable the networking subchart. Default is true.
