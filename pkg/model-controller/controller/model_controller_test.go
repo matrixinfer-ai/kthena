@@ -15,7 +15,8 @@ import (
 
 // TestReconcile tests the reconcile function for ModelController
 func TestReconcile(t *testing.T) {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	// Create fake clients for Kubernetes and MatrixInfer
 	kubeClient := fake.NewSimpleClientset()
@@ -23,12 +24,17 @@ func TestReconcile(t *testing.T) {
 
 	controller := NewModelController(kubeClient, matrixinferClient)
 	assert.NotNil(t, controller)
+	go controller.Run(ctx, 1)
 
 	model := utils.LoadYAML[registry.Model](t, "../utils/testdata/input/model.yaml")
 
 	// test create model
 	t.Run("ModelCreate", func(t *testing.T) {
-		_, err := matrixinferClient.RegistryV1alpha1().Models("default").Create(ctx, model, metav1.CreateOptions{})
+		createdModel, err := matrixinferClient.RegistryV1alpha1().Models("default").Create(ctx, model, metav1.CreateOptions{})
+		assert.NoError(t, err)
+		assert.NotNil(t, createdModel)
+
+		err = controller.reconcile(ctx, "default/test-model")
 		assert.NoError(t, err)
 
 		modelInfers, err := matrixinferClient.WorkloadV1alpha1().ModelInfers("default").List(ctx, metav1.ListOptions{})
