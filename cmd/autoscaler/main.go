@@ -83,7 +83,7 @@ func main() {
 
 	namespace, err := utils.GetInClusterNameSpace()
 	if err != nil {
-		klog.Fatalf("failed to create Autoscaler client: %v", err)
+		klog.Fatalf("create Autoscaler client: %v", err)
 	}
 	// create Autoscale controller
 	asc := controller.NewAutoscaleController(kubeClient, autoscalingClient, namespace)
@@ -101,6 +101,7 @@ func main() {
 	if enableLeaderElection {
 		leaderElector, err := initLeaderElector(kubeClient, asc, namespace)
 		if err != nil {
+			klog.Fatalf("failed to init leader elector: %v", err)
 			panic(err)
 		}
 		// Start the leader elector process
@@ -129,7 +130,7 @@ func initLeaderElector(kubeClient kubernetes.Interface, mc *controller.Autoscale
 				klog.Info("Started autoscaler as leader")
 			},
 			OnStoppedLeading: func() {
-				klog.Error("leader election lost")
+				klog.Fatalf("leader election lost")
 			},
 		},
 		ReleaseOnCancel: false,
