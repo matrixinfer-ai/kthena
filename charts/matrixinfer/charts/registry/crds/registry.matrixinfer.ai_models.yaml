@@ -267,9 +267,8 @@ spec:
                     loraAdapters:
                       description: LoraAdapter is a list of LoRA adapters.
                       items:
-                        description: |-
-                          LoraAdapter defines a LoRA (Low-Rank Adaptation) adapter configuration
-                          LoraAdapter defines a LoRA (Low-Rank Adaptation) adapter configuration.
+                        description: LoraAdapter defines a LoRA (Low-Rank Adaptation)
+                          adapter configuration.
                         properties:
                           artifactURL:
                             description: ArtifactURL is the URL where the LoRA adapter

@@ -105,7 +105,6 @@ type ModelBackend struct {
 	AutoscalingPolicyRef corev1.LocalObjectReference `json:"autoscalingPolicyRef,omitempty"`
 }
 
-// LoraAdapter defines a LoRA (Low-Rank Adaptation) adapter configuration
 // LoraAdapter defines a LoRA (Low-Rank Adaptation) adapter configuration.
 type LoraAdapter struct {
 	// Name is the name of the LoRA adapter.
