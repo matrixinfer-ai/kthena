@@ -1,0 +1,22 @@
+apiVersion: networking.matrixinfer.ai/v1alpha1
+kind: ModelServer
+metadata:
+  name: test-model-0-vllm-server
+  namespace: default
+  ownerReferences:
+    - apiVersion: registry.matrixinfer.ai/v1alpha1
+      kind: Model
+      name: test-model
+      uid: randomUID
+spec:
+  model: "test-model"
+  inferenceEngine: "vLLM"
+  workloadSelector:
+    matchLabels:
+      model.uid: "randomUID"
+  workloadPort:
+    port: 8000
+  trafficPolicy:
+    retry:
+      attempts: 5
+      retryInterval: 0s

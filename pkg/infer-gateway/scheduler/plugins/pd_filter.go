@@ -17,11 +17,10 @@ limitations under the License.
 package plugins
 
 import (
+	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
 )
-
-var _ framework.FilterPlugin = &PDFilter{}
 
 type PDFilter struct {
 	name string
@@ -31,12 +30,12 @@ type PDFilter struct {
 	pdGroupKey    string
 }
 
-func NewPDFilter(decodeLabels map[string]string, prefillLabels map[string]string, pdGroupKey string) *PDFilter {
+func NewPDFilter(pdGroup *aiv1alpha1.PDGroup) *PDFilter {
 	return &PDFilter{
 		name:          "pd-filter",
-		decodeLabels:  decodeLabels,
-		prefillLabels: prefillLabels,
-		pdGroupKey:    pdGroupKey,
+		decodeLabels:  pdGroup.DecodeLabels,
+		prefillLabels: pdGroup.PrefillLabels,
+		pdGroupKey:    pdGroup.GroupKey,
 	}
 }
 
@@ -44,7 +43,7 @@ func (p *PDFilter) Name() string {
 	return p.name
 }
 
-func (p *PDFilter) Filter(ctx *framework.Context, pods []*datastore.PodInfo) []*datastore.PodInfo {
+func (p *PDFilter) FilterPrefillInstances(ctx *framework.Context, pods []*datastore.PodInfo) []*datastore.PodInfo {
 	if ctx.DecodePods != nil {
 		// Filter out prefill pods if decode pod is not nil.
 
@@ -75,29 +74,42 @@ func (p *PDFilter) Filter(ctx *framework.Context, pods []*datastore.PodInfo) []*
 		}
 		return filtered
 	}
-	filtered := make([]*datastore.PodInfo, 0, len(pods))
+	return nil
+}
+
+// FilterDecodeInstances filters decode pods based on the PD group key and decode labels.
+func (p *PDFilter) FilterDecodeInstances(ctx *framework.Context, pods []*datastore.PodInfo) []*datastore.PodInfo {
+	// Early return for empty input
+	if len(pods) == 0 {
+		return pods
+	}
+
+	out := make([]*datastore.PodInfo, 0, len(pods))
+
 	for _, pod := range pods {
-		if pod.Pod.Labels == nil {
+		labels := pod.Pod.Labels
+		if labels == nil {
 			continue
 		}
 
-		if _, ok := pod.Pod.Labels[p.pdGroupKey]; !ok {
-			// Decode pod should have pd group key.
+		// Check if pd group key exists (required for decode pods)
+		if _, ok := labels[p.pdGroupKey]; !ok {
 			continue
 		}
 
+		// Check all decode labels match
 		match := true
 		for k, v := range p.decodeLabels {
-			if pod.Pod.Labels[k] != v {
+			if labels[k] != v {
 				match = false
 				break
 			}
 		}
 
 		if match {
-			filtered = append(filtered, pod)
+			out = append(out, pod)
 		}
 	}
 
-	return filtered
+	return out
 }

@@ -95,8 +95,12 @@ spec:
                   initialDelaySeconds: 5
                   periodSeconds: 5
                 resources:
+                  limits:
+                    cpu: "16"
+                    huawei.com/ascend-1980: "1"
+                    memory: 1Gi
                   requests:
-                    cpu: 100m
+                    cpu: "16"
                     huawei.com/ascend-1980: "1"
                     memory: 1Gi
                 volumeMounts:
@@ -203,8 +207,12 @@ spec:
                   initialDelaySeconds: 5
                   periodSeconds: 5
                 resources:
+                  limits:
+                    cpu: "16"
+                    huawei.com/ascend-1980: "1"
+                    memory: 1Gi
                   requests:
-                    cpu: 100m
+                    cpu: "16"
                     huawei.com/ascend-1980: "1"
                     memory: 1Gi
                 volumeMounts:

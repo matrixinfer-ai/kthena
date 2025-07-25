@@ -20,6 +20,9 @@ import (
 	"context"
 	"fmt"
 
+	"k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/api/errors"
+
 	workloadLister "matrixinfer.ai/matrixinfer/client-go/listers/workload/v1alpha1"
 
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -40,10 +43,12 @@ import (
 )
 
 const (
-	ModelInitsReason    = "ModelInits"
-	ModelUpdatingReason = "ModelUpdating"
-	ModelActiveReason   = "ModelActive"
-	ConfigMapName       = "model-config-map"
+	ModelInitsReason              = "ModelInits"
+	ModelUpdatingReason           = "ModelUpdating"
+	ModelActiveReason             = "ModelActive"
+	CreateModelServerFailedReason = "CreateModelServerFailed"
+	CreateModelRouteFailedReason  = "CreateModelRouteFailed"
+	ConfigMapName                 = "model-config-map"
 )
 
 type ModelController struct {
@@ -105,7 +110,7 @@ func (mc *ModelController) processNextWorkItem(ctx context.Context) bool {
 	return true
 }
 
-func (mc *ModelController) createModel(obj interface{}) {
+func (mc *ModelController) createModel(obj any) {
 	model, ok := obj.(*registryv1alpha1.Model)
 	if !ok {
 		klog.Error("failed to parse Model when createModel")
@@ -123,7 +128,7 @@ func (mc *ModelController) enqueueModel(model *registryv1alpha1.Model) {
 	}
 }
 
-func (mc *ModelController) updateModel(old interface{}, new interface{}) {
+func (mc *ModelController) updateModel(old any, new any) {
 	newModel, ok := new.(*registryv1alpha1.Model)
 	if !ok {
 		klog.Error("failed to parse new Model type when updateModel")
@@ -140,7 +145,7 @@ func (mc *ModelController) updateModel(old interface{}, new interface{}) {
 	}
 }
 
-func (mc *ModelController) deleteModel(obj interface{}) {
+func (mc *ModelController) deleteModel(obj any) {
 	model, ok := obj.(*registryv1alpha1.Model)
 	if !ok {
 		klog.Error("failed to parse Model when deleteModel")
@@ -184,27 +189,70 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 	}
 	if model.Generation != model.Status.ObservedGeneration {
 		klog.Info("model generation is not equal to observed generation, update model infer")
-		return mc.updateModelInfer(ctx, model)
+		if err := mc.setModelUpdateCondition(ctx, model); err != nil {
+			return err
+		}
+		if err := mc.updateModelInfer(ctx, model); err != nil {
+			return err
+		}
+		if err := mc.updateModelServer(ctx, model); err != nil {
+			return err
+		}
 	}
-	return mc.isModelInferActive(ctx, model)
-}
-
-// isModelInferActive checks all Model Infers that belong to this model are available
-func (mc *ModelController) isModelInferActive(ctx context.Context, model *registryv1alpha1.Model) error {
-	modelInferList, err := mc.listModelInferByLabel(ctx, model)
-	if err != nil {
+	modelInferActive, err := mc.isModelInferActive(ctx, model)
+	if err != nil || !modelInferActive {
 		return err
 	}
-	if len(modelInferList.Items) != len(model.Spec.Backends) {
-		return fmt.Errorf("model infer number not equal to backend number")
+	if err := mc.setModelActiveCondition(ctx, model); err != nil {
+		return err
 	}
+	if err := mc.createModelServer(ctx, model); err != nil {
+		updateError := mc.setModelServerFailedCondition(ctx, model)
+		if updateError != nil {
+			return updateError
+		}
+		return err
+	}
+	return nil
+}
+
+// setModelServerFailedCondition sets model server conditions when creating model server failed.
+func (mc *ModelController) setModelServerFailedCondition(ctx context.Context, model *registryv1alpha1.Model) error {
+	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeFailed),
+		metav1.ConditionTrue, CreateModelServerFailedReason, "Creating model server failed"))
+	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeActive),
+		metav1.ConditionFalse, CreateModelServerFailedReason, "Model is not active due to failed create model server"))
+	if err := mc.updateModelStatus(ctx, model); err != nil {
+		klog.Errorf("update model status failed: %v", err)
+		return err
+	}
+	return nil
+}
+
+// isModelInferActive returns true if all Model Infers are available.
+func (mc *ModelController) isModelInferActive(ctx context.Context, model *registryv1alpha1.Model) (bool, error) {
+	// List all Model Infers associated with the model
+	modelInferList, err := mc.listModelInferByLabel(ctx, model)
+	if err != nil {
+		return false, err
+	}
+	// Ensure the number of Model Infers matches the number of backends
+	if len(modelInferList.Items) != len(model.Spec.Backends) {
+		return false, fmt.Errorf("model infer number not equal to backend number")
+	}
+	// Check if all Model Infers are available
 	for _, modelInfer := range modelInferList.Items {
 		if !meta.IsStatusConditionPresentAndEqual(modelInfer.Status.Conditions, string(workload.ModelInferAvailable), metav1.ConditionTrue) {
 			// requeue until all Model Infers are active
-			klog.InfoS("model infer is not active", "model infer", modelInfer.Name, "namespace", modelInfer.Namespace)
-			return nil
+			klog.InfoS("model infer is not available", "model infer", modelInfer.Name, "namespace", modelInfer.Namespace)
+			return false, nil
 		}
 	}
+	return true, nil
+}
+
+// setModelActiveCondition sets model conditions when all Model Infers are active.
+func (mc *ModelController) setModelActiveCondition(ctx context.Context, model *registryv1alpha1.Model) error {
 	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeActive),
 		metav1.ConditionTrue, ModelActiveReason, "Model is active"))
 	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeInitializing),
@@ -301,6 +349,36 @@ func (mc *ModelController) listModelInferByLabel(ctx context.Context, model *reg
 
 // updateModelInfer updates model infer when model changed
 func (mc *ModelController) updateModelInfer(ctx context.Context, model *registryv1alpha1.Model) error {
+	modelInfers, err := utils.BuildModelInferCR(model)
+	if err != nil {
+		return err
+	}
+	for _, modelInfer := range modelInfers {
+		oldModelInfer, err := mc.client.WorkloadV1alpha1().ModelInfers(modelInfer.Namespace).Get(ctx, modelInfer.Name, metav1.GetOptions{})
+		if err != nil {
+			if errors.IsNotFound(err) {
+				if _, err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Create(ctx, modelInfer, metav1.CreateOptions{}); err != nil {
+					klog.Errorf("failed to create ModelInfer %s: %v", klog.KObj(modelInfer), err)
+					return err
+				}
+				continue
+			}
+			klog.Errorf("failed to get ModelInfer %s: %v", klog.KObj(modelInfer), err)
+			return err
+		}
+		if equality.Semantic.DeepEqual(oldModelInfer.Spec, modelInfer.Spec) {
+			continue
+		}
+		modelInfer.ResourceVersion = oldModelInfer.ResourceVersion
+		if _, err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Update(ctx, modelInfer, metav1.UpdateOptions{}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// setModelUpdateCondition sets model condition to updating
+func (mc *ModelController) setModelUpdateCondition(ctx context.Context, model *registryv1alpha1.Model) error {
 	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeActive),
 		metav1.ConditionFalse, ModelUpdatingReason, "Model is updating, not ready yet"))
 	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeUpdating),
@@ -308,21 +386,6 @@ func (mc *ModelController) updateModelInfer(ctx context.Context, model *registry
 	if err := mc.updateModelStatus(ctx, model); err != nil {
 		klog.Errorf("update model status failed: %v", err)
 		return err
-	}
-	modelInfers, err := utils.BuildModelInferCR(model)
-	if err != nil {
-		return err
-	}
-	for _, modelInfer := range modelInfers {
-		// Get modelInfer resource version to update it
-		if oldModelInfer, err := mc.client.WorkloadV1alpha1().ModelInfers(modelInfer.Namespace).Get(ctx, modelInfer.Name, metav1.GetOptions{}); err == nil {
-			modelInfer.ResourceVersion = oldModelInfer.ResourceVersion
-			if _, err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Update(ctx, modelInfer, metav1.UpdateOptions{}); err != nil {
-				return err
-			}
-		} else {
-			return err
-		}
 	}
 	return nil
 }
@@ -352,7 +415,7 @@ func (mc *ModelController) loadConfigFromConfigMap() {
 }
 
 // When model infer status changed, model reconciles
-func (mc *ModelController) triggerModel(old interface{}, new interface{}) {
+func (mc *ModelController) triggerModel(old any, new any) {
 	newModelInfer, ok := new.(*workload.ModelInfer)
 	if !ok {
 		klog.Error("failed to parse new ModelInfer")
@@ -369,4 +432,50 @@ func (mc *ModelController) triggerModel(old interface{}, new interface{}) {
 			mc.enqueueModel(model)
 		}
 	}
+}
+
+// createModelServer creates model server when model infer is available
+func (mc *ModelController) createModelServer(ctx context.Context, model *registryv1alpha1.Model) error {
+	klog.Info("Model Infer is active, start to create model server")
+	modelServers := utils.BuildModelServer(model)
+	for _, modelServer := range modelServers {
+		if _, err := mc.client.NetworkingV1alpha1().ModelServers(model.Namespace).Create(ctx, modelServer, metav1.CreateOptions{}); err != nil {
+			if errors.IsAlreadyExists(err) {
+				klog.V(4).InfoS("ModelServer already exists, skipping creation", "modelServer", klog.KObj(modelServer))
+				continue
+			}
+			klog.Errorf("create model server failed: %v", err)
+			return err
+		}
+	}
+	return nil
+}
+
+// updateModelServer updates model server
+func (mc *ModelController) updateModelServer(ctx context.Context, model *registryv1alpha1.Model) error {
+	modelServers := utils.BuildModelServer(model)
+	for _, modelServer := range modelServers {
+		oldModelServer, err := mc.client.NetworkingV1alpha1().ModelServers(modelServer.Namespace).Get(ctx, modelServer.Name, metav1.GetOptions{})
+		if err != nil {
+			if errors.IsNotFound(err) {
+				// ModelServer doesn't exist, create it.
+				if _, err := mc.client.NetworkingV1alpha1().ModelServers(model.Namespace).Create(ctx, modelServer, metav1.CreateOptions{}); err != nil {
+					klog.Errorf("failed to create ModelServer %s: %v", klog.KObj(modelServer), err)
+					return err
+				}
+				continue
+			}
+			klog.Errorf("failed to get ModelServer %s: %v", klog.KObj(modelServer), err)
+			return err
+		}
+		if equality.Semantic.DeepEqual(oldModelServer.Spec, modelServer.Spec) {
+			continue
+		}
+		modelServer.ResourceVersion = oldModelServer.ResourceVersion
+		if _, err := mc.client.NetworkingV1alpha1().ModelServers(model.Namespace).Update(ctx, modelServer, metav1.UpdateOptions{}); err != nil {
+			klog.Errorf("failed to update ModelServer %s: %v", klog.KObj(modelServer), err)
+			return err
+		}
+	}
+	return nil
 }

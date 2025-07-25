@@ -26,6 +26,7 @@ import (
 
 	io_prometheus_client "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
+	"istio.io/istio/pkg/util/sets"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -38,7 +39,9 @@ import (
 	listerv1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
 	informersv1alpha1 "matrixinfer.ai/matrixinfer/client-go/informers/externalversions"
 	registryLister "matrixinfer.ai/matrixinfer/client-go/listers/registry/v1alpha1"
@@ -51,9 +54,6 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaler/histogram"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaler/util"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
-
-	mapset "github.com/deckarep/golang-set"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type AutoscaleController struct {
@@ -62,7 +62,6 @@ type AutoscaleController struct {
 	// client for custom resource
 	client                      clientset.Interface
 	namespace                   string
-	syncHandler                 func(ctx context.Context, miKey string) error
 	autoscalingPoliciesLister   registryLister.AutoscalingPolicyLister
 	autoscalingPoliciesInformer cache.Controller
 	modelsLister                registryLister.ModelLister
@@ -145,7 +144,7 @@ func (ac *AutoscaleController) Reconcile(ctx context.Context) {
 		return
 	}
 
-	set := mapset.NewSet()
+	set := sets.New[string]()
 	for _, model := range modelList.Items {
 		autoscalingPolicyName := model.Spec.AutoscalingPolicyRef.Name
 		klog.InfoS("global", "autoscalingPolicyName", autoscalingPolicyName)
@@ -159,10 +158,10 @@ func (ac *AutoscaleController) Reconcile(ctx context.Context) {
 				}
 
 				autoscalerMapKey := formatAutoscalerMapKey(model.Name, backend.Name)
-				set.Add(autoscalerMapKey)
+				set.Insert(autoscalerMapKey)
 			}
 		} else {
-			set.Add(formatAutoscalerMapKey(model.Name, ""))
+			set.Insert(formatAutoscalerMapKey(model.Name, ""))
 		}
 	}
 
@@ -193,9 +192,8 @@ func (ac *AutoscaleController) processAutoscale(ctx context.Context, model v1alp
 	autoscalingPolicyRef := model.Spec.AutoscalingPolicyRef
 	if autoscalingPolicyRef.Name == "" {
 		backends := model.Spec.Backends
-		var autoscalingPolicyName = ""
 		for _, backend := range backends {
-			autoscalingPolicyName = backend.AutoscalingPolicyRef.Name
+			autoscalingPolicyName := backend.AutoscalingPolicyRef.Name
 			if autoscalingPolicyName == "" {
 				continue
 			}
@@ -273,8 +271,8 @@ func (ac *AutoscaleController) processAutoscale(ctx context.Context, model v1alp
 						continue
 					}
 
-					modelInferCopy.Spec.Replicas = pointer.Int32(value)
-					err := ac.updateModelInfer(ctx, &modelInfer)
+					modelInferCopy.Spec.Replicas = ptr.To(value)
+					err := ac.updateModelInfer(ctx, modelInferCopy)
 					if err != nil {
 						klog.Errorf("failed to update modelInfer replicas for modelInfer.Name: %s, error: %v", modelInfer.Name, err)
 						return err
@@ -502,11 +500,11 @@ func (ac *AutoscaleController) processInstance(ctx context.Context, podList []co
 					klog.Errorf("get metric response error: %v", err)
 					continue
 				}
-				defer resp.Body.Close()
-				if resp == nil || resp.StatusCode/100 != 2 || resp.Body == nil {
+				if resp == nil || resp.Body == nil {
 					klog.Errorf("get metric response is invalid")
 					continue
 				}
+				defer resp.Body.Close()
 
 				bodyStr, err := io.ReadAll(resp.Body)
 				if err != nil {
