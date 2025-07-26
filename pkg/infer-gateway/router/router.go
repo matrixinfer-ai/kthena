@@ -108,9 +108,10 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 		}
 
 		ctx := &framework.Context{
-			Model:   modelName,
-			Prompt:  prompt,
-			PDGroup: modelServer.Spec.WorkloadSelector.PDGroup,
+			Model:           modelName,
+			Prompt:          prompt,
+			ModelServerName: modelServerName,
+			PDGroup:         modelServer.Spec.WorkloadSelector.PDGroup,
 		}
 
 		// step 5: call scheduler.Schedule. Get top n decode pods and perfill pods
@@ -186,7 +187,6 @@ func (r *Router) proxy(
 		// record in prefix cache
 		r.scheduler.RunPostHooks(ctx, i)
 		return nil
-
 	}
 	c.AbortWithStatusJSON(http.StatusNotFound, "request to all pods failed")
 	return fmt.Errorf("request to all pods failed")
@@ -228,6 +228,9 @@ func (r *Router) proxyModelEndpoint(
 		maxRetry = len(ctx.PrefillPods)
 	}
 	for i := 0; i < maxRetry; i++ {
+		if ctx.PrefillPods[i] == nil || ctx.DecodePods[i] == nil {
+			continue
+		}
 		// Dispatch to prefill pod first before dispatching to decode pod.
 		klog.V(4).Infof("prefill pod is %v", ctx.PrefillPods[i].Pod.Name)
 		if err := proxyPrefillPod(prefillRequest, ctx.PrefillPods[i].Pod.Status.PodIP, port); err != nil {
