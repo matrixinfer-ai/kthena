@@ -26,7 +26,7 @@ import (
 	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 )
 
-func TestPDGroupOptimization(t *testing.T) {
+func TestPDGroup(t *testing.T) {
 	store := New()
 
 	// Create a ModelServer with PDGroup configuration
@@ -174,7 +174,7 @@ func TestPDGroupOptimization(t *testing.T) {
 		t.Errorf("Expected 1 prefill pod for decode group, got %d", len(matchingPrefillPods))
 	}
 
-	if len(matchingPrefillPods) > 0 && matchingPrefillPods[0].Pod.Name != "prefill-pod-1" {
+	if len(matchingPrefillPods) > 0 && matchingPrefillPods[0].Pod.Name != prefillPod1.Name {
 		t.Errorf("Expected prefill-pod-1, got %s", matchingPrefillPods[0].Pod.Name)
 	}
 
