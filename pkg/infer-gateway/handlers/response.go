@@ -75,7 +75,7 @@ func ParseStreamRespForUsage(
 		return response
 	}
 	content := strings.TrimPrefix(responseText, streamingRespPrefix)
-	if content == "[DONE]" {
+	if strings.HasPrefix(content, "[DONE]") {
 		return response
 	}
 
