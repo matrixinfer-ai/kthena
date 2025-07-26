@@ -36,7 +36,7 @@ var (
 	TTFT              = "TTFT"
 )
 
-const ConfigMapPath = "/etc/config/schedulerConfiguration.yaml"
+var ConfigMapPath = "/etc/config/schedulerConfiguration.yaml"
 
 func GetNamespaceName(obj metav1.Object) types.NamespacedName {
 	return types.NamespacedName{

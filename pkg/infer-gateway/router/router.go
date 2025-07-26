@@ -47,13 +47,14 @@ type Router struct {
 func NewRouter(store datastore.Store) *Router {
 	loadRateLimiter := ratelimit.NewRateLimiter()
 	store.RegisterCallback("ModelRoute", func(data datastore.EventData) {
-		if data.EventType == datastore.EventAdd || data.EventType == datastore.EventUpdate {
+		switch data.EventType {
+		case datastore.EventAdd, datastore.EventUpdate:
 			if data.ModelRoute == nil || data.ModelRoute.Spec.RateLimit == nil {
 				return
 			}
 			klog.Infof("add or update rate limit for model %s", data.ModelName)
 			loadRateLimiter.AddOrUpdateLimiter(data.ModelName, data.ModelRoute.Spec.RateLimit)
-		} else if data.EventType == datastore.EventDelete {
+		case datastore.EventDelete:
 			klog.Infof("delete rate limit for model %s", data.ModelName)
 			loadRateLimiter.DeleteLimiter(data.ModelName)
 		}
@@ -107,11 +108,16 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 			modelRequest["model"] = *model
 		}
 
+		var pdGroup *v1alpha1.PDGroup
+		if modelServer.Spec.WorkloadSelector != nil {
+			pdGroup = modelServer.Spec.WorkloadSelector.PDGroup
+		}
+
 		ctx := &framework.Context{
 			Model:           modelName,
 			Prompt:          prompt,
 			ModelServerName: modelServerName,
-			PDGroup:         modelServer.Spec.WorkloadSelector.PDGroup,
+			PDGroup:         pdGroup,
 		}
 
 		// step 5: call scheduler.Schedule. Get top n decode pods and perfill pods
@@ -232,7 +238,6 @@ func (r *Router) proxyModelEndpoint(
 			continue
 		}
 		// Dispatch to prefill pod first before dispatching to decode pod.
-		klog.V(4).Infof("prefill pod is %v", ctx.PrefillPods[i].Pod.Name)
 		if err := proxyPrefillPod(prefillRequest, ctx.PrefillPods[i].Pod.Status.PodIP, port); err != nil {
 			klog.Errorf("prefill pod request error: %v", err)
 			continue
