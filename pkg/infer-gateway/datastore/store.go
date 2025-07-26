@@ -184,19 +184,13 @@ func (s *store) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		default:
-			var wg sync.WaitGroup
 			s.pods.Range(func(key, value any) bool {
-				if podInfo, ok := value.(*PodInfo); ok {
-					wg.Add(1)
-					go func(p *PodInfo) {
-						defer wg.Done()
-						s.updatePodMetrics(p)
-						s.updatePodModels(p)
-					}(podInfo)
+				if p, ok := value.(*PodInfo); ok {
+					s.updatePodMetrics(p)
+					s.updatePodModels(p)
 				}
 				return true
 			})
-			wg.Wait()
 			s.initialSynced.Store(true)
 			time.Sleep(uppdateInterval)
 		}
@@ -232,14 +226,12 @@ func (s *store) AddOrUpdateModelServer(ms *aiv1alpha1.ModelServer, pods sets.Set
 }
 
 func (s *store) DeleteModelServer(ms types.NamespacedName) error {
-	value, ok := s.modelServer.Load(ms)
+	value, ok := s.modelServer.LoadAndDelete(ms)
 	if !ok {
 		return nil
 	}
 	modelServerObj := value.(*modelServer)
 	podNames := modelServerObj.getPods()
-	// delete the model server from the store
-	s.modelServer.Delete(ms)
 	// then delete the model server from all pod info
 	for _, podName := range podNames {
 		if value, ok := s.pods.Load(podName); ok {
