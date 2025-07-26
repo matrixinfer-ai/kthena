@@ -27,8 +27,8 @@ import (
 	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 )
 
-// BenchmarkPDGroupOptimized benchmarks the new optimized approach
-func BenchmarkPDGroupOptimized(b *testing.B) {
+// BenchmarkPDGroup benchmarks the new optimized approach
+func BenchmarkPDGroup(b *testing.B) {
 	store := New()
 
 	// Create ModelServer with PDGroup
