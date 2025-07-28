@@ -29,7 +29,6 @@ import (
 	"os"
 	"strconv"
 	"testing"
-	"time"
 
 	"github.com/agiledragon/gomonkey/v2"
 	"github.com/gin-gonic/gin"
@@ -431,9 +430,6 @@ func TestRouter_HandlerFunc_ScheduleFailure(t *testing.T) {
 	store.AddOrUpdatePod(pod1, []*aiv1alpha1.ModelServer{modelServer})
 	store.AddOrUpdateModelRoute(modelRoute)
 
-	// Manually set pod metrics to trigger filter
-	// Wait for pod to be added to the store's internal map
-	time.Sleep(10 * time.Millisecond)
 	podInfo := store.GetPodInfo(types.NamespacedName{Name: "pod-1", Namespace: "default"})
 	assert.NotNil(t, podInfo)
 	podInfo.RequestWaitingNum = 20 // default max is 10, so this should be filtered out
