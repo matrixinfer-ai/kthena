@@ -99,7 +99,7 @@ spec:
                 description: |-
                   An ordered list of route rules for LLM traffic. The first rule
                   matching an incoming request will be used.
-                  If no rule is matched, a HTTP 404 status code MUST be returned.
+                  If no rule is matched, an HTTP 404 status code MUST be returned.
                 items:
                   properties:
                     modelMatch:

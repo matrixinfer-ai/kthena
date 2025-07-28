@@ -27,17 +27,19 @@ type ModelRouteSpec struct {
 	// this field could be empty, but it and  `ModelAdapters` can't both be empty.
 	//
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="modelName is immutable"
+	// +optional
 	ModelName string `json:"modelName,omitempty"`
 
 	// `model` in the LLM request could be lora adapter name,
 	// here is a list of Lora Adapter Names to match.
 	//
 	// +kubebuilder:validation:MaxItems=10
+	// +optional
 	LoraAdapters []string `json:"loraAdapters,omitempty"`
 
 	// An ordered list of route rules for LLM traffic. The first rule
 	// matching an incoming request will be used.
-	// If no rule is matched, a HTTP 404 status code MUST be returned.
+	// If no rule is matched, an HTTP 404 status code MUST be returned.
 	//
 	// +kubebuilder:validation:MaxItems=16
 	Rules []*Rule `json:"rules"`
