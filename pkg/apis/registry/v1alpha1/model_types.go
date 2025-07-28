@@ -20,7 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
+	networking "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 )
 
 // ModelSpec defines the desired state of Model.
@@ -46,8 +46,11 @@ type ModelSpec struct {
 	// +kubebuilder:validation:Maximum=100
 	// +optional
 	CostExpansionRatePercent *int32 `json:"costExpansionRatePercent,omitempty"`
-	// ModelMatch defines the model match configuration.
-	ModelMatch v1alpha1.ModelMatch `json:"modelMatch"`
+	// ModelMatch defines the predicate used to match LLM inference requests to a given
+	// TargetModels. Multiple match conditions are ANDed together, i.e. the match will
+	// evaluate to true only if all conditions are satisfied.
+	// +optional
+	ModelMatch networking.ModelMatch `json:"modelMatch,omitempty"`
 }
 
 // ModelBackend defines the configuration for a model backend.
@@ -95,6 +98,9 @@ type ModelBackend struct {
 	ScalingCost int32 `json:"scalingCost,omitempty"`
 	// RouteWeight is the weight of the route for this backend.
 	// +optional
+	// +kubebuilder:default=100
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=100
 	RouteWeight int32 `json:"routeWeight,omitempty"`
 	// ScaleToZeroGracePeriod is the duration to wait before scaling to zero.
 	// +optional
