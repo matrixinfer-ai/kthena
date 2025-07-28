@@ -213,6 +213,13 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 		}
 		return err
 	}
+	if err := mc.createModelRoute(ctx, model); err != nil {
+		updateError := mc.setModelRouteFailedCondition(ctx, model)
+		if updateError != nil {
+			return updateError
+		}
+		return err
+	}
 	return nil
 }
 
@@ -476,6 +483,33 @@ func (mc *ModelController) updateModelServer(ctx context.Context, model *registr
 			klog.Errorf("failed to update ModelServer %s: %v", klog.KObj(modelServer), err)
 			return err
 		}
+	}
+	return nil
+}
+
+func (mc *ModelController) createModelRoute(ctx context.Context, model *registryv1alpha1.Model) error {
+	klog.Info("Model Server is active, start to create model route")
+	modelRoute := utils.BuildModelRoute(model)
+	if _, err := mc.client.NetworkingV1alpha1().ModelRoutes(model.Namespace).Create(ctx, modelRoute, metav1.CreateOptions{}); err != nil {
+		if errors.IsAlreadyExists(err) {
+			klog.V(4).InfoS("ModelRoute already exists, skipping creation", "modelRoute", klog.KObj(modelRoute))
+			return nil
+		}
+		klog.Errorf("create model route failed: %v", err)
+		return err
+	}
+	return nil
+}
+
+// setModelRouteFailedCondition sets model conditions when creating model route failed.
+func (mc *ModelController) setModelRouteFailedCondition(ctx context.Context, model *registryv1alpha1.Model) error {
+	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeFailed),
+		metav1.ConditionTrue, CreateModelRouteFailedReason, "Creating model route failed"))
+	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeActive),
+		metav1.ConditionFalse, CreateModelRouteFailedReason, "Model is not active due to failed create model route"))
+	if err := mc.updateModelStatus(ctx, model); err != nil {
+		klog.Errorf("update model status failed: %v", err)
+		return err
 	}
 	return nil
 }
