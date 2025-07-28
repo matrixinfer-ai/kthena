@@ -71,13 +71,10 @@ func ParseStreamRespForUsage(
 	responseText string,
 ) OpenAIResponse {
 	var response OpenAIResponse
-	if !strings.HasPrefix(responseText, streamingRespPrefix) {
+	if !strings.HasPrefix(responseText, streamingRespPrefix) || strings.HasPrefix(responseText, streamingEndMsg) {
 		return response
 	}
 	content := strings.TrimPrefix(responseText, streamingRespPrefix)
-	if strings.HasPrefix(content, "[DONE]") {
-		return response
-	}
 
 	byteSlice := []byte(content)
 	if err := json.Unmarshal(byteSlice, &response); err != nil {
