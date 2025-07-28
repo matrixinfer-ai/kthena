@@ -51,17 +51,19 @@ type ModelRouteSpec struct {
 }
 
 type Rule struct {
-	// Rule name
+	// Name is the name of the rule.
+	// +optional
 	Name string `json:"name,omitempty"`
-	// ModelMatch defines the predicate used to match LLM inference requests to a given
-	// TargetModels. Multiple match conditions are ANDed together, i.e. the match will
-	// evaluate to true only if all conditions are satisfied.
+	// If no `modelMatch` is specified, it will be default route.
 	// +optional
 	ModelMatch *ModelMatch `json:"modelMatch,omitempty"`
 	// +kubebuilder:validation:MaxItems=16
 	TargetModels []*TargetModel `json:"targetModels"`
 }
 
+// ModelMatch defines the predicate used to match LLM inference requests to a given
+// TargetModels. Multiple match conditions are ANDed together, i.e. the match will
+// evaluate to true only if all conditions are satisfied.
 type ModelMatch struct {
 	// Header to match: prefix, exact, regex
 	// If unset, any header will be matched.
