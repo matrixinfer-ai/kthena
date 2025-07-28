@@ -190,8 +190,8 @@ spec:
                     backend.
                   properties:
                     autoscalingPolicy:
-                      description: AutoscalingPolicy references the autoscaling policy
-                        for this backend.
+                      description: AutoscalingPolicyRef references the autoscaling
+                        policy for this backend.
                       properties:
                         behavior:
                           description: Behavior defines the scaling behavior for both

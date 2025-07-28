@@ -35,12 +35,12 @@ type ModelBackendApplyConfiguration struct {
 	Env                    []v1.EnvVar                              `json:"env,omitempty"`
 	MinReplicas            *int32                                   `json:"minReplicas,omitempty"`
 	MaxReplicas            *int32                                   `json:"maxReplicas,omitempty"`
-	ScalingCost            *int32                                   `json:"cost,omitempty"`
+	ScalingCost            *int32                                   `json:"scalingCost,omitempty"`
 	RouteWeight            *int32                                   `json:"routeWeight,omitempty"`
 	ScaleToZeroGracePeriod *metav1.Duration                         `json:"scaleToZeroGracePeriod,omitempty"`
 	Workers                []ModelWorkerApplyConfiguration          `json:"workers,omitempty"`
 	LoraAdapters           []LoraAdapterApplyConfiguration          `json:"loraAdapters,omitempty"`
-	AutoscalingPolicyRef   *AutoscalingPolicySpecApplyConfiguration `json:"autoscalingPolicyRef,omitempty"`
+	AutoscalingPolicy      *AutoscalingPolicySpecApplyConfiguration `json:"autoscalingPolicy,omitempty"`
 }
 
 // ModelBackendApplyConfiguration constructs a declarative configuration of the ModelBackend type for use with
