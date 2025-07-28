@@ -43,7 +43,7 @@ type ModelSpec struct {
 	// scaling behavior of the model. The backend-level autoscaling policy is used to control the scaling
 	// behavior of each individual backend. Webhook will reject the CR if both are specified.
 	// +optional
-	AutoscalingPolicy *AutoscalingPolicySpec `json:"autoscalingPolicy,omitempty"`
+	AutoscalingPolicyRef corev1.LocalObjectReference `json:"autoscalingPolicyRef,omitempty"`
 	// CostExpansionRatePercent is the percentage rate at which the cost expands.
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=100
@@ -118,7 +118,7 @@ type ModelBackend struct {
 	LoraAdapters []LoraAdapter `json:"loraAdapters,omitempty"`
 	// AutoscalingPolicy is the backend-level autoscaling policy.
 	// +optional
-	AutoscalingPolicy *AutoscalingPolicySpec `json:"autoscalingPolicy,omitempty"`
+	AutoscalingPolicyRef corev1.LocalObjectReference `json:"autoscalingPolicyRef,omitempty"`
 }
 
 // LoraAdapter defines a LoRA (Low-Rank Adaptation) adapter configuration.

@@ -264,18 +264,18 @@ func (v *ModelValidator) validateAutoscalingPolicyRefs(ctx context.Context, mode
 	var allErrs field.ErrorList
 
 	// Model-level ref
-	if model.Spec.AutoscalingPolicy != nil {
+	if name := model.Spec.AutoscalingPolicyRef.Name; name != "" {
 		// For now, we'll skip the actual client lookup since we need to adapt the client interface
 		// In a real implementation, you would check if the AutoscalingPolicy exists
-		klog.V(4).Infof("Skipping validation of AutoscalingPolicy in namespace %s", model.Namespace)
+		klog.V(4).Infof("Skipping validation of AutoscalingPolicy %s in namespace %s", name, model.Namespace)
 	}
 
 	// Backend-level refs
 	for i, backend := range model.Spec.Backends {
-		if backend.AutoscalingPolicy != nil {
+		if name := backend.AutoscalingPolicyRef.Name; name != "" {
 			// For now, we'll skip the actual client lookup since we need to adapt the client interface
 			// In a real implementation, you would check if the AutoscalingPolicy exists
-			klog.V(4).Infof("Skipping validation of AutoscalingPolicy for backend %d in namespace %s", i, model.Namespace)
+			klog.V(4).Infof("Skipping validation of AutoscalingPolicy %s for backend %d in namespace %s", name, i, model.Namespace)
 		}
 	}
 	return allErrs
@@ -286,10 +286,10 @@ func validateAutoScalingPolicyScope(model *registryv1alpha1.Model) field.ErrorLi
 	spec := model.Spec
 	var allErrs field.ErrorList
 
-	modelAutoScalingEmpty := spec.AutoscalingPolicy == nil
+	modelAutoScalingEmpty := spec.AutoscalingPolicyRef.Name == ""
 	allBackendAutoScalingEmpty := true
 	for _, backend := range spec.Backends {
-		if backend.AutoscalingPolicy != nil {
+		if backend.AutoscalingPolicyRef.Name != "" {
 			allBackendAutoScalingEmpty = false
 			break
 		}
@@ -317,7 +317,7 @@ func validateAutoScalingPolicyScope(model *registryv1alpha1.Model) field.ErrorLi
 			))
 		}
 		for i, backend := range spec.Backends {
-			if backend.AutoscalingPolicy != nil && backend.MinReplicas < 1 {
+			if backend.AutoscalingPolicyRef.Name != "" && backend.MinReplicas < 1 {
 				allErrs = append(allErrs, field.Invalid(
 					field.NewPath("spec").Child("backends").Index(i).Child("minReplicas"),
 					backend.MinReplicas,
