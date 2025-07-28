@@ -393,10 +393,22 @@ func buildPrefillRequest(req *http.Request, modelRequest ModelRequest) (*http.Re
 	return reqCopy, nil
 }
 
+func isTokenUsageEnabled(modelRequest ModelRequest) bool {
+	// Check if token usage is enabled in the model request
+	if v, ok := modelRequest["stream_options"]; ok {
+		if streamOptions, isMap := v.(map[string]interface{}); isMap {
+			if includeUsage, isBool := streamOptions["include_usage"].(bool); isBool && includeUsage {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func buildDecodeRequest(c *gin.Context, req *http.Request, modelRequest ModelRequest) (*http.Request, error) {
 	// Check if streaming is enabled
 	if isStreaming(modelRequest) {
-		if modelRequest["stream_options"] == nil {
+		if !isTokenUsageEnabled(modelRequest) {
 			// For streaming requests, add stream_options to include token usage
 			modelRequest["stream_options"] = map[string]interface{}{
 				"include_usage": true,
