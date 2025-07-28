@@ -395,13 +395,15 @@ func buildPrefillRequest(req *http.Request, modelRequest ModelRequest) (*http.Re
 
 func buildDecodeRequest(c *gin.Context, req *http.Request, modelRequest ModelRequest) (*http.Request, error) {
 	// Check if streaming is enabled
-	if isStreaming(modelRequest) && modelRequest["stream_options"] == nil {
-		// For streaming requests, add stream_options to include token usage
-		modelRequest["stream_options"] = map[string]interface{}{
-			"include_usage": true,
+	if isStreaming(modelRequest) {
+		if modelRequest["stream_options"] == nil {
+			// For streaming requests, add stream_options to include token usage
+			modelRequest["stream_options"] = map[string]interface{}{
+				"include_usage": true,
+			}
+			// add stream token usage to context
+			c.Set(tokenUsageKey, true)
 		}
-		// add stream token usage to context
-		c.Set(tokenUsageKey, true)
 	} else {
 		// For non-streaming requests, ensure we request usage information
 		// Most OpenAI-compatible APIs return usage by default for non-streaming,
