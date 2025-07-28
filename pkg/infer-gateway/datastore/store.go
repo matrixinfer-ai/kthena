@@ -100,6 +100,11 @@ type Store interface {
 	AddOrUpdateModelRoute(mr *aiv1alpha1.ModelRoute) error
 	DeleteModelRoute(namespacedName string) error
 
+	// PDGroup methods for efficient PD scheduling
+	GetDecodePods(modelServerName types.NamespacedName) ([]*PodInfo, error)
+	GetPrefillPods(modelServerName types.NamespacedName) ([]*PodInfo, error)
+	GetPrefillPodsForDecodeGroup(modelServerName types.NamespacedName, decodePodName types.NamespacedName) ([]*PodInfo, error)
+
 	// New methods for callback management
 	RegisterCallback(kind string, callback CallbackFunc)
 	// Run to update pod info periodically
@@ -107,6 +112,9 @@ type Store interface {
 
 	// HasSynced checks if the store has been initialized and synced
 	HasSynced() bool
+
+	// GetPodInfo returns the pod info for a given pod name (for testing)
+	GetPodInfo(podName types.NamespacedName) *PodInfo
 }
 
 type PodInfo struct {
@@ -142,9 +150,8 @@ type modelRouteInfo struct {
 }
 
 type store struct {
-	mutex       sync.RWMutex
-	modelServer map[types.NamespacedName]*modelServer
-	pods        map[types.NamespacedName]*PodInfo
+	modelServer sync.Map // map[types.NamespacedName]*modelServer
+	pods        sync.Map // map[types.NamespacedName]*PodInfo
 
 	routeMutex sync.RWMutex
 	// Model routing fields
@@ -161,8 +168,8 @@ type store struct {
 
 func New() Store {
 	return &store{
-		modelServer:   make(map[types.NamespacedName]*modelServer),
-		pods:          make(map[types.NamespacedName]*PodInfo),
+		modelServer:   sync.Map{},
+		pods:          sync.Map{},
 		routeInfo:     make(map[string]*modelRouteInfo),
 		routes:        make(map[string]*aiv1alpha1.ModelRoute),
 		loraRoutes:    make(map[string]*aiv1alpha1.ModelRoute),
@@ -177,19 +184,13 @@ func (s *store) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		default:
-			// Only lock when copying pod list
-			s.mutex.RLock()
-			pods := make([]*PodInfo, 0, len(s.pods))
-			for _, podInfo := range s.pods {
-				pods = append(pods, podInfo)
-			}
-			s.mutex.RUnlock()
-
-			// Unlock before updating pods
-			for _, podInfo := range pods {
-				s.updatePodMetrics(podInfo)
-				s.updatePodModels(podInfo)
-			}
+			s.pods.Range(func(key, value any) bool {
+				if p, ok := value.(*PodInfo); ok {
+					s.updatePodMetrics(p)
+					s.updatePodModels(p)
+				}
+				return true
+			})
 			s.initialSynced.Store(true)
 			time.Sleep(uppdateInterval)
 		}
@@ -200,45 +201,47 @@ func (s *store) HasSynced() bool {
 	return s.initialSynced.Load()
 }
 
-func (s *store) AddOrUpdateModelServer(ms *aiv1alpha1.ModelServer, pods sets.Set[types.NamespacedName]) error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+func (s *store) GetPodInfo(podName types.NamespacedName) *PodInfo {
+	if value, ok := s.pods.Load(podName); ok {
+		return value.(*PodInfo)
+	}
+	return nil
+}
 
+func (s *store) AddOrUpdateModelServer(ms *aiv1alpha1.ModelServer, pods sets.Set[types.NamespacedName]) error {
 	name := utils.GetNamespaceName(ms)
-	if _, ok := s.modelServer[name]; !ok {
-		s.modelServer[name] = newModelServer(ms)
+	var modelServerObj *modelServer
+	if value, ok := s.modelServer.Load(name); !ok {
+		modelServerObj = newModelServer(ms)
 	} else {
-		s.modelServer[name].modelServer = ms
+		modelServerObj = value.(*modelServer)
+		modelServerObj.modelServer = ms
 	}
 	if len(pods) != 0 {
 		// donot operate s.pods here, which are done within pod handler
-		s.modelServer[name].pods = pods
+		modelServerObj.pods = pods
 	}
-
+	s.modelServer.Store(name, modelServerObj)
 	return nil
 }
 
 func (s *store) DeleteModelServer(ms types.NamespacedName) error {
-	modelserver, ok := s.modelServer[ms]
+	value, ok := s.modelServer.LoadAndDelete(ms)
 	if !ok {
 		return nil
 	}
-
-	podNames := modelserver.getPods()
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	// delete the model server from the store
-	delete(s.modelServer, ms)
+	modelServerObj := value.(*modelServer)
+	podNames := modelServerObj.getPods()
 	// then delete the model server from all pod info
 	for _, podName := range podNames {
-		podInfo := s.pods[podName]
-		if podInfo == nil {
+		if value, ok := s.pods.Load(podName); ok {
+			podInfo := value.(*PodInfo)
+			podInfo.RemoveModelServer(ms)
+			if podInfo.GetModelServerCount() == 0 {
+				s.pods.Delete(podName)
+			}
+		} else {
 			klog.Warningf("pod %s not found", podName)
-			continue
-		}
-		podInfo.RemoveModelServer(ms)
-		if podInfo.GetModelServerCount() == 0 {
-			delete(s.pods, podName)
 		}
 	}
 
@@ -246,34 +249,94 @@ func (s *store) DeleteModelServer(ms types.NamespacedName) error {
 }
 
 func (s *store) GetModelServer(name types.NamespacedName) *aiv1alpha1.ModelServer {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-
-	if ms, ok := s.modelServer[name]; ok {
-		return ms.modelServer
+	if value, ok := s.modelServer.Load(name); ok {
+		return value.(*modelServer).modelServer
 	}
-
 	return nil
 }
 
 func (s *store) GetPodsByModelServer(name types.NamespacedName) ([]*PodInfo, error) {
-	s.mutex.RLock()
-	ms, ok := s.modelServer[name]
-	s.mutex.RUnlock()
+	value, ok := s.modelServer.Load(name)
 	if !ok {
 		return nil, fmt.Errorf("model server not found: %v", name)
 	}
+	ms := value.(*modelServer)
 
 	podNames := ms.getPods()
 	pods := make([]*PodInfo, 0, len(podNames))
 
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
 	for _, podName := range podNames {
-		pods = append(pods, s.pods[podName])
+		if value, ok := s.pods.Load(podName); ok {
+			pods = append(pods, value.(*PodInfo))
+		}
 	}
 
 	return pods, nil
+}
+
+// GetDecodePods returns all decode pods for a given model server
+func (s *store) GetDecodePods(modelServerName types.NamespacedName) ([]*PodInfo, error) {
+	value, ok := s.modelServer.Load(modelServerName)
+	if !ok {
+		return nil, fmt.Errorf("model server not found: %v", modelServerName)
+	}
+	ms := value.(*modelServer)
+
+	decodePodNames := ms.getAllDecodePods()
+	decodePods := make([]*PodInfo, 0, len(decodePodNames))
+
+	for _, podName := range decodePodNames {
+		if value, ok := s.pods.Load(podName); ok {
+			decodePods = append(decodePods, value.(*PodInfo))
+		}
+	}
+
+	return decodePods, nil
+}
+
+// GetPrefillPods returns all prefill pods for a given model server
+func (s *store) GetPrefillPods(modelServerName types.NamespacedName) ([]*PodInfo, error) {
+	value, ok := s.modelServer.Load(modelServerName)
+	if !ok {
+		return nil, fmt.Errorf("model server not found: %v", modelServerName)
+	}
+	ms := value.(*modelServer)
+
+	prefillPodNames := ms.getAllPrefillPods()
+	prefillPods := make([]*PodInfo, 0, len(prefillPodNames))
+
+	for _, podName := range prefillPodNames {
+		if value, ok := s.pods.Load(podName); ok {
+			prefillPods = append(prefillPods, value.(*PodInfo))
+		}
+	}
+
+	return prefillPods, nil
+}
+
+// GetPrefillPodsForDecodeGroup returns prefill pods that match the same PD group as the decode pod
+func (s *store) GetPrefillPodsForDecodeGroup(modelServerName types.NamespacedName, decodePodName types.NamespacedName) ([]*PodInfo, error) {
+	value, ok := s.modelServer.Load(modelServerName)
+	if !ok {
+		return nil, fmt.Errorf("model server not found: %v", modelServerName)
+	}
+	ms := value.(*modelServer)
+
+	pod, ok := s.pods.Load(decodePodName)
+	if !ok {
+		return nil, fmt.Errorf("pod not found: %v", decodePodName)
+	}
+	podInfo := pod.(*PodInfo)
+
+	prefillPodNames := ms.getPrefillPodsForDecodeGroup(podInfo)
+	prefillPods := make([]*PodInfo, 0, len(prefillPodNames))
+	for _, podName := range prefillPodNames {
+		if value, ok := s.pods.Load(podName); ok {
+			prefillPods = append(prefillPods, value.(*PodInfo))
+		}
+	}
+
+	return prefillPods, nil
 }
 
 func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.ModelServer) error {
@@ -284,30 +347,35 @@ func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.Model
 		models:      sets.New[string](),
 	}
 
-	s.mutex.Lock()
-	for _, modelServer := range modelServers {
-		modelServerName := utils.GetNamespaceName(modelServer)
+	for _, ms := range modelServers {
+		modelServerName := utils.GetNamespaceName(ms)
 		newPodInfo.AddModelServer(modelServerName)
 		// NOTE: even if a pod belongs to multiple model servers, the backend should be the same
-		newPodInfo.engine = string(modelServer.Spec.InferenceEngine)
-		if ms, ok := s.modelServer[modelServerName]; ok {
+		newPodInfo.engine = string(ms.Spec.InferenceEngine)
+		if value, ok := s.modelServer.Load(modelServerName); ok {
+			ms := value.(*modelServer)
 			ms.addPod(podName)
+			// Categorize the pod for PDGroup scheduling
+			ms.categorizePodForPDGroup(podName, pod.Labels)
 		}
 	}
 
-	oldPodInfo := s.pods[podName]
-	if oldPodInfo != nil {
+	var oldPodInfo *PodInfo
+	if value, ok := s.pods.Load(podName); ok {
+		oldPodInfo = value.(*PodInfo)
 		oldModelServers := oldPodInfo.GetModelServers()
 		// Handle the case where the pod is no longer belong to some model servers
 		for msName := range oldModelServers.Difference(newPodInfo.modelServer) {
-			if ms, ok := s.modelServer[msName]; ok {
+			if value, ok := s.modelServer.Load(msName); ok {
+				ms := value.(*modelServer)
 				ms.deletePod(podName)
+				// Remove from PDGroup categorizations
+				ms.removePodFromPDGroups(podName, oldPodInfo.Pod.Labels)
 			}
 		}
 	}
 
-	s.pods[podName] = newPodInfo
-	s.mutex.Unlock()
+	s.pods.Store(podName, newPodInfo)
 
 	if oldPodInfo == nil {
 		s.updatePodMetrics(newPodInfo)
@@ -318,19 +386,21 @@ func (s *store) AddOrUpdatePod(pod *corev1.Pod, modelServers []*aiv1alpha1.Model
 }
 
 func (s *store) DeletePod(podName types.NamespacedName) error {
-	s.mutex.Lock()
-	if pod, ok := s.pods[podName]; ok {
+	if value, ok := s.pods.Load(podName); ok {
+		pod := value.(*PodInfo)
 		modelServers := pod.GetModelServers()
 		for modelServerName := range modelServers {
-			if s.modelServer[modelServerName] == nil {
+			if value, ok := s.modelServer.Load(modelServerName); ok {
+				ms := value.(*modelServer)
+				ms.deletePod(podName)
+				// Remove from PDGroup categorizations
+				ms.removePodFromPDGroups(podName, pod.Pod.Labels)
+			} else {
 				klog.V(4).Infof("model server %s not found for pod %s, maybe already deleted", modelServerName, podName)
-				continue
 			}
-			s.modelServer[modelServerName].deletePod(podName)
 		}
-		delete(s.pods, podName)
+		s.pods.Delete(podName)
 	}
-	s.mutex.Unlock()
 
 	s.triggerCallbacks("Pod", EventData{
 		EventType: EventDelete,
@@ -521,7 +591,7 @@ func selectFromWeightedSlice(weights []uint32) int {
 
 func (s *store) updatePodMetrics(pod *PodInfo) {
 	if pod.engine == "" {
-		klog.Error("failed to find backend in pod")
+		klog.V(2).Info("failed to find backend in pod")
 		return
 	}
 
@@ -533,7 +603,7 @@ func (s *store) updatePodMetrics(pod *PodInfo) {
 
 func (s *store) updatePodModels(podInfo *PodInfo) {
 	if podInfo.engine == "" {
-		klog.Error("failed to find backend in pod")
+		klog.V(2).Info("failed to find backend in pod")
 		return
 	}
 

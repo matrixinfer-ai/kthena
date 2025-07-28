@@ -1,0 +1,30 @@
+{{- if .Values.webhook.enabled }}
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: {{ include "matrixinfer.fullname" . }}-workload-validating-webhook
+  labels:
+    app.kubernetes.io/component: webhook
+    {{- include "matrixinfer.labels" . | nindent 4 }}
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "matrixinfer.fullname" . }}-webhook-cert
+webhooks:
+  - name: validate-workload-matrixinfer-ai-v1alpha1-model.matrixinfer.ai
+    admissionReviewVersions: [ "v1" ]
+    sideEffects: None
+    failurePolicy: Fail
+    timeoutSeconds: 30
+    clientConfig:
+      service:
+        name: {{ include "matrixinfer.fullname" . }}-webhook
+        namespace: {{ .Release.Namespace }}
+        path: "/validate-workload-ai-v1alpha1-modelinfer"
+        port: 443
+      caBundle: ""
+    rules:
+      - apiGroups: [ "workload.matrixinfer.ai" ]
+        apiVersions: [ "v1alpha1" ]
+        resources: [ "modelinfers" ]
+        operations: [ "CREATE", "UPDATE" ]
+        scope: "Namespaced"
+{{- end }}

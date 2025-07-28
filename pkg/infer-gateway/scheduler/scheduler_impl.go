@@ -21,9 +21,9 @@ import (
 	"sort"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 
-	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins"
@@ -114,79 +114,60 @@ func GetScorePlugin(prefixCache *plugins.PrefixCache, scorePluginMap map[string]
 	return list
 }
 
-func (s *SchedulerImpl) Schedule(req map[string]interface{}, pods []*datastore.PodInfo, pdGroup *aiv1alpha1.PDGroup) (*framework.Context, error) {
-	if len(pods) == 0 {
-		return nil, fmt.Errorf("pods shouldn't be empty")
-	}
-
-	prompt, err := utils.GetPrompt(req)
+func (s *SchedulerImpl) Schedule(ctx *framework.Context, pods []*datastore.PodInfo) error {
+	// first filter out invalid pods that wonot be selected to loadbalance to.
+	pods, err := s.RunFilterPlugins(pods, ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	ctx := &framework.Context{
-		Model:  req["model"].(string),
-		Prompt: prompt,
-	}
+	if ctx.PDGroup != nil {
+		// Use optimized PDGroup scheduling with pre-categorized pods from store
+		klog.V(4).Info("Using optimized PD disaggregated scheduling")
 
-	// Since the elements in the ctxSlice have the same model and prompt, it is straightforward to take the first element
-	pods, err = s.RunFilterPlugins(pods, ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	originalPods := make([]*datastore.PodInfo, len(pods))
-	copy(originalPods, pods)
-
-	var pdFilter framework.FilterPlugin
-	if pdGroup != nil {
-		// Initialize PDFilter plugin if PD disaggregation is enabled.
-
-		// First filter out decode pods.
-		// NOTE: Further optimization can be done on whether to filter out decode pod or prefill pod first,
-		// or even how to select the best PD group.
-		pdFilter = plugins.NewPDFilter(pdGroup.DecodeLabels, pdGroup.PrefillLabels, pdGroup.GroupKey)
-		pods = pdFilter.Filter(ctx, pods)
-
-		if len(pods) == 0 {
-			return nil, fmt.Errorf("no decode pod found")
+		// Get decode pods directly from store (O(1) lookup)
+		decodePods, err := s.store.GetDecodePods(ctx.ModelServerName)
+		if err != nil {
+			return fmt.Errorf("failed to get decode pods: %v", err)
 		}
-	}
 
-	klog.V(4).Info("Running score plugins for decode pod")
-	scores, err := s.RunScorePlugins(pods, ctx)
-	if err != nil {
-		return nil, err
-	}
+		if len(decodePods) == 0 {
+			return fmt.Errorf("no decode pod found")
+		}
 
-	topNDecodePods := TopNPodInfos(scores, topN)
-	ctx.DecodePods = topNDecodePods
+		klog.V(4).Info("Running score plugins for decode pod")
+		scores := s.RunScorePlugins(decodePods, ctx)
 
-	if pdGroup != nil {
+		topNDecodePods := TopNPodInfos(scores, topN)
+		ctx.DecodePods = topNDecodePods
 		prefillPods := make([]*datastore.PodInfo, len(topNDecodePods))
-		for i := range ctx.DecodePods {
-			ctx.PDIndex = i
-			// Filter prefill pods if PD disaggregation is enabled.
-			// Also make sure the prefill pod is in the same infer group of decode pod we get before.
-			selectedPods := pdFilter.Filter(ctx, originalPods)
 
-			if len(selectedPods) == 0 {
-				return nil, fmt.Errorf("no prefill pod found")
+		for i, decodePod := range ctx.DecodePods {
+			// Get prefill pods for the same PD group as the decode pod (O(1) lookup)
+			selectedPods, err := s.store.GetPrefillPodsForDecodeGroup(ctx.ModelServerName,
+				types.NamespacedName{
+					Namespace: decodePod.Pod.Namespace,
+					Name:      decodePod.Pod.Name,
+				})
+			if err != nil || len(selectedPods) == 0 {
+				klog.V(4).InfoS("prefill pods for decode group not found", "decode instance", klog.KObj(decodePod.Pod), "error", err)
+				continue
 			}
 
 			klog.V(4).Info("Running score plugins for prefill pod")
-			scores, err = s.RunScorePlugins(selectedPods, ctx)
-			if err != nil {
-				return nil, err
-			}
-
+			scores = s.RunScorePlugins(selectedPods, ctx)
 			bestPrefillPod := TopNPodInfos(scores, 1)
 			prefillPods[i] = bestPrefillPod[0]
 		}
 		ctx.PrefillPods = prefillPods
+		return nil
 	}
 
-	return ctx, nil
+	klog.V(4).Info("Running score plugins for PD aggregated pod")
+	scores := s.RunScorePlugins(pods, ctx)
+	ctx.BestPods = TopNPodInfos(scores, topN)
+
+	return nil
 }
 
 func (s *SchedulerImpl) RunFilterPlugins(pods []*datastore.PodInfo, ctx *framework.Context) ([]*datastore.PodInfo, error) {
@@ -200,7 +181,7 @@ func (s *SchedulerImpl) RunFilterPlugins(pods []*datastore.PodInfo, ctx *framewo
 	return pods, nil
 }
 
-func (s *SchedulerImpl) RunScorePlugins(pods []*datastore.PodInfo, ctx *framework.Context) (map[*datastore.PodInfo]int, error) {
+func (s *SchedulerImpl) RunScorePlugins(pods []*datastore.PodInfo, ctx *framework.Context) map[*datastore.PodInfo]int {
 	res := make(map[*datastore.PodInfo]int)
 	for _, scorePlugin := range s.scorePlugins {
 		scores := scorePlugin.plugin.Score(ctx, pods)
@@ -226,7 +207,7 @@ func (s *SchedulerImpl) RunScorePlugins(pods []*datastore.PodInfo, ctx *framewor
 		}
 	}
 
-	return res, nil
+	return res
 }
 
 func (s *SchedulerImpl) RunPostHooks(ctx *framework.Context, index int) {

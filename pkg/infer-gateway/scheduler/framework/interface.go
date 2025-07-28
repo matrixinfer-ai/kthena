@@ -17,6 +17,9 @@ limitations under the License.
 package framework
 
 import (
+	"k8s.io/apimachinery/pkg/types"
+
+	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 )
 
@@ -27,12 +30,15 @@ type Context struct {
 
 	Hashes []uint64
 
-	PDIndex int
-	// There are two cases:
+	// ModelServer information for efficient PDGroup scheduling
+	ModelServerName types.NamespacedName
+	PDGroup         *aiv1alpha1.PDGroup
 	// 1. In PD Disaggregated mode, both DecodePods and PrefillPods are set.
-	// 2. In PD Aggregated mode, only DecodePods is set, and PrefillPods is nil.
 	DecodePods  []*datastore.PodInfo
 	PrefillPods []*datastore.PodInfo
+
+	// 2. PD aggregated mode, BestPods is selected for inference.
+	BestPods []*datastore.PodInfo
 }
 
 type ScorePlugin interface {

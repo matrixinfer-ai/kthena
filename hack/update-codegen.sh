@@ -19,22 +19,26 @@ set -o nounset
 set -o pipefail
 
 SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
-echo "$SCRIPT_ROOT script"
-CODEGEN_PKG=${2:-bin}
-echo $CODEGEN_PKG
-source "${CODEGEN_PKG}/kube_codegen.sh"
+
+# Get the code-generator version and root
+CODEGEN_VERSION=$(go list -m -f '{{.Version}}' k8s.io/code-generator)
+CODEGEN_ROOT=$(go env GOMODCACHE)/k8s.io/code-generator@${CODEGEN_VERSION}
+
+# Use kube_codegen.sh directly from the module cache (no copying needed)
+source "${CODEGEN_ROOT}/kube_codegen.sh"
+
 THIS_PKG="matrixinfer.ai/matrixinfer"
 
-
+# Generate deepcopy, defaulter, conversion functions
 kube::codegen::gen_helpers \
     --boilerplate "${SCRIPT_ROOT}/hack/boilerplate.go.txt" \
-    "${SCRIPT_ROOT}"
+    "${SCRIPT_ROOT}/pkg/apis"
 
-
+# Generate client, listers, informers and apply configurations
 kube::codegen::gen_client \
---with-watch \
---with-applyconfig \
---output-dir "${SCRIPT_ROOT}/client-go" \
---output-pkg "${THIS_PKG}/client-go" \
---boilerplate "${SCRIPT_ROOT}/hack/boilerplate.go.txt" \
-"${SCRIPT_ROOT}/pkg/apis"
+    --with-watch \
+    --with-applyconfig \
+    --output-dir "${SCRIPT_ROOT}/client-go" \
+    --output-pkg "${THIS_PKG}/client-go" \
+    --boilerplate "${SCRIPT_ROOT}/hack/boilerplate.go.txt" \
+    "${SCRIPT_ROOT}/pkg/apis"

@@ -52,7 +52,7 @@ gen-crd: controller-gen
 	$(CONTROLLER_GEN) crd paths="./pkg/apis/workload/..." output:crd:artifacts:config=charts/matrixinfer/charts/workload/crds
 	$(CONTROLLER_GEN) crd paths="./pkg/apis/registry/..." output:crd:artifacts:config=charts/matrixinfer/charts/registry/crds
 .PHONY: generate
-generate: controller-gen code-generator gen-crd ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+generate: controller-gen gen-crd ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 	go mod tidy
 	./hack/update-codegen.sh
@@ -60,17 +60,6 @@ generate: controller-gen code-generator gen-crd ## Generate code containing Deep
 .PHONY: gen-check
 gen-check: generate
 	git diff --exit-code
-
-# Use same code-generator version as k8s.io/api
-CODEGEN_VERSION := $(shell go list -m -f '{{.Version}}' k8s.io/api)
-CODEGEN = $(shell pwd)/bin/code-generator
-CODEGEN_ROOT = $(shell go env GOMODCACHE)/k8s.io/code-generator@$(CODEGEN_VERSION)
-.PHONY: code-generator
-code-generator:
-	@GOBIN=$(PROJECT_DIR)/bin GO111MODULE=on go install k8s.io/code-generator/cmd/client-gen@$(CODEGEN_VERSION)
-	cp -f $(CODEGEN_ROOT)/generate-groups.sh $(PROJECT_DIR)/bin/
-	cp -f $(CODEGEN_ROOT)/generate-internal-groups.sh $(PROJECT_DIR)/bin/
-	cp -f $(CODEGEN_ROOT)/kube_codegen.sh $(PROJECT_DIR)/bin/
 
 .PHONY: fmt
 fmt: ## Run go fmt against code.
@@ -116,12 +105,16 @@ build: generate fmt vet
 	go build -o bin/infer-controller cmd/infer-controller/main.go
 	go build -o bin/infer-gateway cmd/infer-gateway/main.go
 	go build -o bin/model-controller cmd/model-controller/main.go
+	go build -o bin/autoscaler cmd/autoscaler/main.go
 	go build -o bin/registry-webhook cmd/registry-webhook/main.go
+	go build -o bin/infer-webhook cmd/modelinfer-webhook/main.go
 
 IMG_MODELINFER ?= ${HUB}/infer-controller:${TAG}
 IMG_MODELCONTROLLER ?= ${HUB}/model-controller:${TAG}
+IMG_AUTOSCALER ?= ${HUB}/autoscaler:${TAG}
 IMG_GATEWAY ?= ${HUB}/infer-gateway:${TAG}
 IMG_REGISTRY_WEBHOOK ?= ${HUB}/registry-webhook:${TAG}
+IMG_MODELINFER_WEBHOOK ?= ${HUB}/modelinfer-webhook:${TAG}
 
 .PHONY: docker-build-gateway
 docker-build-gateway: generate
@@ -135,16 +128,26 @@ docker-build-modelinfer: generate
 docker-build-modelcontroller: generate
 	$(CONTAINER_TOOL) build -t ${IMG_MODELCONTROLLER} -f docker/Dockerfile.modelcontroller .
 
+.PHONY: docker-build-autoscaler
+docker-build-autoscaler: generate
+	$(CONTAINER_TOOL) build -t ${IMG_AUTOSCALER} -f docker/Dockerfile.autoscaler .
+
 .PHONY: docker-build-registry-webhook
 docker-build-registry-webhook: generate
 	$(CONTAINER_TOOL) build -t ${IMG_REGISTRY_WEBHOOK} -f docker/Dockerfile.registry.webhook .
 
+.PHONY: docker-build-modelinfer-webhook
+docker-build-modelinfer-webhook: generate
+	$(CONTAINER_TOOL) build -t ${IMG_MODELINFER_WEBHOOK} -f docker/Dockerfile.modelinfer.webhook .
+
 .PHONY: docker-push
-docker-push: docker-build-gateway docker-build-modelinfer docker-build-modelcontroller ## Push all images to the registry.
+docker-push: docker-build-gateway docker-build-modelinfer docker-build-modelcontroller docker-build-registry-webhook docker-build-modelinfer-webhook docker-build-autoscaler ## Push all images to the registry.
 	$(CONTAINER_TOOL) push ${IMG_GATEWAY}
 	$(CONTAINER_TOOL) push ${IMG_MODELINFER}
 	$(CONTAINER_TOOL) push ${IMG_MODELCONTROLLER}
+	$(CONTAINER_TOOL) push ${IMG_AUTOSCALER}
 	$(CONTAINER_TOOL) push ${IMG_REGISTRY_WEBHOOK}
+	$(CONTAINER_TOOL) push ${IMG_MODELINFER_WEBHOOK}
 
 # PLATFORMS defines the target platforms for the images be built to provide support to multiple
 # architectures.
@@ -173,8 +176,18 @@ docker-buildx: ## Build and push docker image for cross-platform support
 		--push .
 	$(CONTAINER_TOOL) buildx build \
 		--platform ${PLATFORMS} \
+		-t ${IMG_AUTOSCALER} \
+		-f docker/Dockerfile.autoscaler \
+		--push .
+	$(CONTAINER_TOOL) buildx build \
+		--platform ${PLATFORMS} \
 		-t ${IMG_REGISTRY_WEBHOOK} \
 		-f docker/Dockerfile.registry.webhook \
+		--push .
+	$(CONTAINER_TOOL) buildx build \
+		--platform ${PLATFORMS} \
+		-t ${IMG_MODELINFER_WEBHOOK} \
+		-f Dockerfile.modelinfer.webhook \
 		--push .
 
 .PHONY: build-installer
