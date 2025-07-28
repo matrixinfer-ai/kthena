@@ -21,9 +21,9 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaler/datastructure"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaler/histogram"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaler/util"
+	"matrixinfer.ai/matrixinfer/pkg/autoscaler/datastructure"
+	"matrixinfer.ai/matrixinfer/pkg/autoscaler/histogram"
+	"matrixinfer.ai/matrixinfer/pkg/autoscaler/util"
 )
 
 type Autoscaler struct {
@@ -45,14 +45,35 @@ type HistogramInfo struct {
 }
 
 func NewAutoscaler(behavior *v1alpha1.AutoscalingPolicyBehavior, globalInfo *GlobalInfo, metricTargets map[string]float64) *Autoscaler {
+	panicModeHoldMilliseconds := int64(0)
+	if behavior.ScaleUp.PanicPolicy.PanicModeHold != nil {
+		panicModeHoldMilliseconds = behavior.ScaleUp.PanicPolicy.PanicModeHold.Milliseconds()
+	}
+	scaleDownStabilizationWindowMilliseconds := int64(0)
+	if behavior.ScaleDown.StabilizationWindow != nil {
+		scaleDownStabilizationWindowMilliseconds = behavior.ScaleDown.StabilizationWindow.Milliseconds()
+	}
+	scaleUpStabilizationWindowMilliseconds := int64(0)
+	if behavior.ScaleUp.StablePolicy.StabilizationWindow != nil {
+		scaleUpStabilizationWindowMilliseconds = behavior.ScaleUp.StablePolicy.StabilizationWindow.Milliseconds()
+	}
+	scaleUpStablePolicyPeriodMilliseconds := int64(0)
+	if behavior.ScaleUp.StablePolicy.Period != nil {
+		scaleUpStablePolicyPeriodMilliseconds = behavior.ScaleUp.StablePolicy.Period.Milliseconds()
+	}
+	scaleDownPeriodMilliseconds := int64(0)
+	if behavior.ScaleDown.Period != nil {
+		scaleDownPeriodMilliseconds = behavior.ScaleDown.Period.Milliseconds()
+	}
+
 	return &Autoscaler{
 		PanicModeEndsAt:           0,
-		PanicModeHoldMilliseconds: behavior.ScaleUp.PanicPolicy.PanicModeHold.Milliseconds(),
+		PanicModeHoldMilliseconds: panicModeHoldMilliseconds,
 		PastHistograms:            datastructure.NewSnapshotSlidingWindow[map[string]HistogramInfo](util.SecondToTimestamp(util.SloQuantileSlidingWindowSeconds), util.SecondToTimestamp(util.SloQuantileDataKeepSeconds)),
-		MaxRecommendation:         datastructure.NewMaximumRecordSlidingWindow[int32](behavior.ScaleDown.StabilizationWindow.Duration.Milliseconds()),
-		MinRecommendation:         datastructure.NewMinimumRecordSlidingWindow[int32](behavior.ScaleUp.StablePolicy.StabilizationWindow.Duration.Milliseconds()),
-		MaxCorrected:              datastructure.NewMinimumLineChartSlidingWindow[int32](behavior.ScaleDown.Period.Milliseconds()),
-		MinCorrectedForStable:     datastructure.NewMinimumLineChartSlidingWindow[int32](behavior.ScaleUp.StablePolicy.Period.Milliseconds()),
+		MaxRecommendation:         datastructure.NewMaximumRecordSlidingWindow[int32](scaleDownStabilizationWindowMilliseconds),
+		MinRecommendation:         datastructure.NewMinimumRecordSlidingWindow[int32](scaleUpStabilizationWindowMilliseconds),
+		MaxCorrected:              datastructure.NewMinimumLineChartSlidingWindow[int32](scaleDownPeriodMilliseconds),
+		MinCorrectedForStable:     datastructure.NewMinimumLineChartSlidingWindow[int32](scaleUpStablePolicyPeriodMilliseconds),
 		MinCorrectedForPanic:      datastructure.NewMinimumLineChartSlidingWindow[int32](behavior.ScaleUp.PanicPolicy.Period.Milliseconds()),
 		GlobalInfo:                globalInfo,
 		MetricTargets:             metricTargets,
