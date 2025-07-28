@@ -1,0 +1,17 @@
+apiVersion: networking.matrixinfer.ai/v1alpha1
+kind: ModelRoute
+metadata:
+  name: test-model-route
+  namespace: default
+  ownerReferences:
+    - apiVersion: registry.matrixinfer.ai/v1alpha1
+      kind: Model
+      name: test-model
+      uid: randomUID
+spec:
+  loraAdapters:
+    - "lora-sql"
+  rules:
+    - name: "test-model-0-rule"
+      targetModels:
+        - modelServerName: "test-model-0-vllm-server"

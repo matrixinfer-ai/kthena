@@ -156,6 +156,28 @@ func TestBuildModelServer(t *testing.T) {
 	}
 }
 
+func TestBuildModelRoute(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    *registry.Model
+		expected *networking.ModelRoute
+	}{
+		{
+			name:     "simple model",
+			input:    loadYAML[registry.Model](t, "testdata/input/model.yaml"),
+			expected: loadYAML[networking.ModelRoute](t, "testdata/expected/model-route.yaml"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := BuildModelRoute(tt.input)
+			actualYAML, _ := yaml.Marshal(got)
+			expectedYAML, _ := yaml.Marshal(tt.expected)
+			assert.Equal(t, string(expectedYAML), string(actualYAML))
+		})
+	}
+}
+
 func loadYAML[T any](t *testing.T, path string) *T {
 	data, err := os.ReadFile(path)
 	if err != nil {
