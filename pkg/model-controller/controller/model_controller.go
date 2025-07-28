@@ -48,7 +48,7 @@ const (
 	ModelActiveReason             = "ModelActive"
 	CreateModelServerFailedReason = "CreateModelServerFailed"
 	CreateModelRouteFailedReason  = "CreateModelRouteFailed"
-	ConfigMapName                 = "model-config-map"
+	ConfigMapName                 = "registry-model-controller-config"
 )
 
 type ModelController struct {
