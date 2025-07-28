@@ -40,8 +40,11 @@ spec:
             description: ModelSpec defines the desired state of Model.
             properties:
               autoscalingPolicy:
-                description: AutoscalingPolicy references the autoscaling policy to
-                  be used for this model.
+                description: |-
+                  AutoscalingPolicy is the model-level autoscaling policy. There are two kinds of autoscaling policies:
+                  one for model and one for backend. The model-level autoscaling policy is used to control the overall
+                  scaling behavior of the model. The backend-level autoscaling policy is used to control the scaling
+                  behavior of each individual backend. Webhook will reject the CR if both are specified.
                 properties:
                   behavior:
                     description: Behavior defines the scaling behavior for both scale
@@ -190,8 +193,8 @@ spec:
                     backend.
                   properties:
                     autoscalingPolicy:
-                      description: AutoscalingPolicyRef references the autoscaling
-                        policy for this backend.
+                      description: AutoscalingPolicy is the backend-level autoscaling
+                        policy.
                       properties:
                         behavior:
                           description: Behavior defines the scaling behavior for both
@@ -559,9 +562,13 @@ spec:
                       pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
                       type: string
                     routeWeight:
-                      description: RouteWeight is the weight of the route for this
-                        backend.
+                      default: 100
+                      description: |-
+                        RouteWeight is used to specify the percentage of traffic should be sent to the target backend.
+                        It's used to create model route.
                       format: int32
+                      maximum: 100
+                      minimum: 0
                       type: integer
                     scaleToZeroGracePeriod:
                       description: ScaleToZeroGracePeriod is the duration to wait
@@ -1633,7 +1640,10 @@ spec:
                 minimum: 0
                 type: integer
               modelMatch:
-                description: ModelMatch defines the model match configuration.
+                description: |-
+                  ModelMatch defines the predicate used to match LLM inference requests to a given
+                  TargetModels. Multiple match conditions are ANDed together, i.e. the match will
+                  evaluate to true only if all conditions are satisfied.
                 properties:
                   headers:
                     additionalProperties:
@@ -1675,7 +1685,6 @@ spec:
                 type: string
             required:
             - backends
-            - modelMatch
             type: object
           status:
             description: ModelStatus defines the observed state of Model.
