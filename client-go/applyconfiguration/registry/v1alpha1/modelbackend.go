@@ -27,20 +27,20 @@ import (
 // ModelBackendApplyConfiguration represents a declarative configuration of the ModelBackend type for use
 // with apply.
 type ModelBackendApplyConfiguration struct {
-	Name                   *string                                  `json:"name,omitempty"`
-	Type                   *registryv1alpha1.ModelBackendType       `json:"type,omitempty"`
-	ModelURI               *string                                  `json:"modelURI,omitempty"`
-	CacheURI               *string                                  `json:"cacheURI,omitempty"`
-	EnvFrom                []v1.EnvFromSource                       `json:"envFrom,omitempty"`
-	Env                    []v1.EnvVar                              `json:"env,omitempty"`
-	MinReplicas            *int32                                   `json:"minReplicas,omitempty"`
-	MaxReplicas            *int32                                   `json:"maxReplicas,omitempty"`
-	ScalingCost            *int32                                   `json:"scalingCost,omitempty"`
-	RouteWeight            *int32                                   `json:"routeWeight,omitempty"`
-	ScaleToZeroGracePeriod *metav1.Duration                         `json:"scaleToZeroGracePeriod,omitempty"`
-	Workers                []ModelWorkerApplyConfiguration          `json:"workers,omitempty"`
-	LoraAdapters           []LoraAdapterApplyConfiguration          `json:"loraAdapters,omitempty"`
-	AutoscalingPolicy      *AutoscalingPolicySpecApplyConfiguration `json:"autoscalingPolicy,omitempty"`
+	Name                   *string                            `json:"name,omitempty"`
+	Type                   *registryv1alpha1.ModelBackendType `json:"type,omitempty"`
+	ModelURI               *string                            `json:"modelURI,omitempty"`
+	CacheURI               *string                            `json:"cacheURI,omitempty"`
+	EnvFrom                []v1.EnvFromSource                 `json:"envFrom,omitempty"`
+	Env                    []v1.EnvVar                        `json:"env,omitempty"`
+	MinReplicas            *int32                             `json:"minReplicas,omitempty"`
+	MaxReplicas            *int32                             `json:"maxReplicas,omitempty"`
+	ScalingCost            *int32                             `json:"scalingCost,omitempty"`
+	RouteWeight            *int32                             `json:"routeWeight,omitempty"`
+	ScaleToZeroGracePeriod *metav1.Duration                   `json:"scaleToZeroGracePeriod,omitempty"`
+	Workers                []ModelWorkerApplyConfiguration    `json:"workers,omitempty"`
+	LoraAdapters           []LoraAdapterApplyConfiguration    `json:"loraAdapters,omitempty"`
+	AutoscalingPolicyRef   *v1.LocalObjectReference           `json:"autoscalingPolicyRef,omitempty"`
 }
 
 // ModelBackendApplyConfiguration constructs a declarative configuration of the ModelBackend type for use with
@@ -167,10 +167,10 @@ func (b *ModelBackendApplyConfiguration) WithLoraAdapters(values ...*LoraAdapter
 	return b
 }
 
-// WithAutoscalingPolicy sets the AutoscalingPolicy field in the declarative configuration to the given value
+// WithAutoscalingPolicyRef sets the AutoscalingPolicyRef field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the AutoscalingPolicy field is set to the value of the last call.
-func (b *ModelBackendApplyConfiguration) WithAutoscalingPolicy(value *AutoscalingPolicySpecApplyConfiguration) *ModelBackendApplyConfiguration {
-	b.AutoscalingPolicy = value
+// If called multiple times, the AutoscalingPolicyRef field is set to the value of the last call.
+func (b *ModelBackendApplyConfiguration) WithAutoscalingPolicyRef(value v1.LocalObjectReference) *ModelBackendApplyConfiguration {
+	b.AutoscalingPolicyRef = &value
 	return b
 }
