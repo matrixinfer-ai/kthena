@@ -17,17 +17,7 @@ spec:
         replicas: ${PREFILL_REPLICAS}
         entryTemplate:
           spec:
-            initContainers:
-              - name: downloader
-                imagePullPolicy: Always
-                image: ${MODEL_INFER_DOWNLOADER_IMAGE}
-                args:
-                  - --source
-                  - ${MODEL_URL}
-                  - --output-dir
-                  - ${MODEL_DOWNLOAD_PATH}
-                envFrom: ${MODEL_DOWNLOAD_ENVFROM}
-                volumeMounts: ${VOLUME_MOUNTS}
+            initContainers: ${INIT_CONTAINERS}
             containers:
               - name: runtime
                 image: ${MODEL_INFER_RUNTIME_IMAGE}
@@ -93,17 +83,7 @@ spec:
         replicas: ${DECODE_REPLICAS}
         entryTemplate:
           spec:
-            initContainers:
-              - name: downloader
-                imagePullPolicy: Always
-                image: ${MODEL_INFER_DOWNLOADER_IMAGE}
-                args:
-                  - --source
-                  - ${MODEL_URL}
-                  - --output-dir
-                  - ${MODEL_DOWNLOAD_PATH}
-                envFrom: ${MODEL_DOWNLOAD_ENVFROM}
-                volumeMounts: ${VOLUME_MOUNTS}
+            initContainers: ${INIT_CONTAINERS}
             containers:
               - name: runtime
                 image: ${MODEL_INFER_RUNTIME_IMAGE}

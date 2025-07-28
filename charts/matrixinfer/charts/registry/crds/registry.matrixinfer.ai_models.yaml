@@ -264,25 +264,25 @@ spec:
                         type: object
                       type: array
                       x-kubernetes-list-type: atomic
-                    loraAdapterRefs:
-                      description: LoraAdapterRefs is a list of references to LoRA
-                        adapters.
+                    loraAdapters:
+                      description: LoraAdapter is a list of LoRA adapters.
                       items:
-                        description: |-
-                          LocalObjectReference contains enough information to let you locate the
-                          referenced object inside the same namespace.
+                        description: LoraAdapter defines a LoRA (Low-Rank Adaptation)
+                          adapter configuration.
                         properties:
-                          name:
-                            default: ""
-                            description: |-
-                              Name of the referent.
-                              This field is effectively required, but due to backwards compatibility is
-                              allowed to be empty. Instances of this type with an empty value here are
-                              almost certainly wrong.
-                              More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                          artifactURL:
+                            description: ArtifactURL is the URL where the LoRA adapter
+                              artifact is stored.
+                            pattern: ^(hf://|s3://|pvc://).+
                             type: string
+                          name:
+                            description: Name is the name of the LoRA adapter.
+                            pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                            type: string
+                        required:
+                        - artifactURL
+                        - name
                         type: object
-                        x-kubernetes-map-type: atomic
                       type: array
                     maxReplicas:
                       description: MaxReplicas is the maximum number of replicas for
