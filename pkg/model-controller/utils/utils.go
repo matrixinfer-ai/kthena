@@ -98,9 +98,8 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 	// Build an initial container list including model downloader container
 	initContainers := []corev1.Container{
 		{
-			Name:            model.Name + "-model-downloader",
-			ImagePullPolicy: "Always",
-			Image:           config.Config.GetModelInferDownloaderImage(),
+			Name:  model.Name + "-model-downloader",
+			Image: config.Config.GetModelInferDownloaderImage(),
 			Args: []string{
 				"--source", backend.ModelURI,
 				"--output-dir", modelDownloadPath,
@@ -160,25 +159,21 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 		"VOLUMES": []*corev1.Volume{
 			cacheVolume,
 		},
-		"MODEL_NAME":                   model.Name,
-		"MODEL_URL":                    backend.ModelURI,
-		"BACKEND_REPLICAS":             backend.MinReplicas, // todo: backend replicas
-		"MODEL_DOWNLOAD_ENVFROM":       backend.EnvFrom,
-		"INIT_CONTAINERS":              initContainers,
-		"ENGINE_PREFILL_COMMAND":       preFillCommand,
-		"ENGINE_DECODE_COMMAND":        decodeCommand,
-		"MODEL_DOWNLOAD_PATH":          modelDownloadPath,
-		"MODEL_INFER_DOWNLOADER_IMAGE": config.Config.GetModelInferDownloaderImage(),
-		"MODEL_INFER_RUNTIME_IMAGE":    config.Config.GetModelInferRuntimeImage(),
-		"MODEL_INFER_RUNTIME_PORT":     getEnvValueOrDefault(backend, "RUNTIME_PORT", "8100"),
-		"MODEL_INFER_RUNTIME_URL":      getEnvValueOrDefault(backend, "RUNTIME_URL", "http://localhost:8000/metrics"),
-		"MODEL_INFER_RUNTIME_ENGINE":   strings.ToLower(string(backend.Type)),
-		"PREFILL_REPLICAS":             workersMap[registry.ModelWorkerTypePrefill].Replicas,
-		"DECODE_REPLICAS":              workersMap[registry.ModelWorkerTypeDecode].Replicas,
-		"ENGINE_DECODE_RESOURCES":      workersMap[registry.ModelWorkerTypeDecode].Resources,
-		"ENGINE_DECODE_IMAGE":          workersMap[registry.ModelWorkerTypeDecode].Image,
-		"ENGINE_PREFILL_RESOURCES":     workersMap[registry.ModelWorkerTypePrefill].Resources,
-		"ENGINE_PREFILL_IMAGE":         workersMap[registry.ModelWorkerTypePrefill].Image,
+		"MODEL_NAME":                 model.Name,
+		"BACKEND_REPLICAS":           backend.MinReplicas, // todo: backend replicas
+		"INIT_CONTAINERS":            initContainers,
+		"ENGINE_PREFILL_COMMAND":     preFillCommand,
+		"ENGINE_DECODE_COMMAND":      decodeCommand,
+		"MODEL_INFER_RUNTIME_IMAGE":  config.Config.GetModelInferRuntimeImage(),
+		"MODEL_INFER_RUNTIME_PORT":   getEnvValueOrDefault(backend, "RUNTIME_PORT", "8100"),
+		"MODEL_INFER_RUNTIME_URL":    getEnvValueOrDefault(backend, "RUNTIME_URL", "http://localhost:8000/metrics"),
+		"MODEL_INFER_RUNTIME_ENGINE": strings.ToLower(string(backend.Type)),
+		"PREFILL_REPLICAS":           workersMap[registry.ModelWorkerTypePrefill].Replicas,
+		"DECODE_REPLICAS":            workersMap[registry.ModelWorkerTypeDecode].Replicas,
+		"ENGINE_DECODE_RESOURCES":    workersMap[registry.ModelWorkerTypeDecode].Resources,
+		"ENGINE_DECODE_IMAGE":        workersMap[registry.ModelWorkerTypeDecode].Image,
+		"ENGINE_PREFILL_RESOURCES":   workersMap[registry.ModelWorkerTypePrefill].Resources,
+		"ENGINE_PREFILL_IMAGE":       workersMap[registry.ModelWorkerTypePrefill].Image,
 	}
 	return loadModelInferTemplate(VllmDisaggregatedTemplatePath, &data)
 }
@@ -263,13 +258,7 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 			Name:      cacheVolume.Name,
 			MountPath: getCachePath(backend.CacheURI),
 		}},
-		"MODEL_URL":                    backend.ModelURI,
-		"MODEL_DOWNLOAD_PATH":          modelDownloadPath,
-		"MODEL_DOWNLOAD_ENV":           getEnvVarOrDefault(backend, "ENDPOINT", ""),
-		"MODEL_DOWNLOAD_ENVFROM":       backend.EnvFrom,
-		"MODEL_INFER_DOWNLOADER_IMAGE": config.Config.GetModelInferDownloaderImage(),
-		"INIT_CONTAINERS":              initContainers,
-
+		"INIT_CONTAINERS":            initContainers,
 		"MODEL_INFER_RUNTIME_IMAGE":  config.Config.GetModelInferRuntimeImage(),
 		"MODEL_INFER_RUNTIME_PORT":   getEnvValueOrDefault(backend, "RUNTIME_PORT", "8100"),
 		"MODEL_INFER_RUNTIME_URL":    getEnvValueOrDefault(backend, "RUNTIME_URL", "http://localhost:8000/metrics"),
