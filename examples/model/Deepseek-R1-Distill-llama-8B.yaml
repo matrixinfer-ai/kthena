@@ -7,10 +7,8 @@ metadata:
 spec:
   name: "deepseek-r1-distill-llama-8b"
   owner: "example"
-  autoscalingPolicy:
-    metrics:
-      - metricName: "vllm_request_latency"
-        targetAverageValue: "100ms"
+  autoscalingPolicyRef:
+    name: ""
   backends:
     - name: "deepseek-r1-distill-llama-8b-vllm"
       type: "vLLM"
