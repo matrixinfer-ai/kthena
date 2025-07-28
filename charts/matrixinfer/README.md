@@ -20,7 +20,7 @@ it.
 ## Prerequisites
 
 - [Helm](https://helm.sh/docs/intro/install/) must be installed.
-- [cert-manager](https://cert-manager.io/) is optional and only required if you enable it by setting `global.certManager.enable` to `true` in `values.yaml`.
+- [cert-manager](https://cert-manager.io/docs/installation/) is optional and only required if you enable it by setting `global.certManager.enable` to `true` in `values.yaml`.
 
 
 ## Install
