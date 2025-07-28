@@ -696,7 +696,8 @@ func BuildModelRoute(model *registry.Model) *networking.ModelRoute {
 			loraAdapters = append(loraAdapters, lora.Name)
 		}
 		rules = append(rules, &networking.Rule{
-			Name: fmt.Sprintf("%s-%d-rule", model.Name, idx),
+			Name:       fmt.Sprintf("%s-%d-rule", model.Name, idx),
+			ModelMatch: nil, // todo: set model match for target backend
 			TargetModels: []*networking.TargetModel{
 				{
 					ModelServerName: fmt.Sprintf("%s-%d-%s-server", model.Name, idx, strings.ToLower(string(backend.Type))),
