@@ -17,9 +17,10 @@ it.
 
 # Usage
 
-prerequisite
+## Prerequisites
 
-- [helm](https://helm.sh/docs/intro/install/) installed
+- [Helm](https://helm.sh/docs/intro/install/) must be installed.
+- [cert-manager](https://cert-manager.io/) is optional and only required if you enable it by setting `global.certManager.enable` to `true` in `values.yaml`.
 
 
 ## Install
