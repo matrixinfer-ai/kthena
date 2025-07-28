@@ -17,62 +17,47 @@ limitations under the License.
 package scheduler
 
 import (
-	"sync"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins"
 )
 
-type ScorePluginFactory = func(arg runtime.RawExtension) framework.ScorePlugin
-type FilterPluginFactory = func(arg runtime.RawExtension) framework.FilterPlugin
+type ScorePluginBuilder = func(arg runtime.RawExtension) framework.ScorePlugin
+type FilterPluginBuilder = func(arg runtime.RawExtension) framework.FilterPlugin
 
 // PluginRegistry manages the registration and retrieval of scheduler plugins
 type PluginRegistry struct {
-	mutex                sync.RWMutex
-	scorePluginBuilders  map[string]ScorePluginFactory
-	filterPluginBuilders map[string]FilterPluginFactory
+	scorePluginBuilders  map[string]ScorePluginBuilder
+	filterPluginBuilders map[string]FilterPluginBuilder
 }
 
 // NewPluginRegistry creates a new plugin registry
 func NewPluginRegistry() *PluginRegistry {
 	return &PluginRegistry{
-		scorePluginBuilders:  make(map[string]ScorePluginFactory),
-		filterPluginBuilders: make(map[string]FilterPluginFactory),
+		scorePluginBuilders:  make(map[string]ScorePluginBuilder),
+		filterPluginBuilders: make(map[string]FilterPluginBuilder),
 	}
 }
 
-// RegisterScorePlugin registers a score plugin builder in this registry
-func (r *PluginRegistry) RegisterScorePlugin(name string, sp ScorePluginFactory) {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
+// registerScorePlugin registers a score plugin builder in this registry
+func (r *PluginRegistry) registerScorePlugin(name string, sp ScorePluginBuilder) {
 	r.scorePluginBuilders[name] = sp
 }
 
-// GetScorePlugin retrieves a score plugin builder from this registry
-func (r *PluginRegistry) GetScorePlugin(name string) (ScorePluginFactory, bool) {
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
-
+// getScorePlugin retrieves a score plugin builder from this registry
+func (r *PluginRegistry) getScorePlugin(name string) (ScorePluginBuilder, bool) {
 	sp, exist := r.scorePluginBuilders[name]
 	return sp, exist
 }
 
-// RegisterFilterPlugin registers a filter plugin builder in this registry
-func (r *PluginRegistry) RegisterFilterPlugin(name string, fp FilterPluginFactory) {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
+// registerFilterPlugin registers a filter plugin builder in this registry
+func (r *PluginRegistry) registerFilterPlugin(name string, fp FilterPluginBuilder) {
 	r.filterPluginBuilders[name] = fp
 }
 
-// GetFilterPlugin retrieves a filter plugin builder from this registry
-func (r *PluginRegistry) GetFilterPlugin(name string) (FilterPluginFactory, bool) {
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
-
+// getFilterPlugin retrieves a filter plugin builder from this registry
+func (r *PluginRegistry) getFilterPlugin(name string) (FilterPluginBuilder, bool) {
 	fp, exist := r.filterPluginBuilders[name]
 	return fp, exist
 }
@@ -80,25 +65,25 @@ func (r *PluginRegistry) GetFilterPlugin(name string) (FilterPluginFactory, bool
 // registerDefaultPlugins registers all default plugins to the given registry
 func registerDefaultPlugins(registry *PluginRegistry) {
 	// scorePlugin
-	registry.RegisterScorePlugin(plugins.KVCachePluginName, func(args runtime.RawExtension) framework.ScorePlugin {
+	registry.registerScorePlugin(plugins.KVCachePluginName, func(args runtime.RawExtension) framework.ScorePlugin {
 		return plugins.NewGPUCacheUsage()
 	})
-	registry.RegisterScorePlugin(plugins.LeastLatencyPluginName, func(args runtime.RawExtension) framework.ScorePlugin {
+	registry.registerScorePlugin(plugins.LeastLatencyPluginName, func(args runtime.RawExtension) framework.ScorePlugin {
 		return plugins.NewLeastLatency(args)
 	})
-	registry.RegisterScorePlugin(plugins.LeastRequestPluginName, func(args runtime.RawExtension) framework.ScorePlugin {
+	registry.registerScorePlugin(plugins.LeastRequestPluginName, func(args runtime.RawExtension) framework.ScorePlugin {
 		return plugins.NewLeastRequest(args)
 	})
 	// PrefixCache requires two parameters and is instantiated during use
-	registry.RegisterScorePlugin(plugins.PrefixCachePluginName, func(args runtime.RawExtension) framework.ScorePlugin {
+	registry.registerScorePlugin(plugins.PrefixCachePluginName, func(args runtime.RawExtension) framework.ScorePlugin {
 		return &plugins.PrefixCache{}
 	})
 
 	// filterPlugin
-	registry.RegisterFilterPlugin(plugins.LeastRequestPluginName, func(args runtime.RawExtension) framework.FilterPlugin {
+	registry.registerFilterPlugin(plugins.LeastRequestPluginName, func(args runtime.RawExtension) framework.FilterPlugin {
 		return plugins.NewLeastRequest(args)
 	})
-	registry.RegisterFilterPlugin(plugins.LoraAffinityPluginName, func(args runtime.RawExtension) framework.FilterPlugin {
+	registry.registerFilterPlugin(plugins.LoraAffinityPluginName, func(args runtime.RawExtension) framework.FilterPlugin {
 		return plugins.NewLoraAffinity()
 	})
 }
@@ -107,11 +92,11 @@ func getFilterPlugins(registry *PluginRegistry, filterPluginMap []string, plugin
 	var list []framework.FilterPlugin
 	// TODO: enable lora affinity when models from metrics are available.
 	for _, pluginName := range filterPluginMap {
-		if factory, exist := registry.GetFilterPlugin(pluginName); !exist {
+		if builderFunc, exist := registry.getFilterPlugin(pluginName); !exist {
 			klog.Errorf("Failed to get plugin %s.", pluginName)
 			continue
 		} else {
-			plugin := factory(pluginsArgMap[pluginName])
+			plugin := builderFunc(pluginsArgMap[pluginName])
 			list = append(list, plugin)
 		}
 	}
@@ -134,11 +119,11 @@ func getScorePlugins(registry *PluginRegistry, prefixCache *plugins.PrefixCache,
 			continue
 		}
 
-		if pb, exist := registry.GetScorePlugin(pluginName); !exist {
+		if builderFunc, exist := registry.getScorePlugin(pluginName); !exist {
 			klog.Errorf("Failed to get plugin %s.", pluginName)
 		} else {
 			list = append(list, &scorePlugin{
-				plugin: pb(pluginsArgMap[pluginName]),
+				plugin: builderFunc(pluginsArgMap[pluginName]),
 				weight: weight,
 			})
 		}
