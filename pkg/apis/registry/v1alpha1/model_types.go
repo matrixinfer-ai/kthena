@@ -38,7 +38,10 @@ type ModelSpec struct {
 	// +listType=map
 	// +listMapKey=name
 	Backends []ModelBackend `json:"backends"`
-	// AutoscalingPolicy references the autoscaling policy to be used for this model.
+	// AutoscalingPolicy is the model-level autoscaling policy. There are two kinds of autoscaling policies:
+	// one for model and one for backend. The model-level autoscaling policy is used to control the overall
+	// scaling behavior of the model. The backend-level autoscaling policy is used to control the scaling
+	// behavior of each individual backend. Webhook will reject the CR if both are specified.
 	// +optional
 	AutoscalingPolicy *AutoscalingPolicySpec `json:"autoscalingPolicy,omitempty"`
 	// CostExpansionRatePercent is the percentage rate at which the cost expands.
@@ -96,7 +99,8 @@ type ModelBackend struct {
 	// +kubebuilder:validation:Minimum=0
 	// +optional
 	ScalingCost int32 `json:"scalingCost,omitempty"`
-	// RouteWeight is the weight of the route for this backend.
+	// RouteWeight is used to specify the percentage of traffic should be sent to the target backend.
+	// It's used to create model route.
 	// +optional
 	// +kubebuilder:default=100
 	// +kubebuilder:validation:Minimum=0
@@ -112,7 +116,7 @@ type ModelBackend struct {
 	// LoraAdapter is a list of LoRA adapters.
 	// +optional
 	LoraAdapters []LoraAdapter `json:"loraAdapters,omitempty"`
-	// AutoscalingPolicyRef references the autoscaling policy for this backend.
+	// AutoscalingPolicy is the backend-level autoscaling policy.
 	// +optional
 	AutoscalingPolicy *AutoscalingPolicySpec `json:"autoscalingPolicy,omitempty"`
 }
