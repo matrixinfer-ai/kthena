@@ -198,6 +198,9 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 		if err := mc.updateModelServer(ctx, model); err != nil {
 			return err
 		}
+		if err := mc.updateModelRoute(ctx, model); err != nil {
+			return err
+		}
 	}
 	modelInferActive, err := mc.isModelInferActive(ctx, model)
 	if err != nil || !modelInferActive {
@@ -509,6 +512,32 @@ func (mc *ModelController) setModelRouteFailedCondition(ctx context.Context, mod
 		metav1.ConditionFalse, CreateModelRouteFailedReason, "Model is not active due to failed create model route"))
 	if err := mc.updateModelStatus(ctx, model); err != nil {
 		klog.Errorf("update model status failed: %v", err)
+		return err
+	}
+	return nil
+}
+
+func (mc *ModelController) updateModelRoute(ctx context.Context, model *registryv1alpha1.Model) error {
+	modelRoute := utils.BuildModelRoute(model)
+	oldModelRoute, err := mc.client.NetworkingV1alpha1().ModelRoutes(modelRoute.Namespace).Get(ctx, modelRoute.Name, metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// ModelRoute doesn't exist, create it.
+			if _, err := mc.client.NetworkingV1alpha1().ModelRoutes(model.Namespace).Create(ctx, modelRoute, metav1.CreateOptions{}); err != nil {
+				klog.Errorf("failed to create ModelRoute %s: %v", klog.KObj(modelRoute), err)
+				return err
+			}
+			return nil
+		}
+		klog.Errorf("failed to get ModelRoute %s: %v", klog.KObj(modelRoute), err)
+		return err
+	}
+	if equality.Semantic.DeepEqual(oldModelRoute.Spec, modelRoute.Spec) {
+		return nil
+	}
+	modelRoute.ResourceVersion = oldModelRoute.ResourceVersion
+	if _, err := mc.client.NetworkingV1alpha1().ModelRoutes(model.Namespace).Update(ctx, modelRoute, metav1.UpdateOptions{}); err != nil {
+		klog.Errorf("failed to update ModelServer %s: %v", klog.KObj(modelRoute), err)
 		return err
 	}
 	return nil
