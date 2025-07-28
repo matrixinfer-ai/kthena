@@ -31,6 +31,8 @@ import (
 )
 
 const (
+	schedulerConfigFile = "/etc/config/schedulerConfiguration.yaml"
+
 	// Get the top five scoring podinfo
 	topN = 5
 )
@@ -55,7 +57,7 @@ type podInfoWithValue struct {
 }
 
 func NewScheduler(store datastore.Store) Scheduler {
-	scorePluginMap, filterPluginMap, pluginsArgMap, err := utils.LoadSchedulerConfig()
+	scorePluginMap, filterPluginMap, pluginsArgMap, err := utils.LoadSchedulerConfig(schedulerConfigFile)
 	if err != nil {
 		klog.Fatalf("failed to Load Scheduler: %v", err)
 	}

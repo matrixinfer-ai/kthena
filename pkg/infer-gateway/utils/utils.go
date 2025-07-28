@@ -36,8 +36,6 @@ var (
 	TTFT              = "TTFT"
 )
 
-var ConfigMapPath = "/etc/config/schedulerConfiguration.yaml"
-
 func GetNamespaceName(obj metav1.Object) types.NamespacedName {
 	return types.NamespacedName{
 		Namespace: obj.GetNamespace(),
@@ -96,10 +94,10 @@ func GetPrompt(body map[string]interface{}) (string, error) {
 	return "", fmt.Errorf("prompt or messages not found in request body")
 }
 
-func LoadSchedulerConfig() (map[string]int, []string, map[string]runtime.RawExtension, error) {
-	data, err := os.ReadFile(ConfigMapPath)
+func LoadSchedulerConfig(configMapPath string) (map[string]int, []string, map[string]runtime.RawExtension, error) {
+	data, err := os.ReadFile(configMapPath)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to read config file %s: %w", ConfigMapPath, err)
+		return nil, nil, nil, fmt.Errorf("failed to read config file %s: %w", configMapPath, err)
 	}
 	var kubeSchedulerConfiguration conf.SchedulerConfiguration
 	if err := yaml.Unmarshal(data, &kubeSchedulerConfiguration); err != nil {

@@ -36,6 +36,7 @@ import (
 	"istio.io/istio/pkg/util/sets"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 
@@ -53,7 +54,12 @@ func TestMain(m *testing.M) {
 	flag.Set("v", "4")
 	flag.Parse() // Parse flags to apply the klog level
 
-	utils.ConfigMapPath = "../scheduler/testdata/configmap.yaml"
+	pluginsWeight, plugins, pluginConfig, _ := utils.LoadSchedulerConfig("../scheduler/testdata/configmap.yaml")
+	patch := gomonkey.ApplyFunc(utils.LoadSchedulerConfig, func() (map[string]int, []string, map[string]runtime.RawExtension, error) {
+		return pluginsWeight, plugins, pluginConfig, nil
+	})
+	defer patch.Reset()
+
 	// Run the tests
 	exitCode := m.Run()
 	// Exit with the appropriate code
@@ -191,8 +197,6 @@ func TestProxyModelEndpoint(t *testing.T) {
 func setupTestRouter(backendHandler http.Handler) (*Router, datastore.Store, *httptest.Server) {
 	gin.SetMode(gin.TestMode)
 
-	// Mock config loading
-	utils.ConfigMapPath = "../scheduler/testdata/configmap.yaml"
 	backend := httptest.NewServer(backendHandler)
 	store := datastore.New()
 	router := NewRouter(store)
