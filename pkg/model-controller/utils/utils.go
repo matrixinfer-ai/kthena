@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -50,6 +51,7 @@ const (
 	VllmDisaggregatedTemplatePath  = "templates/vllm-pd.yaml"
 	VllmMultiNodeServingScriptPath = "/vllm-workspace/vllm/examples/online_serving/multi-node-serving.sh"
 	inClusterNamespacePath         = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+	modelRouteRuleName             = "default"
 )
 
 //go:embed templates/*
@@ -691,21 +693,24 @@ func buildLoraComponents(model *registry.Model, backend *registry.ModelBackend, 
 func BuildModelRoute(model *registry.Model) *networking.ModelRoute {
 	var rules []*networking.Rule
 	var loraAdapters []string
+	var targetModels []*networking.TargetModel
 	for idx, backend := range model.Spec.Backends {
 		for _, lora := range backend.LoraAdapters {
 			loraAdapters = append(loraAdapters, lora.Name)
 		}
-		rules = append(rules, &networking.Rule{
-			Name:       fmt.Sprintf("%s-%d-rule", model.Name, idx),
-			ModelMatch: nil, // todo: set model match for target backend
-			TargetModels: []*networking.TargetModel{
-				{
-					ModelServerName: fmt.Sprintf("%s-%d-%s-server", model.Name, idx, strings.ToLower(string(backend.Type))),
-					Weight:          nil, // todo: set weight for target backend
-				},
-			},
+		targetModels = append(targetModels, &networking.TargetModel{
+			ModelServerName: fmt.Sprintf("%s-%d-%s-server", model.Name, idx, strings.ToLower(string(backend.Type))),
+			Weight:          nil, // todo: set weight for target backend
 		})
 	}
+	// sort and then remove duplicate lora name
+	slices.Sort(loraAdapters)
+	loraAdapters = slices.Compact(loraAdapters)
+	rules = append(rules, &networking.Rule{
+		Name:         modelRouteRuleName,
+		ModelMatch:   nil, // todo: set model match for target backend
+		TargetModels: targetModels,
+	})
 	route := &networking.ModelRoute{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       networking.ModelRouteKind,

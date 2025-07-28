@@ -1,12 +1,12 @@
 apiVersion: networking.matrixinfer.ai/v1alpha1
 kind: ModelRoute
 metadata:
-  name: test-model-route
-  namespace: default
+  name: multi-backend-model-route
+  namespace: dev
   ownerReferences:
     - apiVersion: registry.matrixinfer.ai/v1alpha1
       kind: Model
-      name: test-model
+      name: multi-backend-model
       uid: randomUID
 spec:
   loraAdapters:
@@ -14,4 +14,5 @@ spec:
   rules:
     - name: "default"
       targetModels:
-        - modelServerName: "test-model-0-vllm-server"
+        - modelServerName: "multi-backend-model-0-vllm-server"
+        - modelServerName: "multi-backend-model-1-vllm-server"

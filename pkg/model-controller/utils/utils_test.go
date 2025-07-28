@@ -167,6 +167,11 @@ func TestBuildModelRoute(t *testing.T) {
 			input:    loadYAML[registry.Model](t, "testdata/input/model.yaml"),
 			expected: loadYAML[networking.ModelRoute](t, "testdata/expected/model-route.yaml"),
 		},
+		{
+			name:     "model with multiple backends",
+			input:    loadYAML[registry.Model](t, "testdata/input/multi-backend-model.yaml"),
+			expected: loadYAML[networking.ModelRoute](t, "testdata/expected/model-route-subset.yaml"),
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
