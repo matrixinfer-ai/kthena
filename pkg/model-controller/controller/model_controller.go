@@ -175,6 +175,9 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 			for _, modelInfer := range modelInfers {
 				// modelInfer is owned by the model. ModelInfer will be deleted when the model is deleted
 				if _, err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Create(ctx, modelInfer, metav1.CreateOptions{}); err != nil {
+					if errors.IsAlreadyExists(err) {
+						continue
+					}
 					klog.Errorf("create modelInfer failed: %v", err)
 					return err
 				}
