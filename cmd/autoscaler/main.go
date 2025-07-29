@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"flag"
+	"matrixinfer.ai/matrixinfer/pkg/model-controller/convert"
 	"os"
 	"os/signal"
 	"syscall"
@@ -34,7 +35,6 @@ import (
 	"k8s.io/klog/v2"
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
 	"matrixinfer.ai/matrixinfer/pkg/autoscaler/controller"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
 )
 
 const (
@@ -81,7 +81,7 @@ func main() {
 		klog.Fatalf("failed to create Autoscaler client: %v", err)
 	}
 
-	namespace, err := utils.GetInClusterNameSpace()
+	namespace, err := convert.GetInClusterNameSpace()
 	if err != nil {
 		klog.Fatalf("create Autoscaler client: %v", err)
 	}

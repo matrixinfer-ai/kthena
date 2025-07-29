@@ -223,6 +223,10 @@ const (
 	ModelStatusConditionTypeActive       ModelStatusConditionType = "Active"
 	ModelStatusConditionTypeUpdating     ModelStatusConditionType = "Updating"
 	ModelStatusConditionTypeFailed       ModelStatusConditionType = "Failed"
+	ModelNameLabelKey                                             = "registry.matrixinfer.ai/model-name"
+	BackendNameLabelKey                                           = "registry.matrixinfer.ai/backend-name"
+	ManageBy                                                      = "registry.matrixinfer.ai/managed-by"
+	RevisionLabelKey                                              = "registry.matrixinfer.ai/revision"
 )
 
 // ModelBackendStatus defines the status of a model backend.
