@@ -139,7 +139,7 @@ spec:
                           type: object
                       type: object
                     name:
-                      description: Rule name
+                      description: Name is the name of the rule.
                       type: string
                     targetModels:
                       items:

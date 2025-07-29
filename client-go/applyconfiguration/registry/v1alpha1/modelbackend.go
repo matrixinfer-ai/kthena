@@ -36,7 +36,7 @@ type ModelBackendApplyConfiguration struct {
 	MinReplicas            *int32                             `json:"minReplicas,omitempty"`
 	MaxReplicas            *int32                             `json:"maxReplicas,omitempty"`
 	ScalingCost            *int32                             `json:"scalingCost,omitempty"`
-	RouteWeight            *int32                             `json:"routeWeight,omitempty"`
+	RouteWeight            *uint32                            `json:"routeWeight,omitempty"`
 	ScaleToZeroGracePeriod *metav1.Duration                   `json:"scaleToZeroGracePeriod,omitempty"`
 	Workers                []ModelWorkerApplyConfiguration    `json:"workers,omitempty"`
 	LoraAdapters           []LoraAdapterApplyConfiguration    `json:"loraAdapters,omitempty"`
@@ -128,7 +128,7 @@ func (b *ModelBackendApplyConfiguration) WithScalingCost(value int32) *ModelBack
 // WithRouteWeight sets the RouteWeight field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the RouteWeight field is set to the value of the last call.
-func (b *ModelBackendApplyConfiguration) WithRouteWeight(value int32) *ModelBackendApplyConfiguration {
+func (b *ModelBackendApplyConfiguration) WithRouteWeight(value uint32) *ModelBackendApplyConfiguration {
 	b.RouteWeight = &value
 	return b
 }
