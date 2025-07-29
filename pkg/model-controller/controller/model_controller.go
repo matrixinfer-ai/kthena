@@ -57,7 +57,7 @@ type ModelController struct {
 	// client for custom resource
 	client clientset.Interface
 
-	syncHandler         func(ctx context.Context, miKey string) error
+	syncHandler         func(ctx context.Context, mcKey string) error
 	modelsLister        registryLister.ModelLister
 	modelsInformer      cache.Controller
 	modelInfersLister   workloadLister.ModelInferLister

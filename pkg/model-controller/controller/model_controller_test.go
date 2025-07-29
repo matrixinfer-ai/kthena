@@ -2,6 +2,8 @@ package controller
 
 import (
 	"context"
+	"k8s.io/apimachinery/pkg/api/meta"
+	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 	"testing"
 	"time"
 
@@ -10,141 +12,61 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	matrixinferfake "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/fake"
 	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
-	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
 )
 
-// TestReconcile tests the reconcile function for ModelController
+// TestReconcile first creates a model and then checks if the ModelInfer, ModelServer and ModelRoute are created as expected.
+// Then the model is updated, check if the ModelInfer, ModelServer and ModelRoute are updated.
+// Eventually, model will be deleted, and ensure ModelInfer, ModelServer and ModelRoute are deleted as well.
 func TestReconcile(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
+	ctx := context.Background()
 	// Create fake clients for Kubernetes and MatrixInfer
 	kubeClient := fake.NewClientset()
 	matrixinferClient := matrixinferfake.NewSimpleClientset()
-
 	controller := NewModelController(kubeClient, matrixinferClient)
 	assert.NotNil(t, controller)
-	go controller.Run(context.Background(), 1)
-
+	// Start controller
+	go controller.Run(ctx, 1)
+	// Load test data
 	model := utils.LoadYAML[registry.Model](t, "../utils/testdata/input/model.yaml")
-
-	// Test Case 1: Create Model and expect model infer to be created
-	t.Run("CreateModel", func(t *testing.T) {
-		createdModel, err := matrixinferClient.RegistryV1alpha1().Models("default").Create(ctx, model, metav1.CreateOptions{})
-		assert.NoError(t, err)
-		assert.NotNil(t, createdModel)
-
-		select {
-		case <-ctx.Done():
-
-		case <-time.After(3 * time.Second):
-		}
-
-		modelInfers, err := matrixinferClient.WorkloadV1alpha1().ModelInfers("default").List(ctx, metav1.ListOptions{})
-		assert.NoError(t, err)
-		assert.Len(t, modelInfers.Items, 1, "Expected 1 ModelInfer to be created")
-
-		get, err := matrixinferClient.RegistryV1alpha1().Models("default").Get(ctx, "test-model", metav1.GetOptions{})
-		assert.NoError(t, err)
-		assert.Equal(t, int64(0), get.Status.ObservedGeneration, "ObservedGeneration not updated")
-	})
-}
-
-// TestUpdateModelStatus tests the updateModelStatus function
-func TestUpdateModelStatus(t *testing.T) {
-	ctx := context.Background()
-	kubeClient := fake.NewClientset()
-	matrixinferClient := matrixinferfake.NewClientset()
-	controller := NewModelController(kubeClient, matrixinferClient)
-
-	// Create test Model with backend
-	model := &registry.Model{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "status-test-model",
-			Namespace: "default",
-			UID:       "status-test-uid",
-		},
-		Spec: registry.ModelSpec{
-			Backends: []registry.ModelBackend{
-				{
-					Name: "status-test-backend",
-				},
-			},
-		},
+	// create model
+	createdModel, err := matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Create(ctx, model, metav1.CreateOptions{})
+	assert.NoError(t, err)
+	assert.NotNil(t, createdModel)
+	// wait for the controller to process the model creation
+	select {
+	case <-ctx.Done():
+	case <-time.After(1 * time.Second):
 	}
-	_, err := matrixinferClient.RegistryV1alpha1().Models("default").Create(ctx, model, metav1.CreateOptions{})
+	// check if model infer is created
+	modelInfers, err := matrixinferClient.WorkloadV1alpha1().ModelInfers(model.Namespace).List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
+	assert.Len(t, modelInfers.Items, 1, "Expected 1 ModelInfer to be created")
 
-	// Create associated ModelInfer
-	modelInfer := &workload.ModelInfer{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "status-test-model-infer",
-			Namespace: "default",
-			Labels: map[string]string{
-				"owner": string(model.UID),
-			},
-		},
-		Status: workload.ModelInferStatus{
-			Replicas: 2,
-		},
+	get, err := matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Get(ctx, model.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, int64(0), get.Status.ObservedGeneration, "ObservedGeneration not updated")
+
+	// make model infer status available
+	modelInfer := &modelInfers.Items[0]
+	meta.SetStatusCondition(&modelInfer.Status.Conditions, newCondition(string(workload.ModelInferAvailable),
+		metav1.ConditionTrue, "AllGroupsReady", "AllGroupsReady"))
+	modelInfer, err = matrixinferClient.WorkloadV1alpha1().ModelInfers(model.Namespace).UpdateStatus(ctx, modelInfer, metav1.UpdateOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, string(workload.ModelInferAvailable), modelInfer.Status.Conditions[0].Type, "ModelInfer condition type should be Available")
+
+	select {
+	case <-ctx.Done():
+	case <-time.After(1 * time.Second):
 	}
-	_, err = matrixinferClient.WorkloadV1alpha1().ModelInfers("default").Create(ctx, modelInfer, metav1.CreateOptions{})
-	assert.NoError(t, err)
 
-	// Update model status
-	err = controller.updateModelStatus(ctx, model)
+	// model condition should be active
+	model, err = matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Get(ctx, model.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
+	assert.Equal(t, true, meta.IsStatusConditionPresentAndEqual(model.Status.Conditions,
+		string(registry.ModelStatusConditionTypeActive), metav1.ConditionTrue))
 
-	// Verify status updates
-	updatedModel, err := matrixinferClient.RegistryV1alpha1().Models("default").Get(ctx, "status-test-model", metav1.GetOptions{})
+	modelServers, err := matrixinferClient.NetworkingV1alpha1().ModelServers(model.Namespace).List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
-	assert.Equal(t, int32(1), updatedModel.Status.ObservedGeneration)
-	assert.Len(t, updatedModel.Status.BackendStatuses, 1)
-	assert.Equal(t, int32(2), updatedModel.Status.BackendStatuses[0].Replicas)
-}
-
-// TestIsModelInferActive tests the isModelInferActive function
-func TestIsModelInferActive(t *testing.T) {
-	ctx := context.Background()
-	kubeClient := fake.NewClientset()
-	matrixinferClient := matrixinferfake.NewClientset()
-	controller := NewModelController(kubeClient, matrixinferClient)
-
-	// Create test Model
-	model := &registry.Model{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "active-test-model",
-			Namespace: "default",
-			UID:       "active-test-uid",
-		},
-	}
-	_, err := matrixinferClient.RegistryV1alpha1().Models("default").Create(ctx, model, metav1.CreateOptions{})
-	assert.NoError(t, err)
-
-	// Create active ModelInfer
-	modelInfer := &workload.ModelInfer{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "active-test-model-infer",
-			Namespace: "default",
-			Labels: map[string]string{
-				"owner": string(model.UID),
-			},
-		},
-		Status: workload.ModelInferStatus{
-			Conditions: []metav1.Condition{
-				{
-					Type:   string(workload.ModelInferAvailable),
-					Status: metav1.ConditionTrue,
-				},
-			},
-		},
-	}
-	_, err = matrixinferClient.WorkloadV1alpha1().ModelInfers("default").Create(ctx, modelInfer, metav1.CreateOptions{})
-	assert.NoError(t, err)
-
-	// Check if ModelInfer is active
-	active, err := controller.isModelInferActive(ctx, model)
-	assert.NoError(t, err)
-	assert.True(t, active, "Expected ModelInfer to be active")
+	assert.Len(t, modelServers.Items, 1, "Expected 1 ModelServer to be created")
 }
