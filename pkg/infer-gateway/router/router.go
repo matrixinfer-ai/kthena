@@ -38,6 +38,10 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
+const (
+	tokenUsageKey = "token_usage"
+)
+
 type Router struct {
 	scheduler       scheduler.Scheduler
 	store           datastore.Store
@@ -211,7 +215,7 @@ func (r *Router) proxyModelEndpoint(
 
 	stream := isStreaming(modelRequest)
 
-	decodeRequest, err = buildDecodeRequest(req, modelRequest)
+	decodeRequest, err = buildDecodeRequest(c, req, modelRequest)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, fmt.Sprintf("failed to build request of decode: %v", err))
 		return fmt.Errorf("failed to build request of decode: %v", err)
@@ -299,14 +303,17 @@ func proxyDecodePod(
 		c.Stream(func(w io.Writer) bool {
 			line, err := reader.ReadBytes('\n')
 			if len(line) > 0 {
-				_, _ = w.Write(line)
 				// Try to parse usage from this line, assuming it's a data line
-				if bytes.HasPrefix(line, []byte("data:")) {
-					parsed := handlers.ParseStreamRespForUsage(string(line))
-					if parsed.Usage.TotalTokens > 0 {
-						klog.V(4).Infof("Parsed usage: %+v", parsed.Usage)
+				parsed := handlers.ParseStreamRespForUsage(string(line))
+				if parsed.Usage.TotalTokens > 0 {
+					klog.V(4).Infof("Parsed usage: %+v", parsed.Usage)
+					// The token usage is set by gateway, so remove it before sending to downstream
+					if v, ok := c.Get(tokenUsageKey); ok && v.(bool) {
+						return true
 					}
 				}
+				// Forward to downstream
+				_, _ = w.Write(line)
 			}
 			if err != nil {
 				if err != io.EOF {
@@ -386,27 +393,37 @@ func buildPrefillRequest(req *http.Request, modelRequest ModelRequest) (*http.Re
 	return reqCopy, nil
 }
 
-func buildDecodeRequest(req *http.Request, modelRequest ModelRequest) (*http.Request, error) {
-	// Create a copy of the request to avoid modifying the original
-	requestBody := make(ModelRequest)
-	for k, v := range modelRequest {
-		requestBody[k] = v
+func isTokenUsageEnabled(modelRequest ModelRequest) bool {
+	// Check if token usage is enabled in the model request
+	if v, ok := modelRequest["stream_options"]; ok {
+		if streamOptions, isMap := v.(map[string]interface{}); isMap {
+			if includeUsage, isBool := streamOptions["include_usage"].(bool); isBool && includeUsage {
+				return true
+			}
+		}
 	}
+	return false
+}
 
+func buildDecodeRequest(c *gin.Context, req *http.Request, modelRequest ModelRequest) (*http.Request, error) {
 	// Check if streaming is enabled
-	if isStreaming(requestBody) {
-		// For streaming requests, add stream_options to include token usage
-		requestBody["stream_options"] = map[string]interface{}{
-			"include_usage": true,
+	if isStreaming(modelRequest) {
+		if !isTokenUsageEnabled(modelRequest) {
+			// For streaming requests, add stream_options to include token usage
+			modelRequest["stream_options"] = map[string]interface{}{
+				"include_usage": true,
+			}
+			// add stream token usage to context
+			c.Set(tokenUsageKey, true)
 		}
 	} else {
 		// For non-streaming requests, ensure we request usage information
 		// Most OpenAI-compatible APIs return usage by default for non-streaming,
 		// but we can be explicit about it
-		requestBody["include_usage"] = true
+		modelRequest["include_usage"] = true
 	}
 
-	body, err := json.Marshal(requestBody)
+	body, err := json.Marshal(modelRequest)
 	if err != nil {
 		return nil, err
 	}
