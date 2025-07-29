@@ -700,7 +700,7 @@ func BuildModelRoute(model *registry.Model) *networking.ModelRoute {
 		}
 		targetModels = append(targetModels, &networking.TargetModel{
 			ModelServerName: fmt.Sprintf("%s-%d-%s-server", model.Name, idx, strings.ToLower(string(backend.Type))),
-			Weight:          nil, // todo: set weight for target backend
+			Weight:          backend.RouteWeight,
 		})
 	}
 	// sort and then remove duplicate lora name
@@ -708,7 +708,7 @@ func BuildModelRoute(model *registry.Model) *networking.ModelRoute {
 	loraAdapters = slices.Compact(loraAdapters)
 	rules = append(rules, &networking.Rule{
 		Name:         modelRouteRuleName,
-		ModelMatch:   nil, // todo: set model match for target backend
+		ModelMatch:   model.Spec.ModelMatch,
 		TargetModels: targetModels,
 	})
 	route := &networking.ModelRoute{
