@@ -438,7 +438,7 @@ func (mc *ModelController) triggerModel(old any, new any) {
 	}
 }
 
-// createModelServer creates model server when model infer is available
+// createModelServer creates model server
 func (mc *ModelController) createModelServer(ctx context.Context, model *registryv1alpha1.Model) error {
 	klog.V(4).Info("start to create model server")
 	modelServers := utils.BuildModelServer(model)
