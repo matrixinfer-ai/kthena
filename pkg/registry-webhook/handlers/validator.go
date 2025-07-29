@@ -297,7 +297,7 @@ func validateAutoScalingPolicyScope(model *registryv1alpha1.Model) field.ErrorLi
 
 	if modelAutoScalingEmpty {
 		for i, backend := range spec.Backends {
-			if backend.Cost != 0 {
+			if backend.ScalingCost != 0 {
 				allErrs = append(allErrs, field.Forbidden(
 					field.NewPath("spec").Child("backends").Index(i).Child("cost"),
 					"cost must not be provided when model-level autoscaling is not set",
@@ -353,7 +353,7 @@ func validateAutoScalingPolicyScope(model *registryv1alpha1.Model) field.ErrorLi
 					))
 				}
 				minSum += backend.MinReplicas
-				if backend.Cost == 0 {
+				if backend.ScalingCost == 0 {
 					allErrs = append(allErrs, field.Required(
 						field.NewPath("spec").Child("backends").Index(i).Child("cost"),
 						"cost must be provided when model-level autoscaling is set",

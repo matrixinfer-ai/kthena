@@ -3,7 +3,6 @@ kind: Model
 metadata:
   annotations:
     api.kubernetes.io/name: example
-    api.kubernetes.io/managed-by: kustomize
   name: deepseek-r1-distill-llama-8b
 spec:
   name: "deepseek-r1-distill-llama-8b"
@@ -17,7 +16,7 @@ spec:
       cacheURI: "hostpath://tmp/test"
       minReplicas: 1
       maxReplicas: 3
-      cost: 1
+      scalingCost: 1
       scaleToZeroGracePeriod: 60s
       workers:
         - type: "server"
@@ -34,14 +33,12 @@ spec:
           affinity:
       loraAdapterRefs:
         - name: ""
-      autoscalingPolicyRef:
-        name: ""
     - name: "deepseek-r1-distill-llama-8b-vllm-disaggregated"
       type: "vLLMDisaggregated"
       modelURI: "s3://model-bucket/deepseek-r1-distill-llama-8b"
       minReplicas: 0
       maxReplicas: 3
-      cost: 4
+      scalingCost: 4
       scaleToZeroGracePeriod: 60s
       workers:
         - type: "prefill"
@@ -70,6 +67,4 @@ spec:
           affinity:
       loraAdapterRefs:
         - name: ""
-      autoscalingPolicyRef:
-        name: ""
   costExpansionRatePercent: 0

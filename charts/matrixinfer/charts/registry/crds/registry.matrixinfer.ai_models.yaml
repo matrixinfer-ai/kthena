@@ -40,8 +40,11 @@ spec:
             description: ModelSpec defines the desired state of Model.
             properties:
               autoscalingPolicyRef:
-                description: AutoscalingPolicyRef references the autoscaling policy
-                  to be used for this model.
+                description: |-
+                  AutoscalingPolicy is the model-level autoscaling policy. There are two kinds of autoscaling policies:
+                  one for model and one for backend. The model-level autoscaling policy is used to control the overall
+                  scaling behavior of the model. The backend-level autoscaling policy is used to control the scaling
+                  behavior of each individual backend. Webhook will reject the CR if both are specified.
                 properties:
                   name:
                     default: ""
@@ -62,8 +65,8 @@ spec:
                     backend.
                   properties:
                     autoscalingPolicyRef:
-                      description: AutoscalingPolicyRef references the autoscaling
-                        policy for this backend.
+                      description: AutoscalingPolicy is the backend-level autoscaling
+                        policy.
                       properties:
                         name:
                           default: ""
@@ -80,11 +83,6 @@ spec:
                       description: CacheURI is the URI where the model cache is stored.
                       pattern: ^(hostpath://|pvc://).+
                       type: string
-                    cost:
-                      description: Cost is the cost associated with running this backend.
-                      format: int32
-                      minimum: 0
-                      type: integer
                     env:
                       description: |-
                         List of environment variables to set in the container.
@@ -306,10 +304,25 @@ spec:
                       description: Name is the name of the backend.
                       pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
                       type: string
+                    routeWeight:
+                      default: 100
+                      description: |-
+                        RouteWeight is used to specify the percentage of traffic should be sent to the target backend.
+                        It's used to create model route.
+                      format: int32
+                      maximum: 100
+                      minimum: 0
+                      type: integer
                     scaleToZeroGracePeriod:
                       description: ScaleToZeroGracePeriod is the duration to wait
                         before scaling to zero.
                       type: string
+                    scalingCost:
+                      description: ScalingCost is the cost associated with running
+                        this backend.
+                      format: int32
+                      minimum: 0
+                      type: integer
                     type:
                       description: Type is the type of the backend.
                       enum:
@@ -1369,6 +1382,42 @@ spec:
                 maximum: 100
                 minimum: 0
                 type: integer
+              modelMatch:
+                description: |-
+                  ModelMatch defines the predicate used to match LLM inference requests to a given
+                  TargetModels. Multiple match conditions are ANDed together, i.e. the match will
+                  evaluate to true only if all conditions are satisfied.
+                properties:
+                  headers:
+                    additionalProperties:
+                      description: |-
+                        StringMatch defines the matching conditions for string fields.
+                        Only one of the fields may be set.
+                      properties:
+                        exact:
+                          type: string
+                        prefix:
+                          type: string
+                        regex:
+                          type: string
+                      type: object
+                    description: |-
+                      Header to match: prefix, exact, regex
+                      If unset, any header will be matched.
+                    type: object
+                  uri:
+                    description: |-
+                      URI to match: prefix, exact, regex
+                      If this field is not specified, a default prefix match on the "/" path is provided.
+                    properties:
+                      exact:
+                        type: string
+                      prefix:
+                        type: string
+                      regex:
+                        type: string
+                    type: object
+                type: object
               name:
                 description: Name is the name of the model.
                 maxLength: 64

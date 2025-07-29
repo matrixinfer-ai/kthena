@@ -210,7 +210,7 @@ func (ac *AutoscaleController) processAutoscale(ctx context.Context, model v1alp
 			backendAutoscaler, ok := ac.autoscalerMap[backendKey]
 			if !ok {
 				metricTargets := getMetricTargets(autoscalePolicy)
-				globalInfo := autoscaler.NewGlobalInfo([]v1alpha1.ModelBackend{backend}, backend.Cost)
+				globalInfo := autoscaler.NewGlobalInfo([]v1alpha1.ModelBackend{backend}, backend.ScalingCost)
 				backendAutoscaler = autoscaler.NewAutoscaler(&autoscalePolicy.Spec.Behavior, globalInfo, metricTargets)
 				ac.autoscalerMap[backendKey] = backendAutoscaler
 			}

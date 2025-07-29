@@ -145,7 +145,7 @@ func NewGlobalInfo(backends []v1alpha1.ModelBackend, costExpansionRatePercent in
 				index:    int32(index),
 				name:     backend.Name,
 				replicas: replicas,
-				cost:     int64(backend.Cost),
+				cost:     int64(backend.ScalingCost),
 			})
 			continue
 		}
@@ -156,7 +156,7 @@ func NewGlobalInfo(backends []v1alpha1.ModelBackend, costExpansionRatePercent in
 				name:     backend.Name,
 				index:    int32(index),
 				replicas: currentLen,
-				cost:     int64(backend.Cost) * int64(currentLen),
+				cost:     int64(backend.ScalingCost) * int64(currentLen),
 			})
 			replicas -= currentLen
 			packageLen = packageLen * float64(costExpansionRatePercent) / 100
