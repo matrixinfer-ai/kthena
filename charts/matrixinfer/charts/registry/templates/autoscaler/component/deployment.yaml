@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "matrixinfer.fullname" . }}-autoscaler
+  name: {{ include "matrixinfer.name" . }}-autoscaler
   namespace: {{ .Release.Namespace }}
   labels:
     app.kubernetes.io/component: autoscaler
