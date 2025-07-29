@@ -43,7 +43,7 @@ func TestValidateModel_ErrorFormatting(t *testing.T) {
 					Type:                   registryv1alpha1.ModelBackendTypeVLLM,
 					MinReplicas:            1,
 					MaxReplicas:            3,                               // This should trigger error: minReplicas and maxReplicas must be equal when no autoscaling
-					Cost:                   1,                               // This should trigger error when autoscaling is not set
+					ScalingCost:            1,                               // This should trigger error when autoscaling is not set
 					ScaleToZeroGracePeriod: &metav1.Duration{Duration: 300}, // This should trigger error when autoscaling is not set
 					Workers: []registryv1alpha1.ModelWorker{
 						{
@@ -58,7 +58,7 @@ func TestValidateModel_ErrorFormatting(t *testing.T) {
 					Type:                   registryv1alpha1.ModelBackendTypeVLLM,
 					MinReplicas:            0,
 					MaxReplicas:            3,                               // This should trigger error: minReplicas and maxReplicas must be equal when no autoscaling
-					Cost:                   2,                               // This should trigger error when autoscaling is not set
+					ScalingCost:            2,                               // This should trigger error when autoscaling is not set
 					ScaleToZeroGracePeriod: &metav1.Duration{Duration: 600}, // This should trigger error when autoscaling is not set
 					Workers: []registryv1alpha1.ModelWorker{
 						{
