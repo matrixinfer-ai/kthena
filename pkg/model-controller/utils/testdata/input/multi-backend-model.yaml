@@ -5,6 +5,10 @@ metadata:
   namespace: dev
   uid: randomUID
 spec:
+  modelMatch:
+    headers:
+      users:
+        exact: "john"
   backends:
     - name: backend1
       type: vLLM
@@ -12,6 +16,7 @@ spec:
       cacheURI: hostpath:///tmp/test
       maxReplicas: 0
       minReplicas: 1
+      routeWeight: 40
       env:
         - name: ENDPOINT
           value: https://obs.test.com
@@ -44,6 +49,7 @@ spec:
       cacheURI: hostpath:///tmp/test
       maxReplicas: 0
       minReplicas: 1
+      routeWeight: 60
       env:
         - name: ENDPOINT
           value: https://obs.test.com

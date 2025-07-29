@@ -13,6 +13,12 @@ spec:
     - "lora-sql"
   rules:
     - name: "default"
+      modelMatch:
+        headers:
+          users:
+            exact: "john"
       targetModels:
         - modelServerName: "multi-backend-model-0-vllm-server"
+          weight: 40
         - modelServerName: "multi-backend-model-1-vllm-server"
+          weight: 60
