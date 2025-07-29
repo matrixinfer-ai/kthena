@@ -33,19 +33,19 @@ import (
 )
 
 type modelInferConfig struct {
-	kubeconfig  string
-	masterURL   string
-	tlsCertFile string
-	tksKeyFile  string
-	port        int
+	kubeconfig   string
+	masterURL    string
+	tlsCertFile  string
+	tksKeyFile   string
+	port         int
 }
 
 func parseConfig() (modelInferConfig, error) {
 	var config modelInferConfig
 	pflag.StringVar(&config.kubeconfig, "kubeconfig", "", "kubeconfig file path")
 	pflag.StringVar(&config.masterURL, "master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
-	pflag.StringVar(&config.tlsCertFile, "tls-cert-file", "/etc/webhook/certs/tls.crt", "File containing the x509 Certificate for HTTPS.")
-	pflag.StringVar(&config.tksKeyFile, "tls-private-key-file", "/etc/webhook/certs/tls.key", "File containing the x509 private key to --tls-cert-file.")
+	pflag.StringVar(&config.tlsCertFile, "tls-cert-file", "/etc/webhook/certs/tls.crt", "File containing the x509 Certificate for HTTPS. This can be used as a fallback when cert-manager is not available.")
+	pflag.StringVar(&config.tksKeyFile, "tls-private-key-file", "/etc/webhook/certs/tls.key", "File containing the x509 private key to --tls-cert-file. This can be used as a fallback when cert-manager is not available.")
 	pflag.IntVar(&config.port, "port", 8443, "Secure port that the webhook listens on")
 
 	if config.port <= 0 || config.port > 65535 {

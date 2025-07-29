@@ -6,8 +6,10 @@ metadata:
   labels:
     app.kubernetes.io/component: webhook
     {{- include "matrixinfer.labels" . | nindent 4 }}
+  {{- if .Values.global.certManager.enabled }}
   annotations:
     cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "matrixinfer.name" . }}-webhook-cert
+  {{- end }}
 webhooks:
   - name: mutate-registry-matrixinfer-ai-v1alpha1-model.matrixinfer.ai
     admissionReviewVersions: [ "v1" ]
@@ -20,7 +22,11 @@ webhooks:
         namespace: {{ .Release.Namespace }}
         path: "/mutate-registry-matrixinfer-ai-v1alpha1-model"
         port: 443
+      {{- if .Values.global.certManager.enabled }}
       caBundle: ""
+      {{- else }}
+      caBundle: {{ .Values.webhook.caBundle | default "" | quote }}
+      {{- end }}
     rules:
       - apiGroups: [ "registry.matrixinfer.ai" ]
         apiVersions: [ "v1alpha1" ]
