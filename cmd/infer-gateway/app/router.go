@@ -68,12 +68,21 @@ func (s *Server) startRouter(ctx context.Context, router *router.Router) {
 	engine.Any("/v1/*path", router.HandlerFunc())
 
 	server := &http.Server{
-		Addr:    ":8080",
+		Addr:    ":" + s.Port,
 		Handler: engine.Handler(),
 	}
 	go func() {
 		// service connections
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		var err error
+		if s.EnableTLS {
+			if s.TLSCertFile == "" || s.TLSKeyFile == "" {
+				klog.Fatalf("TLS enabled but cert or key file not specified")
+			}
+			err = server.ListenAndServeTLS(s.TLSCertFile, s.TLSKeyFile)
+		} else {
+			err = server.ListenAndServe()
+		}
+		if err != nil && err != http.ErrServerClosed {
 			klog.Fatalf("listen failed: %v", err)
 		}
 	}()

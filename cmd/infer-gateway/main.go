@@ -30,11 +30,22 @@ import (
 )
 
 func main() {
+	var (
+		port      string
+		enableTLS bool
+		tlsCert   string
+		tlsKey    string
+	)
+
 	// Initialize klog flags
 	klog.InitFlags(nil)
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
+	pflag.StringVar(&port, "port", "8080", "Server listen port")
+	pflag.BoolVar(&enableTLS, "enable-tls", false, "Enable TLS")
+	pflag.StringVar(&tlsCert, "tls-cert", "", "TLS certificate file path")
+	pflag.StringVar(&tlsKey, "tls-key", "", "TLS key file path")
 	defer klog.Flush()
-	flag.Parse()
+	pflag.Parse()
 	pflag.CommandLine.VisitAll(func(f *pflag.Flag) {
 		// print all flags for debugging
 		klog.Infof("Flag: %s, Value: %s", f.Name, f.Value.String())
@@ -49,5 +60,5 @@ func main() {
 		klog.Info("Received termination, signaling shutdown")
 		cancel()
 	}()
-	app.NewServer().Run(ctx)
+	app.NewServer(port, enableTLS, tlsCert, tlsKey).Run(ctx)
 }
