@@ -39,7 +39,7 @@ spec:
               - name: runtime
                 image: ${MODEL_INFER_RUNTIME_IMAGE}
                 ports:
-                  - containerPort: 8100
+                  - containerPort: ${MODEL_INFER_RUNTIME_PORT}
                 args:
                   - --port
                   - ${MODEL_INFER_RUNTIME_PORT}
@@ -50,7 +50,7 @@ spec:
                 readinessProbe:
                   httpGet:
                     path: /health
-                    port: 8100
+                    port: ${MODEL_INFER_RUNTIME_PORT}
                   initialDelaySeconds: 5
                   periodSeconds: 10
               - name: engine

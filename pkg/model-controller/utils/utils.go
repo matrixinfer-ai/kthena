@@ -167,7 +167,7 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 		"ENGINE_PREFILL_COMMAND":     preFillCommand,
 		"ENGINE_DECODE_COMMAND":      decodeCommand,
 		"MODEL_INFER_RUNTIME_IMAGE":  config.Config.GetModelInferRuntimeImage(),
-		"MODEL_INFER_RUNTIME_PORT":   getEnvValueOrDefault(backend, "RUNTIME_PORT", "8100"),
+		"MODEL_INFER_RUNTIME_PORT":   getEnvPortOrDefault(backend, "RUNTIME_PORT", 8100),
 		"MODEL_INFER_RUNTIME_URL":    getEnvValueOrDefault(backend, "RUNTIME_URL", "http://localhost:8000/metrics"),
 		"MODEL_INFER_RUNTIME_ENGINE": strings.ToLower(string(backend.Type)),
 		"PREFILL_REPLICAS":           workersMap[registry.ModelWorkerTypePrefill].Replicas,
@@ -262,7 +262,7 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 		}},
 		"INIT_CONTAINERS":            initContainers,
 		"MODEL_INFER_RUNTIME_IMAGE":  config.Config.GetModelInferRuntimeImage(),
-		"MODEL_INFER_RUNTIME_PORT":   getEnvValueOrDefault(backend, "RUNTIME_PORT", "8100"),
+		"MODEL_INFER_RUNTIME_PORT":   getEnvPortOrDefault(backend, "RUNTIME_PORT", 8100),
 		"MODEL_INFER_RUNTIME_URL":    getEnvValueOrDefault(backend, "RUNTIME_URL", "http://localhost:8000/metrics"),
 		"MODEL_INFER_RUNTIME_ENGINE": strings.ToLower(string(backend.Type)),
 		"ENGINE_SERVER_RESOURCES":    workersMap[registry.ModelWorkerTypeServer].Resources,
@@ -365,6 +365,18 @@ func getEnvValueOrDefault(backend *registry.ModelBackend, name string, defaultVa
 	for _, env := range backend.Env {
 		if env.Name == name {
 			return env.Value
+		}
+	}
+	return defaultValue
+}
+
+// getEnvPortOrDefault gets int32 port value of specific env, if env does not exist, return default value
+func getEnvPortOrDefault(backend *registry.ModelBackend, name string, defaultValue int32) int32 {
+	for _, env := range backend.Env {
+		if env.Name == name {
+			if port, err := strconv.ParseInt(env.Value, 10, 32); err == nil {
+				return int32(port)
+			}
 		}
 	}
 	return defaultValue

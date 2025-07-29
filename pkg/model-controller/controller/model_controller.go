@@ -17,8 +17,15 @@ limitations under the License.
 package controller
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"os"
+	"reflect"
+	"strings"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -137,6 +144,17 @@ func (mc *ModelController) updateModel(old any, new any) {
 		klog.Error("failed to parse old Model when updateModel")
 		return
 	}
+
+	// Check for LoRA adapter updates before normal reconciliation
+	if mc.isVLLMRuntimeLoraUpdateEnabled() && mc.hasOnlyLoraAdaptersChanged(oldModel, newModel) {
+		// Handle LoRA adapter update without triggering full reconciliation
+		ctx := context.Background()
+		if err := mc.handleLoraAdapterUpdate(ctx, oldModel, newModel); err != nil {
+			klog.Errorf("Failed to handle LoRA adapter update: %v", err)
+		}
+		return
+	}
+
 	// When observed generation not equal to generation, reconcile model
 	if oldModel.Status.ObservedGeneration != newModel.Generation {
 		mc.enqueueModel(newModel)
@@ -201,6 +219,245 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 		return err
 	}
 	if err := mc.setModelActiveCondition(ctx, model); err != nil {
+		return err
+	}
+	return nil
+}
+
+// isVLLMRuntimeLoraUpdateEnabled checks if VLLM runtime LoRA updating is enabled
+func (mc *ModelController) isVLLMRuntimeLoraUpdateEnabled() bool {
+	return os.Getenv("VLLM_ALLOW_RUNTIME_LORA_UPDATING") == "TRUE"
+}
+
+// hasOnlyLoraAdaptersChanged checks if only LoRA adapters have changed between old and new model
+func (mc *ModelController) hasOnlyLoraAdaptersChanged(oldModel, newModel *registryv1alpha1.Model) bool {
+	if len(oldModel.Spec.Backends) != len(newModel.Spec.Backends) {
+		return false
+	}
+
+	hasLoraChanges := false
+
+	for i, newBackend := range newModel.Spec.Backends {
+		oldBackend := oldModel.Spec.Backends[i]
+
+		// Create copies without LoraAdapters for comparison
+		oldBackendCopy := oldBackend.DeepCopy()
+		newBackendCopy := newBackend.DeepCopy()
+		oldBackendCopy.LoraAdapters = nil
+		newBackendCopy.LoraAdapters = nil
+
+		// If anything other than LoraAdapters changed, return false
+		if !reflect.DeepEqual(oldBackendCopy, newBackendCopy) {
+			return false
+		}
+
+		// Check if LoraAdapters changed for VLLM backends
+		if newBackend.Type == registryv1alpha1.ModelBackendTypeVLLM {
+			if !reflect.DeepEqual(oldBackend.LoraAdapters, newBackend.LoraAdapters) {
+				hasLoraChanges = true
+			}
+		}
+	}
+
+	return hasLoraChanges
+}
+
+// handleLoraAdapterUpdate handles LoRA adapter updates for VLLM backends
+func (mc *ModelController) handleLoraAdapterUpdate(ctx context.Context, oldModel, newModel *registryv1alpha1.Model) error {
+
+	klog.Info("Detected LoRA adapter changes, attempting runtime update")
+
+	for i, newBackend := range newModel.Spec.Backends {
+		if newBackend.Type != registryv1alpha1.ModelBackendTypeVLLM {
+			continue
+		}
+
+		oldBackend := oldModel.Spec.Backends[i]
+
+		// Get ModelInfer for this backend using the correct naming convention
+		modelInferName := fmt.Sprintf("%s-%d-%s-instance", newModel.Name, i, strings.ToLower(string(newBackend.Type)))
+		modelInfer, err := mc.client.WorkloadV1alpha1().ModelInfers(newModel.Namespace).Get(ctx, modelInferName, metav1.GetOptions{})
+		if err != nil {
+			klog.Errorf("Failed to get ModelInfer %s: %v", modelInferName, err)
+			continue
+		}
+
+		// Check if ModelInfer is ready
+		if !mc.isModelInferReady(modelInfer) {
+			klog.Warningf("ModelInfer %s is not ready, skipping LoRA adapter update", modelInferName)
+			continue
+		}
+
+		// Handle LoRA adapter changes
+		if err := mc.updateLoraAdapters(ctx, newModel, &newBackend, &oldBackend, modelInfer); err != nil {
+			klog.Errorf("Failed to update LoRA adapters for backend %s: %v", newBackend.Name, err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+// isModelInferReady checks if ModelInfer is ready for LoRA adapter updates
+func (mc *ModelController) isModelInferReady(modelInfer *workload.ModelInfer) bool {
+	return modelInfer.Status.AvailableReplicas > 0
+}
+
+// updateLoraAdapters updates LoRA adapters for a specific backend
+func (mc *ModelController) updateLoraAdapters(ctx context.Context, model *registryv1alpha1.Model, newBackend, oldBackend *registryv1alpha1.ModelBackend, modelInfer *workload.ModelInfer) error {
+	// Get runtime service URL
+	runtimeURL := mc.getModelInferRuntimeURL(modelInfer)
+	if runtimeURL == "" {
+		return fmt.Errorf("failed to get runtime URL for ModelInfer %s", modelInfer.Name)
+	}
+
+	// Unload old adapters that are not in the new list
+	oldAdapterMap := make(map[string]registryv1alpha1.LoraAdapter)
+	for _, adapter := range oldBackend.LoraAdapters {
+		oldAdapterMap[adapter.Name] = adapter
+	}
+
+	newAdapterMap := make(map[string]registryv1alpha1.LoraAdapter)
+	for _, adapter := range newBackend.LoraAdapters {
+		newAdapterMap[adapter.Name] = adapter
+	}
+
+	// Unload adapters that are no longer needed
+	for adapterName := range oldAdapterMap {
+		if _, exists := newAdapterMap[adapterName]; !exists {
+			if err := mc.unloadLoraAdapter(ctx, runtimeURL, adapterName); err != nil {
+				klog.Errorf("Failed to unload LoRA adapter %s: %v", adapterName, err)
+				// Continue with other adapters even if one fails
+			}
+		}
+	}
+
+	// Load new or updated adapters
+	for _, adapter := range newBackend.LoraAdapters {
+		oldAdapter, existed := oldAdapterMap[adapter.Name]
+
+		// Load adapter if it's new or if the artifact URL changed
+		if !existed || oldAdapter.ArtifactURL != adapter.ArtifactURL {
+			if err := mc.loadLoraAdapter(ctx, runtimeURL, adapter, newBackend); err != nil {
+				klog.Errorf("Failed to load LoRA adapter %s: %v", adapter.Name, err)
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// getModelInferRuntimeURL constructs the runtime service URL for a ModelInfer
+func (mc *ModelController) getModelInferRuntimeURL(modelInfer *workload.ModelInfer) string {
+	// The runtime service runs on port 8100 by default
+	// Service name format: {modelinfer-name}-leader-entry
+	serviceName := fmt.Sprintf("%s-leader-entry", modelInfer.Name)
+	return fmt.Sprintf("http://%s.%s.svc.cluster.local:8100", serviceName, modelInfer.Namespace)
+}
+
+// loadLoraAdapter calls the load_lora_adapter API
+func (mc *ModelController) loadLoraAdapter(ctx context.Context, runtimeURL string, adapter registryv1alpha1.LoraAdapter, backend *registryv1alpha1.ModelBackend) error {
+	url := fmt.Sprintf("%s/v1/load_lora_adapter", runtimeURL)
+
+	// Prepare request body
+	requestBody := map[string]interface{}{
+		"adapter_name":   adapter.Name,
+		"source":         adapter.ArtifactURL,
+		"output_dir":     fmt.Sprintf("/tmp/lora_adapters/%s", adapter.Name),
+		"auto_download":  true,
+		"async_download": false, // Use synchronous download for better error handling
+	}
+
+	// Add download configuration if available
+	if backend.EnvFrom != nil {
+		config := make(map[string]interface{})
+		// Add any necessary configuration from backend.EnvFrom
+		requestBody["config"] = config
+	}
+
+	jsonBody, err := json.Marshal(requestBody)
+	if err != nil {
+		return fmt.Errorf("failed to marshal request body: %v", err)
+	}
+
+	// Create HTTP request with timeout
+	client := &http.Client{
+		Timeout: 5 * time.Minute, // 5 minute timeout for LoRA adapter loading
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return fmt.Errorf("failed to create HTTP request: %v", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	klog.Infof("Loading LoRA adapter %s from %s", adapter.Name, adapter.ArtifactURL)
+
+	// Send request
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send HTTP request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("load LoRA adapter failed with status code: %d", resp.StatusCode)
+	}
+
+	klog.Infof("Successfully loaded LoRA adapter %s", adapter.Name)
+	return nil
+}
+
+// unloadLoraAdapter calls the unload_lora_adapter API
+func (mc *ModelController) unloadLoraAdapter(ctx context.Context, runtimeURL string, adapterName string) error {
+	url := fmt.Sprintf("%s/v1/unload_lora_adapter", runtimeURL)
+
+	requestBody := map[string]interface{}{
+		"adapter_name": adapterName,
+	}
+
+	jsonBody, err := json.Marshal(requestBody)
+	if err != nil {
+		return fmt.Errorf("failed to marshal request body: %v", err)
+	}
+
+	client := &http.Client{
+		Timeout: 30 * time.Second, // 30 second timeout for unloading
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return fmt.Errorf("failed to create HTTP request: %v", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	klog.Infof("Unloading LoRA adapter %s", adapterName)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send HTTP request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unload LoRA adapter failed with status code: %d", resp.StatusCode)
+	}
+
+	klog.Infof("Successfully unloaded LoRA adapter %s", adapterName)
+	return nil
+}
+
+// setModelServerFailedCondition sets model server conditions when creating model server failed.
+func (mc *ModelController) setModelServerFailedCondition(ctx context.Context, model *registryv1alpha1.Model) error {
+	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeFailed),
+		metav1.ConditionTrue, CreateModelServerFailedReason, "Creating model server failed"))
+	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeActive),
+		metav1.ConditionFalse, CreateModelServerFailedReason, "Model is not active due to failed create model server"))
+	if err := mc.updateModelStatus(ctx, model); err != nil {
+		klog.Errorf("update model status failed: %v", err)
 		return err
 	}
 	return nil

@@ -24,8 +24,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 from matrixinfer.runtime.collect import process_metrics
 from matrixinfer.runtime.standard import MetricStandard
-import json
-from fastapi import BackgroundTasks, Body
+from fastapi import BackgroundTasks
 from matrixinfer.downloader.downloader import download_model
 
 TIMEOUT = float(os.getenv("REQUEST_TIMEOUT", "30.0"))
@@ -97,6 +96,7 @@ def create_application(args: argparse.Namespace) -> FastAPI:
     app = FastAPI(lifespan=lifespan)
 
     app.state.metric_standard = MetricStandard(args.engine)
+    app.state.engine_base_url = args.engine_base_url
     app.state.engine_metrics_url = args.engine_base_url + args.engine_metrics_path
     
     app.include_router(router)
@@ -174,13 +174,114 @@ def main() -> None:
 
 
 @router.post("/v1/load_lora_adapter", tags=["LoRA"])
-async def load_lora_adapter(request: Request) -> JSONResponse:
+async def load_lora_adapter(request: Request, background_tasks: BackgroundTasks) -> JSONResponse:
+    """
+    Load LoRA adapter with integrated download capability.
+    
+    Request body should contain:
+    - adapter_name: str - Name of the LoRA adapter
+    - adapter_path: str - Local path to the adapter (if already downloaded)
+    - source: str (optional) - Source URL for downloading (s3://, obs://, pvc://, or HuggingFace)
+    - output_dir: str (optional) - Directory to download the adapter to
+    - config: dict (optional) - Download configuration (access_key, secret_key, endpoint, hf_token, etc.)
+    - max_workers: int (optional) - Number of parallel workers for download (default: 8)
+    - auto_download: bool (optional) - Whether to auto-download if adapter_path doesn't exist (default: True)
+    - async_download: bool (optional) - Whether to run download in background (default: False)
+    """
     try:
         state = request.app.state
         body = await request.json()
-        response = await state.client.post(f"{state.engine_base_url}/v1/load_lora_adapter", json=body)
-        response.raise_for_status()
-        return JSONResponse(content=response.json(), status_code=response.status_code)
+        
+        # Extract parameters
+        adapter_name = body.get("adapter_name")
+        adapter_path = body.get("adapter_path")
+        source = body.get("source")
+        output_dir = body.get("output_dir")
+        config = body.get("config", {})
+        max_workers = body.get("max_workers", 8)
+        auto_download = body.get("auto_download", True)
+        async_download = body.get("async_download", False)
+        
+        # Validate required parameters
+        if not adapter_name:
+            raise HTTPException(status_code=400, detail="Missing required parameter: adapter_name")
+        
+        # Determine final adapter path
+        final_adapter_path = adapter_path
+        download_needed = False
+        
+        # Check if download is needed
+        if auto_download and source and output_dir:
+            import os
+            final_adapter_path = output_dir
+            if not os.path.exists(final_adapter_path) or not os.listdir(final_adapter_path):
+                download_needed = True
+                logger.info(f"LoRA adapter not found at {final_adapter_path}, will download from {source}")
+        
+        def download_and_load_task():
+            try:
+                # Download if needed
+                if download_needed:
+                    logger.info(f"Downloading LoRA adapter from {source} to {output_dir}")
+                    download_model(source, output_dir, config, max_workers)
+                    logger.info(f"LoRA adapter download completed: {source} -> {output_dir}")
+                
+                # Load the adapter
+                load_body = {
+                    "adapter_name": adapter_name,
+                    "adapter_path": final_adapter_path
+                }
+                # Copy other parameters that might be needed by the engine
+                for key, value in body.items():
+                    if key not in ["source", "output_dir", "config", "max_workers", "auto_download", "async_download"]:
+                        load_body[key] = value
+                
+                # Make synchronous request to engine
+                with httpx.Client(timeout=httpx.Timeout(TIMEOUT)) as sync_client:
+                    response = sync_client.post(f"{state.engine_base_url}/v1/load_lora_adapter", json=load_body)
+                    response.raise_for_status()
+                    logger.info(f"LoRA adapter loaded successfully: {adapter_name}")
+                    return response.json()
+                    
+            except Exception as e:
+                logger.error(f"Error in download and load task: {e}")
+                raise
+        
+        if async_download and download_needed:
+            # Run download and load in background
+            background_tasks.add_task(download_and_load_task)
+            return JSONResponse(
+                content={
+                    "status": "started",
+                    "message": "LoRA adapter download and load started in background",
+                    "adapter_name": adapter_name,
+                    "source": source,
+                    "output_dir": output_dir
+                },
+                status_code=202
+            )
+        else:
+            # Run synchronously
+            if download_needed:
+                # Download first
+                logger.info(f"Downloading LoRA adapter from {source} to {output_dir}")
+                download_model(source, output_dir, config, max_workers)
+                logger.info(f"LoRA adapter download completed: {source} -> {output_dir}")
+            
+            # Load the adapter
+            load_body = {
+                "adapter_name": adapter_name,
+                "adapter_path": final_adapter_path
+            }
+            
+            response = await state.client.post(f"{state.engine_base_url}/v1/load_lora_adapter", json=load_body)
+            response.raise_for_status()
+            
+            result = response.json()
+            return JSONResponse(content=result, status_code=response.status_code)
+            
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error loading LoRA adapter: {e}")
         raise HTTPException(status_code=500, detail=str(e))

@@ -39,11 +39,11 @@ spec:
                 image: matrixinfer/runtime:latest
                 name: runtime
                 ports:
-                  - containerPort: 8100
+                  - containerPort: 8900
                 readinessProbe:
                   httpGet:
                     path: /health
-                    port: 8100
+                    port: 8900
                   initialDelaySeconds: 5
                   periodSeconds: 10
                 resources: {}
