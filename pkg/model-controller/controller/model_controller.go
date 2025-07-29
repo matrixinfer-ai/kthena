@@ -182,6 +182,14 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 					return err
 				}
 			}
+			if err := mc.createModelServer(ctx, model); err != nil {
+				updateError := mc.setModelServerFailedCondition(ctx, model)
+				if updateError != nil {
+					return updateError
+				}
+				return err
+			}
+			// todo: create model route
 			meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeInitializing),
 				metav1.ConditionTrue, ModelInitsReason, "Model is initializing"))
 			if err := mc.updateModelStatus(ctx, model); err != nil {
@@ -189,14 +197,6 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 				return err
 			}
 		}
-		if err := mc.createModelServer(ctx, model); err != nil {
-			updateError := mc.setModelServerFailedCondition(ctx, model)
-			if updateError != nil {
-				return updateError
-			}
-			return err
-		}
-		// todo: create model route
 	}
 	if model.Generation != model.Status.ObservedGeneration {
 		klog.V(4).Info("model generation is not equal to observed generation, update model infer, model server and model route")
