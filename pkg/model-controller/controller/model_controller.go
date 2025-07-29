@@ -186,9 +186,17 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 				return err
 			}
 		}
+		if err := mc.createModelServer(ctx, model); err != nil {
+			updateError := mc.setModelServerFailedCondition(ctx, model)
+			if updateError != nil {
+				return updateError
+			}
+			return err
+		}
+		// todo: create model route
 	}
 	if model.Generation != model.Status.ObservedGeneration {
-		klog.Info("model generation is not equal to observed generation, update model infer")
+		klog.V(4).Info("model generation is not equal to observed generation, update model infer, model server and model route")
 		if err := mc.setModelUpdateCondition(ctx, model); err != nil {
 			return err
 		}
@@ -204,13 +212,6 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 		return err
 	}
 	if err := mc.setModelActiveCondition(ctx, model); err != nil {
-		return err
-	}
-	if err := mc.createModelServer(ctx, model); err != nil {
-		updateError := mc.setModelServerFailedCondition(ctx, model)
-		if updateError != nil {
-			return updateError
-		}
 		return err
 	}
 	return nil
@@ -436,7 +437,7 @@ func (mc *ModelController) triggerModel(old any, new any) {
 
 // createModelServer creates model server when model infer is available
 func (mc *ModelController) createModelServer(ctx context.Context, model *registryv1alpha1.Model) error {
-	klog.Info("Model Infer is active, start to create model server")
+	klog.V(4).Info("start to create model server")
 	modelServers := utils.BuildModelServer(model)
 	for _, modelServer := range modelServers {
 		if _, err := mc.client.NetworkingV1alpha1().ModelServers(model.Namespace).Create(ctx, modelServer, metav1.CreateOptions{}); err != nil {
@@ -453,6 +454,7 @@ func (mc *ModelController) createModelServer(ctx context.Context, model *registr
 
 // updateModelServer updates model server
 func (mc *ModelController) updateModelServer(ctx context.Context, model *registryv1alpha1.Model) error {
+	klog.V(4).Info("start to update model server")
 	modelServers := utils.BuildModelServer(model)
 	for _, modelServer := range modelServers {
 		oldModelServer, err := mc.client.NetworkingV1alpha1().ModelServers(modelServer.Namespace).Get(ctx, modelServer.Name, metav1.GetOptions{})
