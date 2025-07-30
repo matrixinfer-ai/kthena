@@ -653,7 +653,7 @@ func getServedModelName(model *registry.Model, backend registry.ModelBackend) (s
 			return "", err
 		}
 		for i, str := range args {
-			if strings.Compare(str, "--served-model-name") == 0 {
+			if strings.Compare(str, "--served-model-name") == 0 && i+1 < len(args) {
 				servedModelName = args[i+1]
 				break
 			}

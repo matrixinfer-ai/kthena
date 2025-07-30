@@ -499,7 +499,7 @@ func (mc *ModelController) updateModelRoute(ctx context.Context, model *registry
 	}
 	modelRoute.ResourceVersion = oldModelRoute.ResourceVersion
 	if _, err := mc.client.NetworkingV1alpha1().ModelRoutes(model.Namespace).Update(ctx, modelRoute, metav1.UpdateOptions{}); err != nil {
-		klog.Errorf("failed to update ModelServer %s: %v", klog.KObj(modelRoute), err)
+		klog.Errorf("failed to update ModelRoute %s: %v", klog.KObj(modelRoute), err)
 		return err
 	}
 	return nil
