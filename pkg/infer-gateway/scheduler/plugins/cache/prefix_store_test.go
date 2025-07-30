@@ -123,8 +123,8 @@ func TestModelPrefixStore(t *testing.T) {
 					break
 				}
 				expectedName := tt.expectedPods[i]
-				if match.NsName.String() != expectedName {
-					t.Errorf("match[%d]: got pod %s, want %s", i, match.NsName.String(), expectedName)
+				if match.NamespacedName.String() != expectedName {
+					t.Errorf("match[%d]: got pod %s, want %s", i, match.NamespacedName.String(), expectedName)
 				}
 				if match.MatchLen != tt.expectedLens[i] {
 					t.Errorf("match[%d]: got length %d, want %d", i, match.MatchLen, tt.expectedLens[i])

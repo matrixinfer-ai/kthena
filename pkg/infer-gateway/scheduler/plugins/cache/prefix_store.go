@@ -55,8 +55,8 @@ type ModelPrefixStore struct {
 
 // MatchResult represents a matching pod and its match length
 type MatchResult struct {
-	NsName   types.NamespacedName
-	MatchLen int
+	NamespacedName types.NamespacedName
+	MatchLen       int
 }
 
 // NewModelPrefixStore creates a new ModelPrefixStore with the specified capacity and topK
@@ -129,8 +129,8 @@ func (s *ModelPrefixStore) FindTopMatches(model string, hashes []uint64, pods []
 				matchLen := i + 1
 
 				matches = append(matches, MatchResult{
-					NsName:   pod,
-					MatchLen: matchLen,
+					NamespacedName: pod,
+					MatchLen:       matchLen,
 				})
 
 				// Return if we have enough matches
