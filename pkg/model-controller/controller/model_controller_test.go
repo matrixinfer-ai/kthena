@@ -57,6 +57,10 @@ func TestReconcile(t *testing.T) {
 	modelServers, err := matrixinferClient.NetworkingV1alpha1().ModelServers(model.Namespace).List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
 	assert.Len(t, modelServers.Items, 1, "Expected 1 ModelServer to be created")
+
+	// delete model and check if ModelInfer and ModelServer are deleted
+	err = matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Delete(ctx, model.Name, metav1.DeleteOptions{})
+	assert.NoError(t, err)
 }
 
 // waitForReconcile waits for the controller to process the next work item.
