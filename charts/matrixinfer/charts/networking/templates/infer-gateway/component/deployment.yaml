@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "matrixinfer.fullname" . }}-infer-gateway
+  name: {{ include "matrixinfer.name" . }}-infer-gateway
   namespace: {{ .Release.Namespace }}
   labels:
     app.kubernetes.io/component: infer-gateway
@@ -45,5 +45,5 @@ spec:
       volumes:
         - name: scheduler-config
           configMap:
-            name: infer-gateway-config
-      serviceAccountName: infer-gateway
+            name: {{ include "matrixinfer.name" . }}-infer-gateway-config
+      serviceAccountName: {{ include "matrixinfer.name" . }}-infer-gateway

@@ -2,7 +2,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "matrixinfer.fullname" . }}-webhook
+  name: {{ include "matrixinfer.name" . }}-webhook
   namespace: {{ .Release.Namespace }}
   labels:
     app.kubernetes.io/component: webhook
@@ -48,6 +48,6 @@ spec:
       volumes:
         - name: webhook-certs
           secret:
-            secretName: {{ include "matrixinfer.fullname" . }}-webhook-certs
-      serviceAccountName: registry-webhook
+            secretName: {{ include "matrixinfer.name" . }}-webhook-certs
+      serviceAccountName: {{ include "matrixinfer.name" . }}-webhook
 {{- end }}

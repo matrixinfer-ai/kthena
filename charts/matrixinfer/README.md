@@ -1,7 +1,5 @@
 # Introduction
 
----
-
 This is the [helm](https://helm.sh/) that MatrixInfer used to deploy on Kubernetes.
 
 Files in `crds/` are custom resource definitions, which are used to define the custom resources used by MatrixInfer.
@@ -19,22 +17,14 @@ it.
 
 # Usage
 
----
+## Prerequisites
 
-prerequisite
+- [Helm](https://helm.sh/docs/intro/install/) must be installed.
+- [cert-manager](https://cert-manager.io/docs/installation/) is optional and only required if you enable it by setting `global.certManager.enable` to `true` in `values.yaml`.
 
-- [helm](https://helm.sh/docs/intro/install/) installed
-
-## Package
-
-package chart into an archive file
-
-```shell
-cd charts/
-helm package matrixinfer
-```
 
 ## Install
+
 
 Syntax:
 ```shell
@@ -60,7 +50,7 @@ helm install <your-name> <archive-file-name> --namespace <namespace> \
 
 And you can even specify a customized `values.yaml` file for installation.
 ```shell
-helm install my-release my-chart -f my-values.yaml
+helm install dev-release charts/matrixinfer -f values-dev.yaml
 ```
 ### Installation Order
 
@@ -105,17 +95,58 @@ After that, it installs resources from the `/templates` directory in the followi
 HELM manages the installation of CRDs. However, if you need to uninstall or update a CRD, please use `kubectl apply` or `kubectl delete`.   
 For more details on the reasoning behind this, see [this explanation](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/#some-caveats-and-explanations) and [these limitations](https://helm.sh/docs/topics/charts/#limitations-on-crds).
 
----
-
 ## Uninstall
 
 ```shell
-helm uninstall <your-name>
+helm uninstall <release-name>
 ```
 
 ## Test
 
+### Lint
 ```shell
-cd charts/matrixinfer
-helm lint
+helm lint charts/matrixinfer
 ```
+### Validate
+```shell
+helm template test-release charts/matrixinfer --validate
+```
+### Debug
+```shell
+helm template test-release charts/matrixinfer --debug
+```
+
+### Dry-run
+```shell
+helm install test-release charts/matrixinfer --dry-run
+```
+
+## Distribution
+
+You have two options for distributing the Helm chart:
+
+### Option 1: Package the Chart as an Archive
+
+Package your chart into a `.tgz` archive file using the following command:
+
+```shell
+helm package charts/matrixinfer
+```
+
+This creates a versioned archive (e.g., `matrixinfer-0.1.0.tgz`) that can be easily shared or uploaded to a Helm repository.
+
+### Option 2: Generate a Single Manifest File
+
+You can generate a single YAML manifest file (`install.yaml`) from your Helm chart. This file can be applied directly with `kubectl`.
+
+**Without CRDs:**
+```shell
+helm template my-release charts/matrixinfer > install.yaml
+```
+
+**With CRDs included:**
+```shell
+helm template my-release charts/matrixinfer --include-crds > install.yaml
+```
+
+> **Note:** Use the `--include-crds` flag if you want to include Custom Resource Definitions (CRDs) in the generated manifest.

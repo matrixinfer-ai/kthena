@@ -22,11 +22,11 @@ modelController:
   # downloaderImage is the container image used for downloading models.
   downloaderImage:
     repository: matrixinfer/downloader
-    tag: 1.0.0
+    tag: latest
   # runtimeImage is the container image used for running models.
   runtimeImage:
     repository: matrixinfer/runtime
-    tag: 1.0.0
+    tag: latest
   downloader:
     # accessKey is the access key for the downloader.
     accessKey: ""
