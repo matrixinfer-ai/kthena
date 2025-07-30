@@ -152,32 +152,35 @@ func (s *ModelPrefixStore) Add(model string, hashes []uint64, pod *datastore.Pod
 	}
 
 	s.podHashesMu.Lock()
-	hashLRU, exists := s.podHashes[nsName]
+	podLRU, exists := s.podHashes[nsName]
 	if !exists {
-		newHashLRU, _ := NewLRUCache[uint64, string](s.hashCapacity, func(key lru.Key, value interface{}) {
-			// onEvict callback
-			hash := key.(uint64)
-			modelName := value.(string)
+		podLRU, _ = NewLRUCache[uint64, string](s.hashCapacity, func(key lru.Key, value interface{}) {
+			// The cb is protected by lru cache's lock, so we should start a new goroutine
+			// to avoid blocking the Add below.
+			go func() {
+				// onEvict callback
+				hash := key.(uint64)
+				modelName := value.(string)
 
-			s.entriesMu.RLock()
-			modelCache, exists := s.entries[modelName]
-			s.entriesMu.RUnlock()
-			if !exists {
-				return
-			}
-
-			modelCache.mu.Lock()
-			defer modelCache.mu.Unlock()
-
-			if podSet, exists := modelCache.hashes[hash]; exists {
-				podSet.Delete(nsName)
-				if podSet.Len() == 0 {
-					delete(modelCache.hashes, hash)
+				s.entriesMu.RLock()
+				modelCache, exists := s.entries[modelName]
+				s.entriesMu.RUnlock()
+				if !exists {
+					return
 				}
-			}
+
+				modelCache.mu.Lock()
+				defer modelCache.mu.Unlock()
+
+				if podSet, exists := modelCache.hashes[hash]; exists {
+					podSet.Delete(nsName)
+					if podSet.Len() == 0 {
+						delete(modelCache.hashes, hash)
+					}
+				}
+			}()
 		})
-		hashLRU = newHashLRU
-		s.podHashes[nsName] = hashLRU
+		s.podHashes[nsName] = podLRU
 	}
 	s.podHashesMu.Unlock()
 
@@ -205,12 +208,7 @@ func (s *ModelPrefixStore) Add(model string, hashes []uint64, pod *datastore.Pod
 			modelCache.hashes[hash] = sets.New[types.NamespacedName]()
 		}
 		modelCache.hashes[hash].Insert(nsName)
+		podLRU.Add(hash, model)
 	}
 	modelCache.mu.Unlock()
-
-	// Add hashes to pod's hash LRU after releasing the modelCache lock
-	for i := len(hashes) - 1; i >= 0; i-- {
-		hash := hashes[i]
-		hashLRU.Add(hash, model)
-	}
 }

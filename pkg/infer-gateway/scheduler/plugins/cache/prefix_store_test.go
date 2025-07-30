@@ -18,6 +18,7 @@ package cache
 
 import (
 	"testing"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -108,6 +109,7 @@ func TestModelPrefixStore(t *testing.T) {
 				}
 			}
 
+			time.Sleep(50 * time.Millisecond) // Ensure cache evict cb has been run
 			// Query matches
 			matches := store.FindTopMatches(tt.model, tt.queryHashes, tt.pods)
 
