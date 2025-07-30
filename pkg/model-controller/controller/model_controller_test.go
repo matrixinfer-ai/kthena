@@ -2,17 +2,15 @@ package controller
 
 import (
 	"context"
-	"k8s.io/apimachinery/pkg/api/meta"
-	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
-	"testing"
-	"time"
-
 	"github.com/stretchr/testify/assert"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 	matrixinferfake "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/fake"
 	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
+	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
+	"testing"
 )
 
 // TestReconcile first creates a model and then checks if the ModelInfer, ModelServer and ModelRoute are created as expected.
@@ -33,11 +31,7 @@ func TestReconcile(t *testing.T) {
 	createdModel, err := matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Create(ctx, model, metav1.CreateOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, createdModel)
-	// wait for the controller to process the model creation
-	select {
-	case <-ctx.Done():
-	case <-time.After(1 * time.Second):
-	}
+	waitForReconcile(ctx, controller)
 	// check if model infer is created
 	modelInfers, err := matrixinferClient.WorkloadV1alpha1().ModelInfers(model.Namespace).List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
@@ -53,11 +47,7 @@ func TestReconcile(t *testing.T) {
 	modelInfer, err = matrixinferClient.WorkloadV1alpha1().ModelInfers(model.Namespace).UpdateStatus(ctx, modelInfer, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, string(workload.ModelInferAvailable), modelInfer.Status.Conditions[0].Type, "ModelInfer condition type should be Available")
-	// wait for the controller to process the model creation
-	select {
-	case <-ctx.Done():
-	case <-time.After(1 * time.Second):
-	}
+	waitForReconcile(ctx, controller)
 	// model condition should be active
 	model, err = matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Get(ctx, model.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
@@ -67,4 +57,13 @@ func TestReconcile(t *testing.T) {
 	modelServers, err := matrixinferClient.NetworkingV1alpha1().ModelServers(model.Namespace).List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
 	assert.Len(t, modelServers.Items, 1, "Expected 1 ModelServer to be created")
+}
+
+// waitForReconcile waits for the controller to process the next work item.
+func waitForReconcile(ctx context.Context, controller *ModelController) {
+	stopCh := make(chan bool, 1)
+	select {
+	case <-ctx.Done():
+	case stopCh <- controller.processNextWorkItem(ctx):
+	}
 }
