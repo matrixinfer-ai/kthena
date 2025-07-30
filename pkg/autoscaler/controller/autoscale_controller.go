@@ -18,7 +18,7 @@ package controller
 
 import (
 	"context"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaler/autoscaler"
+	"matrixinfer.ai/matrixinfer/pkg/autoscaler/autoscaler"
 	"time"
 
 	"istio.io/istio/pkg/util/sets"
@@ -197,7 +197,6 @@ func (ac *AutoscaleController) schedule(ctx context.Context, binding *v1alpha1.A
 	} else if binding.Spec.ScalingConfiguration != nil {
 		target := binding.Spec.ScalingConfiguration.Target
 		instanceKey := formatAutoscalerMapKey(binding.Name, target.Name)
-		// init scalerMap
 		scalingAutoscaler, ok := ac.scalerMap[instanceKey]
 		if !ok {
 			scalingAutoscaler = autoscaler.NewAutoscaler(&autoscalePolicy.Spec.Behavior, binding, metricTargets)

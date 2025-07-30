@@ -21,11 +21,12 @@ import (
 	"fmt"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+	icUtils "matrixinfer.ai/matrixinfer/pkg/infer-controller/utils"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/convert"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
 
 	"k8s.io/apimachinery/pkg/api/equality"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	workloadLister "matrixinfer.ai/matrixinfer/client-go/listers/workload/v1alpha1"
 
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -208,6 +209,9 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 		if err := mc.updateModelRoute(ctx, model); err != nil {
 			return err
 		}
+		if err := mc.updateAutoscalingPolicyAndBinding(ctx, model); err != nil {
+			return err
+		}
 	}
 	modelInferActive, err := mc.isModelInferActive(ctx, model)
 	if err != nil || !modelInferActive {
@@ -367,7 +371,7 @@ func (mc *ModelController) updateModelInfer(ctx context.Context, model *registry
 	for _, modelInfer := range modelInfers {
 		oldModelInfer, err := mc.client.WorkloadV1alpha1().ModelInfers(modelInfer.Namespace).Get(ctx, modelInfer.Name, metav1.GetOptions{})
 		if err != nil {
-			if errors.IsNotFound(err) {
+			if apierrors.IsNotFound(err) {
 				if _, err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Create(ctx, modelInfer, metav1.CreateOptions{}); err != nil {
 					klog.Errorf("failed to create ModelInfer %s: %v", klog.KObj(modelInfer), err)
 					return err
@@ -454,11 +458,11 @@ func (mc *ModelController) createModelServer(ctx context.Context, model *registr
 	}
 	for _, modelServer := range modelServers {
 		if _, err := mc.client.NetworkingV1alpha1().ModelServers(model.Namespace).Create(ctx, modelServer, metav1.CreateOptions{}); err != nil {
-			if errors.IsAlreadyExists(err) {
+			if apierrors.IsAlreadyExists(err) {
 				klog.V(4).InfoS("ModelServer already exists, skipping creation", "modelServer", klog.KObj(modelServer))
 				continue
 			}
-			klog.Errorf("create model server failed: %v", err)
+			klog.Errorf("Create model server failed: %v", err)
 			return err
 		}
 	}
@@ -474,7 +478,7 @@ func (mc *ModelController) updateModelServer(ctx context.Context, model *registr
 	for _, modelServer := range modelServers {
 		oldModelServer, err := mc.client.NetworkingV1alpha1().ModelServers(modelServer.Namespace).Get(ctx, modelServer.Name, metav1.GetOptions{})
 		if err != nil {
-			if errors.IsNotFound(err) {
+			if apierrors.IsNotFound(err) {
 				// ModelServer doesn't exist, create it.
 				if _, err := mc.client.NetworkingV1alpha1().ModelServers(model.Namespace).Create(ctx, modelServer, metav1.CreateOptions{}); err != nil {
 					klog.Errorf("failed to create ModelServer %s: %v", klog.KObj(modelServer), err)
@@ -497,19 +501,21 @@ func (mc *ModelController) updateModelServer(ctx context.Context, model *registr
 	return nil
 }
 
-func (mc *ModelController) createAutoScalingPolicyAndBinding(ctx context.Context, model *registryv1alpha1.Model) error {
+func (mc *ModelController) createAutoscalingPolicyAndBinding(ctx context.Context, model *registryv1alpha1.Model) error {
 	if model.Spec.AutoscalingPolicy != nil {
+		// Create autoscaling policy and optimize policy binding
 		modelAutoscalePolicy := convert.BuildAutoscalingPolicy(model.Spec.AutoscalingPolicy, utils.GetAutoscalingPolicyName(model.Name, ""))
 		if _, err := mc.client.RegistryV1alpha1().AutoscalingPolicies(model.Namespace).Create(ctx, modelAutoscalePolicy, metav1.CreateOptions{}); err != nil {
-			klog.Errorf("Create autoscaling policy of model: %s failed: %v", model.Name, err)
+			klog.Errorf("Create autoscaling policy of model: [%s] failed: %v", model.Name, err)
 			return err
 		}
 		modelPolicyBinding := convert.BuildOptimizePolicyBinding(model, utils.GetAutoscalingPolicyName(model.Name, ""))
 		if _, err := mc.client.RegistryV1alpha1().AutoscalingPolicyBindings(model.Namespace).Create(ctx, modelPolicyBinding, metav1.CreateOptions{}); err != nil {
-			klog.Errorf("Create autoscaling policy binding of model: %s failed: %v", model.Name, err)
+			klog.Errorf("Create autoscaling policy binding of model: [%s] failed: %v", model.Name, err)
 			return err
 		}
 	} else {
+		// Create autoscaling policy and scaling policy binding
 		for _, backend := range model.Spec.Backends {
 			if backend.AutoscalingPolicy == nil {
 				continue
@@ -525,6 +531,94 @@ func (mc *ModelController) createAutoScalingPolicyAndBinding(ctx context.Context
 				return err
 			}
 		}
+	}
+	return nil
+}
+
+func (mc *ModelController) updateAutoscalingPolicyAndBinding(ctx context.Context, model *registryv1alpha1.Model) error {
+	if model.Spec.AutoscalingPolicy != nil {
+		name := utils.GetAutoscalingPolicyName(model.Name, "")
+		err := mc.tryUpdateAutoscalingPolicy(ctx, model, model.Spec.AutoscalingPolicy, name)
+		if err != nil {
+			return err
+		}
+		err = mc.tryUpdateAutoscalingPolicyBinding(ctx, model, nil)
+		if err != nil {
+			return err
+		}
+	} else {
+		for _, backend := range model.Spec.Backends {
+			if backend.AutoscalingPolicy == nil {
+				continue
+			}
+			err := mc.tryUpdateAutoscalingPolicy(ctx, model, backend.AutoscalingPolicy, utils.GetAutoscalingPolicyName(model.Name, backend.Name))
+			if err != nil {
+				return err
+			}
+			err = mc.tryUpdateAutoscalingPolicyBinding(ctx, model, &backend)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (mc *ModelController) tryUpdateAutoscalingPolicyBinding(ctx context.Context, model *registryv1alpha1.Model, backend *registryv1alpha1.ModelBackend) error {
+	var targetAutoscalePolicyBinding *registryv1alpha1.AutoscalingPolicyBinding
+	if backend == nil {
+		targetAutoscalePolicyBinding = convert.BuildOptimizePolicyBinding(model, utils.GetAutoscalingPolicyName(model.Name, ""))
+	} else {
+		targetAutoscalePolicyBinding = convert.BuildOptimizePolicyBinding(model, utils.GetAutoscalingPolicyName(model.Name, backend.Name))
+	}
+	currentAutoscalePolicyBinding, err := mc.autoscalingPolicyBindingsLister.AutoscalingPolicyBindings(model.Namespace).Get(targetAutoscalePolicyBinding.Name)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			if _, err := mc.client.RegistryV1alpha1().AutoscalingPolicyBindings(model.Namespace).Create(ctx, targetAutoscalePolicyBinding, metav1.CreateOptions{}); err != nil {
+				klog.Errorf("Create autoscaling policy binding of model: [%s] failed: %v", model.Name, err)
+				return err
+			}
+			return nil
+		}
+		klog.Errorf("Failed to get autoscaling policy binding of model: [%s] failed: %v", model.Name, err)
+		return err
+	}
+	if utils.GetAutoscalingPolicyBindingRevision(currentAutoscalePolicyBinding) == icUtils.Revision(targetAutoscalePolicyBinding.Spec) {
+		klog.InfoS("Autoscaling policy binding [%s] of model: [%s] need not to update", currentAutoscalePolicyBinding.Name, model.Name)
+		return nil
+	}
+
+	_, err = mc.client.RegistryV1alpha1().AutoscalingPolicyBindings(model.Namespace).Update(ctx, targetAutoscalePolicyBinding, metav1.UpdateOptions{})
+	if err != nil {
+		klog.Errorf("Update autoscaling policy binding of model: [%s] failed: %v", model.Name, err)
+		return err
+	}
+	return nil
+}
+
+func (mc *ModelController) tryUpdateAutoscalingPolicy(ctx context.Context, model *registryv1alpha1.Model, policy *registryv1alpha1.AutoscalingPolicyConfig, policyName string) error {
+	targetAutoscalePolicy := convert.BuildAutoscalingPolicy(policy, policyName)
+	currentAutoscalePolicy, err := mc.autoscalingPoliciesLister.AutoscalingPolicies(model.Namespace).Get(policyName)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			if _, err := mc.client.RegistryV1alpha1().AutoscalingPolicies(model.Namespace).Create(ctx, targetAutoscalePolicy, metav1.CreateOptions{}); err != nil {
+				klog.Errorf("Create autoscaling policy of model: [%s] failed: %v", model.Name, err)
+				return err
+			}
+			return nil
+		}
+		klog.Errorf("Failed to get autoscaling policy of model: [%s] failed: %v", model.Name, err)
+		return err
+	}
+	if utils.GetAutoscalingPolicyRevision(currentAutoscalePolicy) == icUtils.Revision(targetAutoscalePolicy.Spec) {
+		klog.InfoS("Autoscaling policy [%s] of model: [%s] need not to update", currentAutoscalePolicy.Name, model.Name)
+		return nil
+	}
+
+	_, err = mc.client.RegistryV1alpha1().AutoscalingPolicies(model.Namespace).Update(ctx, targetAutoscalePolicy, metav1.UpdateOptions{})
+	if err != nil {
+		klog.Errorf("Update autoscaling policy of model: [%s] failed: %v", model.Name, err)
+		return err
 	}
 	return nil
 }
