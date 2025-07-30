@@ -18,7 +18,7 @@ package main
 
 import (
 	"context"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/convert"
+	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
 	"flag"
 	"os"
 	"os/signal"
@@ -136,7 +136,7 @@ func initLeaderElector(kubeClient kubernetes.Interface, mc *controller.ModelCont
 
 // newResourceLock returns a lease lock which is used to elect leader
 func newResourceLock(client kubernetes.Interface) (*resourcelock.LeaseLock, error) {
-	namespace, err := convert.GetInClusterNameSpace()
+	namespace, err := utils.GetInClusterNameSpace()
 	if err != nil {
 		return nil, err
 	}

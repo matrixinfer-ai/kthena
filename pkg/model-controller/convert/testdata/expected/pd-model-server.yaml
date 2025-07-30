@@ -5,6 +5,8 @@ metadata:
   namespace: demo
   ownerReferences:
     - apiVersion: registry.matrixinfer.ai/v1alpha1
+      blockOwnerDeletion: true
+      controller: true
       kind: Model
       name: ds-r1-qwen-7b-pd
       uid: randomUID

@@ -5,6 +5,8 @@ metadata:
   namespace: default
   ownerReferences:
     - apiVersion: registry.matrixinfer.ai/v1alpha1
+      blockOwnerDeletion: true
+      controller: true
       kind: Model
       name: test-model
       uid: randomUID
