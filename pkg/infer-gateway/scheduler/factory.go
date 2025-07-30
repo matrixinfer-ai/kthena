@@ -97,7 +97,9 @@ func getFilterPlugins(registry *PluginRegistry, filterPluginMap []string, plugin
 			continue
 		} else {
 			plugin := builderFunc(pluginsArgMap[pluginName])
-			list = append(list, plugin)
+			if plugin != nil {
+				list = append(list, plugin)
+			}
 		}
 	}
 	return list
@@ -122,10 +124,13 @@ func getScorePlugins(registry *PluginRegistry, prefixCache *plugins.PrefixCache,
 		if builderFunc, exist := registry.getScorePlugin(pluginName); !exist {
 			klog.Errorf("Failed to get plugin %s.", pluginName)
 		} else {
-			list = append(list, &scorePlugin{
-				plugin: builderFunc(pluginsArgMap[pluginName]),
-				weight: weight,
-			})
+			plugin := builderFunc(pluginsArgMap[pluginName])
+			if plugin != nil {
+				list = append(list, &scorePlugin{
+					plugin: plugin,
+					weight: weight,
+				})
+			}
 		}
 	}
 	return list
