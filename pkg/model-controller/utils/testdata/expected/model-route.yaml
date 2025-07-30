@@ -9,6 +9,7 @@ metadata:
       name: test-model
       uid: randomUID
 spec:
+  modelName: "test-model"
   loraAdapters:
     - "lora-sql"
   rules:

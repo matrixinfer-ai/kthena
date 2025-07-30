@@ -9,6 +9,7 @@ metadata:
       name: multi-backend-model
       uid: randomUID
 spec:
+  modelName: "multi-backend-model"
   loraAdapters:
     - "lora-sql"
   rules:

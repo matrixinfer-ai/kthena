@@ -729,6 +729,7 @@ func BuildModelRoute(model *registry.Model) *networking.ModelRoute {
 			},
 		},
 		Spec: networking.ModelRouteSpec{
+			ModelName:    model.Name,
 			LoraAdapters: loraAdapters,
 			Rules:        rules,
 		},
