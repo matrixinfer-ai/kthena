@@ -29,6 +29,7 @@ spec:
             max-model-len: 32768
             tensor-parallel-size: 2
             trust-remote-code: ""
+            served-model-name: "deepseek-v3"
           resources:
             requests:
               cpu: 100m

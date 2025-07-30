@@ -572,7 +572,7 @@ func GetInClusterNameSpace() (string, error) {
 
 // BuildModelServer creates arrays of ModelServer for the given model.
 // Each model backend will create one model server.
-func BuildModelServer(model *registry.Model) []*networking.ModelServer {
+func BuildModelServer(model *registry.Model) ([]*networking.ModelServer, error) {
 	var modelServers []*networking.ModelServer
 	for idx, backend := range model.Spec.Backends {
 		var inferenceEngine networking.InferenceEngine
@@ -583,7 +583,7 @@ func BuildModelServer(model *registry.Model) []*networking.ModelServer {
 			inferenceEngine = networking.SGLang
 		case registry.ModelBackendTypeMindIE, registry.ModelBackendTypeMindIEDisaggregated:
 			klog.Warning("Not support MindIE backend yet, please use vLLM or SGLang backend")
-			return modelServers
+			return modelServers, nil
 		}
 		var pdGroup *networking.PDGroup
 		switch backend.Type {
@@ -597,6 +597,10 @@ func BuildModelServer(model *registry.Model) []*networking.ModelServer {
 					"modelinfer.matrixinfer.ai/role": "decode",
 				},
 			}
+		}
+		servedModelName, err := getServedModelName(model, backend)
+		if err != nil {
+			return nil, err
 		}
 		modelServer := networking.ModelServer{
 			TypeMeta: metav1.TypeMeta{
@@ -616,7 +620,7 @@ func BuildModelServer(model *registry.Model) []*networking.ModelServer {
 				},
 			},
 			Spec: networking.ModelServerSpec{
-				Model:           &model.Name,
+				Model:           &servedModelName,
 				InferenceEngine: inferenceEngine,
 				WorkloadSelector: &networking.WorkloadSelector{
 					MatchLabels: map[string]string{
@@ -637,7 +641,25 @@ func BuildModelServer(model *registry.Model) []*networking.ModelServer {
 		}
 		modelServers = append(modelServers, &modelServer)
 	}
-	return modelServers
+	return modelServers, nil
+}
+
+// getServedModelName gets served model name from the worker config. Default is the model name.
+func getServedModelName(model *registry.Model, backend registry.ModelBackend) (string, error) {
+	servedModelName := model.Name
+	for _, worker := range backend.Workers {
+		args, err := parseArgs(&worker.Config)
+		if err != nil {
+			return "", err
+		}
+		for i, str := range args {
+			if strings.Compare(str, "--served-model-name") == 0 {
+				servedModelName = args[i+1]
+				break
+			}
+		}
+	}
+	return servedModelName, nil
 }
 
 // buildDownloaderContainer builds downloader container to reduce code duplication
