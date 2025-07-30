@@ -42,11 +42,10 @@ func TestReconcile(t *testing.T) {
 	modelInfers, err := matrixinferClient.WorkloadV1alpha1().ModelInfers(model.Namespace).List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
 	assert.Len(t, modelInfers.Items, 1, "Expected 1 ModelInfer to be created")
-
+	// check model is not updated
 	get, err := matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Get(ctx, model.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, int64(0), get.Status.ObservedGeneration, "ObservedGeneration not updated")
-
 	// make model infer status available
 	modelInfer := &modelInfers.Items[0]
 	meta.SetStatusCondition(&modelInfer.Status.Conditions, newCondition(string(workload.ModelInferAvailable),
@@ -54,18 +53,17 @@ func TestReconcile(t *testing.T) {
 	modelInfer, err = matrixinferClient.WorkloadV1alpha1().ModelInfers(model.Namespace).UpdateStatus(ctx, modelInfer, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, string(workload.ModelInferAvailable), modelInfer.Status.Conditions[0].Type, "ModelInfer condition type should be Available")
-
+	// wait for the controller to process the model creation
 	select {
 	case <-ctx.Done():
 	case <-time.After(1 * time.Second):
 	}
-
 	// model condition should be active
 	model, err = matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Get(ctx, model.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, true, meta.IsStatusConditionPresentAndEqual(model.Status.Conditions,
 		string(registry.ModelStatusConditionTypeActive), metav1.ConditionTrue))
-
+	// check if model server is created
 	modelServers, err := matrixinferClient.NetworkingV1alpha1().ModelServers(model.Namespace).List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
 	assert.Len(t, modelServers.Items, 1, "Expected 1 ModelServer to be created")
