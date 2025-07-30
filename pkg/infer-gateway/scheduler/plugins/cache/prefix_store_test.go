@@ -17,7 +17,6 @@ limitations under the License.
 package cache
 
 import (
-	"fmt"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -122,9 +121,8 @@ func TestModelPrefixStore(t *testing.T) {
 					break
 				}
 				expectedName := tt.expectedPods[i]
-				gotName := fmt.Sprintf("%s/%s", match.Pod.Pod.Namespace, match.Pod.Pod.Name)
-				if gotName != expectedName {
-					t.Errorf("match[%d]: got pod %s, want %s", i, gotName, expectedName)
+				if match.NsName.String() != expectedName {
+					t.Errorf("match[%d]: got pod %s, want %s", i, match.NsName.String(), expectedName)
 				}
 				if match.MatchLen != tt.expectedLens[i] {
 					t.Errorf("match[%d]: got length %d, want %d", i, match.MatchLen, tt.expectedLens[i])

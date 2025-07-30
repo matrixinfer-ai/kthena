@@ -19,20 +19,35 @@ package cache
 import (
 	"sync"
 
+	"istio.io/istio/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/lru"
 
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 )
 
+// modelHashes holds the hashes for a specific model and a mutex to protect access.
+type modelHashes struct {
+	mu     sync.RWMutex
+	hashes map[uint64]sets.Set[types.NamespacedName]
+}
+
+// newModelHashes creates a new modelHashes struct.
+func newModelHashes() *modelHashes {
+	return &modelHashes{
+		hashes: make(map[uint64]sets.Set[types.NamespacedName]),
+	}
+}
+
 // ModelPrefixStore manages a three-level map structure for model inference requests
 type ModelPrefixStore struct {
-	// Mutex to protect entries access
-	// TODO: use finer-grained locks.
-	mu sync.RWMutex
-	// Three-level map: model -> hash -> pod namespaced name -> pod
-	entries map[string]map[uint64]map[types.NamespacedName]*datastore.PodInfo
+	// Mutex to protect the entries map itself
+	entriesMu sync.RWMutex
+	// map: model -> modelHashes
+	entries map[string]*modelHashes
 
+	// Mutex to protect podHashes access
+	podHashesMu  sync.RWMutex
 	podHashes    map[types.NamespacedName]Cache[uint64, string] // Map of pod to its hash LRU
 	topK         int                                            // Each match returns at most topK pods.
 	hashCapacity int                                            // Capacity for each pod's hash LRU
@@ -40,14 +55,14 @@ type ModelPrefixStore struct {
 
 // MatchResult represents a matching pod and its match length
 type MatchResult struct {
-	Pod      *datastore.PodInfo
+	NsName   types.NamespacedName
 	MatchLen int
 }
 
 // NewModelPrefixStore creates a new ModelPrefixStore with the specified capacity and topK
 func NewModelPrefixStore(store datastore.Store, hashCapacity, topK int) *ModelPrefixStore {
 	s := &ModelPrefixStore{
-		entries:      make(map[string]map[uint64]map[types.NamespacedName]*datastore.PodInfo),
+		entries:      make(map[string]*modelHashes),
 		podHashes:    make(map[types.NamespacedName]Cache[uint64, string]),
 		topK:         topK,
 		hashCapacity: hashCapacity,
@@ -65,14 +80,16 @@ func (s *ModelPrefixStore) onPodDeleted(data datastore.EventData) {
 		return
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	// Remove pod's hash LRU
-	if hashLRU, exists := s.podHashes[data.Pod]; exists {
+	s.podHashesMu.Lock()
+	hashLRU, exists := s.podHashes[data.Pod]
+	if exists {
 		delete(s.podHashes, data.Pod)
+	}
+	s.podHashesMu.Unlock()
 
-		// NOTE: The Clear operation may trigger eviction, so must unlock first.
+	if exists {
+		// The Clear operation will trigger eviction for all items in the LRU.
+		// The onEvict callback will attempt to acquire locks.
 		hashLRU.Clear()
 	}
 }
@@ -81,35 +98,38 @@ func (s *ModelPrefixStore) onPodDeleted(data datastore.EventData) {
 func (s *ModelPrefixStore) FindTopMatches(model string, hashes []uint64, pods []*datastore.PodInfo) []MatchResult {
 	matches := make([]MatchResult, 0, s.topK)
 
-	// Only check entries for the requested model
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	modelEntries, exists := s.entries[model]
+	s.entriesMu.RLock()
+	modelCache, exists := s.entries[model]
+	s.entriesMu.RUnlock()
+
 	if !exists {
 		return nil
 	}
 
+	modelCache.mu.RLock()
+	defer modelCache.mu.RUnlock()
+
 	// Track processed pods to avoid duplicates
-	processedPods := make(map[*datastore.PodInfo]bool)
+	processedPods := sets.New[types.NamespacedName]()
 
 	// Start matching from the end of hashes
 	// This works because each hash depends on the previous hash in hashPrompt
 	for i := len(hashes) - 1; i >= 0; i-- {
 		hash := hashes[i]
-		if podMap, exists := modelEntries[hash]; exists {
-			for _, pod := range podMap {
+		if podSet, exists := modelCache.hashes[hash]; exists {
+			for pod := range podSet {
 				// Skip if pod is not in the candidate set or already processed
-				if processedPods[pod] {
+				if processedPods.Contains(pod) {
 					continue
 				}
-				processedPods[pod] = true
+				processedPods.Insert(pod)
 
 				// If we found a match at position i, we know all previous hashes must match
 				// because each hash depends on the previous one in hashPrompt
 				matchLen := i + 1
 
 				matches = append(matches, MatchResult{
-					Pod:      pod,
+					NsName:   pod,
 					MatchLen: matchLen,
 				})
 
@@ -131,61 +151,66 @@ func (s *ModelPrefixStore) Add(model string, hashes []uint64, pod *datastore.Pod
 		Name:      pod.Pod.Name,
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	// Get or create hash LRU for this pod
-	var hashLRU Cache[uint64, string]
-	if existingLRU, exists := s.podHashes[nsName]; exists {
-		hashLRU = existingLRU
-	} else {
-		// Create new hash LRU for this pod
+	s.podHashesMu.Lock()
+	hashLRU, exists := s.podHashes[nsName]
+	if !exists {
 		newHashLRU, _ := NewLRUCache[uint64, string](s.hashCapacity, func(key lru.Key, value interface{}) {
-			// NOTE: The eviction callback does not need to be locked.
-			// Because it's triggered by other operations, Add or Clear, and we should have locked at that time.
-
-			// Convert key and value to hash and model
+			// onEvict callback
 			hash := key.(uint64)
-			model := value.(string)
+			modelName := value.(string)
 
-			// Remove pod from the hash's pod map in the model
-			if modelEntries, exists := s.entries[model]; exists {
-				if podMap, exists := modelEntries[hash]; exists {
-					delete(podMap, nsName)
+			s.entriesMu.RLock()
+			modelCache, exists := s.entries[modelName]
+			s.entriesMu.RUnlock()
+			if !exists {
+				return
+			}
 
-					// If no more pods for this hash, remove the hash
-					if len(podMap) == 0 {
-						delete(modelEntries, hash)
+			modelCache.mu.Lock()
+			defer modelCache.mu.Unlock()
 
-						// If no more hashes for this model, remove the model
-						if len(modelEntries) == 0 {
-							delete(s.entries, model)
-						}
-					}
+			if podSet, exists := modelCache.hashes[hash]; exists {
+				podSet.Delete(nsName)
+				if podSet.Len() == 0 {
+					delete(modelCache.hashes, hash)
 				}
 			}
-		}) // Using hashCapacity for hash LRU
+		})
 		hashLRU = newHashLRU
 		s.podHashes[nsName] = hashLRU
 	}
+	s.podHashesMu.Unlock()
 
-	// Initialize model map if it doesn't exist
-	if _, exists := s.entries[model]; !exists {
-		s.entries[model] = make(map[uint64]map[types.NamespacedName]*datastore.PodInfo)
+	s.entriesMu.RLock()
+	modelCache, exists := s.entries[model]
+	s.entriesMu.RUnlock()
+
+	if !exists {
+		s.entriesMu.Lock()
+		// Double check after getting write lock
+		if modelCache, exists = s.entries[model]; !exists {
+			modelCache = newModelHashes()
+			s.entries[model] = modelCache
+		}
+		s.entriesMu.Unlock()
 	}
 
+	modelCache.mu.Lock()
 	// Add pod to each hash's pod map
 	// Add hashes from the end to the beginning to avoid
 	// the situation where a long prefix can be matched but a shorter prefix cannot.
 	for i := len(hashes) - 1; i >= 0; i-- {
 		hash := hashes[i]
-		if _, exists := s.entries[model][hash]; !exists {
-			s.entries[model][hash] = make(map[types.NamespacedName]*datastore.PodInfo)
+		if _, exists := modelCache.hashes[hash]; !exists {
+			modelCache.hashes[hash] = sets.New[types.NamespacedName]()
 		}
-		s.entries[model][hash][nsName] = pod
+		modelCache.hashes[hash].Insert(nsName)
+	}
+	modelCache.mu.Unlock()
 
-		// Add hash to pod's hash LRU
-		// The Add operation may trigger eviction, so must unlock first.
+	// Add hashes to pod's hash LRU after releasing the modelCache lock
+	for i := len(hashes) - 1; i >= 0; i-- {
+		hash := hashes[i]
 		hashLRU.Add(hash, model)
 	}
 }
