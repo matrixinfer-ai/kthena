@@ -6,34 +6,18 @@ rules:
   - apiGroups:
       - registry.matrixinfer.ai
     resources:
+      - autoscalingpolicybindings
       - autoscalingpolicies
     verbs:
-      - create
-      - delete
-      - get
-      - list
-      - patch
-      - update
-      - watch
-  - apiGroups:
-      - registry.matrixinfer.ai
-    resources:
-      - models
-    verbs:
       - get
       - list
       - patch
       - watch
-  - apiGroups:
-      - registry.matrixinfer.ai
-    resources:
-      - autoscalingpolicies/finalizers
-    verbs:
-      - update
   - apiGroups:
       - registry.matrixinfer.ai
     resources:
       - autoscalingpolicies/status
+      - autoscalingpolicybindings/status
     verbs:
       - get
       - patch
@@ -43,8 +27,6 @@ rules:
     resources:
       - modelinfers
     verbs:
-      - create
-      - delete
       - get
       - list
       - patch
