@@ -225,7 +225,7 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 
 	data := map[string]interface{}{
 		"MODEL_INFER_TEMPLATE_METADATA": &metav1.ObjectMeta{
-			Name:      utils.GetModelInferName(model, idx),
+			Name:      utils.GetBackendResourceName(model.Name, backend.Name),
 			Namespace: model.Namespace,
 			Labels: map[string]string{
 				ModelInferOwnerKey: string(model.UID),

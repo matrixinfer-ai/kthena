@@ -15,10 +15,6 @@ const (
 
 var XPUList = []corev1.ResourceName{"nvidia.com/gpu", "huawei.com/ascend-1980"}
 
-func GetAutoscalingPolicyName(model string, backend string) string {
-	return model + "-" + backend
-}
-
 func GetDeviceNum(worker *registryv1alpha1.ModelWorker) int64 {
 	sum := int64(0)
 	if worker.Resources.Requests != nil {

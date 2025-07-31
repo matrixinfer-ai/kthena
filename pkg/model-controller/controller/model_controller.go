@@ -504,12 +504,12 @@ func (mc *ModelController) updateModelServer(ctx context.Context, model *registr
 func (mc *ModelController) createAutoscalingPolicyAndBinding(ctx context.Context, model *registryv1alpha1.Model) error {
 	if model.Spec.AutoscalingPolicy != nil {
 		// Create autoscaling policy and optimize policy binding
-		modelAutoscalePolicy := convert.BuildAutoscalingPolicy(model.Spec.AutoscalingPolicy, utils.GetAutoscalingPolicyName(model.Name, ""))
+		modelAutoscalePolicy := convert.BuildAutoscalingPolicy(model.Spec.AutoscalingPolicy, utils.GetBackendResourceName(model.Name, ""))
 		if _, err := mc.client.RegistryV1alpha1().AutoscalingPolicies(model.Namespace).Create(ctx, modelAutoscalePolicy, metav1.CreateOptions{}); err != nil {
 			klog.Errorf("Create autoscaling policy of model: [%s] failed: %v", model.Name, err)
 			return err
 		}
-		modelPolicyBinding := convert.BuildOptimizePolicyBinding(model, utils.GetAutoscalingPolicyName(model.Name, ""))
+		modelPolicyBinding := convert.BuildOptimizePolicyBinding(model, utils.GetBackendResourceName(model.Name, ""))
 		if _, err := mc.client.RegistryV1alpha1().AutoscalingPolicyBindings(model.Namespace).Create(ctx, modelPolicyBinding, metav1.CreateOptions{}); err != nil {
 			klog.Errorf("Create autoscaling policy binding of model: [%s] failed: %v", model.Name, err)
 			return err
@@ -520,12 +520,12 @@ func (mc *ModelController) createAutoscalingPolicyAndBinding(ctx context.Context
 			if backend.AutoscalingPolicy == nil {
 				continue
 			}
-			backendAutoscalePolicy := convert.BuildAutoscalingPolicy(backend.AutoscalingPolicy, utils.GetAutoscalingPolicyName(model.Name, backend.Name))
+			backendAutoscalePolicy := convert.BuildAutoscalingPolicy(backend.AutoscalingPolicy, utils.GetBackendResourceName(model.Name, backend.Name))
 			if _, err := mc.client.RegistryV1alpha1().AutoscalingPolicies(model.Namespace).Create(ctx, backendAutoscalePolicy, metav1.CreateOptions{}); err != nil {
 				klog.Errorf("Create autoscaling policy of backend: [%s] in model: [%s] failed: %v", backend.Name, model.Name, err)
 				return err
 			}
-			backendPolicyBinding := convert.BuildScalingPolicyBinding(model, &backend, utils.GetAutoscalingPolicyName(model.Name, backend.Name))
+			backendPolicyBinding := convert.BuildScalingPolicyBinding(model, &backend, utils.GetBackendResourceName(model.Name, backend.Name))
 			if _, err := mc.client.RegistryV1alpha1().AutoscalingPolicyBindings(model.Namespace).Create(ctx, backendPolicyBinding, metav1.CreateOptions{}); err != nil {
 				klog.Errorf("Create autoscaling policy binding of backend: [%s] in model: [%s] failed: %v", backend.Name, model.Name, err)
 				return err
@@ -537,7 +537,7 @@ func (mc *ModelController) createAutoscalingPolicyAndBinding(ctx context.Context
 
 func (mc *ModelController) updateAutoscalingPolicyAndBinding(ctx context.Context, model *registryv1alpha1.Model) error {
 	if model.Spec.AutoscalingPolicy != nil {
-		name := utils.GetAutoscalingPolicyName(model.Name, "")
+		name := utils.GetBackendResourceName(model.Name, "")
 		err := mc.tryUpdateAutoscalingPolicy(ctx, model, model.Spec.AutoscalingPolicy, name)
 		if err != nil {
 			return err
@@ -551,7 +551,7 @@ func (mc *ModelController) updateAutoscalingPolicyAndBinding(ctx context.Context
 			if backend.AutoscalingPolicy == nil {
 				continue
 			}
-			err := mc.tryUpdateAutoscalingPolicy(ctx, model, backend.AutoscalingPolicy, utils.GetAutoscalingPolicyName(model.Name, backend.Name))
+			err := mc.tryUpdateAutoscalingPolicy(ctx, model, backend.AutoscalingPolicy, utils.GetBackendResourceName(model.Name, backend.Name))
 			if err != nil {
 				return err
 			}
@@ -567,9 +567,9 @@ func (mc *ModelController) updateAutoscalingPolicyAndBinding(ctx context.Context
 func (mc *ModelController) tryUpdateAutoscalingPolicyBinding(ctx context.Context, model *registryv1alpha1.Model, backend *registryv1alpha1.ModelBackend) error {
 	var targetAutoscalePolicyBinding *registryv1alpha1.AutoscalingPolicyBinding
 	if backend == nil {
-		targetAutoscalePolicyBinding = convert.BuildOptimizePolicyBinding(model, utils.GetAutoscalingPolicyName(model.Name, ""))
+		targetAutoscalePolicyBinding = convert.BuildOptimizePolicyBinding(model, utils.GetBackendResourceName(model.Name, ""))
 	} else {
-		targetAutoscalePolicyBinding = convert.BuildOptimizePolicyBinding(model, utils.GetAutoscalingPolicyName(model.Name, backend.Name))
+		targetAutoscalePolicyBinding = convert.BuildOptimizePolicyBinding(model, utils.GetBackendResourceName(model.Name, backend.Name))
 	}
 	currentAutoscalePolicyBinding, err := mc.autoscalingPolicyBindingsLister.AutoscalingPolicyBindings(model.Namespace).Get(targetAutoscalePolicyBinding.Name)
 	if err != nil {

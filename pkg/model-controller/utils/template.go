@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	"matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	"sort"
 	"strconv"
 	"strings"
@@ -153,6 +152,6 @@ func ReplacePlaceholders(data *interface{}, values *map[string]interface{}) erro
 	return nil
 }
 
-func GetModelInferName(model *v1alpha1.Model, idx int) string {
-	return fmt.Sprintf("%s-%d-%s", model.Name, idx, strings.ToLower(string(model.Spec.Backends[idx].Type)))
+func GetBackendResourceName(modelName string, backendName string) string {
+	return fmt.Sprintf("%s-%s", modelName, backendName)
 }
