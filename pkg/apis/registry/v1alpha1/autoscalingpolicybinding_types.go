@@ -30,8 +30,6 @@ type MetricFrom struct {
 	// +optional
 	// +kubebuilder:default=8100
 	Port int32 `json:"port,omitempty"`
-	// +optional
-	AdditionalMatchLabels map[string]string `json:"additionalMatchLabels,omitempty"`
 }
 
 type ScalingConfiguration struct {
@@ -56,10 +54,12 @@ type OptimizerConfiguration struct {
 }
 
 type Target struct {
-	Name       string                       `json:"name"`
-	Kind       AutoscalingTargetType        `json:"kind"`
-	TargetRef  *corev1.LocalObjectReference `json:"targetRef,omitempty"`
-	MetricFrom MetricFrom                   `json:"metricFrom,omitempty"`
+	Name      string                       `json:"name"`
+	Kind      AutoscalingTargetType        `json:"kind"`
+	TargetRef *corev1.LocalObjectReference `json:"targetRef,omitempty"`
+	// +optional
+	AdditionalMatchLabels map[string]string `json:"additionalMatchLabels,omitempty"`
+	MetricFrom            MetricFrom        `json:"metricFrom,omitempty"`
 }
 
 type OptimizerParam struct {

@@ -2,6 +2,7 @@ package util
 
 import (
 	"context"
+	"istio.io/istio/pkg/maps"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -9,8 +10,13 @@ import (
 	"k8s.io/klog/v2"
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
 	workloadLister "matrixinfer.ai/matrixinfer/client-go/listers/workload/v1alpha1"
+	"matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 	"time"
+)
+
+const (
+	ModelInferEntryPodLabel = "leader"
 )
 
 func GetModelInferTarget(ctx context.Context, lister workloadLister.ModelInferLister, namespace string, name string) (*workload.ModelInfer, error) {
@@ -43,6 +49,19 @@ func UpdateModelInfer(ctx context.Context, client clientset.Interface, modelInfe
 	} else {
 		klog.Errorf("failed to get old modelInfer,err: %v", err)
 		return err
+	}
+	return nil
+}
+
+func GetTargetLabels(target *v1alpha1.Target) map[string]string {
+	if target.Kind == v1alpha1.ModelInferenceTargetType {
+		var lbs map[string]string
+		if target.AdditionalMatchLabels != nil {
+			lbs = maps.Clone(target.AdditionalMatchLabels)
+		}
+		lbs[workload.ModelInferNameLabelKey] = target.TargetRef.Name
+		lbs[workload.RoleLabelKey] = ModelInferEntryPodLabel
+		return lbs
 	}
 	return nil
 }

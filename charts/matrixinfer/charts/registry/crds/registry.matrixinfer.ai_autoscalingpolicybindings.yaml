@@ -74,14 +74,14 @@ spec:
                           type: integer
                         target:
                           properties:
+                            additionalMatchLabels:
+                              additionalProperties:
+                                type: string
+                              type: object
                             kind:
                               type: string
                             metricFrom:
                               properties:
-                                additionalMatchLabels:
-                                  additionalProperties:
-                                    type: string
-                                  type: object
                                 port:
                                   default: 8100
                                   format: int32
@@ -152,14 +152,14 @@ spec:
                     type: integer
                   target:
                     properties:
+                      additionalMatchLabels:
+                        additionalProperties:
+                          type: string
+                        type: object
                       kind:
                         type: string
                       metricFrom:
                         properties:
-                          additionalMatchLabels:
-                            additionalProperties:
-                              type: string
-                            type: object
                           port:
                             default: 8100
                             format: int32

@@ -21,9 +21,8 @@ package v1alpha1
 // MetricFromApplyConfiguration represents a declarative configuration of the MetricFrom type for use
 // with apply.
 type MetricFromApplyConfiguration struct {
-	Uri                   *string           `json:"uri,omitempty"`
-	Port                  *int32            `json:"port,omitempty"`
-	AdditionalMatchLabels map[string]string `json:"additionalMatchLabels,omitempty"`
+	Uri  *string `json:"uri,omitempty"`
+	Port *int32  `json:"port,omitempty"`
 }
 
 // MetricFromApplyConfiguration constructs a declarative configuration of the MetricFrom type for use with
@@ -45,19 +44,5 @@ func (b *MetricFromApplyConfiguration) WithUri(value string) *MetricFromApplyCon
 // If called multiple times, the Port field is set to the value of the last call.
 func (b *MetricFromApplyConfiguration) WithPort(value int32) *MetricFromApplyConfiguration {
 	b.Port = &value
-	return b
-}
-
-// WithAdditionalMatchLabels puts the entries into the AdditionalMatchLabels field in the declarative configuration
-// and returns the receiver, so that objects can be build by chaining "With" function invocations.
-// If called multiple times, the entries provided by each call will be put on the AdditionalMatchLabels field,
-// overwriting an existing map entries in AdditionalMatchLabels field with the same key.
-func (b *MetricFromApplyConfiguration) WithAdditionalMatchLabels(entries map[string]string) *MetricFromApplyConfiguration {
-	if b.AdditionalMatchLabels == nil && len(entries) > 0 {
-		b.AdditionalMatchLabels = make(map[string]string, len(entries))
-	}
-	for k, v := range entries {
-		b.AdditionalMatchLabels[k] = v
-	}
 	return b
 }

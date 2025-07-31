@@ -62,9 +62,9 @@ func (collector *MetricCollector) UpdateMetrics(ctx context.Context, podLister l
 	// Get pod list which will be invoked api to get metrics
 	unreadyInstancesCount = int32(0)
 	err = nil
-	pods, err := util.GetMetricPods(podLister, collector.Scope.Namespace, collector.Target.MetricFrom.AdditionalMatchLabels)
+	pods, err := util.GetMetricPods(podLister, collector.Scope.Namespace, util.GetTargetLabels(collector.Target))
 	if err != nil {
-		klog.Errorf("list watched pod error: %v in namespace: %s, labels: %v", err, collector.Scope.Namespace, collector.Target.MetricFrom.AdditionalMatchLabels)
+		klog.Errorf("list watched pod error: %v in namespace: %s, labels: %v", err, collector.Scope.Namespace, collector.Target.AdditionalMatchLabels)
 		return
 	}
 	if pods == nil || len(pods) == 0 {
