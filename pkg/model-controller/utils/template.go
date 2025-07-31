@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	"sort"
 	"strconv"
 	"strings"
@@ -154,4 +155,13 @@ func ReplacePlaceholders(data *interface{}, values *map[string]interface{}) erro
 
 func GetBackendResourceName(modelName string, backendName string) string {
 	return fmt.Sprintf("%s-%s", modelName, backendName)
+}
+
+func GetModelControllerLabels(modelName string, backendName string, revision string) map[string]string {
+	return map[string]string{
+		registry.ModelNameLabelKey:   modelName,
+		registry.BackendNameLabelKey: backendName,
+		registry.ManageBy:            registry.GroupName,
+		registry.RevisionLabelKey:    revision,
+	}
 }

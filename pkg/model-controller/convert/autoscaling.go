@@ -8,7 +8,7 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
 )
 
-func BuildAutoscalingPolicy(autoscalingConfig *registry.AutoscalingPolicyConfig, name string) *registry.AutoscalingPolicy {
+func BuildAutoscalingPolicy(autoscalingConfig *registry.AutoscalingPolicyConfig, model *registry.Model, backendName string) *registry.AutoscalingPolicy {
 	autoscalingPolicy := &registry.AutoscalingPolicySpec{}
 	autoscalingPolicy.TolerancePercent = autoscalingConfig.TolerancePercent
 	autoscalingPolicy.Metrics = append(autoscalingPolicy.Metrics, autoscalingConfig.Metrics...)
@@ -16,8 +16,13 @@ func BuildAutoscalingPolicy(autoscalingConfig *registry.AutoscalingPolicyConfig,
 	autoscalingPolicy.Behavior.ScaleDown = autoscalingConfig.Behavior
 	return &registry.AutoscalingPolicy{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
+			Name:   utils.GetBackendResourceName(model.Name, backendName),
+			Labels: utils.GetModelControllerLabels(model.Name, backendName, icUtils.Revision(*autoscalingPolicy)),
+			OwnerReferences: []metav1.OwnerReference{
+				utils.NewModelOwnerRef(model),
+			},
 		},
+
 		Spec: *autoscalingPolicy,
 	}
 }
@@ -45,12 +50,7 @@ func BuildPolicyBindingMeta(spec *registry.AutoscalingPolicyBindingSpec, model *
 	return &metav1.ObjectMeta{
 		Name:      name,
 		Namespace: model.Namespace,
-		Labels: map[string]string{
-			registry.ModelNameLabelKey:   model.Name,
-			registry.BackendNameLabelKey: backendName,
-			registry.ManageBy:            registry.GroupName,
-			registry.RevisionLabelKey:    icUtils.Revision(spec),
-		},
+		Labels:    utils.GetModelControllerLabels(model.Name, backendName, icUtils.Revision(spec)),
 		OwnerReferences: []metav1.OwnerReference{
 			utils.NewModelOwnerRef(model),
 		},
@@ -68,7 +68,7 @@ func BuildScalingPolicyBinding(model *registry.Model, backend *registry.ModelBac
 func BuildOptimizePolicyBindingSpec(model *registry.Model, name string) *registry.AutoscalingPolicyBindingSpec {
 	params := make([]registry.OptimizerParam, len(model.Spec.Backends))
 	for _, backend := range model.Spec.Backends {
-		targetName := utils.GetAutoscalingPolicyName(model.Name, backend.Name)
+		targetName := utils.GetBackendResourceName(model.Name, backend.Name)
 		params = append(params, registry.OptimizerParam{
 			Target: registry.Target{
 				Kind: registry.ModelInferenceTargetType,

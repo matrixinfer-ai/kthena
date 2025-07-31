@@ -504,7 +504,7 @@ func (mc *ModelController) updateModelServer(ctx context.Context, model *registr
 func (mc *ModelController) createAutoscalingPolicyAndBinding(ctx context.Context, model *registryv1alpha1.Model) error {
 	if model.Spec.AutoscalingPolicy != nil {
 		// Create autoscaling policy and optimize policy binding
-		modelAutoscalePolicy := convert.BuildAutoscalingPolicy(model.Spec.AutoscalingPolicy, utils.GetBackendResourceName(model.Name, ""))
+		modelAutoscalePolicy := convert.BuildAutoscalingPolicy(model.Spec.AutoscalingPolicy, model, "")
 		if _, err := mc.client.RegistryV1alpha1().AutoscalingPolicies(model.Namespace).Create(ctx, modelAutoscalePolicy, metav1.CreateOptions{}); err != nil {
 			klog.Errorf("Create autoscaling policy of model: [%s] failed: %v", model.Name, err)
 			return err
@@ -520,7 +520,7 @@ func (mc *ModelController) createAutoscalingPolicyAndBinding(ctx context.Context
 			if backend.AutoscalingPolicy == nil {
 				continue
 			}
-			backendAutoscalePolicy := convert.BuildAutoscalingPolicy(backend.AutoscalingPolicy, utils.GetBackendResourceName(model.Name, backend.Name))
+			backendAutoscalePolicy := convert.BuildAutoscalingPolicy(backend.AutoscalingPolicy, model, backend.Name)
 			if _, err := mc.client.RegistryV1alpha1().AutoscalingPolicies(model.Namespace).Create(ctx, backendAutoscalePolicy, metav1.CreateOptions{}); err != nil {
 				klog.Errorf("Create autoscaling policy of backend: [%s] in model: [%s] failed: %v", backend.Name, model.Name, err)
 				return err
@@ -597,7 +597,7 @@ func (mc *ModelController) tryUpdateAutoscalingPolicyBinding(ctx context.Context
 }
 
 func (mc *ModelController) tryUpdateAutoscalingPolicy(ctx context.Context, model *registryv1alpha1.Model, policy *registryv1alpha1.AutoscalingPolicyConfig, policyName string) error {
-	targetAutoscalePolicy := convert.BuildAutoscalingPolicy(policy, policyName)
+	targetAutoscalePolicy := convert.BuildAutoscalingPolicy(policy, model, policyName)
 	currentAutoscalePolicy, err := mc.autoscalingPoliciesLister.AutoscalingPolicies(model.Namespace).Get(policyName)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
