@@ -50,7 +50,7 @@ helm install <your-name> <archive-file-name> --namespace <namespace> \
 
 And you can even specify a customized `values.yaml` file for installation.
 ```shell
-helm install dev-release charts/matrixinfer -f values-dev.yaml
+helm install dev-release charts/matrixinfer -f values-dev.yaml -n <namespace>
 ```
 ### Installation Order
 
@@ -98,7 +98,7 @@ For more details on the reasoning behind this, see [this explanation](https://he
 ## Uninstall
 
 ```shell
-helm uninstall <release-name>
+helm uninstall <release-name> -n <namespace> [--create-namespace]
 ```
 
 ## Test

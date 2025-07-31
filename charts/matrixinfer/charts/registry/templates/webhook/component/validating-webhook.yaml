@@ -2,7 +2,7 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
-  name: {{ include "matrixinfer.name" . }}-registry-validating-webhook
+  name: {{ include "matrixinfer.name" . }}-validating-webhook
   labels:
     app.kubernetes.io/component: webhook
     {{- include "matrixinfer.labels" . | nindent 4 }}
