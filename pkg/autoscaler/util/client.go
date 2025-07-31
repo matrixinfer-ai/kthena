@@ -5,33 +5,29 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/kubernetes"
+	listerv1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/klog/v2"
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
+	workloadLister "matrixinfer.ai/matrixinfer/client-go/listers/workload/v1alpha1"
 	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 	"time"
 )
 
-func GetModelInferTarget(ctx context.Context, client clientset.Interface, namespace string, name string) (*workload.ModelInfer, error) {
+func GetModelInferTarget(ctx context.Context, lister workloadLister.ModelInferLister, namespace string, name string) (*workload.ModelInfer, error) {
 	ctx, cancel := context.WithTimeout(ctx, AutoscaleCtxTimeoutSeconds*time.Second)
 	defer cancel()
-	if instance, err := client.WorkloadV1alpha1().ModelInfers(namespace).Get(ctx, name, metav1.GetOptions{}); err != nil {
+	if instance, err := lister.ModelInfers(namespace).Get(name); err != nil {
 		return nil, err
 	} else {
 		return instance, nil
 	}
 }
 
-func GetMetricPods(ctx context.Context, client kubernetes.Interface, namespace string, matchLabels map[string]string) (*corev1.PodList, error) {
-	listPodCtx, cancel := context.WithTimeout(ctx, AutoscaleCtxTimeoutSeconds*time.Second)
-	defer cancel()
-
-	if podList, err := client.CoreV1().Pods(namespace).List(listPodCtx, metav1.ListOptions{
-		LabelSelector: labels.SelectorFromSet(matchLabels).String(),
-	}); err != nil {
-		return podList, nil
-	} else {
+func GetMetricPods(lister listerv1.PodLister, namespace string, matchLabels map[string]string) ([]*corev1.Pod, error) {
+	if podList, err := lister.Pods(namespace).List(labels.SelectorFromSet(matchLabels)); err != nil {
 		return nil, err
+	} else {
+		return podList, nil
 	}
 }
 

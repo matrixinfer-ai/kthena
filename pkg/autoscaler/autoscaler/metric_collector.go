@@ -10,7 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
+	listerv1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/klog/v2"
 	"matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/autoscaler/algorithm"
@@ -58,22 +58,22 @@ type InstanceInfo struct {
 	MetricsMap algorithm.Metrics
 }
 
-func (collector *MetricCollector) UpdateMetrics(ctx context.Context, kubeClient kubernetes.Interface) (unreadyInstancesCount int32, readyInstancesMetric algorithm.Metrics, err error) {
+func (collector *MetricCollector) UpdateMetrics(ctx context.Context, podLister listerv1.PodLister) (unreadyInstancesCount int32, readyInstancesMetric algorithm.Metrics, err error) {
 	// Get pod list which will be invoked api to get metrics
 	unreadyInstancesCount = int32(0)
 	err = nil
-	podList, err := util.GetMetricPods(ctx, kubeClient, collector.Scope.Namespace, collector.Target.MetricFrom.AdditionalMatchLabels)
+	pods, err := util.GetMetricPods(podLister, collector.Scope.Namespace, collector.Target.MetricFrom.AdditionalMatchLabels)
 	if err != nil {
-		klog.Errorf("list watched pod error: %v", err)
+		klog.Errorf("list watched pod error: %v in namespace: %s, labels: %v", err, collector.Scope.Namespace, collector.Target.MetricFrom.AdditionalMatchLabels)
 		return
 	}
-	if podList == nil || len(podList.Items) == 0 {
+	if pods == nil || len(pods) == 0 {
 		klog.Errorf("pod list is null")
 		return
 	}
 
 	currentHistograms := make(map[string]HistogramInfo)
-	instanceInfo := collector.fetchMetricsFromPod(ctx, podList, &currentHistograms)
+	instanceInfo := collector.fetchMetricsFromPod(ctx, pods, &currentHistograms)
 	klog.V(10).InfoS("finish to processInstance", "instanceInfo.isFailed", instanceInfo.IsFailed)
 	klog.V(10).InfoS("finish to processInstance", "instanceInfo.isReady", instanceInfo.IsReady)
 	klog.V(10).InfoS("finish to processInstance", "instanceInfo.metricsMap", instanceInfo.MetricsMap)
@@ -92,16 +92,16 @@ func (collector *MetricCollector) UpdateMetrics(ctx context.Context, kubeClient 
 	return
 }
 
-func (collector *MetricCollector) fetchMetricsFromPod(ctx context.Context, podList *corev1.PodList, currentHistograms *map[string]HistogramInfo) InstanceInfo {
+func (collector *MetricCollector) fetchMetricsFromPod(ctx context.Context, pods []*corev1.Pod, currentHistograms *map[string]HistogramInfo) InstanceInfo {
 	instanceInfo := InstanceInfo{true, false, make(algorithm.Metrics)}
 	pastHistograms, ok := collector.PastHistograms.GetLastUnfreshSnapshot()
 	if !ok {
 		pastHistograms = make(map[string]HistogramInfo)
 	}
 	klog.InfoS("processInstance start")
-	for _, pod := range podList.Items {
-		instanceInfo.IsReady = instanceInfo.IsReady && inferControllerUtils.IsPodRunningAndReady(&pod)
-		instanceInfo.IsFailed = instanceInfo.IsFailed || util.IsPodFailed(&pod) || inferControllerUtils.ContainerRestarted(&pod)
+	for _, pod := range pods {
+		instanceInfo.IsReady = instanceInfo.IsReady && inferControllerUtils.IsPodRunningAndReady(pod)
+		instanceInfo.IsFailed = instanceInfo.IsFailed || util.IsPodFailed(pod) || inferControllerUtils.ContainerRestarted(pod)
 
 		pastValue, ok := pastHistograms[pod.Name]
 		var pastHistogramMap map[string]*histogram.Snapshot
@@ -123,7 +123,7 @@ func (collector *MetricCollector) fetchMetricsFromPod(ctx context.Context, podLi
 			klog.Errorf("get metric response error: %v", err)
 			continue
 		}
-		if resp == nil || util.IsRequestSuccess(resp.StatusCode) || resp.Body == nil {
+		if resp == nil || !util.IsRequestSuccess(resp.StatusCode) || resp.Body == nil {
 			klog.Errorf("get metric response is invalid")
 			continue
 		}

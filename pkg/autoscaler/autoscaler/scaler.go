@@ -19,9 +19,10 @@ package autoscaler
 import (
 	"context"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
+	listerv1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/klog/v2"
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
+	workloadLister "matrixinfer.ai/matrixinfer/client-go/listers/workload/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/autoscaler/algorithm"
 	"matrixinfer.ai/matrixinfer/pkg/autoscaler/util"
@@ -52,9 +53,9 @@ func NewAutoscaler(behavior *v1alpha1.AutoscalingPolicyBehavior, binding *v1alph
 	}
 }
 
-func (autoscaler *Autoscaler) Scale(ctx context.Context, client clientset.Interface, kubeClient kubernetes.Interface, autoscalePolicy *v1alpha1.AutoscalingPolicy) error {
+func (autoscaler *Autoscaler) Scale(ctx context.Context, client clientset.Interface, modelInferLister workloadLister.ModelInferLister, podLister listerv1.PodLister, autoscalePolicy *v1alpha1.AutoscalingPolicy) error {
 	// Get autoscaler target(model infer) instance
-	modelInfer, err := util.GetModelInferTarget(ctx, client, autoscaler.Meta.Namespace, autoscaler.Meta.Config.Target.TargetRef.Name)
+	modelInfer, err := util.GetModelInferTarget(ctx, modelInferLister, autoscaler.Meta.Namespace, autoscaler.Meta.Config.Target.TargetRef.Name)
 	if err != nil {
 		klog.Errorf("get model infer error: %v", err)
 		return err
@@ -62,7 +63,7 @@ func (autoscaler *Autoscaler) Scale(ctx context.Context, client clientset.Interf
 	currentInstancesCount := *modelInfer.Spec.Replicas
 	klog.InfoS("doAutoscale modelInfer", "currentInstancesCount", currentInstancesCount)
 
-	unreadyInstancesCount, readyInstancesMetrics, err := autoscaler.Collector.UpdateMetrics(ctx, kubeClient)
+	unreadyInstancesCount, readyInstancesMetrics, err := autoscaler.Collector.UpdateMetrics(ctx, podLister)
 	if err != nil {
 		klog.Errorf("update metrics error: %v", err)
 		return err

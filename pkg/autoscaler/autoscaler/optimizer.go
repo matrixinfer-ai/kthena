@@ -2,10 +2,11 @@ package autoscaler
 
 import (
 	"context"
-	"k8s.io/client-go/kubernetes"
+	listerv1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
+	workloadLister "matrixinfer.ai/matrixinfer/client-go/listers/workload/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/autoscaler/algorithm"
@@ -117,7 +118,7 @@ func NewOptimizer(behavior *v1alpha1.AutoscalingPolicyBehavior, binding *v1alpha
 	}
 }
 
-func (optimizer *Optimizer) Optimize(ctx context.Context, client clientset.Interface, kubeClient kubernetes.Interface, autoscalePolicy *v1alpha1.AutoscalingPolicy) error {
+func (optimizer *Optimizer) Optimize(ctx context.Context, client clientset.Interface, modelInferLister workloadLister.ModelInferLister, podLister listerv1.PodLister, autoscalePolicy *v1alpha1.AutoscalingPolicy) error {
 	size := len(optimizer.Meta.Config.Params)
 	unreadyInstancesCount := int32(0)
 	readyInstancesMetrics := make([]algorithm.Metrics, size)
@@ -132,7 +133,7 @@ func (optimizer *Optimizer) Optimize(ctx context.Context, client clientset.Inter
 		}
 
 		// Get autoscaler target(model infer) instance
-		modelInfer, err := util.GetModelInferTarget(ctx, client, optimizer.Meta.Scope.Namespace, param.Target.TargetRef.Name)
+		modelInfer, err := util.GetModelInferTarget(ctx, modelInferLister, optimizer.Meta.Scope.Namespace, param.Target.TargetRef.Name)
 		if err != nil {
 			klog.Errorf("get model infer error: %v", err)
 			return err
@@ -140,7 +141,7 @@ func (optimizer *Optimizer) Optimize(ctx context.Context, client clientset.Inter
 		currentInstancesCount += *modelInfer.Spec.Replicas
 		klog.Infof("Model infer:%s, current replicas:%d", modelInfer.Name, modelInfer.Spec.Replicas)
 
-		currentUnreadyInstancesCount, currentReadyInstancesMetrics, err := collector.UpdateMetrics(ctx, kubeClient)
+		currentUnreadyInstancesCount, currentReadyInstancesMetrics, err := collector.UpdateMetrics(ctx, podLister)
 		if err != nil {
 			klog.Warningf("update metrics error: %v", err)
 			continue

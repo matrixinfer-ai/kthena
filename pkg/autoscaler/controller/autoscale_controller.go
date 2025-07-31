@@ -68,12 +68,11 @@ func NewAutoscaleController(kubeClient kubernetes.Interface, client clientset.In
 	autoscalingPoliciesInformer := informerFactory.Registry().V1alpha1().AutoscalingPolicies()
 	autoscalingPoliciesBindingInformer := informerFactory.Registry().V1alpha1().AutoscalingPolicyBindings()
 
-	req, err := labels.NewRequirement(workload.GroupNameLabelKey, selection.Exists, nil)
+	selector, err := labels.NewRequirement(workload.GroupNameLabelKey, selection.Exists, nil)
 	if err != nil {
 		klog.Errorf("can not create label selector,err:%v", err)
 		return nil
 	}
-	selector := labels.NewSelector().Add(*req)
 	kubeInformerFactory := informers.NewSharedInformerFactoryWithOptions(
 		kubeClient, 0, informers.WithTweakListOptions(func(opts *metav1.ListOptions) {
 			opts.LabelSelector = selector.String()
@@ -190,7 +189,7 @@ func (ac *AutoscaleController) schedule(ctx context.Context, binding *v1alpha1.A
 			optimizer = autoscaler.NewOptimizer(&autoscalePolicy.Spec.Behavior, binding, metricTargets)
 			ac.optimizerMap[optimizerKey] = optimizer
 		}
-		if err := optimizer.Optimize(ctx, ac.client, ac.kubeClient, autoscalePolicy); err != nil {
+		if err := optimizer.Optimize(ctx, ac.client, ac.modelInfersLister, ac.podsLister, autoscalePolicy); err != nil {
 			klog.Errorf("failed to do optimize, err: %v", err)
 			return err
 		}
@@ -202,7 +201,7 @@ func (ac *AutoscaleController) schedule(ctx context.Context, binding *v1alpha1.A
 			scalingAutoscaler = autoscaler.NewAutoscaler(&autoscalePolicy.Spec.Behavior, binding, metricTargets)
 			ac.scalerMap[instanceKey] = scalingAutoscaler
 		}
-		if err := scalingAutoscaler.Scale(ctx, ac.client, ac.kubeClient, autoscalePolicy); err != nil {
+		if err := scalingAutoscaler.Scale(ctx, ac.client, ac.modelInfersLister, ac.podsLister, autoscalePolicy); err != nil {
 			klog.Errorf("failed to do scaling, err: %v", err)
 			return err
 		}
