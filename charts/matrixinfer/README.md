@@ -32,26 +32,19 @@ helm install <release-name> <chart> [flags]
 ```
 Example:
 ```shell
-helm install my-release my-chart --namespace my-namespace
+helm install my-release my-chart --namespace my-namespace --create-namespace
 ```
 
 ### Installation Customization
-By default, all subcharts will be installed. If you want to specify which of them to install, you can customize by using the `--set` flag.
+You can override the default value of `values.yaml` by using the `--set` flag and `-f`.
 
 ```shell
-# this will only install workload subchart, and disable registry and networking subcharts
-helm install <your-name> <archive-file-name> --namespace <namespace> \
-  --set registry.enabled=false,networking.enabled=false
-# or
-helm install <your-name> <archive-file-name> --namespace <namespace> \
-  --set registry.enabled=false \
-  --set networking.enabled=false
+helm install <release-name> <chart> --namespace <namespace> \
+  --set registry.enabled=true \
+  --set networking.enabled=false \
+  -f values-dev.yaml # And you can even specify a customized `values.yaml` file for installation.
 ```
 
-And you can even specify a customized `values.yaml` file for installation.
-```shell
-helm install dev-release charts/matrixinfer -f values-dev.yaml -n <namespace>
-```
 ### Installation Order
 
 Helm first installs resources from the `/crd` directory.  
@@ -98,7 +91,7 @@ For more details on the reasoning behind this, see [this explanation](https://he
 ## Uninstall
 
 ```shell
-helm uninstall <release-name> -n <namespace> [--create-namespace]
+helm uninstall <release-name> -n <namespace>
 ```
 
 ## Test
