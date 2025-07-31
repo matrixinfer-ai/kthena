@@ -191,7 +191,7 @@ func (ac *AutoscaleController) schedule(ctx context.Context, binding *v1alpha1.A
 			ac.optimizerMap[optimizerKey] = optimizer
 		}
 		if err := optimizer.Optimize(ctx, ac.client, ac.kubeClient, autoscalePolicy); err != nil {
-			klog.Errorf("failed to do scale, err: %v", err)
+			klog.Errorf("failed to do optimize, err: %v", err)
 			return err
 		}
 	} else if binding.Spec.ScalingConfiguration != nil {
@@ -203,7 +203,7 @@ func (ac *AutoscaleController) schedule(ctx context.Context, binding *v1alpha1.A
 			ac.scalerMap[instanceKey] = scalingAutoscaler
 		}
 		if err := scalingAutoscaler.Scale(ctx, ac.client, ac.kubeClient, autoscalePolicy); err != nil {
-			klog.Errorf("failed to do optimize, err: %v", err)
+			klog.Errorf("failed to do scaling, err: %v", err)
 			return err
 		}
 	} else {

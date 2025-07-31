@@ -132,9 +132,9 @@ func (optimizer *Optimizer) Optimize(ctx context.Context, client clientset.Inter
 		}
 
 		// Get autoscaler target(model infer) instance
-		modelInfer, err := util.GetModelInferTarget(ctx, client, optimizer.Meta.Scope.Namespace, param.Target.Name)
+		modelInfer, err := util.GetModelInferTarget(ctx, client, optimizer.Meta.Scope.Namespace, param.Target.TargetRef.Name)
 		if err != nil {
-			klog.Errorf("list modelInfer error: %v", err)
+			klog.Errorf("get model infer error: %v", err)
 			return err
 		}
 		currentInstancesCount += *modelInfer.Spec.Replicas

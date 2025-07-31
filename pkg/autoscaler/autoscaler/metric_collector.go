@@ -64,7 +64,7 @@ func (collector *MetricCollector) UpdateMetrics(ctx context.Context, kubeClient 
 	err = nil
 	podList, err := util.GetMetricPods(ctx, kubeClient, collector.Scope.Namespace, collector.Target.MetricFrom.AdditionalMatchLabels)
 	if err != nil {
-		klog.Errorf("list modelInfer error: %v", err)
+		klog.Errorf("list watched pod error: %v", err)
 		return
 	}
 	if podList == nil || len(podList.Items) == 0 {
