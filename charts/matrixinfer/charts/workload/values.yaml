@@ -10,3 +10,15 @@ inferController:
     pullPolicy: IfNotPresent
     # args are the command line arguments for the infer-controller.
     args: [ "--v=2" ]
+
+webhook:
+  enabled: true
+
+global:
+  certManager:
+    enabled: true
+  webhook:
+    # caBundle is the base64-encoded CA bundle for webhook server certificates.
+    # This is required when cert-manager is disabled (global.certManager.enabled=false).
+    # You can generate it with: cat /path/to/your/ca.crt | base64 | tr -d '\n'
+    # caBundle: ""
