@@ -20,26 +20,27 @@ package connectors
 type ConnectorType string
 
 const (
-	ConnectorTypeHTTP    ConnectorType = "http"
-	ConnectorTypeLMCache ConnectorType = "lmcache"
-	ConnectorTypeNIXL    ConnectorType = "nixl"
+	ConnectorTypeHTTP     ConnectorType = "http"
+	ConnectorTypeNIXL     ConnectorType = "nixl"
+	ConnectorTypeLMCache  ConnectorType = "lmcache"
+	ConnectorTypeMoonCake ConnectorType = "mooncake"
 )
 
 // Factory creates KV connectors based on type
 type Factory struct {
-	connectors map[ConnectorType]KVConnector
+	connectors map[ConnectorType]func() KVConnector
 }
 
 // NewFactory creates a new connector factory
 func NewFactory() *Factory {
 	return &Factory{
-		connectors: make(map[ConnectorType]KVConnector),
+		connectors: make(map[ConnectorType]func() KVConnector),
 	}
 }
 
 // RegisterConnector registers a connector with the factory
-func (f *Factory) RegisterConnector(connectorType ConnectorType, connector KVConnector) {
-	f.connectors[connectorType] = connector
+func (f *Factory) RegisterConnectorBuilder(connectorType ConnectorType, constructor func() KVConnector) {
+	f.connectors[connectorType] = constructor
 }
 
 // GetConnector returns a connector by type
@@ -48,7 +49,7 @@ func (f *Factory) GetConnector(connectorType ConnectorType) KVConnector {
 	if !ok {
 		return nil
 	}
-	return connector
+	return connector()
 }
 
 // NewDefaultFactory returns a factory with all default connectors registered
@@ -56,9 +57,10 @@ func NewDefaultFactory() *Factory {
 	factory := NewFactory()
 
 	// Register default connectors
-	factory.RegisterConnector(ConnectorTypeHTTP, NewHTTPConnector())
-	factory.RegisterConnector(ConnectorTypeLMCache, NewLMCacheConnector())
-	factory.RegisterConnector(ConnectorTypeNIXL, NewNIXLConnector())
+	factory.RegisterConnectorBuilder(ConnectorTypeHTTP, NewHTTPConnector)
+	factory.RegisterConnectorBuilder(ConnectorTypeLMCache, NewHTTPConnector)
+	factory.RegisterConnectorBuilder(ConnectorTypeMoonCake, NewHTTPConnector)
+	factory.RegisterConnectorBuilder(ConnectorTypeNIXL, NewNIXLConnector)
 
 	return factory
 }

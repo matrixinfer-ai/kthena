@@ -17,9 +17,6 @@ limitations under the License.
 package connectors
 
 import (
-	"context"
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 )
 
@@ -31,10 +28,4 @@ type KVConnector interface {
 	// Proxy executes the complete prefill-decode flow with KV cache coordination
 	// For connectors that don't support unified proxy, this should return an error
 	Proxy(c *gin.Context, reqBody map[string]interface{}, prefillAddr, decodeAddr string) error
-
-	// Prefill executes prefill and parses the prefill response necessarily
-	Prefill(ctx context.Context, req *http.Request, prefillAddr string) error
-
-	// Decode executes decode using stored KV cache
-	Decode(ctx context.Context, c *gin.Context, req *http.Request, decodeAddr string) error
 }

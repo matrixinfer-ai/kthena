@@ -106,7 +106,7 @@ func TestProxyModelEndpoint(t *testing.T) {
 				PrefillPods: []*datastore.PodInfo{buildPodInfo("prefill1", "1.1.1.2")},
 			},
 			decodePatch: func() *gomonkey.Patches {
-				return gomonkey.ApplyFunc(proxyDecodePod, func(c *gin.Context, req *http.Request, podIP string, port int32, stream bool) error {
+				return gomonkey.ApplyFunc(proxyRequest, func(c *gin.Context, req *http.Request, podIP string, port int32, stream bool) error {
 					return nil
 				})
 			},
@@ -125,7 +125,7 @@ func TestProxyModelEndpoint(t *testing.T) {
 				BestPods: []*datastore.PodInfo{buildPodInfo("decode1", "1.1.1.1")},
 			},
 			decodePatch: func() *gomonkey.Patches {
-				return gomonkey.ApplyFunc(proxyDecodePod, func(c *gin.Context, req *http.Request, podIP string, port int32, stream bool) error {
+				return gomonkey.ApplyFunc(proxyRequest, func(c *gin.Context, req *http.Request, podIP string, port int32, stream bool) error {
 					return nil
 				})
 			},
@@ -144,7 +144,7 @@ func TestProxyModelEndpoint(t *testing.T) {
 				PrefillPods: []*datastore.PodInfo{buildPodInfo("prefill1", "1.1.1.2")},
 			},
 			decodePatch: func() *gomonkey.Patches {
-				return gomonkey.ApplyFunc(proxyDecodePod, func(c *gin.Context, req *http.Request, podIP string, port int32, stream bool) error {
+				return gomonkey.ApplyFunc(proxyRequest, func(c *gin.Context, req *http.Request, podIP string, port int32, stream bool) error {
 					return nil
 				})
 			},
@@ -163,7 +163,7 @@ func TestProxyModelEndpoint(t *testing.T) {
 				BestPods: []*datastore.PodInfo{buildPodInfo("decode1", "1.1.1.1")},
 			},
 			decodePatch: func() *gomonkey.Patches {
-				return gomonkey.ApplyFunc(proxyDecodePod, func(c *gin.Context, req *http.Request, podIP string, port int32, stream bool) error {
+				return gomonkey.ApplyFunc(proxyRequest, func(c *gin.Context, req *http.Request, podIP string, port int32, stream bool) error {
 					return errors.New("decode error")
 				})
 			},

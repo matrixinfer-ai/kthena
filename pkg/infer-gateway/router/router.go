@@ -30,6 +30,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/connectors"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/filters/ratelimit"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/handlers"
@@ -46,6 +47,9 @@ type Router struct {
 	scheduler       scheduler.Scheduler
 	store           datastore.Store
 	loadRateLimiter *ratelimit.TokenRateLimiter
+
+	// KV Connector management
+	connectorFactory *connectors.Factory
 }
 
 func NewRouter(store datastore.Store) *Router {
@@ -65,9 +69,10 @@ func NewRouter(store datastore.Store) *Router {
 	})
 
 	return &Router{
-		store:           store,
-		scheduler:       scheduler.NewScheduler(store),
-		loadRateLimiter: loadRateLimiter,
+		store:            store,
+		scheduler:        scheduler.NewScheduler(store),
+		loadRateLimiter:  loadRateLimiter,
+		connectorFactory: connectors.NewDefaultFactory(),
 	}
 }
 
@@ -190,7 +195,7 @@ func (r *Router) proxy(
 ) error {
 	for i := 0; i < len(ctx.BestPods); i++ {
 		// Request dispatched to the pod.
-		if err := proxyDecodePod(c, req, ctx.BestPods[i].Pod.Status.PodIP, port, stream); err != nil {
+		if err := proxyRequest(c, req, ctx.BestPods[i].Pod.Status.PodIP, port, stream); err != nil {
 			klog.Errorf(" pod request error: %v", err)
 			continue
 		}
@@ -209,73 +214,31 @@ func (r *Router) proxyModelEndpoint(
 	modelRequest ModelRequest,
 	port int32,
 ) error {
-	// build request
-	var decodeRequest, prefillRequest *http.Request
-	var err error
-
-	stream := isStreaming(modelRequest)
-
-	decodeRequest, err = buildDecodeRequest(c, req, modelRequest)
-	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, fmt.Sprintf("failed to build request of decode: %v", err))
-		return fmt.Errorf("failed to build request of decode: %v", err)
-	}
-
 	// proxy to pd aggregated pod
 	if ctx.BestPods != nil {
+		decodeRequest, err := buildDecodeRequest(c, req, modelRequest)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, fmt.Sprintf("failed to build request of decode: %v", err))
+			return fmt.Errorf("failed to build request of decode: %v", err)
+		}
+		// build request
+		stream := isStreaming(modelRequest)
 		return r.proxy(c, decodeRequest, ctx, stream, port)
 	}
 
-	// build prefill request
-	prefillRequest, err = buildPrefillRequest(req, modelRequest)
+	// Get appropriate connector for this model server
+	kvConnector, err := r.getKVConnector(ctx.ModelServerName)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, fmt.Sprintf("failed to build request of prefill: %v", err))
-		return fmt.Errorf("failed to build request of prefill: %v", err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, fmt.Sprintf("failed to get KV connector: %v", err))
+		return fmt.Errorf("failed to get KV connector: %w", err)
 	}
 
-	maxRetry := len(ctx.DecodePods)
-	if len(ctx.PrefillPods) < maxRetry {
-		maxRetry = len(ctx.PrefillPods)
-	}
-	for i := 0; i < maxRetry; i++ {
-		if ctx.PrefillPods[i] == nil || ctx.DecodePods[i] == nil {
-			continue
-		}
-		// Dispatch to prefill pod first before dispatching to decode pod.
-		if err := proxyPrefillPod(prefillRequest, ctx.PrefillPods[i].Pod.Status.PodIP, port); err != nil {
-			klog.Errorf("prefill pod request error: %v", err)
-			continue
-		}
-
-		// Request dispatched to the decode pod.
-		if err := proxyDecodePod(c, decodeRequest, ctx.DecodePods[i].Pod.Status.PodIP, port, stream); err != nil {
-			klog.Errorf("decode pod request error: %v", err)
-			continue
-		}
-		// record in prefix cache
-		r.scheduler.RunPostHooks(ctx, i)
-		return nil
-	}
-	c.AbortWithStatusJSON(http.StatusNotFound, "request to all pods failed")
-	return fmt.Errorf("request to all pods failed")
+	// PD disaggregated mode - use KV connector
+	return r.proxyToPDDisaggregated(c, req, ctx, kvConnector, modelRequest, port)
 }
 
-// proxyPrefillPod proxies a request to a prefill pod.
-func proxyPrefillPod(
-	req *http.Request,
-	podIP string,
-	port int32,
-) error {
-	resp, err := doRequest(req, podIP, port)
-	if err != nil {
-		return fmt.Errorf("prefill request error: %w", err)
-	}
-	resp.Body.Close()
-	return nil
-}
-
-// proxyToDecodePods proxies the request to the decode pods, returns response to downstream.
-func proxyDecodePod(
+// proxyRequest proxies the request to the model server pods, returns response to downstream.
+func proxyRequest(
 	c *gin.Context,
 	req *http.Request,
 	podIP string,
@@ -379,6 +342,11 @@ func buildPrefillRequest(req *http.Request, modelRequest ModelRequest) (*http.Re
 	delete(modelRequest, "stream")
 	delete(modelRequest, "stream_options")
 
+	modelRequest["max_tokens"] = 1
+	if modelRequest["max_completion_tokens"] != nil {
+		modelRequest["max_completion_tokens"] = 1
+	}
+
 	body, err := json.Marshal(modelRequest)
 	if err != nil {
 		return nil, err
@@ -429,10 +397,76 @@ func buildDecodeRequest(c *gin.Context, req *http.Request, modelRequest ModelReq
 	}
 
 	// build request
-	reqCopy := req.Clone(req.Context())
-	reqCopy.URL.Scheme = "http"
-	reqCopy.Body = io.NopCloser(bytes.NewBuffer(body))
-	reqCopy.ContentLength = int64(len(body))
+	req.URL.Scheme = "http"
+	req.Body = io.NopCloser(bytes.NewBuffer(body))
+	req.ContentLength = int64(len(body))
 
-	return reqCopy, nil
+	return req, nil
+}
+
+// getKVConnector gets the appropriate KV connector for a model server
+func (r *Router) getKVConnector(modelServerName types.NamespacedName) (connectors.KVConnector, error) {
+	modelServer := r.store.GetModelServer(modelServerName)
+	if modelServer == nil {
+		return nil, fmt.Errorf("model server %s not found", modelServerName)
+	}
+
+	// Determine connector type from ModelServer CRD
+	connectorType := connectors.ConnectorTypeHTTP
+	if modelServer.Spec.KVConnector != nil && modelServer.Spec.KVConnector.Type != "" {
+		connectorType = connectors.ConnectorType(modelServer.Spec.KVConnector.Type)
+	}
+
+	connector := r.connectorFactory.GetConnector(connectorType)
+	if connector == nil {
+		return nil, fmt.Errorf("failed to get connector %s", connectorType)
+	}
+
+	return connector, nil
+}
+
+// proxyToPDDisaggregated handles PD disaggregated routing using KV connectors
+func (r *Router) proxyToPDDisaggregated(
+	c *gin.Context,
+	req *http.Request,
+	ctx *framework.Context,
+	kvConnector connectors.KVConnector,
+	modelRequest ModelRequest,
+	port int32,
+) error {
+	// Try multiple prefill/decode pairs
+	maxRetry := len(ctx.DecodePods)
+	if len(ctx.PrefillPods) < maxRetry {
+		maxRetry = len(ctx.PrefillPods)
+	}
+
+	for i := 0; i < maxRetry; i++ {
+		if ctx.PrefillPods[i] == nil || ctx.DecodePods[i] == nil {
+			continue
+		}
+
+		// Build addresses for prefill and decode pods
+		prefillAddr := fmt.Sprintf("%s:%d", ctx.PrefillPods[i].Pod.Status.PodIP, port)
+		decodeAddr := fmt.Sprintf("%s:%d", ctx.DecodePods[i].Pod.Status.PodIP, port)
+
+		klog.V(4).Infof("Attempting PD disaggregated request: prefill=%s, decode=%s", prefillAddr, decodeAddr)
+
+		// NIXL connector handles the complete prefill-decode flow with KV transfer
+		if err := kvConnector.Proxy(c, modelRequest, prefillAddr, decodeAddr); err != nil {
+			klog.Errorf("proxy failed for prefill pod %s, decode pod %s: %v",
+				ctx.PrefillPods[i].Pod.Name, ctx.DecodePods[i].Pod.Name, err)
+			continue
+		}
+
+		// Record successful operation in cache
+		r.scheduler.RunPostHooks(ctx, i)
+
+		klog.V(4).Infof("kv connector run successful for prefill pod %s, decode pod %s",
+			ctx.PrefillPods[i].Pod.Name, ctx.DecodePods[i].Pod.Name)
+
+		return nil
+	}
+
+	c.AbortWithStatusJSON(http.StatusInternalServerError, "all prefill/decode attempts failed")
+	return fmt.Errorf("all prefill/decode attempts failed")
 }

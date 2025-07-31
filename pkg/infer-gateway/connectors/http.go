@@ -17,54 +17,62 @@ limitations under the License.
 package connectors
 
 import (
-	"context"
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"k8s.io/klog/v2"
 )
 
-const (
-	tokenUsageKey = "token_usage"
-)
-
 // HTTPConnector implements simple HTTP-based KV transfer
-// This maintains backward compatibility with current implementation
+// Many kv connectors like LMCache, MoonCakeStore can use this
 type HTTPConnector struct {
+	prefillRequest *http.Request
+	decodeRequest  *http.Request
 }
 
 // NewHTTPConnector creates a new HTTP connector with default configuration
-func NewHTTPConnector() *HTTPConnector {
+func NewHTTPConnector() KVConnector {
 	return &HTTPConnector{}
 }
 
 // Name returns the connector type name
 func (h *HTTPConnector) Name() string {
-	return "http"
+	return "default"
 }
 
-// Prefill executes prefill request
-func (h *HTTPConnector) Prefill(ctx context.Context, req *http.Request, prefillAddr string) error {
+// prefill executes prefill request
+func (h *HTTPConnector) prefill(req *http.Request, prefillAddr string) error {
 	req.URL.Host = prefillAddr
 	req.URL.Scheme = "http"
 
+	klog.V(4).Infof("Sending prefill request to %s", prefillAddr)
 	return prefillerProxy(nil, req)
 }
 
-// Decode executes decode request and streams response
-func (h *HTTPConnector) Decode(ctx context.Context, c *gin.Context, req *http.Request, decodeAddr string) error {
+// decode executes decode request and streams response
+func (h *HTTPConnector) decode(c *gin.Context, req *http.Request, decodeAddr string) error {
 	req.URL.Host = decodeAddr
 	req.URL.Scheme = "http"
 
 	klog.V(4).Infof("Sending decode request to %s", decodeAddr)
-
 	return decoderProxy(c, req)
 }
 
 // Proxy executes the complete prefill-decode flow for HTTP connector
 func (h *HTTPConnector) Proxy(c *gin.Context, reqBody map[string]interface{}, prefillAddr, decodeAddr string) error {
-	// For HTTP connector, we don't have a unified proxy method
-	// This is a fallback that should not be used - HTTP connector should use separate Prefill/Decode calls
-	return fmt.Errorf("HTTP connector does not support unified Proxy method - use separate Prefill/Decode calls")
+	if h.decodeRequest == nil {
+		h.decodeRequest = buildDecodeRequest(c, c.Request, reqBody)
+	}
+
+	// build prefillRequest after decodeRequest, because prefillRequest needs to delete stream and stream_options
+	// and modify the max_tokens
+	if h.prefillRequest == nil {
+		h.prefillRequest = buildPrefillRequest(c.Request, reqBody)
+	}
+
+	if err := h.prefill(h.prefillRequest, prefillAddr); err != nil {
+		return err
+	}
+
+	return h.decode(c, h.decodeRequest, decodeAddr)
 }

@@ -18,7 +18,6 @@ package connectors
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -31,10 +30,12 @@ import (
 
 // NIXLConnector implements high-performance distributed in-memory KV cache using NIXL
 type NIXLConnector struct {
+	prefillRequest    *http.Request
+	decodeRequestBody map[string]interface{}
 }
 
 // NewNIXLConnector creates a new NIXL connector
-func NewNIXLConnector() *NIXLConnector {
+func NewNIXLConnector() KVConnector {
 	return &NIXLConnector{}
 }
 
@@ -47,26 +48,20 @@ func (n *NIXLConnector) Name() string {
 func (n *NIXLConnector) Proxy(c *gin.Context, reqBody map[string]interface{}, prefillAddr, decodeAddr string) error {
 	req := c.Request
 	// 1. Build and send prefill request
-	prefillBody := cloneReqBody(reqBody)
-	prefillReq := buildPrefillRequest(req, prefillBody)
-	kvTransferParams, err := n.executePrefillRequest(prefillReq, prefillAddr)
+	if n.prefillRequest == nil {
+		prefillBody := cloneReqBody(reqBody)
+		n.prefillRequest = n.buildPrefillRequest(req, prefillBody)
+	}
+	kvTransferParams, err := n.executePrefillRequest(n.prefillRequest, prefillAddr)
 	if err != nil {
 		return err
 	}
 	// 2. Build and send decode request
-	decodeBody := cloneReqBody(reqBody)
-	decodeReq := buildDecodeRequest(c, decodeBody, kvTransferParams)
+	if n.decodeRequestBody == nil {
+		n.decodeRequestBody = setDecodeRequestBody(c, reqBody)
+	}
+	decodeReq := n.buildDecodeRequest(c, n.decodeRequestBody, kvTransferParams)
 	return n.executeDecodeRequest(c, decodeReq, decodeAddr)
-}
-
-// Prefill executes prefill with NIXL integration
-func (n *NIXLConnector) Prefill(ctx context.Context, req *http.Request, prefillAddr string) error {
-	panic("NIXLConnector.Prefill not implemented - use Proxy method instead")
-}
-
-// Decode executes decode using NIXL for high-performance KV retrieval
-func (n *NIXLConnector) Decode(ctx context.Context, c *gin.Context, req *http.Request, decodeAddr string) error {
-	panic("NIXLConnector.Decode not implemented - use Proxy method instead")
 }
 
 // executePrefillRequest builds and executes the prefill request, returns kv_transfer_params
@@ -101,9 +96,9 @@ func (n *NIXLConnector) executePrefillRequest(req *http.Request, prefillAddr str
 	return kvTransferParams, nil
 }
 
-func buildDecodeRequest(c *gin.Context, reqBody map[string]interface{}, kvTransferParams interface{}) *http.Request {
+func setDecodeRequestBody(c *gin.Context, reqBody map[string]interface{}) map[string]interface{} {
 	// Check if streaming is enabled
-	if isStreaming(reqBody) {
+	if isStreamingRequest(reqBody) {
 		if !isTokenUsageEnabled(reqBody) {
 			// For streaming requests, add stream_options to include token usage
 			reqBody["stream_options"] = map[string]interface{}{
@@ -118,20 +113,23 @@ func buildDecodeRequest(c *gin.Context, reqBody map[string]interface{}, kvTransf
 		// but we can be explicit about it
 		reqBody["include_usage"] = true
 	}
+	return reqBody
+}
 
+func (n *NIXLConnector) buildDecodeRequest(c *gin.Context, reqBody map[string]interface{}, kvTransferParams interface{}) *http.Request {
 	reqBody["kv_transfer_params"] = kvTransferParams
 	body, err := json.Marshal(reqBody)
 	if err != nil {
 		return nil
 	}
 
-	req := c.Request
 	// build request
-	req.URL.Scheme = "http"
-	req.Body = io.NopCloser(bytes.NewBuffer(body))
-	req.ContentLength = int64(len(body))
+	reqCopy := c.Request.Clone(c.Request.Context())
+	reqCopy.URL.Scheme = "http"
+	reqCopy.Body = io.NopCloser(bytes.NewBuffer(body))
+	reqCopy.ContentLength = int64(len(body))
 
-	return req
+	return reqCopy
 }
 
 // executeDecodeRequest builds and executes the decode request with streaming response
@@ -145,28 +143,6 @@ func (n *NIXLConnector) executeDecodeRequest(c *gin.Context, req *http.Request, 
 	return decoderProxy(c, req)
 }
 
-func isTokenUsageEnabled(modelRequest map[string]interface{}) bool {
-	// Check if token usage is enabled in the model request
-	if v, ok := modelRequest["stream_options"]; ok {
-		if streamOptions, isMap := v.(map[string]interface{}); isMap {
-			if includeUsage, isBool := streamOptions["include_usage"].(bool); isBool && includeUsage {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// isStreaming checks if the given model request has streaming enabled
-func isStreaming(modelRequest map[string]interface{}) bool {
-	if v, ok := modelRequest["stream"]; ok {
-		if stream, isBool := v.(bool); isBool && stream {
-			return true
-		}
-	}
-	return false
-}
-
 func cloneReqBody(reqBody map[string]interface{}) map[string]interface{} {
 	// Create a deep copy of the request body
 	clone := make(map[string]interface{})
@@ -176,7 +152,7 @@ func cloneReqBody(reqBody map[string]interface{}) map[string]interface{} {
 	return clone
 }
 
-func buildPrefillRequest(req *http.Request, reqBody map[string]interface{}) *http.Request {
+func (n *NIXLConnector) buildPrefillRequest(req *http.Request, reqBody map[string]interface{}) *http.Request {
 	// In PD disaggregated mode, we need to send a prefill request to the prefill pod with non stream mode.
 	delete(reqBody, "stream")
 	delete(reqBody, "stream_options")

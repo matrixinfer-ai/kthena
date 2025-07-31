@@ -45,6 +45,61 @@ spec:
                 - vLLM
                 - SGLang
                 type: string
+              kvConnector:
+                description: KVConnector specifies the KV connector configuration
+                  for PD disaggregated routing
+                properties:
+                  config:
+                    description: Config contains connector-specific configuration
+                      as JSON
+                    properties:
+                      maxRetries:
+                        description: MaxRetries is the maximum number of retries
+                        format: int32
+                        type: integer
+                      requestTimeout:
+                        description: RequestTimeout is the timeout for individual
+                          requests
+                        type: string
+                    type: object
+                  retry:
+                    description: Retry defines retry policy for connector operations
+                    properties:
+                      backoffBase:
+                        default: 1s
+                        description: BackoffBase is the base duration for exponential
+                          backoff
+                        type: string
+                      maxAttempts:
+                        default: 3
+                        description: MaxAttempts is the maximum number of retry attempts
+                        format: int32
+                        type: integer
+                    type: object
+                  timeouts:
+                    description: Timeouts defines timeout configuration for connector
+                      operations
+                    properties:
+                      decode:
+                        default: 120s
+                        description: Decode timeout
+                        type: string
+                      prefill:
+                        default: 30s
+                        description: Prefill timeout
+                        type: string
+                    type: object
+                  type:
+                    default: http
+                    description: Type specifies the connector type
+                    enum:
+                    - http
+                    - lmcache
+                    - nixl
+                    type: string
+                required:
+                - type
+                type: object
               model:
                 description: |-
                   The real model that the modelServers are running.
