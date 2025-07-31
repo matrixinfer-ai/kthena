@@ -13,14 +13,34 @@ type Status struct {
 }
 
 func NewStatus(behavior *v1alpha1.AutoscalingPolicyBehavior) *Status {
+	panicModeHoldMilliseconds := int64(0)
+	if behavior.ScaleUp.PanicPolicy.PanicModeHold != nil {
+		panicModeHoldMilliseconds = behavior.ScaleUp.PanicPolicy.PanicModeHold.Milliseconds()
+	}
+	scaleDownStabilizationWindowMilliseconds := int64(0)
+	if behavior.ScaleDown.StabilizationWindow != nil {
+		scaleDownStabilizationWindowMilliseconds = behavior.ScaleDown.StabilizationWindow.Milliseconds()
+	}
+	scaleUpStabilizationWindowMilliseconds := int64(0)
+	if behavior.ScaleUp.StablePolicy.StabilizationWindow != nil {
+		scaleUpStabilizationWindowMilliseconds = behavior.ScaleUp.StablePolicy.StabilizationWindow.Milliseconds()
+	}
+	scaleUpStablePolicyPeriodMilliseconds := int64(0)
+	if behavior.ScaleUp.StablePolicy.Period != nil {
+		scaleUpStablePolicyPeriodMilliseconds = behavior.ScaleUp.StablePolicy.Period.Milliseconds()
+	}
+	scaleDownPeriodMilliseconds := int64(0)
+	if behavior.ScaleDown.Period != nil {
+		scaleDownPeriodMilliseconds = behavior.ScaleDown.Period.Milliseconds()
+	}
 	return &Status{
 		PanicModeEndsAt:           0,
-		PanicModeHoldMilliseconds: behavior.ScaleUp.PanicPolicy.PanicModeHold.Milliseconds(),
+		PanicModeHoldMilliseconds: panicModeHoldMilliseconds,
 		History: &History{
-			MaxRecommendation:     datastructure.NewMaximumRecordSlidingWindow[int32](behavior.ScaleDown.StabilizationWindow.Duration.Milliseconds()),
-			MinRecommendation:     datastructure.NewMinimumRecordSlidingWindow[int32](behavior.ScaleUp.StablePolicy.StabilizationWindow.Duration.Milliseconds()),
-			MaxCorrected:          datastructure.NewMinimumLineChartSlidingWindow[int32](behavior.ScaleDown.Period.Milliseconds()),
-			MinCorrectedForStable: datastructure.NewMinimumLineChartSlidingWindow[int32](behavior.ScaleUp.StablePolicy.Period.Milliseconds()),
+			MaxRecommendation:     datastructure.NewMaximumRecordSlidingWindow[int32](scaleDownStabilizationWindowMilliseconds),
+			MinRecommendation:     datastructure.NewMinimumRecordSlidingWindow[int32](scaleUpStabilizationWindowMilliseconds),
+			MaxCorrected:          datastructure.NewMinimumLineChartSlidingWindow[int32](scaleDownPeriodMilliseconds),
+			MinCorrectedForStable: datastructure.NewMinimumLineChartSlidingWindow[int32](scaleUpStablePolicyPeriodMilliseconds),
 			MinCorrectedForPanic:  datastructure.NewMinimumLineChartSlidingWindow[int32](behavior.ScaleUp.PanicPolicy.Period.Milliseconds()),
 		},
 	}

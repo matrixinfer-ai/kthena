@@ -83,7 +83,7 @@ func (autoscaler *Autoscaler) Scale(ctx context.Context, client clientset.Interf
 		klog.Warning("skip recommended instances")
 		return nil
 	}
-	if recommendedInstances*100 >= currentInstancesCount*(*autoscalePolicy.Spec.Behavior.ScaleUp.PanicPolicy.PanicThresholdPercent) {
+	if autoscalePolicy.Spec.Behavior.ScaleUp.PanicPolicy.PanicThresholdPercent != nil && recommendedInstances*100 >= currentInstancesCount*(*autoscalePolicy.Spec.Behavior.ScaleUp.PanicPolicy.PanicThresholdPercent) {
 		autoscaler.Status.RefreshPanicMode()
 	}
 	CorrectedInstancesAlgorithm := algorithm.CorrectedInstancesAlgorithm{
