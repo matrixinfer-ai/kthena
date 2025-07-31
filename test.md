@@ -20,7 +20,7 @@ openssl genrsa -out tls.key 2048
 
 # Create a certificate signing request (CSR)
 # Replace NAMESPACE with your actual namespace
-openssl req -new -key tls.key -out server.csr -subj "/CN=matrixinfer-registry-webhook.NAMESPACE.svc" -config <(
+openssl req -new -key tls.key -out server.csr -subj "/CN=registry-webhook.NAMESPACE.svc" -config <(
 cat <<EOF
 [req]
 req_extensions = v3_req
@@ -32,10 +32,10 @@ distinguished_name = req_distinguished_name
 subjectAltName = @alt_names
 
 [alt_names]
-DNS.1 = matrixinfer-registry-webhook.NAMESPACE.svc
-DNS.2 = matrixinfer-registry-webhook.NAMESPACE.svc.cluster.local
-DNS.3 = matrixinfer-workload-webhook.NAMESPACE.svc
-DNS.4 = matrixinfer-workload-webhook.NAMESPACE.svc.cluster.local
+DNS.1 = registry-webhook.NAMESPACE.svc
+DNS.2 = registry-webhook.NAMESPACE.svc.cluster.local
+DNS.3 = workload-webhook.NAMESPACE.svc
+DNS.4 = workload-webhook.NAMESPACE.svc.cluster.local
 EOF
 )
 
@@ -46,10 +46,10 @@ cat <<EOF
 subjectAltName = @alt_names
 
 [alt_names]
-DNS.1 = matrixinfer-registry-webhook.NAMESPACE.svc
-DNS.2 = matrixinfer-registry-webhook.NAMESPACE.svc.cluster.local
-DNS.3 = matrixinfer-workload-webhook.NAMESPACE.svc
-DNS.4 = matrixinfer-workload-webhook.NAMESPACE.svc.cluster.local
+DNS.1 = registry-webhook.NAMESPACE.svc
+DNS.2 = registry-webhook.NAMESPACE.svc.cluster.local
+DNS.3 = workload-webhook.NAMESPACE.svc
+DNS.4 = workload-webhook.NAMESPACE.svc.cluster.local
 EOF
 )
 
@@ -62,12 +62,12 @@ echo "CA Bundle for Helm values: $CA_BUNDLE"
 
 ```bash
 # Create secrets for both webhooks
-kubectl create secret tls matrixinfer-registry-webhook-certs \
+kubectl create secret tls registry-webhook-certs \
   --cert=tls.crt \
   --key=tls.key \
   -n NAMESPACE
 
-kubectl create secret tls matrixinfer-workload-webhook-certs \
+kubectl create secret tls workload-webhook-certs \
   --cert=tls.crt \
   --key=tls.key \
   -n NAMESPACE
@@ -104,9 +104,9 @@ helm upgrade --install matrixinfer ./charts/matrixinfer -f values.yaml -n NAMESP
 Check that the webhook configurations have the correct CA bundle:
 
 ```bash
-kubectl get validatingwebhookconfiguration matrixinfer-registry-validating-webhook -o yaml
-kubectl get mutatingwebhookconfiguration matrixinfer-registry-mutating-webhook -o yaml
-kubectl get validatingwebhookconfiguration matrixinfer-workload-validating-webhook -o yaml
+kubectl get validatingwebhookconfiguration registry-validating-webhook -o yaml
+kubectl get mutatingwebhookconfiguration registry-mutating-webhook -o yaml
+kubectl get validatingwebhookconfiguration workload-validating-webhook -o yaml
 ```
 
 ## 6. Test the Webhooks
