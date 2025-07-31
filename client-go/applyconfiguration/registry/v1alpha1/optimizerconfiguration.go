@@ -21,7 +21,7 @@ package v1alpha1
 // OptimizerConfigurationApplyConfiguration represents a declarative configuration of the OptimizerConfiguration type for use
 // with apply.
 type OptimizerConfigurationApplyConfiguration struct {
-	Params                   []OptimizerParamApplyConfiguration `json:"targets,omitempty"`
+	Params                   []OptimizerParamApplyConfiguration `json:"params,omitempty"`
 	CostExpansionRatePercent *int32                             `json:"costExpansionRatePercent,omitempty"`
 }
 

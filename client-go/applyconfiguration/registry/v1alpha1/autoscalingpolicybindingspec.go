@@ -25,7 +25,7 @@ import (
 // AutoscalingPolicyBindingSpecApplyConfiguration represents a declarative configuration of the AutoscalingPolicyBindingSpec type for use
 // with apply.
 type AutoscalingPolicyBindingSpecApplyConfiguration struct {
-	PolicyRef              *v1.LocalObjectReference                  `json:"autoscalingPolicyRef,omitempty"`
+	PolicyRef              *v1.LocalObjectReference                  `json:"policyRef,omitempty"`
 	OptimizerConfiguration *OptimizerConfigurationApplyConfiguration `json:"optimizerConfiguration,omitempty"`
 	ScalingConfiguration   *ScalingConfigurationApplyConfiguration   `json:"scalingConfiguration,omitempty"`
 }

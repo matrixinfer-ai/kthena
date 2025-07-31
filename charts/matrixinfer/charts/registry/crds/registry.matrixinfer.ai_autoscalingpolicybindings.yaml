@@ -40,21 +40,6 @@ spec:
             description: AutoscalingPolicyBindingSpec defines the desired state of
               AutoscalingPolicyBinding.
             properties:
-              autoscalingPolicyRef:
-                description: PolicyRef references the autoscaling policy to be optimized
-                  scaling base on multiple targets.
-                properties:
-                  name:
-                    default: ""
-                    description: |-
-                      Name of the referent.
-                      This field is effectively required, but due to backwards compatibility is
-                      allowed to be empty. Instances of this type with an empty value here are
-                      almost certainly wrong.
-                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                    type: string
-                type: object
-                x-kubernetes-map-type: atomic
               optimizerConfiguration:
                 properties:
                   costExpansionRatePercent:
@@ -64,7 +49,7 @@ spec:
                     maximum: 100
                     minimum: 0
                     type: integer
-                  targets:
+                  params:
                     items:
                       properties:
                         cost:
@@ -93,15 +78,15 @@ spec:
                               type: string
                             metricFrom:
                               properties:
-                                matchLabels:
+                                additionalMatchLabels:
                                   additionalProperties:
                                     type: string
                                   type: object
                                 port:
-                                  default: "8100"
+                                  default: 8100
                                   format: int32
                                   type: integer
-                                url:
+                                uri:
                                   default: /metrics
                                   description: The metric uri, e.g. /metrics
                                   type: string
@@ -134,6 +119,21 @@ spec:
                       type: object
                     type: array
                 type: object
+              policyRef:
+                description: PolicyRef references the autoscaling policy to be optimized
+                  scaling base on multiple targets.
+                properties:
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
               scalingConfiguration:
                 properties:
                   maxReplicas:
@@ -156,15 +156,15 @@ spec:
                         type: string
                       metricFrom:
                         properties:
-                          matchLabels:
+                          additionalMatchLabels:
                             additionalProperties:
                               type: string
                             type: object
                           port:
-                            default: "8100"
+                            default: 8100
                             format: int32
                             type: integer
-                          url:
+                          uri:
                             default: /metrics
                             description: The metric uri, e.g. /metrics
                             type: string

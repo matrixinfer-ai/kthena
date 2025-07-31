@@ -62,7 +62,7 @@ func (collector *MetricCollector) UpdateMetrics(ctx context.Context, kubeClient 
 	// Get pod list which will be invoked api to get metrics
 	unreadyInstancesCount = int32(0)
 	err = nil
-	podList, err := util.GetMetricPods(ctx, kubeClient, collector.Scope.Namespace, collector.Target.MetricFrom.MatchLabels)
+	podList, err := util.GetMetricPods(ctx, kubeClient, collector.Scope.Namespace, collector.Target.MetricFrom.AdditionalMatchLabels)
 	if err != nil {
 		klog.Errorf("list modelInfer error: %v", err)
 		return

@@ -9,7 +9,7 @@ import (
 type AutoscalingPolicyBindingSpec struct {
 	// PolicyRef references the autoscaling policy to be optimized scaling base on multiple targets.
 	// +optional
-	PolicyRef *corev1.LocalObjectReference `json:"autoscalingPolicyRef,omitempty"`
+	PolicyRef *corev1.LocalObjectReference `json:"policyRef,omitempty"`
 
 	OptimizerConfiguration *OptimizerConfiguration `json:"optimizerConfiguration,omitempty"`
 
@@ -26,12 +26,12 @@ type MetricFrom struct {
 	// The metric uri, e.g. /metrics
 	// +optional
 	// +kubebuilder:default="/metrics"
-	Uri string `json:"url,omitempty"`
+	Uri string `json:"uri,omitempty"`
 	// +optional
-	// +kubebuilder:default="8100"
+	// +kubebuilder:default=8100
 	Port int32 `json:"port,omitempty"`
-	// +kubebuilder:required
-	MatchLabels map[string]string `json:"matchLabels,omitempty"`
+	// +optional
+	AdditionalMatchLabels map[string]string `json:"additionalMatchLabels,omitempty"`
 }
 
 type ScalingConfiguration struct {
@@ -47,7 +47,7 @@ type ScalingConfiguration struct {
 }
 
 type OptimizerConfiguration struct {
-	Params []OptimizerParam `json:"targets,omitempty"`
+	Params []OptimizerParam `json:"params,omitempty"`
 	// CostExpansionRatePercent is the percentage rate at which the cost expands.
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=100
