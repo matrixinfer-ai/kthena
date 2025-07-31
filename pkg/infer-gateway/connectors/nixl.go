@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"strings"
 
@@ -47,19 +48,20 @@ func (n *NIXLConnector) Name() string {
 // Proxy executes the complete prefill-decode flow using NIXL for high-performance KV transfer
 func (n *NIXLConnector) Proxy(c *gin.Context, reqBody map[string]interface{}, prefillAddr, decodeAddr string) error {
 	req := c.Request
-	// 1. Build and send prefill request
 	if n.prefillRequest == nil {
 		prefillBody := cloneReqBody(reqBody)
 		n.prefillRequest = n.buildPrefillRequest(req, prefillBody)
 	}
+	if n.decodeRequestBody == nil {
+		n.decodeRequestBody = setDecodeRequestBody(c, reqBody)
+	}
+
+	// 1. send prefill request
 	kvTransferParams, err := n.executePrefillRequest(n.prefillRequest, prefillAddr)
 	if err != nil {
 		return err
 	}
-	// 2. Build and send decode request
-	if n.decodeRequestBody == nil {
-		n.decodeRequestBody = setDecodeRequestBody(c, reqBody)
-	}
+	// 2. send decode request
 	decodeReq := n.buildDecodeRequest(c, n.decodeRequestBody, kvTransferParams)
 	return n.executeDecodeRequest(c, decodeReq, decodeAddr)
 }
@@ -146,9 +148,7 @@ func (n *NIXLConnector) executeDecodeRequest(c *gin.Context, req *http.Request, 
 func cloneReqBody(reqBody map[string]interface{}) map[string]interface{} {
 	// Create a deep copy of the request body
 	clone := make(map[string]interface{})
-	for k, v := range reqBody {
-		clone[k] = v
-	}
+	maps.Copy(clone, reqBody)
 	return clone
 }
 

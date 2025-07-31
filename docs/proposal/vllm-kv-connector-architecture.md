@@ -38,7 +38,7 @@ The current routing logic in `pkg/infer-gateway/router/router.go` implements PD 
 - **NIXL Integration**: No support for vLLM's NIXL (NVIDIA Inference Xfer Library) for high-performance distributed in-memory communication
 - **MooncakeStore Integration**: No support for integration with Kimi's (Moonshot AI) MooncakeStore KVCache-centric disaggregated architecture
 
-## 3. Proposed Architecture
+## 3. Implemented Architecture
 
 ### 3.1. Core Design Principles
 
@@ -49,144 +49,96 @@ The current routing logic in `pkg/infer-gateway/router/router.go` implements PD 
 
 ### 3.2. KVConnector Interface Design
 
-We propose a comprehensive `KVConnector` interface in `pkg/infer-gateway/connector/interface.go`:
+The `KVConnector` interface in `pkg/infer-gateway/connectors/interface.go` is the core of the pluggable design. It defines a single method, `Proxy`, that encapsulates the entire prefill-decode logic for a given connector.
 
 ```go
-package connector
+// from: pkg/infer-gateway/connectors/interface.go
+package connectors
 
 import (
-	"context"
-	"net/http"
-	"time"
-
 	"github.com/gin-gonic/gin"
-	"github.com/prometheus/client_golang/prometheus"
-	
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 )
-
 
 // KVConnector is the main interface for KV cache operations
 type KVConnector interface {
 	// Name returns the connector type name
 	Name() string
 
-		// Prefill executes prefill and parse the prefill response necessarily
-	Proxy(ctx context.Context, req *http.Request, prefillAddr, decodeAddr string) error
-	
-	// Prefill executes prefill and parse the prefill response necessarily
-	Prefill(ctx context.Context, req *http.Request, prefillAddr string) error
-	
-	// Decode executes decode using stored KV cache  
-	Decode(ctx context.Context, c *gin.Context, req *http.Request, decodeAddr string) error
+	// Proxy executes the complete prefill-decode flow with KV cache coordination.
+	// It takes the gin context, the parsed request body, and the addresses for the
+	// prefill and decode pods.
+	Proxy(c *gin.Context, reqBody map[string]interface{}, prefillAddr, decodeAddr string) error
 }
 ```
 
 ### 3.3. Connector Implementations
 
 #### 3.3.1 HTTPConnector (Default)
-Maintains backward compatibility with current implementation and supports HTTP-based connectors including MooncakeStoreConnector:
+This is the default connector and is used for `http`, `lmcache`, and `mooncake` connector types. It implements a basic two-step prefill-decode flow:
+1.  It constructs and sends a "prefill" request to the prefill pod. This is a fire-and-forget operation; the response is not processed. The prefill request is modified to have `max_tokens: 1` and to have streaming disabled.
+2.  It then constructs and sends a "decode" request to the decode pod, streaming the response back to the client.
 
-```go
-// HTTPConnector implements simple HTTP-based KV transfer and MooncakeStore integration
-type HTTPConnector struct {
-	client *http.Client
-}
-```
+This connector assumes that the KV cache is transferred implicitly between the prefill and decode pods, for example via a shared storage mechanism like a distributed filesystem, which is what `LMCache` and `Mooncake` can be configured to use.
 
-#### 3.3.2 LMCacheConnector  
-Distributed KV cache management using vLLM's LMCache system with support for CPU/disk offloading:
+#### 3.3.2 NIXLConnector
+This connector is used for the `nixl` connector type and implements a more coordinated KV cache transfer suitable for high-performance, in-memory transfers using vLLM's NIXL library. The flow is as follows:
+1.  It constructs a prefill request with NIXL-specific `kv_transfer_params` and sends it to the prefill pod.
+2.  It waits for the prefill response and parses it to extract the resulting `kv_transfer_params`. This response contains the necessary information (e.g., remote block IDs) for the decode pod to access the KV cache.
+3.  It constructs a decode request, injecting the `kv_transfer_params` received from the prefill pod.
+4.  It sends the decode request to the decode pod, which then uses the KV cache from the prefill step.
 
-```go
-type LMCacheConnector struct {
-	client *http.Client
-}
-```
-
-#### 3.3.3 NIXLConnector
-High-performance distributed in-memory KV cache using NIXL (NVIDIA Inference Xfer Library):
-
-```go
-// NIXLConnectorConfig specifies NIXL configuration for high-performance distributed KV cache
-type NIXLConnectorConfig struct {
-	client *http.Client
-}
-```
+This implementation actively manages the KV cache transfer between the two steps.
 
 ### 3.4. Router Integration
 
-The enhanced `Router` will integrate with the KV connector system:
+The `Router` integrates with the KV connector system via a `connectorFactory`. When a request requires PD disaggregated routing, the router determines the correct connector type from the `ModelServer` CRD, retrieves the connector from the factory, and calls its `Proxy` method.
 
 ```go
-type Router struct {
-	scheduler       scheduler.Scheduler
-	store           datastore.Store  
-	loadRateLimiter *ratelimit.TokenRateLimiter
-	
-	// KV Connector management
-	connectorFactory  *connector.Factory
-	connectorRegistry map[string]connector.KVConnector
-}
+// from: pkg/infer-gateway/router/router.go
 
-func (r *Router) proxyModelEndpoint(
-	c *gin.Context,
-	req *http.Request, 
-	ctx *framework.Context,
-	modelRequest ModelRequest,
-	port int32,
-) error {
-	// Get appropriate connector for this model server
-	kvConnector, err := r.getKVConnector(ctx.ModelServerName)
-	if err != nil {
-		return fmt.Errorf("failed to get KV connector: %w", err)
-	}
-	
-	
-	// Handle different routing modes
-	if ctx.BestPods != nil {
-		// PD aggregated mode - direct proxy
-		return r.proxyToPDAggregated(c, req, ctx, port)
-	}
-	
-	// PD disaggregated mode - prefill then decode
-	return r.proxyToPDDisaggregated(c, req, ctx, kvConnector, port)
-}
-
+// proxyToPDDisaggregated handles PD disaggregated routing using KV connectors
 func (r *Router) proxyToPDDisaggregated(
 	c *gin.Context,
 	req *http.Request,
-	ctx *framework.Context, 
-	kvConnector connector.KVConnector,
+	ctx *framework.Context,
+	kvConnector connectors.KVConnector,
+	modelRequest ModelRequest,
 	port int32,
 ) error {
 	// Try multiple prefill/decode pairs
-	maxRetry := min(len(ctx.PrefillPods), len(ctx.DecodePods))
+	maxRetry := len(ctx.DecodePods)
+	if len(ctx.PrefillPods) < maxRetry {
+		maxRetry = len(ctx.PrefillPods)
+	}
+
 	for i := 0; i < maxRetry; i++ {
 		if ctx.PrefillPods[i] == nil || ctx.DecodePods[i] == nil {
 			continue
 		}
-		
+
 		// Build addresses for prefill and decode pods
 		prefillAddr := fmt.Sprintf("%s:%d", ctx.PrefillPods[i].Pod.Status.PodIP, port)
 		decodeAddr := fmt.Sprintf("%s:%d", ctx.DecodePods[i].Pod.Status.PodIP, port)
-		
-		// Execute prefill-decode flow with KV connector
-		err := kvConnector.Proxy(req.Context(), req, prefillAddr, decodeAddr)
-		if err != nil {
-			klog.Errorf("KV connector proxy failed for prefill pod %s, decode pod %s: %v", 
+
+		klog.V(4).Infof("Attempting PD disaggregated request: prefill=%s, decode=%s", prefillAddr, decodeAddr)
+
+		// The router calls the Proxy method on the selected connector, passing the gin context,
+		// the parsed request body, and the pod addresses.
+		if err := kvConnector.Proxy(c, modelRequest, prefillAddr, decodeAddr); err != nil {
+			klog.Errorf("proxy failed for prefill pod %s, decode pod %s: %v",
 				ctx.PrefillPods[i].Pod.Name, ctx.DecodePods[i].Pod.Name, err)
 			continue
 		}
-		
+
 		// Record successful operation in cache
 		r.scheduler.RunPostHooks(ctx, i)
-		
-		klog.V(4).Infof("KV transfer successful for prefill pod %s, decode pod %s", 
+
+		klog.V(4).Infof("kv connector run successful for prefill pod %s, decode pod %s",
 			ctx.PrefillPods[i].Pod.Name, ctx.DecodePods[i].Pod.Name)
-		
+
 		return nil
 	}
-	
+
 	c.AbortWithStatusJSON(http.StatusInternalServerError, "all prefill/decode attempts failed")
 	return fmt.Errorf("all prefill/decode attempts failed")
 }
@@ -209,7 +161,7 @@ type ModelServerSpec struct {
 // KVConnectorSpec defines KV connector configuration
 type KVConnectorSpec struct {
 	// Type specifies the connector type
-	// +kubebuilder:validation:Enum=http;lmcache;nixl
+	// +kubebuilder:validation:Enum=http;lmcache;nixl;mooncake
 	Type string `json:"type"`
 }
 ```
@@ -325,8 +277,8 @@ spec:
 
 ## 6. Conclusion
 
-The proposed enhanced architecture for vLLM KV Connectors addresses the fundamental limitations of the current implementation while providing a robust, extensible, and production-ready solution. By focusing on the actual vLLM connector types (HTTP, LMCache, and NIXL) and introducing proper abstractions, comprehensive error handling, and rich observability, this architecture will significantly improve the reliability and performance of PD disaggregated routing in MatrixInfer.
+The implemented architecture for vLLM KV Connectors addresses the limitations of a monolithic routing implementation by providing a robust, extensible, and production-ready solution. By introducing a `KVConnector` interface and providing implementations for different KV cache transfer strategies (`HTTP` and `NIXL`), this architecture significantly improves the flexibility and performance of PD disaggregated routing in MatrixInfer.
 
-The streamlined design ensures that new connector types can be easily added as vLLM evolves, while the backward-compatible migration strategy minimizes disruption to existing users. The focused configuration options allow operators to choose between HTTP compatibility and high-performance in-memory caching solutions, optimizing for their specific use cases whether prioritizing compatibility, latency, or throughput.
+The design allows operators to select the appropriate connector (`http`, `lmcache`, `mooncake`, or `nixl`) via the `ModelServer` CRD. While `lmcache` and `mooncake` currently default to the `http` connector's behavior, the factory pattern makes it straightforward to add dedicated implementations as needed. This allows operators to choose between simple HTTP-based integration and high-performance in-memory caching with `NIXL`, optimizing for their specific use cases.
 
-This architecture positions MatrixInfer to fully leverage the capabilities of vLLM's KV cache system while providing the operational excellence required for production deployments.
+This architecture positions MatrixInfer to fully leverage the diverse capabilities of vLLM's KV cache system while providing the operational excellence required for production deployments.

@@ -104,61 +104,9 @@ type WorkloadPort struct {
 // KVConnectorSpec defines KV connector configuration for PD disaggregated routing
 type KVConnectorSpec struct {
 	// Type specifies the connector type
-	// +kubebuilder:validation:Enum=http;lmcache;nixl
+	// +kubebuilder:validation:Enum=http;lmcache;nixl;mooncake
 	// +kubebuilder:default="http"
 	Type string `json:"type"`
-
-	// Config contains connector-specific configuration as JSON
-	// +optional
-	Config *KVConnectorConfig `json:"config,omitempty"`
-
-	// Timeouts defines timeout configuration for connector operations
-	// +optional
-	Timeouts *KVConnectorTimeouts `json:"timeouts,omitempty"`
-
-	// Retry defines retry policy for connector operations
-	// +optional
-	Retry *KVConnectorRetry `json:"retry,omitempty"`
-}
-
-// KVConnectorConfig contains connector-specific configuration
-type KVConnectorConfig struct {
-	// RequestTimeout is the timeout for individual requests
-	// +optional
-	RequestTimeout *string `json:"requestTimeout,omitempty"`
-
-	// MaxRetries is the maximum number of retries
-	// +optional
-	MaxRetries *int32 `json:"maxRetries,omitempty"`
-
-	// Additional config fields can be added here as needed
-	// For complex configurations, use runtime.RawExtension
-}
-
-// KVConnectorTimeouts defines timeout configuration
-type KVConnectorTimeouts struct {
-	// Prefill timeout
-	// +optional
-	// +kubebuilder:default="30s"
-	Prefill *string `json:"prefill,omitempty"`
-
-	// Decode timeout
-	// +optional
-	// +kubebuilder:default="120s"
-	Decode *string `json:"decode,omitempty"`
-}
-
-// KVConnectorRetry defines retry policy
-type KVConnectorRetry struct {
-	// MaxAttempts is the maximum number of retry attempts
-	// +optional
-	// +kubebuilder:default=3
-	MaxAttempts *int32 `json:"maxAttempts,omitempty"`
-
-	// BackoffBase is the base duration for exponential backoff
-	// +optional
-	// +kubebuilder:default="1s"
-	BackoffBase *string `json:"backoffBase,omitempty"`
 }
 
 type TrafficPolicy struct {

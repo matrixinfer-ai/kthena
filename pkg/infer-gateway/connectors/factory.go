@@ -47,7 +47,7 @@ func (f *Factory) RegisterConnectorBuilder(connectorType ConnectorType, construc
 func (f *Factory) GetConnector(connectorType ConnectorType) KVConnector {
 	connector, ok := f.connectors[connectorType]
 	if !ok {
-		return nil
+		return NewHTTPConnector() // Default to HTTP connector if not found
 	}
 	return connector()
 }
@@ -58,9 +58,9 @@ func NewDefaultFactory() *Factory {
 
 	// Register default connectors
 	factory.RegisterConnectorBuilder(ConnectorTypeHTTP, NewHTTPConnector)
-	factory.RegisterConnectorBuilder(ConnectorTypeLMCache, NewHTTPConnector)
-	factory.RegisterConnectorBuilder(ConnectorTypeMoonCake, NewHTTPConnector)
-	factory.RegisterConnectorBuilder(ConnectorTypeNIXL, NewNIXLConnector)
+	factory.RegisterConnectorBuilder(ConnectorTypeLMCache, NewHTTPConnector)  // LMCache uses HTTP connector for now
+	factory.RegisterConnectorBuilder(ConnectorTypeMoonCake, NewHTTPConnector) // MoonCake uses HTTP connector
+	factory.RegisterConnectorBuilder(ConnectorTypeNIXL, func() KVConnector { return NewNIXLConnector() })
 
 	return factory
 }
