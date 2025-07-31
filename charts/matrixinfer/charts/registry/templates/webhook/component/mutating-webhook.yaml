@@ -25,7 +25,7 @@ webhooks:
       {{- if .Values.global.certManager.enabled }}
       caBundle: ""
       {{- else }}
-      caBundle: {{ .Values.webhook.caBundle | default "" | quote }}
+      caBundle: {{ required "A caBundle is required for the registry mutating webhook when cert-manager is disabled (registry.webhook.caBundle)" .Values.webhook.caBundle | quote }}
       {{- end }}
     rules:
       - apiGroups: [ "registry.matrixinfer.ai" ]
