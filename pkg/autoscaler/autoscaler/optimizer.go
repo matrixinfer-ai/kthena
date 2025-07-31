@@ -170,6 +170,8 @@ func (optimizer *Optimizer) Optimize(ctx context.Context, client clientset.Inter
 		optimizer.Status.RefreshPanicMode()
 	}
 	CorrectedInstancesAlgorithm := algorithm.CorrectedInstancesAlgorithm{
+		IsPanic:              optimizer.Status.IsPanicMode(),
+		History:              optimizer.Status.History,
 		Behavior:             &autoscalePolicy.Spec.Behavior,
 		MinInstances:         optimizer.Meta.MinReplicas,
 		MaxInstances:         optimizer.Meta.MaxReplicas,

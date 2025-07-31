@@ -23,22 +23,26 @@ import (
 )
 
 type CorrectedInstancesAlgorithm struct {
-	isInPanic             bool
-	MinCorrectedForPanic  *datastructure.RmqLineChartSlidingWindow[int32]
+	IsPanic              bool
+	History              *History
+	Behavior             *v1alpha1.AutoscalingPolicyBehavior
+	MinInstances         int32
+	MaxInstances         int32
+	CurrentInstances     int32
+	RecommendedInstances int32
+}
+
+type History struct {
 	MaxRecommendation     *datastructure.RmqRecordSlidingWindow[int32]
-	MaxCorrected          *datastructure.RmqLineChartSlidingWindow[int32]
 	MinRecommendation     *datastructure.RmqRecordSlidingWindow[int32]
+	MaxCorrected          *datastructure.RmqLineChartSlidingWindow[int32]
 	MinCorrectedForStable *datastructure.RmqLineChartSlidingWindow[int32]
-	Behavior              *v1alpha1.AutoscalingPolicyBehavior
-	MinInstances          int32
-	MaxInstances          int32
-	CurrentInstances      int32
-	RecommendedInstances  int32
+	MinCorrectedForPanic  *datastructure.RmqLineChartSlidingWindow[int32]
 }
 
 func (alg CorrectedInstancesAlgorithm) GetCorrectedInstances() int32 {
 	var corrected int32
-	if alg.isInPanic {
+	if alg.IsPanic {
 		corrected = alg.getCorrectedInstancesForPanic()
 	} else {
 		corrected = alg.getCorrectedInstancesForStable()
@@ -48,7 +52,7 @@ func (alg CorrectedInstancesAlgorithm) GetCorrectedInstances() int32 {
 
 func (alg CorrectedInstancesAlgorithm) getCorrectedInstancesForPanic() int32 {
 	corrected := alg.RecommendedInstances
-	if pastSample, ok := alg.MinCorrectedForPanic.GetBest(alg.CurrentInstances); ok {
+	if pastSample, ok := alg.History.MinCorrectedForPanic.GetBest(alg.CurrentInstances); ok {
 		relativeConstraint := pastSample + int32(float64(pastSample)*float64(*alg.Behavior.ScaleUp.PanicPolicy.Percent)/100.0)
 		corrected = min(corrected, relativeConstraint)
 	}
@@ -71,10 +75,10 @@ func (alg CorrectedInstancesAlgorithm) getCorrectedInstancesForStable() int32 {
 
 func (alg CorrectedInstancesAlgorithm) getCorrectedInstancesForStableScaleDown() int32 {
 	corrected := alg.RecommendedInstances
-	if betterRecommendation, ok := alg.MaxRecommendation.GetBest(); ok {
+	if betterRecommendation, ok := alg.History.MaxRecommendation.GetBest(); ok {
 		corrected = max(corrected, betterRecommendation)
 	}
-	if pastSample, ok := alg.MaxCorrected.GetBest(alg.CurrentInstances); ok {
+	if pastSample, ok := alg.History.MaxCorrected.GetBest(alg.CurrentInstances); ok {
 		absoluteConstraint := pastSample - *alg.Behavior.ScaleDown.Instances
 		relativeConstraint := pastSample - pastSample*(*alg.Behavior.ScaleDown.Percent)/100
 		var constraint int32
@@ -94,10 +98,10 @@ func (alg CorrectedInstancesAlgorithm) getCorrectedInstancesForStableScaleDown()
 
 func (alg CorrectedInstancesAlgorithm) getCorrectedInstancesForStableScaleUp() int32 {
 	corrected := alg.RecommendedInstances
-	if betterRecommendation, ok := alg.MinRecommendation.GetBest(); ok {
+	if betterRecommendation, ok := alg.History.MinRecommendation.GetBest(); ok {
 		corrected = min(corrected, betterRecommendation)
 	}
-	if pastSample, ok := alg.MinCorrectedForStable.GetBest(alg.CurrentInstances); ok {
+	if pastSample, ok := alg.History.MinCorrectedForStable.GetBest(alg.CurrentInstances); ok {
 		absoluteConstraint := pastSample + *alg.Behavior.ScaleUp.StablePolicy.Instances
 		relativeConstraint := pastSample + pastSample*(*alg.Behavior.ScaleUp.StablePolicy.Percent)/100
 		var constraint int32

@@ -2,6 +2,7 @@ package autoscaler
 
 import (
 	"matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
+	"matrixinfer.ai/matrixinfer/pkg/autoscaler/algorithm"
 	"matrixinfer.ai/matrixinfer/pkg/autoscaler/datastructure"
 	"matrixinfer.ai/matrixinfer/pkg/autoscaler/util"
 )
@@ -9,7 +10,7 @@ import (
 type Status struct {
 	PanicModeEndsAt           int64
 	PanicModeHoldMilliseconds int64
-	History                   *History
+	History                   *algorithm.History
 }
 
 func NewStatus(behavior *v1alpha1.AutoscalingPolicyBehavior) *Status {
@@ -36,7 +37,7 @@ func NewStatus(behavior *v1alpha1.AutoscalingPolicyBehavior) *Status {
 	return &Status{
 		PanicModeEndsAt:           0,
 		PanicModeHoldMilliseconds: panicModeHoldMilliseconds,
-		History: &History{
+		History: &algorithm.History{
 			MaxRecommendation:     datastructure.NewMaximumRecordSlidingWindow[int32](scaleDownStabilizationWindowMilliseconds),
 			MinRecommendation:     datastructure.NewMinimumRecordSlidingWindow[int32](scaleUpStabilizationWindowMilliseconds),
 			MaxCorrected:          datastructure.NewMinimumLineChartSlidingWindow[int32](scaleDownPeriodMilliseconds),
@@ -44,14 +45,6 @@ func NewStatus(behavior *v1alpha1.AutoscalingPolicyBehavior) *Status {
 			MinCorrectedForPanic:  datastructure.NewMinimumLineChartSlidingWindow[int32](behavior.ScaleUp.PanicPolicy.Period.Milliseconds()),
 		},
 	}
-}
-
-type History struct {
-	MaxRecommendation     *datastructure.RmqRecordSlidingWindow[int32]
-	MinRecommendation     *datastructure.RmqRecordSlidingWindow[int32]
-	MaxCorrected          *datastructure.RmqLineChartSlidingWindow[int32]
-	MinCorrectedForStable *datastructure.RmqLineChartSlidingWindow[int32]
-	MinCorrectedForPanic  *datastructure.RmqLineChartSlidingWindow[int32]
 }
 
 func (s *Status) AppendRecommendation(recommendedInstances int32) {

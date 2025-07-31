@@ -88,6 +88,8 @@ func (autoscaler *Autoscaler) Scale(ctx context.Context, client clientset.Interf
 		autoscaler.Status.RefreshPanicMode()
 	}
 	CorrectedInstancesAlgorithm := algorithm.CorrectedInstancesAlgorithm{
+		IsPanic:              autoscaler.Status.IsPanicMode(),
+		History:              autoscaler.Status.History,
 		Behavior:             &autoscalePolicy.Spec.Behavior,
 		MinInstances:         autoscaler.Meta.Config.MinReplicas,
 		MaxInstances:         autoscaler.Meta.Config.MaxReplicas,
