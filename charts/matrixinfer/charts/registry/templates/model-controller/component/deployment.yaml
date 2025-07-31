@@ -21,7 +21,8 @@ spec:
       containers:
         - name: model-controller
           image: "{{ .Values.modelController.image.repository }}:{{ .Values.modelController.image.tag }}"
-          args: {{ .Values.modelController.image.args }}
+          args:
+            {{- toYaml .Values.modelController.image.args | nindent 12 }}
           imagePullPolicy: {{ .Values.modelController.image.pullPolicy }}
           resources:
             {{- toYaml .Values.modelController.resource | nindent 12 }}
