@@ -17,13 +17,19 @@ limitations under the License.
 package utils
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 
+	admissionv1 "k8s.io/api/admission/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
+
+	networkingv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 	"sigs.k8s.io/yaml"
 )
@@ -69,7 +75,6 @@ func GetPrompt(body map[string]interface{}) (string, error) {
 			if !ok {
 				continue
 			}
-
 			contentStr, ok := content.(string)
 			if !ok {
 				continue
@@ -146,4 +151,85 @@ func unmarshalPluginsConfig(schedulerConfig *conf.SchedulerConfiguration) (map[s
 	}
 
 	return pluginsArgMap, nil
+}
+
+// ParseModelRouteFromRequest parses the HTTP request and extracts the AdmissionReview and ModelRoute.
+func ParseModelRouteFromRequest(r *http.Request) (*admissionv1.AdmissionReview, *networkingv1alpha1.ModelRoute, error) {
+	// Verify the content type is accurate
+	contentType := r.Header.Get("Content-Type")
+	if contentType != "application/json" {
+		return nil, nil, fmt.Errorf("invalid Content-Type, expected application/json, got %s", contentType)
+	}
+
+	var body []byte
+	if r.Body != nil {
+		defer r.Body.Close()
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to read request body: %v", err)
+		}
+		body = data
+	}
+
+	// Parse the AdmissionReview request
+	var admissionReview admissionv1.AdmissionReview
+	if err := json.Unmarshal(body, &admissionReview); err != nil {
+		return nil, nil, fmt.Errorf("failed to decode body: %v", err)
+	}
+
+	var mr networkingv1alpha1.ModelRoute
+	if err := json.Unmarshal(admissionReview.Request.Object.Raw, &mr); err != nil {
+		return nil, nil, fmt.Errorf("failed to decode modelRoute: %v", err)
+	}
+
+	return &admissionReview, &mr, nil
+}
+
+// ParseModelServerFromRequest parses the HTTP request and extracts the AdmissionReview and ModelServer.
+func ParseModelServerFromRequest(r *http.Request) (*admissionv1.AdmissionReview, *networkingv1alpha1.ModelServer, error) {
+	// Verify the content type is accurate
+	contentType := r.Header.Get("Content-Type")
+	if contentType != "application/json" {
+		return nil, nil, fmt.Errorf("invalid Content-Type, expected application/json, got %s", contentType)
+	}
+
+	var body []byte
+	if r.Body != nil {
+		defer r.Body.Close()
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to read request body: %v", err)
+		}
+		body = data
+	}
+
+	// Parse the AdmissionReview request
+	var admissionReview admissionv1.AdmissionReview
+	if err := json.Unmarshal(body, &admissionReview); err != nil {
+		return nil, nil, fmt.Errorf("failed to decode body: %v", err)
+	}
+
+	var ms networkingv1alpha1.ModelServer
+	if err := json.Unmarshal(admissionReview.Request.Object.Raw, &ms); err != nil {
+		return nil, nil, fmt.Errorf("failed to decode modelServer: %v", err)
+	}
+
+	return &admissionReview, &ms, nil
+}
+
+// SendAdmissionResponse sends the AdmissionReview response back to the client
+func SendAdmissionResponse(w http.ResponseWriter, admissionReview *admissionv1.AdmissionReview) error {
+	// Send the response
+	resp, err := json.Marshal(admissionReview)
+	if err != nil {
+		return fmt.Errorf("failed to encode response: %v", err)
+	}
+
+	klog.V(4).Infof("Sending response: %s", string(resp))
+	w.Header().Set("Content-Type", "application/json")
+	if _, err := w.Write(resp); err != nil {
+		return fmt.Errorf("failed to write response: %v", err)
+	}
+
+	return nil
 }
