@@ -164,7 +164,7 @@ func (collector *MetricCollector) processPrometheusString(metricStr string, past
 		}
 
 		if _, ok := collector.WatchMetricList[mf.GetName()]; !ok {
-			klog.Errorf("metric name: %s is not matched with metricTargets", mf.GetName())
+			klog.V(4).Infof("metric name: %s is not matched with metricTargets", mf.GetName())
 			continue
 		}
 
