@@ -564,7 +564,7 @@ func (mc *ModelController) tryUpdateAutoscalingPolicyBinding(ctx context.Context
 	if backend == nil {
 		targetAutoscalePolicyBinding = convert.BuildOptimizePolicyBinding(model, utils.GetBackendResourceName(model.Name, ""))
 	} else {
-		targetAutoscalePolicyBinding = convert.BuildOptimizePolicyBinding(model, utils.GetBackendResourceName(model.Name, backend.Name))
+		targetAutoscalePolicyBinding = convert.BuildScalingPolicyBinding(model, backend, utils.GetBackendResourceName(model.Name, backend.Name))
 	}
 	currentAutoscalePolicyBinding, err := mc.autoscalingPolicyBindingsLister.AutoscalingPolicyBindings(model.Namespace).Get(targetAutoscalePolicyBinding.Name)
 	if err != nil {

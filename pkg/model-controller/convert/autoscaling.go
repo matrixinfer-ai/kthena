@@ -66,7 +66,7 @@ func BuildScalingPolicyBinding(model *registry.Model, backend *registry.ModelBac
 }
 
 func BuildOptimizePolicyBindingSpec(model *registry.Model, name string) *registry.AutoscalingPolicyBindingSpec {
-	params := make([]registry.OptimizerParam, len(model.Spec.Backends))
+	params := make([]registry.OptimizerParam, 0, len(model.Spec.Backends))
 	for _, backend := range model.Spec.Backends {
 		targetName := utils.GetBackendResourceName(model.Name, backend.Name)
 		params = append(params, registry.OptimizerParam{

@@ -73,7 +73,7 @@ func (collector *MetricCollector) UpdateMetrics(ctx context.Context, podLister l
 	}
 
 	currentHistograms := make(map[string]HistogramInfo)
-	instanceInfo := collector.fetchMetricsFromPod(ctx, pods, &currentHistograms)
+	instanceInfo := collector.fetchMetricsFromPods(ctx, pods, &currentHistograms)
 	klog.V(10).InfoS("finish to processInstance", "instanceInfo.isFailed", instanceInfo.IsFailed)
 	klog.V(10).InfoS("finish to processInstance", "instanceInfo.isReady", instanceInfo.IsReady)
 	klog.V(10).InfoS("finish to processInstance", "instanceInfo.metricsMap", instanceInfo.MetricsMap)
@@ -92,55 +92,56 @@ func (collector *MetricCollector) UpdateMetrics(ctx context.Context, podLister l
 	return
 }
 
-func (collector *MetricCollector) fetchMetricsFromPod(ctx context.Context, pods []*corev1.Pod, currentHistograms *map[string]HistogramInfo) InstanceInfo {
+func (collector *MetricCollector) fetchMetricsFromPods(ctx context.Context, pods []*corev1.Pod, currentHistograms *map[string]HistogramInfo) InstanceInfo {
 	instanceInfo := InstanceInfo{true, false, make(algorithm.Metrics)}
 	pastHistograms, ok := collector.PastHistograms.GetLastUnfreshSnapshot()
 	if !ok {
 		pastHistograms = make(map[string]HistogramInfo)
 	}
-	klog.InfoS("processInstance start")
+	klog.InfoS("fetch metrics from pods start")
 	for _, pod := range pods {
-		instanceInfo.IsReady = instanceInfo.IsReady && inferControllerUtils.IsPodRunningAndReady(pod)
-		instanceInfo.IsFailed = instanceInfo.IsFailed || util.IsPodFailed(pod) || inferControllerUtils.ContainerRestarted(pod)
+		func() {
+			instanceInfo.IsReady = instanceInfo.IsReady && inferControllerUtils.IsPodRunningAndReady(pod)
+			instanceInfo.IsFailed = instanceInfo.IsFailed || util.IsPodFailed(pod) || inferControllerUtils.ContainerRestarted(pod)
 
-		pastValue, ok := pastHistograms[pod.Name]
-		var pastHistogramMap map[string]*histogram.Snapshot
-		if !ok || pod.Status.StartTime == nil || pastValue.PodStartTime == nil || !pod.Status.StartTime.Equal(pastValue.PodStartTime) {
-			pastHistogramMap = make(map[string]*histogram.Snapshot)
-		} else {
-			pastHistogramMap = pastValue.HistogramMap
-		}
+			pastValue, ok := pastHistograms[pod.Name]
+			var pastHistogramMap map[string]*histogram.Snapshot
+			if !ok || pod.Status.StartTime == nil || pastValue.PodStartTime == nil || !pod.Status.StartTime.Equal(pastValue.PodStartTime) {
+				pastHistogramMap = make(map[string]*histogram.Snapshot)
+			} else {
+				pastHistogramMap = pastValue.HistogramMap
+			}
 
-		currentHistogramMap := make(map[string]*histogram.Snapshot)
-		ip := pod.Status.PodIP
-		podCtx, cancel := context.WithTimeout(ctx, util.AutoscaleCtxTimeoutSeconds*time.Second)
-		defer cancel()
-		url := fmt.Sprintf("http://%s:%d%s", ip, collector.Target.MetricFrom.Port, collector.Target.MetricFrom.Uri)
+			currentHistogramMap := make(map[string]*histogram.Snapshot)
+			ip := pod.Status.PodIP
+			podCtx, cancel := context.WithTimeout(ctx, util.AutoscaleCtxTimeoutSeconds*time.Second)
+			defer cancel()
+			url := fmt.Sprintf("http://%s:%d%s", ip, collector.Target.MetricFrom.Port, collector.Target.MetricFrom.Uri)
 
-		req, _ := http.NewRequestWithContext(podCtx, http.MethodGet, url, nil)
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			klog.Errorf("get metric response error: %v", err)
-			continue
-		}
-		if resp == nil || !util.IsRequestSuccess(resp.StatusCode) || resp.Body == nil {
-			klog.Errorf("get metric response is invalid")
-			continue
-		}
-		defer resp.Body.Close()
+			req, _ := http.NewRequestWithContext(podCtx, http.MethodGet, url, nil)
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				klog.Errorf("get metric response error: %v", err)
+				return
+			}
+			if resp == nil || !util.IsRequestSuccess(resp.StatusCode) || resp.Body == nil {
+				klog.Errorf("get metric response is invalid")
+				return
+			}
+			defer resp.Body.Close()
 
-		bodyStr, err := io.ReadAll(resp.Body)
-		if err != nil {
-			klog.Errorf("get metrics read response error: %v", err)
-			continue
-		}
-		result := string(bodyStr)
-		collector.processPrometheusString(result, pastHistogramMap, currentHistogramMap, instanceInfo.MetricsMap)
-		(*currentHistograms)[pod.Name] = HistogramInfo{
-			PodStartTime: pod.Status.StartTime,
-			HistogramMap: currentHistogramMap,
-		}
-
+			bodyStr, err := io.ReadAll(resp.Body)
+			if err != nil {
+				klog.Errorf("get metrics read response error: %v", err)
+				return
+			}
+			result := string(bodyStr)
+			collector.processPrometheusString(result, pastHistogramMap, currentHistogramMap, instanceInfo.MetricsMap)
+			(*currentHistograms)[pod.Name] = HistogramInfo{
+				PodStartTime: pod.Status.StartTime,
+				HistogramMap: currentHistogramMap,
+			}
+		}()
 	}
 	return instanceInfo
 }

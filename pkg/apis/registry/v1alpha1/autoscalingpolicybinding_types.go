@@ -6,6 +6,7 @@ import (
 )
 
 // AutoscalingPolicyBindingSpec defines the desired state of AutoscalingPolicyBinding.
+// +kubebuilder:validation:XValidation:rule="has(self.optimizerConfiguration) != has(self.scalingConfiguration)",message="Either optimizerConfiguration or scalingConfiguration must be set, but not both."
 type AutoscalingPolicyBindingSpec struct {
 	// PolicyRef references the autoscaling policy to be optimized scaling base on multiple targets.
 	// +optional
