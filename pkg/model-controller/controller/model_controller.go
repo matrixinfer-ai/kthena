@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"reflect"
 	"strings"
 	"time"
@@ -146,7 +145,7 @@ func (mc *ModelController) updateModel(old any, new any) {
 	}
 
 	// Check for LoRA adapter updates before normal reconciliation
-	if mc.isVLLMRuntimeLoraUpdateEnabled() && mc.hasOnlyLoraAdaptersChanged(oldModel, newModel) {
+	if mc.hasOnlyLoraAdaptersChanged(oldModel, newModel) {
 		// Handle LoRA adapter update without triggering full reconciliation
 		ctx := context.Background()
 		if err := mc.handleLoraAdapterUpdate(ctx, oldModel, newModel); err != nil {
@@ -224,11 +223,6 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 	return nil
 }
 
-// isVLLMRuntimeLoraUpdateEnabled checks if VLLM runtime LoRA updating is enabled
-func (mc *ModelController) isVLLMRuntimeLoraUpdateEnabled() bool {
-	return os.Getenv("VLLM_ALLOW_RUNTIME_LORA_UPDATING") == "TRUE"
-}
-
 // hasOnlyLoraAdaptersChanged checks if only LoRA adapters have changed between old and new model
 func (mc *ModelController) hasOnlyLoraAdaptersChanged(oldModel, newModel *registryv1alpha1.Model) bool {
 	if len(oldModel.Spec.Backends) != len(newModel.Spec.Backends) {
@@ -264,7 +258,6 @@ func (mc *ModelController) hasOnlyLoraAdaptersChanged(oldModel, newModel *regist
 
 // handleLoraAdapterUpdate handles LoRA adapter updates for VLLM backends
 func (mc *ModelController) handleLoraAdapterUpdate(ctx context.Context, oldModel, newModel *registryv1alpha1.Model) error {
-
 	klog.Info("Detected LoRA adapter changes, attempting runtime update")
 
 	for i, newBackend := range newModel.Spec.Backends {
@@ -362,10 +355,9 @@ func (mc *ModelController) loadLoraAdapter(ctx context.Context, runtimeURL strin
 
 	// Prepare request body
 	requestBody := map[string]interface{}{
-		"adapter_name":   adapter.Name,
+		"lora_name":      adapter.Name,
 		"source":         adapter.ArtifactURL,
 		"output_dir":     fmt.Sprintf("/tmp/lora_adapters/%s", adapter.Name),
-		"auto_download":  true,
 		"async_download": false, // Use synchronous download for better error handling
 	}
 

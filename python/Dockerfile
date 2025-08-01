@@ -25,7 +25,7 @@ COPY matrixinfer/downloader/ ./matrixinfer/downloader/
 ENV PYTHONPATH="/app"
 ENTRYPOINT ["python", "matrixinfer/downloader/app.py"]
 
-FROM python:3.9.6-slim AS runtime
+FROM python:3.9-slim AS runtime
 RUN apt-get update && \
     apt-get install -y curl unzip rsync && \
     apt-get clean && \

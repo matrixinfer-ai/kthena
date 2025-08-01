@@ -89,6 +89,7 @@ spec:
                 image: ${MODEL_INFER_RUNTIME_IMAGE}
                 ports:
                   - containerPort: ${MODEL_INFER_RUNTIME_PORT}
+                envFrom: ${MODEL_DOWNLOAD_ENVFROM}
                 args:
                   - --port
                   - ${MODEL_INFER_RUNTIME_PORT}

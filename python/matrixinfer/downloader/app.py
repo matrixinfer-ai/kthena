@@ -17,8 +17,8 @@ import json
 import os
 from pathlib import Path
 
-from downloader import download_model
-from logger import setup_logger
+from matrixinfer.downloader.downloader import download_model
+from matrixinfer.downloader.logger import setup_logger
 
 logger = setup_logger()
 
