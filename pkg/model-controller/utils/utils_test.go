@@ -115,7 +115,8 @@ func TestBuildModelInferCR(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := BuildModelInferCR(tt.input)
+			var got []*workload.ModelInfer
+			err := BuildModelInferResources(tt.input, got)
 			if tt.expectErrMsg != "" {
 				assert.Contains(t, err.Error(), tt.expectErrMsg)
 				return

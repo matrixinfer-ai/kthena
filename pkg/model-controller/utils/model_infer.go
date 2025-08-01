@@ -43,7 +43,8 @@ import (
 )
 
 const (
-	ModelInferOwnerKey             = "model.uid"
+	ModelOwnerKey                  = "model.uid"
+	BackendOwnerKey                = "backend.name"
 	CacheURIPrefixPVC              = "pvc://"
 	CacheURIPrefixHostPath         = "hostpath://"
 	URIPrefixSeparator             = "://"
@@ -59,9 +60,8 @@ var templateFS embed.FS
 
 var XPUList = []corev1.ResourceName{"nvidia.com/gpu", "huawei.com/ascend-1980"}
 
-// BuildModelInferCR creates ModelInfer objects based on the model's backends.
-func BuildModelInferCR(model *registry.Model) ([]*workload.ModelInfer, error) {
-	var infers []*workload.ModelInfer
+// BuildModelInferResources creates ModelInfer objects based on the model's backends.
+func BuildModelInferResources(model *registry.Model, infers []*workload.ModelInfer) error {
 	for idx, backend := range model.Spec.Backends {
 		var infer *workload.ModelInfer
 		var err error
@@ -71,14 +71,14 @@ func BuildModelInferCR(model *registry.Model) ([]*workload.ModelInfer, error) {
 		case registry.ModelBackendTypeVLLMDisaggregated:
 			infer, err = buildVllmDisaggregatedModelInfer(model, idx)
 		default:
-			return nil, fmt.Errorf("not support model backend type: %s", backend.Type)
+			return fmt.Errorf("not support model backend type: %s", backend.Type)
 		}
 		if err != nil {
-			return nil, err
+			return err
 		}
 		infers = append(infers, infer)
 	}
-	return infers, nil
+	return nil
 }
 
 // buildVllmDisaggregatedModelInfer handles VLLM disaggregated backend creation.
@@ -143,7 +143,7 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 			Name:      fmt.Sprintf("%s-%d-%s-instance", model.Name, idx, strings.ToLower(string(backend.Type))),
 			Namespace: model.Namespace,
 			Labels: map[string]string{
-				ModelInferOwnerKey: string(model.UID),
+				ModelOwnerKey: string(model.UID),
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				{
@@ -228,7 +228,7 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 			Name:      fmt.Sprintf("%s-%d-%s-instance", model.Name, idx, strings.ToLower(string(backend.Type))),
 			Namespace: model.Namespace,
 			Labels: map[string]string{
-				ModelInferOwnerKey: string(model.UID),
+				ModelOwnerKey: string(model.UID),
 			},
 			// model owns model infer. ModelInfer will be deleted when the model is deleted
 			OwnerReferences: []metav1.OwnerReference{
@@ -249,7 +249,7 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 		"SERVER_REPLICAS":  workersMap[registry.ModelWorkerTypeServer].Replicas,
 		"SERVER_ENTRY_TEMPLATE_METADATA": &metav1.ObjectMeta{
 			Labels: map[string]string{
-				ModelInferOwnerKey: string(model.UID),
+				ModelOwnerKey: string(model.UID),
 			},
 		},
 		"SERVER_WORKER_TEMPLATE_METADATA": nil,
@@ -730,7 +730,7 @@ func BuildModelRoute(model *registry.Model) *networking.ModelRoute {
 	loraAdapters = slices.Compact(loraAdapters)
 	rules = append(rules, &networking.Rule{
 		Name:         modelRouteRuleName,
-		ModelMatch:   model.Spec.ModelMatch,
+		ModelMatch:   &model.Spec.ModelMatch,
 		TargetModels: targetModels,
 	})
 	route := &networking.ModelRoute{

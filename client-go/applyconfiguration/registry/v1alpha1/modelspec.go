@@ -19,7 +19,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1 "k8s.io/api/core/v1"
 	networkingv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/networking/v1alpha1"
 )
 
@@ -29,7 +28,7 @@ type ModelSpecApplyConfiguration struct {
 	Name                     *string                                          `json:"name,omitempty"`
 	Owner                    *string                                          `json:"owner,omitempty"`
 	Backends                 []ModelBackendApplyConfiguration                 `json:"backends,omitempty"`
-	AutoscalingPolicyRef     *v1.LocalObjectReference                         `json:"autoscalingPolicyRef,omitempty"`
+	AutoscalingPolicy        *AutoscalingPolicyConfigApplyConfiguration       `json:"autoscalingPolicy,omitempty"`
 	CostExpansionRatePercent *int32                                           `json:"costExpansionRatePercent,omitempty"`
 	ModelMatch               *networkingv1alpha1.ModelMatchApplyConfiguration `json:"modelMatch,omitempty"`
 }
@@ -69,11 +68,11 @@ func (b *ModelSpecApplyConfiguration) WithBackends(values ...*ModelBackendApplyC
 	return b
 }
 
-// WithAutoscalingPolicyRef sets the AutoscalingPolicyRef field in the declarative configuration to the given value
+// WithAutoscalingPolicy sets the AutoscalingPolicy field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the AutoscalingPolicyRef field is set to the value of the last call.
-func (b *ModelSpecApplyConfiguration) WithAutoscalingPolicyRef(value v1.LocalObjectReference) *ModelSpecApplyConfiguration {
-	b.AutoscalingPolicyRef = &value
+// If called multiple times, the AutoscalingPolicy field is set to the value of the last call.
+func (b *ModelSpecApplyConfiguration) WithAutoscalingPolicy(value *AutoscalingPolicyConfigApplyConfiguration) *ModelSpecApplyConfiguration {
+	b.AutoscalingPolicy = value
 	return b
 }
 

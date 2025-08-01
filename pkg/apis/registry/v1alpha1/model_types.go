@@ -38,12 +38,9 @@ type ModelSpec struct {
 	// +listType=map
 	// +listMapKey=name
 	Backends []ModelBackend `json:"backends"`
-	// AutoscalingPolicy is the model-level autoscaling policy. There are two kinds of autoscaling policies:
-	// one for model and one for backend. The model-level autoscaling policy is used to control the overall
-	// scaling behavior of the model. The backend-level autoscaling policy is used to control the scaling
-	// behavior of each individual backend. Webhook will reject the CR if both are specified.
+	// AutoscalingPolicy references the autoscaling policy to be used for this model.
 	// +optional
-	AutoscalingPolicyRef corev1.LocalObjectReference `json:"autoscalingPolicyRef,omitempty"`
+	AutoscalingPolicy *AutoscalingPolicyConfig `json:"autoscalingPolicy,omitempty"`
 	// CostExpansionRatePercent is the percentage rate at which the cost expands.
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=100
@@ -53,7 +50,21 @@ type ModelSpec struct {
 	// TargetModels. Multiple match conditions are ANDed together, i.e. the match will
 	// evaluate to true only if all conditions are satisfied.
 	// +optional
-	ModelMatch *networking.ModelMatch `json:"modelMatch,omitempty"`
+	ModelMatch networking.ModelMatch `json:"modelMatch,omitempty"`
+}
+
+// AutoscalingPolicyConfig defines the configuration for autoscaling behavior.
+// It includes tolerance percentage, metrics to monitor, and scaling behavior settings.
+// Fields are optional and can be omitted in the configuration.
+type AutoscalingPolicyConfig struct {
+	// +optional
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=100
+	TolerancePercent int32 `json:"tolerancePercent,omitempty"`
+	// +optional
+	Metrics []AutoscalingPolicyMetric `json:"metrics,omitempty"`
+	// +optional
+	Behavior AutoscalingPolicyStablePolicy `json:"behavior,omitempty"`
 }
 
 // ModelBackend defines the configuration for a model backend.
@@ -116,9 +127,9 @@ type ModelBackend struct {
 	// LoraAdapter is a list of LoRA adapters.
 	// +optional
 	LoraAdapters []LoraAdapter `json:"loraAdapters,omitempty"`
-	// AutoscalingPolicy is the backend-level autoscaling policy.
+	// AutoscalingPolicyRef references the autoscaling policy for this backend.
 	// +optional
-	AutoscalingPolicyRef corev1.LocalObjectReference `json:"autoscalingPolicyRef,omitempty"`
+	AutoscalingPolicy *AutoscalingPolicyConfig `json:"autoscalingPolicy,omitempty"`
 }
 
 // LoraAdapter defines a LoRA (Low-Rank Adaptation) adapter configuration.

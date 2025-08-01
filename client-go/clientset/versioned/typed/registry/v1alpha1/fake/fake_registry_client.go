@@ -32,6 +32,10 @@ func (c *FakeRegistryV1alpha1) AutoscalingPolicies(namespace string) v1alpha1.Au
 	return newFakeAutoscalingPolicies(c, namespace)
 }
 
+func (c *FakeRegistryV1alpha1) AutoscalingPolicyBindings(namespace string) v1alpha1.AutoscalingPolicyBindingInterface {
+	return newFakeAutoscalingPolicyBindings(c, namespace)
+}
+
 func (c *FakeRegistryV1alpha1) Models(namespace string) v1alpha1.ModelInterface {
 	return newFakeModels(c, namespace)
 }
