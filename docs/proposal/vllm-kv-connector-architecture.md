@@ -1,5 +1,20 @@
 # Proposal: Enhanced Architecture for vLLM KV Connectors
 
+## Goals
+
+- **Support Mainstream vLLM KV Connectors**: Natively support various KV cache transfer mechanisms in vLLM, including `LMCache`, `NIXL`, and `MooncakeStore`.
+- **Pluggable and Extensible Architecture**: Design a flexible architecture that allows for the easy addition of future KV connectors from vLLM or other inference engines like SGLang with minimal changes to the core logic.
+- **User-Defined Configuration**: Enable users to specify the desired KV connector type on a per-model basis through the `ModelServer` CRD.
+- **Decouple KV Transfer from Routing Logic**: Isolate the specifics of KV cache management from the primary request routing flow to improve modularity and maintainability.
+- **Enhance System Resilience**: Improve error handling and observability for the KV cache transfer process.
+
+## Non-Goals
+
+- **Support for Other Inference Engines**: This proposal is focused exclusively on integrating with vLLM. While the architecture is designed to be extensible, direct support for other inference engines is out of scope for this initial implementation.
+- **Implementation of Custom KV Cache Mechanisms**: The goal is to integrate with *existing* KV cache connectors provided by vLLM, not to develop a new KV cache system.
+- **Modification of vLLM Internals**: This architecture works with vLLM as it is and does not propose any changes to vLLM's internal implementation.
+- **Automatic Connector Selection**: The selection of a KV connector is a manual process configured by the user in the CRD. The system will not automatically detect or select the optimal connector.
+
 ## 1. Introduction
 
 This document proposes an enhanced architecture for handling KV Connectors in the MatrixInfer gateway. The current implementation for PD (Prefill-Decode) disaggregated routing is based on a simple two-step HTTP request process, which is insufficient to support the diverse KV cache transfer mechanisms available in vLLM.

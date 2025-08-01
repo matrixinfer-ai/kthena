@@ -91,97 +91,75 @@ func TestProxyModelEndpoint(t *testing.T) {
 	defer hookPatch.Reset()
 
 	tests := []struct {
-		name         string
-		ctx          *framework.Context
-		decodePatch  func() *gomonkey.Patches
-		prefillPatch func() *gomonkey.Patches
-		wantErr      error
+		name       string
+		ctx        *framework.Context
+		proxyPatch func() *gomonkey.Patches
+		wantErr    error
 	}{
 		{
-			name: "PD Separation, request success",
-			ctx: &framework.Context{
-				Model:       "test",
-				Prompt:      "it's test",
-				DecodePods:  []*datastore.PodInfo{buildPodInfo("decode1", "1.1.1.1")},
-				PrefillPods: []*datastore.PodInfo{buildPodInfo("prefill1", "1.1.1.2")},
-			},
-			decodePatch: func() *gomonkey.Patches {
-				return gomonkey.ApplyFunc(proxyRequest, func(c *gin.Context, req *http.Request, podIP string, port int32, stream bool) error {
-					return nil
-				})
-			},
-			prefillPatch: func() *gomonkey.Patches {
-				return gomonkey.ApplyFunc(proxyPrefillPod, func(req *http.Request, podIP string, port int32) error {
-					return nil
-				})
-			},
-			wantErr: nil,
-		},
-		{
-			name: "BestPods are set, only decode",
+			name: "BestPods are set, aggregated mode success",
 			ctx: &framework.Context{
 				Model:    "test",
 				Prompt:   "test",
 				BestPods: []*datastore.PodInfo{buildPodInfo("decode1", "1.1.1.1")},
 			},
-			decodePatch: func() *gomonkey.Patches {
-				return gomonkey.ApplyFunc(proxyRequest, func(c *gin.Context, req *http.Request, podIP string, port int32, stream bool) error {
+			proxyPatch: func() *gomonkey.Patches {
+				patches := gomonkey.ApplyFunc(buildDecodeRequest, func(c *gin.Context, req *http.Request, modelRequest ModelRequest) (*http.Request, error) {
+					return req, nil
+				})
+				patches.ApplyFunc(isStreaming, func(modelRequest ModelRequest) bool {
+					return false
+				})
+				patches.ApplyFunc(proxyRequest, func(c *gin.Context, req *http.Request, podIP string, port int32, stream bool) error {
 					return nil
 				})
-			},
-			prefillPatch: func() *gomonkey.Patches {
-				return gomonkey.ApplyFunc(proxyPrefillPod, func(req *http.Request, podIP string, port int32) error {
-					return nil
-				})
+				return patches
 			},
 			wantErr: nil,
 		},
 		{
-			name: "DecodePods empty, only prefill",
-			ctx: &framework.Context{
-				Model:       "test",
-				Prompt:      "test",
-				PrefillPods: []*datastore.PodInfo{buildPodInfo("prefill1", "1.1.1.2")},
-			},
-			decodePatch: func() *gomonkey.Patches {
-				return gomonkey.ApplyFunc(proxyRequest, func(c *gin.Context, req *http.Request, podIP string, port int32, stream bool) error {
-					return nil
-				})
-			},
-			prefillPatch: func() *gomonkey.Patches {
-				return gomonkey.ApplyFunc(proxyPrefillPod, func(req *http.Request, podIP string, port int32) error {
-					return nil
-				})
-			},
-			wantErr: errors.New("request to all pods failed"),
-		},
-		{
-			name: "proxyDecodePod returns error",
+			name: "BestPods proxy returns error",
 			ctx: &framework.Context{
 				Model:    "test",
 				Prompt:   "test",
 				BestPods: []*datastore.PodInfo{buildPodInfo("decode1", "1.1.1.1")},
 			},
-			decodePatch: func() *gomonkey.Patches {
-				return gomonkey.ApplyFunc(proxyRequest, func(c *gin.Context, req *http.Request, podIP string, port int32, stream bool) error {
-					return errors.New("decode error")
+			proxyPatch: func() *gomonkey.Patches {
+				patches := gomonkey.ApplyFunc(buildDecodeRequest, func(c *gin.Context, req *http.Request, modelRequest ModelRequest) (*http.Request, error) {
+					return req, nil
 				})
-			},
-			prefillPatch: func() *gomonkey.Patches {
-				return gomonkey.ApplyFunc(proxyPrefillPod, func(req *http.Request, podIP string, port int32) error {
-					return nil
+				patches.ApplyFunc(isStreaming, func(modelRequest ModelRequest) bool {
+					return false
 				})
+				patches.ApplyFunc(proxyRequest, func(c *gin.Context, req *http.Request, podIP string, port int32, stream bool) error {
+					return errors.New("proxy error")
+				})
+				return patches
 			},
 			wantErr: errors.New("request to all pods failed"),
+		},
+		{
+			name: "buildDecodeRequest error",
+			ctx: &framework.Context{
+				Model:    "test",
+				Prompt:   "test",
+				BestPods: []*datastore.PodInfo{buildPodInfo("decode1", "1.1.1.1")},
+			},
+			proxyPatch: func() *gomonkey.Patches {
+				return gomonkey.ApplyFunc(buildDecodeRequest, func(c *gin.Context, req *http.Request, modelRequest ModelRequest) (*http.Request, error) {
+					return nil, errors.New("build request error")
+				})
+			},
+			wantErr: errors.New("failed to build request of decode: build request error"),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			patchDecode := tt.decodePatch()
-			defer patchDecode.Reset()
-			patchPrefill := tt.prefillPatch()
-			defer patchPrefill.Reset()
-
+			var patch *gomonkey.Patches
+			if tt.proxyPatch != nil {
+				patch = tt.proxyPatch()
+				defer patch.Reset()
+			}
 			err := r.proxyModelEndpoint(c, req, tt.ctx, modelReq, int32(8080))
 			if tt.wantErr != nil {
 				assert.Error(t, err)
