@@ -9,7 +9,7 @@ metadata:
       name: test-model
       uid: randomUID
 spec:
-  model: "test-model"
+  model: "deepseek-v3"
   inferenceEngine: "vLLM"
   workloadSelector:
     matchLabels:
