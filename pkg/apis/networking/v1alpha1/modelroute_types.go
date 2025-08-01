@@ -21,7 +21,7 @@ import (
 )
 
 // ModelRouteSpec defines the desired state of ModelRoute.
-// +kubebuilder:validation:XValidation:rule="self.modelName != '' || size(self.loraAdapters) > 0", message="ModelName and LoraAdapters cannot both be empty"
+// +kubebuilder:validation:XValidation:rule="self.modelName != ” || size(self.loraAdapters) > 0", message="ModelName and LoraAdapters cannot both be empty"
 type ModelRouteSpec struct {
 	// `model` in the LLM request, it could be a base model name, lora adapter name or even
 	// a virtual model name. This field is used to match scenarios other than model adapter name and
@@ -53,7 +53,7 @@ type Rule struct {
 	// Name is the name of the rule.
 	// +optional
 	Name string `json:"name,omitempty"`
-	// Match conditions to be satisfied for the rule to be activated. 
+	// Match conditions to be satisfied for the rule to be activated.
 	// Empty `modelMatch` means matching all requests.
 	// +optional
 	ModelMatch *ModelMatch `json:"modelMatch,omitempty"`
