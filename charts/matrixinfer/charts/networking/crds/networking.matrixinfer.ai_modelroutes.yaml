@@ -99,14 +99,13 @@ spec:
                 description: |-
                   An ordered list of route rules for LLM traffic. The first rule
                   matching an incoming request will be used.
-                  If no rule is matched, a HTTP 404 status code MUST be returned.
+                  If no rule is matched, an HTTP 404 status code MUST be returned.
                 items:
                   properties:
                     modelMatch:
                       description: |-
-                        ModelMatch defines the predicate used to match LLM inference requests to a given
-                        TargetModels. Multiple match conditions are ANDed together, i.e. the match will
-                        evaluate to true only if all conditions are satisfied.
+                        Match conditions to be satisfied for the rule to be activated.
+                        Empty `modelMatch` means matching all requests.
                       properties:
                         headers:
                           additionalProperties:
@@ -139,7 +138,7 @@ spec:
                           type: object
                       type: object
                     name:
-                      description: Rule name
+                      description: Name is the name of the rule.
                       type: string
                     targetModels:
                       items:
@@ -173,7 +172,7 @@ spec:
             type: object
             x-kubernetes-validations:
             - message: ModelName and LoraAdapters cannot both be empty
-              rule: self.modelName != '' || size(self.loraAdapters) > 0
+              rule: self.modelName != ” || size(self.loraAdapters) > 0
           status:
             description: ModelRouteStatus defines the observed state of ModelRoute.
             type: object

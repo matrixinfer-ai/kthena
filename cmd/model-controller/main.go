@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"os"
 	"os/signal"
 	"syscall"
@@ -48,6 +49,16 @@ const (
 // main starts model controller.
 // It will run forever until an error has occurred or the context is cancelled.
 func main() {
+	// Initialize klog flags
+	klog.InitFlags(nil)
+	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
+	defer klog.Flush()
+	flag.Parse()
+	pflag.CommandLine.VisitAll(func(f *pflag.Flag) {
+		// print all flags for debugging
+		klog.Infof("Flag: %s, Value: %s", f.Name, f.Value.String())
+	})
+
 	var kubeconfig string
 	var master string
 	var workers int

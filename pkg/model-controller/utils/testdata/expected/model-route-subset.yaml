@@ -1,0 +1,25 @@
+apiVersion: networking.matrixinfer.ai/v1alpha1
+kind: ModelRoute
+metadata:
+  name: multi-backend-model-route
+  namespace: dev
+  ownerReferences:
+    - apiVersion: registry.matrixinfer.ai/v1alpha1
+      kind: Model
+      name: multi-backend-model
+      uid: randomUID
+spec:
+  modelName: "multi-backend-model"
+  loraAdapters:
+    - "lora-sql"
+  rules:
+    - name: "default"
+      modelMatch:
+        headers:
+          users:
+            exact: "john"
+      targetModels:
+        - modelServerName: "multi-backend-model-0-vllm-server"
+          weight: 40
+        - modelServerName: "multi-backend-model-1-vllm-server"
+          weight: 60

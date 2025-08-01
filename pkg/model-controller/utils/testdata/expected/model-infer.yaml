@@ -59,6 +59,8 @@ spec:
                   - "0.9"
                   - --max-model-len
                   - "32768"
+                  - --served-model-name
+                  - "deepseek-v3"
                   - --tensor-parallel-size
                   - "2"
                   - --trust-remote-code
