@@ -55,7 +55,7 @@ type FilterPlugin interface {
 }
 
 // PostHook is an interface that is executed after the scheduling is complete.
-type ScheduleHook interface {
+type PostScheduleHook interface {
 	Name() string
 	PostSchedule(ctx *Context, index int)
 }
