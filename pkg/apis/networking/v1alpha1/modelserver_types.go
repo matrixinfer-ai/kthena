@@ -47,6 +47,9 @@ type ModelServerSpec struct {
 	// KVConnector specifies the KV connector configuration for PD disaggregated routing
 	// +optional
 	KVConnector *KVConnectorSpec `json:"kvConnector,omitempty"`
+	// JWTRules define the JWT Authentication configuration.
+	// +optional
+	JWTRules []JWTRule `json:"jwtRules,omitempty"`
 }
 
 // InferenceEngine defines the inference framework used by the modelServer to serve LLM requests.
@@ -145,6 +148,47 @@ type Retry struct {
 type ModelServerStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+}
+
+// This crd is refer to https://github.com/istio/api/blob/master/security/v1beta1/request_authentication.proto
+type JWTRule struct {
+	// Identifies the issuer that issued the JWT.
+	// +optional
+	Issuer string `json:"issuer,omitempty"`
+
+	// Audiences are the expected audiences of the JWT token.
+	// +optional
+	Audiences []string `json:"audience,omitempty"`
+
+	// JWKSURI is the uri to fetch JWKS keys.
+	// +optional
+	JwksURI string `json:"jwksURI,omitempty"`
+
+	// JSON Web Key Set of public keys to validate signature of the JWT.
+	// See https://auth0.com/docs/jwks.
+	//
+	// Note: Only one of `jwksUri` and `jwks` should be used.
+	// +optional
+	Jwks string `json:"jwks,omitempty"`
+
+	// FromHeader specifies the header to extract the JWT from.
+	// +optional
+	FromHeader []JWTHeader `json:"fromHeader,omitempty"`
+
+	// FromParams specifies the query body parameter to extract the JWT from.
+	// +optional
+	FromParams []string `json:"fromParams,omitempty"`
+}
+
+type JWTHeader struct {
+	// The Http Header name to extract the JWT from.
+	// +kubebuilder:validation:MinLength=1
+	Name string `json:"name,omitempty"`
+
+	// The prefix that should be stripped before decoding the token.
+	// For example, if the header is "Authorization: Bearer <token>" and the prefix is "Bearer ", the token will be decoded from the "Authorization" header.
+	// If the header doesn't have this exact prefix, it is considered invalid.
+	Prefix string `json:"prefix,omitempty"`
 }
 
 // +kubebuilder:object:root=true

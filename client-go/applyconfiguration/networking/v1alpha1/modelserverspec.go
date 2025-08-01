@@ -31,6 +31,7 @@ type ModelServerSpecApplyConfiguration struct {
 	WorkloadPort     *WorkloadPortApplyConfiguration     `json:"workloadPort,omitempty"`
 	TrafficPolicy    *TrafficPolicyApplyConfiguration    `json:"trafficPolicy,omitempty"`
 	KVConnector      *KVConnectorSpecApplyConfiguration  `json:"kvConnector,omitempty"`
+	JWTRules         []JWTRuleApplyConfiguration         `json:"jwtRules,omitempty"`
 }
 
 // ModelServerSpecApplyConfiguration constructs a declarative configuration of the ModelServerSpec type for use with
@@ -84,5 +85,18 @@ func (b *ModelServerSpecApplyConfiguration) WithTrafficPolicy(value *TrafficPoli
 // If called multiple times, the KVConnector field is set to the value of the last call.
 func (b *ModelServerSpecApplyConfiguration) WithKVConnector(value *KVConnectorSpecApplyConfiguration) *ModelServerSpecApplyConfiguration {
 	b.KVConnector = value
+	return b
+}
+
+// WithJWTRules adds the given value to the JWTRules field in the declarative configuration
+// and returns the receiver, so that objects can be build by chaining "With" function invocations.
+// If called multiple times, values provided by each call will be appended to the JWTRules field.
+func (b *ModelServerSpecApplyConfiguration) WithJWTRules(values ...*JWTRuleApplyConfiguration) *ModelServerSpecApplyConfiguration {
+	for i := range values {
+		if values[i] == nil {
+			panic("nil value passed to WithJWTRules")
+		}
+		b.JWTRules = append(b.JWTRules, *values[i])
+	}
 	return b
 }

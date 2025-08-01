@@ -18,7 +18,9 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -45,6 +47,7 @@ func (s *Server) startRouter(ctx context.Context, router *router.Router) {
 
 	// engine.Use(auth.Authenticate)
 	// engine.Use(auth.Authorize)
+	engine.Use(JWTAuthMiddleware(router))
 
 	engine.GET("/healthz", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
@@ -96,4 +99,43 @@ func (s *Server) startRouter(ctx context.Context, router *router.Router) {
 		klog.Errorf("Server shutdown failed: %v", err)
 	}
 	klog.Info("HTTP server exited")
+}
+
+func JWTAuthMiddleware(gwRouter *router.Router) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Authentication for "/v1/" only
+		if !strings.HasPrefix(c.Request.URL.Path, "/v1/") {
+			c.Next()
+			return
+		}
+
+		modelRequest, err := router.ParseModelRequest(c)
+		if err != nil {
+			return
+		}
+		modelName := modelRequest["model"].(string)
+		if modelName == "" {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+				"error": "model name is required",
+			})
+			return
+		}
+
+		// Get modelServer
+		modelServer, err := gwRouter.GetModelServer(modelName, c.Request)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, fmt.Sprintf("model %s is failed: %v", modelName, err))
+			return
+		}
+
+		if len(modelServer.Spec.JWTRules) > 0 {
+			// Calling Middleware
+			gwRouter.Authenticate(modelServer.Spec.JWTRules)(c)
+			if c.IsAborted() {
+				return
+			}
+		}
+
+		c.Next()
+	}
 }

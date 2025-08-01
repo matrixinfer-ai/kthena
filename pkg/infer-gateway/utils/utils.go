@@ -172,3 +172,11 @@ func unmarshalPluginsConfig(schedulerConfig *conf.SchedulerConfiguration) (map[s
 
 	return pluginsArgMap, nil
 }
+
+func GetEnvOrDefault(key string, defaultValue interface{}) interface{} {
+	value := os.Getenv(key)
+	if len(value) == 0 {
+		return defaultValue
+	}
+	return value
+}

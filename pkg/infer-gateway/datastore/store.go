@@ -27,6 +27,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/lestrrat-go/jwx/jwk"
 	dto "github.com/prometheus/client_model/go"
 	"istio.io/istio/pkg/util/sets"
 	corev1 "k8s.io/api/core/v1"
@@ -123,6 +124,9 @@ type Store interface {
 
 	// GetRequestWaitingQueueStats returns per-model queue lengths
 	GetRequestWaitingQueueStats() []QueueStat
+
+	// GetAndUpdateJWKS gets the JWKS for a given jwksURI
+	GetAndUpdateJWKS(jwksURI string) (*jwk.Set, error)
 }
 
 // QueueStat holds per-model queue metrics to aid scheduling decisions
@@ -164,6 +168,7 @@ type modelRouteInfo struct {
 }
 
 type store struct {
+	jwksCache   sync.Map // map[string]*jwk.Set
 	modelServer sync.Map // map[types.NamespacedName]*modelServer
 	pods        sync.Map // map[types.NamespacedName]*PodInfo
 
@@ -185,6 +190,7 @@ type store struct {
 
 func New() Store {
 	return &store{
+		jwksCache:           sync.Map{},
 		modelServer:         sync.Map{},
 		pods:                sync.Map{},
 		routeInfo:           make(map[string]*modelRouteInfo),
@@ -875,4 +881,63 @@ func (p *PodInfo) GetModelServersList() []types.NamespacedName {
 		return nil
 	}
 	return p.modelServer.UnsortedList()
+}
+
+func (s *store) GetAndUpdateJWKS(jwksURI string) (*jwk.Set, error) {
+	if cached, ok := s.jwksCache.Load(jwksURI); ok {
+		if keySet, ok := cached.(*jwk.Set); ok {
+			return keySet, nil
+		}
+	}
+
+	keySet, err := jwk.Fetch(context.Background(), jwksURI)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch JWKS from %s: %w", jwksURI, err)
+	}
+
+	s.jwksCache.Store(jwksURI, &keySet)
+	return &keySet, nil
+}
+
+func (s *store) deleteJwks(ms *aiv1alpha1.ModelServer) {
+	if len(ms.Spec.JWTRules) == 0 {
+		return
+	}
+
+	for _, rule := range ms.Spec.JWTRules {
+		if rule.JwksURI != "" {
+			s.jwksCache.Delete(rule.JwksURI)
+		}
+	}
+}
+
+func (s *store) updateJwks(oldMs, newMs *aiv1alpha1.ModelServer) {
+	if oldMs == nil {
+		if len(newMs.Spec.JWTRules) == 0 {
+			return
+		}
+
+		for _, rule := range newMs.Spec.JWTRules {
+			if rule.JwksURI != "" {
+				go s.GetAndUpdateJWKS(rule.JwksURI)
+			}
+		}
+		return
+	}
+
+	if len(oldMs.Spec.JWTRules) != 0 {
+		for _, oldRule := range oldMs.Spec.JWTRules {
+			if oldRule.JwksURI != "" {
+				s.jwksCache.Delete(oldRule.JwksURI)
+			}
+		}
+	}
+
+	if len(newMs.Spec.JWTRules) != 0 {
+		for _, newRule := range newMs.Spec.JWTRules {
+			if newRule.JwksURI != "" {
+				go s.GetAndUpdateJWKS(newRule.JwksURI)
+			}
+		}
+	}
 }

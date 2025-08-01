@@ -36,6 +36,10 @@ import (
 func ForKind(kind schema.GroupVersionKind) interface{} {
 	switch kind {
 	// Group=networking.matrixinfer.ai, Version=v1alpha1
+	case v1alpha1.SchemeGroupVersion.WithKind("JWTHeader"):
+		return &networkingv1alpha1.JWTHeaderApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("JWTRule"):
+		return &networkingv1alpha1.JWTRuleApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("KVConnectorSpec"):
 		return &networkingv1alpha1.KVConnectorSpecApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("ModelMatch"):
