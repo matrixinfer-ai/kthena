@@ -17,6 +17,7 @@ limitations under the License.
 package utils
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -103,13 +104,13 @@ func TestBuildModelInferCR(t *testing.T) {
 	}{
 		{
 			name:     "CacheVolume_HuggingFace_HostPath",
-			input:    LoadYAML[registry.Model](t, "testdata/input/model.yaml"),
-			expected: []*workload.ModelInfer{LoadYAML[workload.ModelInfer](t, "testdata/expected/model-infer.yaml")},
+			input:    loadYaml[registry.Model](t, "testdata/input/model.yaml"),
+			expected: []*workload.ModelInfer{loadYaml[workload.ModelInfer](t, "testdata/expected/model-infer.yaml")},
 		},
 		{
 			name:     "PD disaggregation",
-			input:    LoadYAML[registry.Model](t, "testdata/input/pd-disaggregated-model.yaml"),
-			expected: []*workload.ModelInfer{LoadYAML[workload.ModelInfer](t, "testdata/expected/disaggregated-model-infer.yaml")},
+			input:    loadYaml[registry.Model](t, "testdata/input/pd-disaggregated-model.yaml"),
+			expected: []*workload.ModelInfer{loadYaml[workload.ModelInfer](t, "testdata/expected/disaggregated-model-infer.yaml")},
 		},
 	}
 	for _, tt := range tests {
@@ -137,13 +138,13 @@ func TestBuildModelServer(t *testing.T) {
 	}{
 		{
 			name:     "PD disaggregation",
-			input:    LoadYAML[registry.Model](t, "testdata/input/pd-disaggregated-model.yaml"),
-			expected: []*networking.ModelServer{LoadYAML[networking.ModelServer](t, "testdata/expected/pd-model-server.yaml")},
+			input:    loadYaml[registry.Model](t, "testdata/input/pd-disaggregated-model.yaml"),
+			expected: []*networking.ModelServer{loadYaml[networking.ModelServer](t, "testdata/expected/pd-model-server.yaml")},
 		},
 		{
 			name:     "normal case",
-			input:    LoadYAML[registry.Model](t, "testdata/input/model.yaml"),
-			expected: []*networking.ModelServer{LoadYAML[networking.ModelServer](t, "testdata/expected/model-server.yaml")},
+			input:    loadYaml[registry.Model](t, "testdata/input/model.yaml"),
+			expected: []*networking.ModelServer{loadYaml[networking.ModelServer](t, "testdata/expected/model-server.yaml")},
 		},
 	}
 	for _, tt := range tests {
@@ -170,13 +171,13 @@ func TestBuildModelRoute(t *testing.T) {
 	}{
 		{
 			name:     "simple model",
-			input:    loadYAML[registry.Model](t, "testdata/input/model.yaml"),
-			expected: loadYAML[networking.ModelRoute](t, "testdata/expected/model-route.yaml"),
+			input:    loadYaml[registry.Model](t, "testdata/input/model.yaml"),
+			expected: loadYaml[networking.ModelRoute](t, "testdata/expected/model-route.yaml"),
 		},
 		{
 			name:     "model with multiple backends",
-			input:    loadYAML[registry.Model](t, "testdata/input/multi-backend-model.yaml"),
-			expected: loadYAML[networking.ModelRoute](t, "testdata/expected/model-route-subset.yaml"),
+			input:    loadYaml[registry.Model](t, "testdata/input/multi-backend-model.yaml"),
+			expected: loadYaml[networking.ModelRoute](t, "testdata/expected/model-route-subset.yaml"),
 		},
 	}
 	for _, tt := range tests {
@@ -261,4 +262,18 @@ func TestBuildCacheVolume(t *testing.T) {
 			assert.Equal(t, tt.expected, got)
 		})
 	}
+}
+
+// loadYaml transfer yaml data into a struct of type T.
+// Used for test.
+func loadYaml[T any](t *testing.T, path string) *T {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("Failed to read YAML: %v", err)
+	}
+	var expected T
+	if err := yaml.Unmarshal(data, &expected); err != nil {
+		t.Fatalf("Failed to unmarshal YAML: %v", err)
+	}
+	return &expected
 }

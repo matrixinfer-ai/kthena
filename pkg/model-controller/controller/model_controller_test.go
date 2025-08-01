@@ -9,7 +9,8 @@ import (
 	matrixinferfake "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/fake"
 	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
+	"os"
+	"sigs.k8s.io/yaml"
 	"testing"
 )
 
@@ -26,7 +27,7 @@ func TestReconcile(t *testing.T) {
 	// Start controller
 	go controller.Run(ctx, 1)
 	// Load test data
-	model := utils.LoadYAML[registry.Model](t, "../utils/testdata/input/model.yaml")
+	model := loadYaml[registry.Model](t, "../utils/testdata/input/model.yaml")
 	// create model
 	createdModel, err := matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Create(ctx, model, metav1.CreateOptions{})
 	assert.NoError(t, err)
@@ -70,4 +71,18 @@ func waitForReconcile(ctx context.Context, controller *ModelController) {
 	case <-ctx.Done():
 	case stopCh <- controller.processNextWorkItem(ctx):
 	}
+}
+
+// loadYaml transfer yaml data into a struct of type T.
+// Used for test.
+func loadYaml[T any](t *testing.T, path string) *T {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("Failed to read YAML: %v", err)
+	}
+	var expected T
+	if err := yaml.Unmarshal(data, &expected); err != nil {
+		t.Fatalf("Failed to unmarshal YAML: %v", err)
+	}
+	return &expected
 }
