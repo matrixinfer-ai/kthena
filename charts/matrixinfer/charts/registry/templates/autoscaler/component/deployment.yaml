@@ -21,7 +21,8 @@ spec:
       containers:
         - name: autoscaler
           image: "{{ .Values.autoscaler.image.repository }}:{{ .Values.autoscaler.image.tag }}"
-          args: {{ .Values.autoscaler.image.args }}
+          args:
+            {{- toYaml .Values.autoscaler.image.args | nindent 12 }}
           imagePullPolicy: {{ .Values.autoscaler.image.pullPolicy }}
           resources:
             {{- toYaml .Values.autoscaler.resource | nindent 12 }}
