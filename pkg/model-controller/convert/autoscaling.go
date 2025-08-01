@@ -77,7 +77,7 @@ func BuildOptimizePolicyBindingSpec(model *registry.Model, name string) *registr
 					Name: targetName,
 				},
 			},
-			Cost: backend.Cost,
+			Cost: backend.ScalingCost,
 		})
 	}
 	return &registry.AutoscalingPolicyBindingSpec{

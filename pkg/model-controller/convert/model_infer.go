@@ -23,15 +23,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"os"
-	"slices"
-	"sort"
-	"strconv"
-	"strings"
-	"time"
-
-	"k8s.io/klog/v2"
 	networking "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
+	"slices"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -41,7 +35,6 @@ import (
 	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/config"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
-	"strings"
 )
 
 const (
@@ -52,7 +45,6 @@ const (
 	VllmTemplatePath               = "templates/vllm.yaml"
 	VllmDisaggregatedTemplatePath  = "templates/vllm-pd.yaml"
 	VllmMultiNodeServingScriptPath = "/vllm-workspace/vllm/examples/online_serving/multi-node-serving.sh"
-	inClusterNamespacePath         = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 	modelRouteRuleName             = "default"
 )
 

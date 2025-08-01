@@ -186,7 +186,7 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 		if err := mc.createModelRoute(ctx, model); err != nil {
 			return err
 		}
-		if err := mc.createAutoScalingPolicyAndBinding(ctx, model); err != nil {
+		if err := mc.createAutoscalingPolicyAndBinding(ctx, model); err != nil {
 			return err
 		}
 		meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeInitializing),
@@ -453,10 +453,7 @@ func (mc *ModelController) triggerModel(old any, new any) {
 // createModelServer creates model server
 func (mc *ModelController) createModelServer(ctx context.Context, model *registryv1alpha1.Model) error {
 	klog.V(4).Info("Start to create model server")
-	modelServers, err := convert.BuildModelServer(model)
-	if err != nil {
-		return err
-	}
+	modelServers := convert.BuildModelServer(model)
 	for _, modelServer := range modelServers {
 		if _, err := mc.client.NetworkingV1alpha1().ModelServers(model.Namespace).Create(ctx, modelServer, metav1.CreateOptions{}); err != nil {
 			if apierrors.IsAlreadyExists(err) {
@@ -472,10 +469,7 @@ func (mc *ModelController) createModelServer(ctx context.Context, model *registr
 
 // updateModelServer updates model server
 func (mc *ModelController) updateModelServer(ctx context.Context, model *registryv1alpha1.Model) error {
-	modelServers, err := convert.BuildModelServer(model)
-	if err != nil {
-		return err
-	}
+	modelServers := convert.BuildModelServer(model)
 	for _, modelServer := range modelServers {
 		oldModelServer, err := mc.client.NetworkingV1alpha1().ModelServers(modelServer.Namespace).Get(ctx, modelServer.Name, metav1.GetOptions{})
 		if err != nil {
@@ -627,9 +621,9 @@ func (mc *ModelController) tryUpdateAutoscalingPolicy(ctx context.Context, model
 // createModelRoute creates model route
 func (mc *ModelController) createModelRoute(ctx context.Context, model *registryv1alpha1.Model) error {
 	klog.V(4).Info("Start to create model route")
-	modelRoute := utils.BuildModelRoute(model)
+	modelRoute := convert.BuildModelRoute(model)
 	if _, err := mc.client.NetworkingV1alpha1().ModelRoutes(model.Namespace).Create(ctx, modelRoute, metav1.CreateOptions{}); err != nil {
-		if errors.IsAlreadyExists(err) {
+		if apierrors.IsAlreadyExists(err) {
 			klog.V(4).InfoS("ModelRoute already exists, skipping creation", "modelRoute", klog.KObj(modelRoute))
 			return nil
 		}
@@ -641,10 +635,10 @@ func (mc *ModelController) createModelRoute(ctx context.Context, model *registry
 
 // updateModelRoute updates model route
 func (mc *ModelController) updateModelRoute(ctx context.Context, model *registryv1alpha1.Model) error {
-	modelRoute := utils.BuildModelRoute(model)
+	modelRoute := convert.BuildModelRoute(model)
 	oldModelRoute, err := mc.client.NetworkingV1alpha1().ModelRoutes(modelRoute.Namespace).Get(ctx, modelRoute.Name, metav1.GetOptions{})
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			// ModelRoute doesn't exist, create it.
 			if _, err := mc.client.NetworkingV1alpha1().ModelRoutes(model.Namespace).Create(ctx, modelRoute, metav1.CreateOptions{}); err != nil {
 				klog.Errorf("failed to create ModelRoute %s: %v", klog.KObj(modelRoute), err)
@@ -669,14 +663,14 @@ func (mc *ModelController) updateModelRoute(ctx context.Context, model *registry
 // createModelInfer creates model infer
 func (mc *ModelController) createModelInfer(ctx context.Context, model *registryv1alpha1.Model) error {
 	klog.V(4).Info("start to create model infer")
-	modelInfers, err := utils.BuildModelInferCR(model)
+	modelInfers, err := convert.CreateModelInferResources(model)
 	if err != nil {
 		klog.Errorf("failed to build model infer for model %s: %v", model.Name, err)
 		return err
 	}
 	for _, modelInfer := range modelInfers {
 		if _, err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Create(ctx, modelInfer, metav1.CreateOptions{}); err != nil {
-			if errors.IsAlreadyExists(err) {
+			if apierrors.IsAlreadyExists(err) {
 				continue
 			}
 			return err
