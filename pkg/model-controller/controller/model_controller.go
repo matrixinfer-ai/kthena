@@ -174,6 +174,7 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 	if err != nil {
 		return client.IgnoreNotFound(err)
 	}
+	// TODO: Expect no distinction between create phase and update phase
 	klog.InfoS("Start to process model", "namespace", namespace, "model name", model.Name, "model status", model.Status)
 	if len(model.Status.Conditions) == 0 {
 		if err := mc.createModelInfer(ctx, model); err != nil {
@@ -213,7 +214,7 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 			return err
 		}
 	}
-	modelInferActive, err := mc.isModelInferActive(ctx, model)
+	modelInferActive, err := mc.isModelInferActive(model)
 	if err != nil || !modelInferActive {
 		return err
 	}
@@ -224,18 +225,18 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 }
 
 // isModelInferActive returns true if all Model Infers are available.
-func (mc *ModelController) isModelInferActive(ctx context.Context, model *registryv1alpha1.Model) (bool, error) {
+func (mc *ModelController) isModelInferActive(model *registryv1alpha1.Model) (bool, error) {
 	// List all Model Infers associated with the model
-	modelInferList, err := mc.listModelInferByLabel(ctx, model)
+	modelInfers, err := mc.listModelInferByLabel(model)
 	if err != nil {
 		return false, err
 	}
 	// Ensure the number of Model Infers matches the number of backends
-	if len(modelInferList.Items) != len(model.Spec.Backends) {
+	if len(modelInfers) != len(model.Spec.Backends) {
 		return false, fmt.Errorf("model infer number not equal to backend number")
 	}
 	// Check if all Model Infers are available
-	for _, modelInfer := range modelInferList.Items {
+	for _, modelInfer := range modelInfers {
 		if !meta.IsStatusConditionPresentAndEqual(modelInfer.Status.Conditions, string(workload.ModelInferAvailable), metav1.ConditionTrue) {
 			// requeue until all Model Infers are active
 			klog.InfoS("model infer is not available", "model infer", modelInfer.Name, "namespace", modelInfer.Namespace)
@@ -273,12 +274,12 @@ func newCondition(conditionType string, status metav1.ConditionStatus, reason st
 
 // updateModelStatus updates model status.
 func (mc *ModelController) updateModelStatus(ctx context.Context, model *registryv1alpha1.Model) error {
-	modelInferList, err := mc.listModelInferByLabel(ctx, model)
+	modelInfers, err := mc.listModelInferByLabel(model)
 	if err != nil {
 		return err
 	}
 	var backendStatus []registryv1alpha1.ModelBackendStatus
-	for _, infer := range modelInferList.Items {
+	for _, infer := range modelInfers {
 		backendStatus = append(backendStatus, registryv1alpha1.ModelBackendStatus{
 			Name:     infer.Name,
 			Hash:     "", // todo: get hash
@@ -352,10 +353,10 @@ func NewModelController(kubeClient kubernetes.Interface, client clientset.Interf
 }
 
 // listModelInferByLabel list all model infer which label key is "owner" and label value is model uid
-func (mc *ModelController) listModelInferByLabel(ctx context.Context, model *registryv1alpha1.Model) (*workload.ModelInferList, error) {
-	if modelInfers, err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("%s=%s", convert.ModelInferOwnerKey, model.UID),
-	}); err != nil {
+func (mc *ModelController) listModelInferByLabel(model *registryv1alpha1.Model) ([]*workload.ModelInfer, error) {
+	if modelInfers, err := mc.modelInfersLister.ModelInfers(model.Namespace).List(labels.SelectorFromSet(map[string]string{
+		convert.ModelInferOwnerKey: string(model.UID),
+	})); err != nil {
 		return nil, err
 	} else {
 		return modelInfers, nil
@@ -369,7 +370,7 @@ func (mc *ModelController) updateModelInfer(ctx context.Context, model *registry
 		return err
 	}
 	for _, modelInfer := range modelInfers {
-		oldModelInfer, err := mc.client.WorkloadV1alpha1().ModelInfers(modelInfer.Namespace).Get(ctx, modelInfer.Name, metav1.GetOptions{})
+		oldModelInfer, err := mc.modelInfersLister.ModelInfers(modelInfer.Namespace).Get(modelInfer.Name)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				if _, err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Create(ctx, modelInfer, metav1.CreateOptions{}); err != nil {

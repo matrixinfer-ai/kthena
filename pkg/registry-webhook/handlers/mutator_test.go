@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"testing"
 
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
@@ -33,9 +32,7 @@ func TestCreatePatch(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: registryv1alpha1.ModelSpec{
-			AutoscalingPolicyRef: corev1.LocalObjectReference{
-				Name: "test-policy",
-			},
+			AutoscalingPolicy: &registryv1alpha1.AutoscalingPolicyConfig{},
 			Backends: []registryv1alpha1.ModelBackend{
 				{
 					Name:        "backend1",
@@ -74,6 +71,7 @@ func TestCreatePatch(t *testing.T) {
 
 	// Parse the patch to verify it's valid JSON
 	var patchObj []interface{}
+	t.Logf("patch: %v", patch)
 	if err := json.Unmarshal(patch, &patchObj); err != nil {
 		t.Fatalf("Error unmarshaling patch: %v", err)
 	}

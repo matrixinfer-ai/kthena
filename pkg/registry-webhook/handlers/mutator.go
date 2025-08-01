@@ -94,7 +94,7 @@ func (m *ModelMutator) mutateModel(model *registryv1alpha1.Model) {
 	klog.Infof("Defaulting for Model %s", model.GetName())
 
 	// Default ScaleToZeroGracePeriod for all backends if AutoscalingPolicyRef is set
-	if model.Spec.AutoscalingPolicyRef.Name != "" {
+	if model.Spec.AutoscalingPolicy != nil {
 		for i := range model.Spec.Backends {
 			backend := &model.Spec.Backends[i]
 			if backend.ScaleToZeroGracePeriod == nil {
