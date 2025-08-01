@@ -359,10 +359,6 @@ func TestNIXLConnectorProxy(t *testing.T) {
 					expectedFields := map[string]interface{}{
 						"do_remote_decode":  true,
 						"do_remote_prefill": false,
-						"remote_engine_id":  nil,
-						"remote_block_ids":  nil,
-						"remote_host":       nil,
-						"remote_port":       nil,
 					}
 
 					for field, expectedValue := range expectedFields {

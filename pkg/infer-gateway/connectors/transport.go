@@ -80,15 +80,21 @@ func decoderProxy(c *gin.Context, req *http.Request) error {
 	}
 }
 
+// preparePrefillBody modifies a request body for a prefill request.
+// It removes streaming options and sets the token counts appropriately.
+func preparePrefillBody(reqBody map[string]interface{}) {
+	delete(reqBody, "stream")
+	delete(reqBody, "stream_options")
+
+	reqBody["max_tokens"] = 1
+	if reqBody["max_completion_tokens"] != nil {
+		reqBody["max_completion_tokens"] = 1
+	}
+}
+
 func buildPrefillRequest(req *http.Request, modelRequest map[string]interface{}) *http.Request {
 	// In PD disaggregated mode, we need to send a prefill request to the prefill pod with non stream mode.
-	delete(modelRequest, "stream")
-	delete(modelRequest, "stream_options")
-
-	modelRequest["max_tokens"] = 1
-	if modelRequest["max_completion_tokens"] != nil {
-		modelRequest["max_completion_tokens"] = 1
-	}
+	preparePrefillBody(modelRequest)
 
 	body, err := json.Marshal(modelRequest)
 	if err != nil {
@@ -105,23 +111,7 @@ func buildPrefillRequest(req *http.Request, modelRequest map[string]interface{})
 }
 
 func BuildDecodeRequest(c *gin.Context, req *http.Request, modelRequest map[string]interface{}) *http.Request {
-	// Check if streaming is enabled
-	if isStreamingRequest(modelRequest) {
-		if !isTokenUsageEnabled(modelRequest) {
-			// For streaming requests, add stream_options to include token usage
-			modelRequest["stream_options"] = map[string]interface{}{
-				"include_usage": true,
-			}
-			// add stream token usage to context
-			c.Set(tokenUsageKey, true)
-		}
-	} else {
-		// For non-streaming requests, ensure we request usage information
-		// Most OpenAI-compatible APIs return usage by default for non-streaming,
-		// but we can be explicit about it
-		modelRequest["include_usage"] = true
-	}
-
+	modelRequest = addTokenUsage(c, modelRequest)
 	body, err := json.Marshal(modelRequest)
 	if err != nil {
 		return nil
@@ -133,6 +123,28 @@ func BuildDecodeRequest(c *gin.Context, req *http.Request, modelRequest map[stri
 	req.ContentLength = int64(len(body))
 
 	return req
+}
+
+// addTokenUsage adds token usage to the request body if it is not already present
+// should be used for decode requests or non PD disaggregated mode
+func addTokenUsage(c *gin.Context, reqBody map[string]interface{}) map[string]interface{} {
+	// Check if streaming is enabled
+	if isStreamingRequest(reqBody) {
+		if !isTokenUsageEnabled(reqBody) {
+			// For streaming requests, add stream_options to include token usage
+			reqBody["stream_options"] = map[string]interface{}{
+				"include_usage": true,
+			}
+			// add stream token usage to context
+			c.Set(tokenUsageKey, true)
+		}
+	} else {
+		// For non-streaming requests, ensure we request usage information
+		// Most OpenAI-compatible APIs return usage by default for non-streaming,
+		// but we can be explicit about it
+		reqBody["include_usage"] = true
+	}
+	return reqBody
 }
 
 // isStreaming checks if the given model request has streaming enabled
