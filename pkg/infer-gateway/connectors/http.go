@@ -61,7 +61,7 @@ func (h *HTTPConnector) decode(c *gin.Context, req *http.Request, decodeAddr str
 // Proxy executes the complete prefill-decode flow for HTTP connector
 func (h *HTTPConnector) Proxy(c *gin.Context, reqBody map[string]interface{}, prefillAddr, decodeAddr string) error {
 	if h.decodeRequest == nil {
-		h.decodeRequest = buildDecodeRequest(c, c.Request, reqBody)
+		h.decodeRequest = BuildDecodeRequest(c, c.Request, reqBody)
 	}
 
 	// build prefillRequest after decodeRequest, because prefillRequest needs to delete stream and stream_options

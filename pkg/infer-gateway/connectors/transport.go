@@ -104,7 +104,7 @@ func buildPrefillRequest(req *http.Request, modelRequest map[string]interface{})
 	return reqCopy
 }
 
-func buildDecodeRequest(c *gin.Context, req *http.Request, modelRequest map[string]interface{}) *http.Request {
+func BuildDecodeRequest(c *gin.Context, req *http.Request, modelRequest map[string]interface{}) *http.Request {
 	// Check if streaming is enabled
 	if isStreamingRequest(modelRequest) {
 		if !isTokenUsageEnabled(modelRequest) {

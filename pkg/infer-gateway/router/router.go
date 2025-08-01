@@ -216,11 +216,7 @@ func (r *Router) proxyModelEndpoint(
 ) error {
 	// proxy to pd aggregated pod
 	if ctx.BestPods != nil {
-		decodeRequest, err := buildDecodeRequest(c, req, modelRequest)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, fmt.Sprintf("failed to build request of decode: %v", err))
-			return fmt.Errorf("failed to build request of decode: %v", err)
-		}
+		decodeRequest := connectors.BuildDecodeRequest(c, req, modelRequest)
 		// build request
 		stream := isStreaming(modelRequest)
 		return r.proxy(c, decodeRequest, ctx, stream, port)
@@ -335,73 +331,6 @@ func isStreaming(modelRequest ModelRequest) bool {
 		}
 	}
 	return false
-}
-
-func buildPrefillRequest(req *http.Request, modelRequest ModelRequest) (*http.Request, error) {
-	// In PD disaggregated mode, we need to send a prefill request to the prefill pod with non stream mode.
-	delete(modelRequest, "stream")
-	delete(modelRequest, "stream_options")
-
-	modelRequest["max_tokens"] = 1
-	if modelRequest["max_completion_tokens"] != nil {
-		modelRequest["max_completion_tokens"] = 1
-	}
-
-	body, err := json.Marshal(modelRequest)
-	if err != nil {
-		return nil, err
-	}
-
-	// build request
-	reqCopy := req.Clone(req.Context())
-	reqCopy.URL.Scheme = "http"
-	reqCopy.Body = io.NopCloser(bytes.NewBuffer(body))
-	reqCopy.ContentLength = int64(len(body))
-
-	return reqCopy, nil
-}
-
-func isTokenUsageEnabled(modelRequest ModelRequest) bool {
-	// Check if token usage is enabled in the model request
-	if v, ok := modelRequest["stream_options"]; ok {
-		if streamOptions, isMap := v.(map[string]interface{}); isMap {
-			if includeUsage, isBool := streamOptions["include_usage"].(bool); isBool && includeUsage {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func buildDecodeRequest(c *gin.Context, req *http.Request, modelRequest ModelRequest) (*http.Request, error) {
-	// Check if streaming is enabled
-	if isStreaming(modelRequest) {
-		if !isTokenUsageEnabled(modelRequest) {
-			// For streaming requests, add stream_options to include token usage
-			modelRequest["stream_options"] = map[string]interface{}{
-				"include_usage": true,
-			}
-			// add stream token usage to context
-			c.Set(tokenUsageKey, true)
-		}
-	} else {
-		// For non-streaming requests, ensure we request usage information
-		// Most OpenAI-compatible APIs return usage by default for non-streaming,
-		// but we can be explicit about it
-		modelRequest["include_usage"] = true
-	}
-
-	body, err := json.Marshal(modelRequest)
-	if err != nil {
-		return nil, err
-	}
-
-	// build request
-	req.URL.Scheme = "http"
-	req.Body = io.NopCloser(bytes.NewBuffer(body))
-	req.ContentLength = int64(len(body))
-
-	return req, nil
 }
 
 // getKVConnector gets the appropriate KV connector for a model server
