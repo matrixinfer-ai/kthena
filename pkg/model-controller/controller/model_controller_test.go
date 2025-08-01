@@ -28,20 +28,29 @@ func TestReconcile(t *testing.T) {
 	go controller.Run(ctx, 1)
 	// Load test data
 	model := loadYaml[registry.Model](t, "../utils/testdata/input/model.yaml")
-	// create model
+
+	// Case1: create model, and then model infer, model server, model route should be created.
 	createdModel, err := matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Create(ctx, model, metav1.CreateOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, createdModel)
 	waitForReconcile(ctx, controller)
-	// check if model infer is created
+	// model infer should be created
 	modelInfers, err := matrixinferClient.WorkloadV1alpha1().ModelInfers(model.Namespace).List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
 	assert.Len(t, modelInfers.Items, 1, "Expected 1 ModelInfer to be created")
-	// check model is not updated
+	// model server should be created
+	modelServers, err := matrixinferClient.NetworkingV1alpha1().ModelServers(model.Namespace).List(ctx, metav1.ListOptions{})
+	assert.NoError(t, err)
+	assert.Len(t, modelServers.Items, 1, "Expected 1 ModelServer to be created")
+	// model route should be created
+	modelRoutes, err := matrixinferClient.NetworkingV1alpha1().ModelRoutes(model.Namespace).List(ctx, metav1.ListOptions{})
+	assert.NoError(t, err)
+	assert.Len(t, modelRoutes.Items, 1, "Expected 1 ModelRoute to be create")
+	// model should be not updated
 	get, err := matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Get(ctx, model.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, int64(0), get.Status.ObservedGeneration, "ObservedGeneration not updated")
-	// make model infer status available
+	// mock model infer status available
 	modelInfer := &modelInfers.Items[0]
 	meta.SetStatusCondition(&modelInfer.Status.Conditions, newCondition(string(workload.ModelInferAvailable),
 		metav1.ConditionTrue, "AllGroupsReady", "AllGroupsReady"))
@@ -54,10 +63,7 @@ func TestReconcile(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, true, meta.IsStatusConditionPresentAndEqual(model.Status.Conditions,
 		string(registry.ModelStatusConditionTypeActive), metav1.ConditionTrue))
-	// check if model server is created
-	modelServers, err := matrixinferClient.NetworkingV1alpha1().ModelServers(model.Namespace).List(ctx, metav1.ListOptions{})
-	assert.NoError(t, err)
-	assert.Len(t, modelServers.Items, 1, "Expected 1 ModelServer to be created")
+	// todo Case2: update model, and then model infer, model server, model route should be updated.
 
 	// delete model and check if ModelInfer and ModelServer are deleted
 	err = matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Delete(ctx, model.Name, metav1.DeleteOptions{})
