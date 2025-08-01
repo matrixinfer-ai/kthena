@@ -23,9 +23,11 @@ Based on research of vLLM's actual implementation, the primary KV cache connecto
 
 According to my research, vLLM basically support kv transfer from prefill instance to decode instance by NVLink, RoCE, InfiniBand, etc. Or the kv cache can be first offloaded to a CPU or Disk, then decode instance can read the kv cache from a external cache store as needed. `NixlConnector` is using P2P, while `LMCacheConnector` and `MooncakeStore` actually can act as an external cache store, which can exploit cpu memory or disk.
 
+![vLLM KV Connector Architecture](./images/vllm-kvconnector.svg)
+
 The proposed architecture introduces a comprehensive, pluggable design that can accommodate these actual connector types while providing proper lifecycle management, error handling, and observability.
 
-[vLLM](./images/vllm-v1-kvconnector.png)
+
 
 ## 2. Current Architecture Analysis
 

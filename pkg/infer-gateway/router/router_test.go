@@ -41,6 +41,7 @@ import (
 	"k8s.io/klog/v2"
 
 	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/connectors"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
@@ -104,8 +105,8 @@ func TestProxyModelEndpoint(t *testing.T) {
 				BestPods: []*datastore.PodInfo{buildPodInfo("decode1", "1.1.1.1")},
 			},
 			proxyPatch: func() *gomonkey.Patches {
-				patches := gomonkey.ApplyFunc(buildDecodeRequest, func(c *gin.Context, req *http.Request, modelRequest ModelRequest) (*http.Request, error) {
-					return req, nil
+				patches := gomonkey.ApplyFunc(connectors.BuildDecodeRequest, func(c *gin.Context, req *http.Request, modelRequest ModelRequest) *http.Request {
+					return req
 				})
 				patches.ApplyFunc(isStreaming, func(modelRequest ModelRequest) bool {
 					return false
@@ -125,8 +126,8 @@ func TestProxyModelEndpoint(t *testing.T) {
 				BestPods: []*datastore.PodInfo{buildPodInfo("decode1", "1.1.1.1")},
 			},
 			proxyPatch: func() *gomonkey.Patches {
-				patches := gomonkey.ApplyFunc(buildDecodeRequest, func(c *gin.Context, req *http.Request, modelRequest ModelRequest) (*http.Request, error) {
-					return req, nil
+				patches := gomonkey.ApplyFunc(connectors.BuildDecodeRequest, func(c *gin.Context, req *http.Request, modelRequest ModelRequest) *http.Request {
+					return req
 				})
 				patches.ApplyFunc(isStreaming, func(modelRequest ModelRequest) bool {
 					return false
@@ -137,20 +138,6 @@ func TestProxyModelEndpoint(t *testing.T) {
 				return patches
 			},
 			wantErr: errors.New("request to all pods failed"),
-		},
-		{
-			name: "buildDecodeRequest error",
-			ctx: &framework.Context{
-				Model:    "test",
-				Prompt:   "test",
-				BestPods: []*datastore.PodInfo{buildPodInfo("decode1", "1.1.1.1")},
-			},
-			proxyPatch: func() *gomonkey.Patches {
-				return gomonkey.ApplyFunc(buildDecodeRequest, func(c *gin.Context, req *http.Request, modelRequest ModelRequest) (*http.Request, error) {
-					return nil, errors.New("build request error")
-				})
-			},
-			wantErr: errors.New("failed to build request of decode: build request error"),
 		},
 	}
 	for _, tt := range tests {
