@@ -169,6 +169,9 @@ spec:
             required:
             - rules
             type: object
+            x-kubernetes-validations:
+            - message: ModelName and LoraAdapters cannot both be empty
+              rule: self.modelName != '' || size(self.loraAdapters) > 0
           status:
             description: ModelRouteStatus defines the observed state of ModelRoute.
             type: object
