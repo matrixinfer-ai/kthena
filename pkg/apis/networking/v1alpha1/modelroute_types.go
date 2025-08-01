@@ -52,7 +52,8 @@ type Rule struct {
 	// Name is the name of the rule.
 	// +optional
 	Name string `json:"name,omitempty"`
-	// If no `modelMatch` is specified, it will be default route.
+	// Match conditions to be satisfied for the rule to be activated. 
+	// Empty `modelMatch` means matching all requests.
 	// +optional
 	ModelMatch *ModelMatch `json:"modelMatch,omitempty"`
 	// +kubebuilder:validation:MaxItems=16
