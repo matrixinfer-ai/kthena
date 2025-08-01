@@ -341,9 +341,9 @@ func (r *Router) getKVConnector(modelServerName types.NamespacedName) (connector
 	}
 
 	// Determine connector type from ModelServer CRD
-	connectorType := connectors.ConnectorTypeHTTP
+	connectorType := v1alpha1.ConnectorTypeHTTP
 	if modelServer.Spec.KVConnector != nil && modelServer.Spec.KVConnector.Type != "" {
-		connectorType = connectors.ConnectorType(modelServer.Spec.KVConnector.Type)
+		connectorType = modelServer.Spec.KVConnector.Type
 	}
 
 	connector := r.connectorFactory.GetConnector(connectorType)

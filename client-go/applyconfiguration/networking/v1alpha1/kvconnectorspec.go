@@ -18,10 +18,14 @@ limitations under the License.
 
 package v1alpha1
 
+import (
+	networkingv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
+)
+
 // KVConnectorSpecApplyConfiguration represents a declarative configuration of the KVConnectorSpec type for use
 // with apply.
 type KVConnectorSpecApplyConfiguration struct {
-	Type *string `json:"type,omitempty"`
+	Type *networkingv1alpha1.KVConnectorType `json:"type,omitempty"`
 }
 
 // KVConnectorSpecApplyConfiguration constructs a declarative configuration of the KVConnectorSpec type for use with
@@ -33,7 +37,7 @@ func KVConnectorSpec() *KVConnectorSpecApplyConfiguration {
 // WithType sets the Type field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Type field is set to the value of the last call.
-func (b *KVConnectorSpecApplyConfiguration) WithType(value string) *KVConnectorSpecApplyConfiguration {
+func (b *KVConnectorSpecApplyConfiguration) WithType(value networkingv1alpha1.KVConnectorType) *KVConnectorSpecApplyConfiguration {
 	b.Type = &value
 	return b
 }

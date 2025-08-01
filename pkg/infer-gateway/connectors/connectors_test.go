@@ -25,6 +25,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 )
 
 func TestHTTPConnector(t *testing.T) {
@@ -47,7 +48,7 @@ func TestFactory(t *testing.T) {
 	factory := NewDefaultFactory()
 
 	// Test HTTP connector
-	httpConnector := factory.GetConnector(ConnectorTypeHTTP)
+	httpConnector := factory.GetConnector(v1alpha1.ConnectorTypeHTTP)
 	if httpConnector == nil {
 		t.Error("Expected HTTP connector to be registered")
 	}
@@ -56,7 +57,7 @@ func TestFactory(t *testing.T) {
 	}
 
 	// Test NIXL connector
-	nixlConnector := factory.GetConnector(ConnectorTypeNIXL)
+	nixlConnector := factory.GetConnector(v1alpha1.ConnectorTypeNIXL)
 	if nixlConnector == nil {
 		t.Error("Expected NIXL connector to be registered")
 	}
@@ -65,7 +66,7 @@ func TestFactory(t *testing.T) {
 	}
 
 	// Test LMCache connector (currently uses HTTP implementation)
-	lmcacheConnector := factory.GetConnector(ConnectorTypeLMCache)
+	lmcacheConnector := factory.GetConnector(v1alpha1.ConnectorTypeLMCache)
 	if lmcacheConnector == nil {
 		t.Error("Expected LMCache connector to be registered")
 	}

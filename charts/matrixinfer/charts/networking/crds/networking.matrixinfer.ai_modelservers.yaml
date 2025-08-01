@@ -51,15 +51,15 @@ spec:
                 properties:
                   type:
                     default: http
-                    description: Type specifies the connector type
+                    description: |-
+                      Type specifies the connector type.
+                      If you donot know which type to use, please use "http" as default.
                     enum:
                     - http
                     - lmcache
                     - nixl
                     - mooncake
                     type: string
-                required:
-                - type
                 type: object
               model:
                 description: |-

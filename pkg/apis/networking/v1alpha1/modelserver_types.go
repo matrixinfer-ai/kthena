@@ -101,12 +101,22 @@ type WorkloadPort struct {
 	Protocol string `json:"protocol,omitempty"`
 }
 
+type KVConnectorType string
+
+const (
+	ConnectorTypeHTTP     KVConnectorType = "http"
+	ConnectorTypeNIXL     KVConnectorType = "nixl"
+	ConnectorTypeLMCache  KVConnectorType = "lmcache"
+	ConnectorTypeMoonCake KVConnectorType = "mooncake"
+)
+
 // KVConnectorSpec defines KV connector configuration for PD disaggregated routing
 type KVConnectorSpec struct {
-	// Type specifies the connector type
+	// Type specifies the connector type.
+	// If you donot know which type to use, please use "http" as default.
 	// +kubebuilder:validation:Enum=http;lmcache;nixl;mooncake
 	// +kubebuilder:default="http"
-	Type string `json:"type"`
+	Type KVConnectorType `json:"type,omitempty"`
 }
 
 type TrafficPolicy struct {

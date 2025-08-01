@@ -16,35 +16,27 @@ limitations under the License.
 
 package connectors
 
-// ConnectorType represents the type of KV connector
-type ConnectorType string
-
-const (
-	ConnectorTypeHTTP     ConnectorType = "http"
-	ConnectorTypeNIXL     ConnectorType = "nixl"
-	ConnectorTypeLMCache  ConnectorType = "lmcache"
-	ConnectorTypeMoonCake ConnectorType = "mooncake"
-)
+import "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 
 // Factory creates KV connectors based on type
 type Factory struct {
-	connectors map[ConnectorType]func() KVConnector
+	connectors map[v1alpha1.KVConnectorType]func() KVConnector
 }
 
 // NewFactory creates a new connector factory
 func NewFactory() *Factory {
 	return &Factory{
-		connectors: make(map[ConnectorType]func() KVConnector),
+		connectors: make(map[v1alpha1.KVConnectorType]func() KVConnector),
 	}
 }
 
 // RegisterConnector registers a connector with the factory
-func (f *Factory) RegisterConnectorBuilder(connectorType ConnectorType, constructor func() KVConnector) {
+func (f *Factory) RegisterConnectorBuilder(connectorType v1alpha1.KVConnectorType, constructor func() KVConnector) {
 	f.connectors[connectorType] = constructor
 }
 
 // GetConnector returns a connector by type
-func (f *Factory) GetConnector(connectorType ConnectorType) KVConnector {
+func (f *Factory) GetConnector(connectorType v1alpha1.KVConnectorType) KVConnector {
 	connector, ok := f.connectors[connectorType]
 	if !ok {
 		return NewHTTPConnector() // Default to HTTP connector if not found
@@ -57,10 +49,10 @@ func NewDefaultFactory() *Factory {
 	factory := NewFactory()
 
 	// Register default connectors
-	factory.RegisterConnectorBuilder(ConnectorTypeHTTP, NewHTTPConnector)
-	factory.RegisterConnectorBuilder(ConnectorTypeLMCache, NewHTTPConnector)  // LMCache uses HTTP connector for now
-	factory.RegisterConnectorBuilder(ConnectorTypeMoonCake, NewHTTPConnector) // MoonCake uses HTTP connector
-	factory.RegisterConnectorBuilder(ConnectorTypeNIXL, func() KVConnector { return NewNIXLConnector() })
+	factory.RegisterConnectorBuilder(v1alpha1.ConnectorTypeHTTP, NewHTTPConnector)
+	factory.RegisterConnectorBuilder(v1alpha1.ConnectorTypeLMCache, NewHTTPConnector)  // LMCache uses HTTP connector for now
+	factory.RegisterConnectorBuilder(v1alpha1.ConnectorTypeMoonCake, NewHTTPConnector) // MoonCake uses HTTP connector
+	factory.RegisterConnectorBuilder(v1alpha1.ConnectorTypeNIXL, func() KVConnector { return NewNIXLConnector() })
 
 	return factory
 }
