@@ -35,9 +35,9 @@ import (
 func main() {
 	// Initialize klog flags
 	klog.InitFlags(nil)
-	webhookPort := pflag.Int("webhook-port", 8443, "The port for the webhook server.")
-	webhookCertFile := pflag.String("webhook-cert-file", "", "The path to the webhook TLS certificate file.")
-	webhookKeyFile := pflag.String("webhook-key-file", "", "The path to the webhook TLS private key file.")
+	webhookPort := pflag.Int("port", 8443, "The port for the webhook server.")
+	webhookCertFile := pflag.String("tls-cert-file", "/etc/webhook/certs/tls.crt", "The path to the webhook TLS certificate file.")
+	webhookKeyFile := pflag.String("tls-private-key-file", "/etc/webhook/certs/tls.key", "The path to the webhook TLS private key file.")
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	pflag.Parse()
 	defer klog.Flush()
