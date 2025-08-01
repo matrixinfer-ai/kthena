@@ -43,12 +43,10 @@ import (
 )
 
 const (
-	ModelInitsReason              = "ModelInits"
-	ModelUpdatingReason           = "ModelUpdating"
-	ModelActiveReason             = "ModelActive"
-	CreateModelServerFailedReason = "CreateModelServerFailed"
-	CreateModelRouteFailedReason  = "CreateModelRouteFailed"
-	ConfigMapName                 = "model-config-map"
+	ModelInitsReason    = "ModelInits"
+	ModelUpdatingReason = "ModelUpdating"
+	ModelActiveReason   = "ModelActive"
+	ConfigMapName       = "model-controller-config"
 )
 
 type ModelController struct {
@@ -167,24 +165,20 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 	}
 	klog.InfoS("Start to process model", "namespace", namespace, "model name", model.Name, "model status", model.Status)
 	if len(model.Status.Conditions) == 0 {
-		klog.Info("model status condition is null, create model infer")
-		if modelInfers, err := utils.BuildModelInferCR(model); err != nil {
-			klog.Errorf("failed to build model infer for model %s: %v", model.Name, err)
+		if err := mc.createModelInfer(ctx, model); err != nil {
 			return err
-		} else {
-			for _, modelInfer := range modelInfers {
-				// modelInfer is owned by the model. ModelInfer will be deleted when the model is deleted
-				if _, err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Create(ctx, modelInfer, metav1.CreateOptions{}); err != nil {
-					klog.Errorf("create modelInfer failed: %v", err)
-					return err
-				}
-			}
-			meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeInitializing),
-				metav1.ConditionTrue, ModelInitsReason, "Model is initializing"))
-			if err := mc.updateModelStatus(ctx, model); err != nil {
-				klog.Errorf("update model status failed: %v", err)
-				return err
-			}
+		}
+		if err := mc.createModelServer(ctx, model); err != nil {
+			return err
+		}
+		if err := mc.createModelRoute(ctx, model); err != nil {
+			return err
+		}
+		meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeInitializing),
+			metav1.ConditionTrue, ModelInitsReason, "Model is initializing"))
+		if err := mc.updateModelStatus(ctx, model); err != nil {
+			klog.Errorf("update model status failed: %v", err)
+			return err
 		}
 	}
 	if model.Generation != model.Status.ObservedGeneration {
@@ -198,32 +192,15 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 		if err := mc.updateModelServer(ctx, model); err != nil {
 			return err
 		}
+		if err := mc.updateModelRoute(ctx, model); err != nil {
+			return err
+		}
 	}
 	modelInferActive, err := mc.isModelInferActive(ctx, model)
 	if err != nil || !modelInferActive {
 		return err
 	}
 	if err := mc.setModelActiveCondition(ctx, model); err != nil {
-		return err
-	}
-	if err := mc.createModelServer(ctx, model); err != nil {
-		updateError := mc.setModelServerFailedCondition(ctx, model)
-		if updateError != nil {
-			return updateError
-		}
-		return err
-	}
-	return nil
-}
-
-// setModelServerFailedCondition sets model server conditions when creating model server failed.
-func (mc *ModelController) setModelServerFailedCondition(ctx context.Context, model *registryv1alpha1.Model) error {
-	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeFailed),
-		metav1.ConditionTrue, CreateModelServerFailedReason, "Creating model server failed"))
-	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeActive),
-		metav1.ConditionFalse, CreateModelServerFailedReason, "Model is not active due to failed create model server"))
-	if err := mc.updateModelStatus(ctx, model); err != nil {
-		klog.Errorf("update model status failed: %v", err)
 		return err
 	}
 	return nil
@@ -434,10 +411,13 @@ func (mc *ModelController) triggerModel(old any, new any) {
 	}
 }
 
-// createModelServer creates model server when model infer is available
+// createModelServer creates model server
 func (mc *ModelController) createModelServer(ctx context.Context, model *registryv1alpha1.Model) error {
-	klog.Info("Model Infer is active, start to create model server")
-	modelServers := utils.BuildModelServer(model)
+	klog.V(4).Info("Start to create model server")
+	modelServers, err := utils.BuildModelServer(model)
+	if err != nil {
+		return err
+	}
 	for _, modelServer := range modelServers {
 		if _, err := mc.client.NetworkingV1alpha1().ModelServers(model.Namespace).Create(ctx, modelServer, metav1.CreateOptions{}); err != nil {
 			if errors.IsAlreadyExists(err) {
@@ -453,7 +433,10 @@ func (mc *ModelController) createModelServer(ctx context.Context, model *registr
 
 // updateModelServer updates model server
 func (mc *ModelController) updateModelServer(ctx context.Context, model *registryv1alpha1.Model) error {
-	modelServers := utils.BuildModelServer(model)
+	modelServers, err := utils.BuildModelServer(model)
+	if err != nil {
+		return err
+	}
 	for _, modelServer := range modelServers {
 		oldModelServer, err := mc.client.NetworkingV1alpha1().ModelServers(modelServer.Namespace).Get(ctx, modelServer.Name, metav1.GetOptions{})
 		if err != nil {
@@ -474,6 +457,67 @@ func (mc *ModelController) updateModelServer(ctx context.Context, model *registr
 		modelServer.ResourceVersion = oldModelServer.ResourceVersion
 		if _, err := mc.client.NetworkingV1alpha1().ModelServers(model.Namespace).Update(ctx, modelServer, metav1.UpdateOptions{}); err != nil {
 			klog.Errorf("failed to update ModelServer %s: %v", klog.KObj(modelServer), err)
+			return err
+		}
+	}
+	return nil
+}
+
+// createModelRoute creates model route
+func (mc *ModelController) createModelRoute(ctx context.Context, model *registryv1alpha1.Model) error {
+	klog.V(4).Info("Start to create model route")
+	modelRoute := utils.BuildModelRoute(model)
+	if _, err := mc.client.NetworkingV1alpha1().ModelRoutes(model.Namespace).Create(ctx, modelRoute, metav1.CreateOptions{}); err != nil {
+		if errors.IsAlreadyExists(err) {
+			klog.V(4).InfoS("ModelRoute already exists, skipping creation", "modelRoute", klog.KObj(modelRoute))
+			return nil
+		}
+		klog.Errorf("create model route failed: %v", err)
+		return err
+	}
+	return nil
+}
+
+// updateModelRoute updates model route
+func (mc *ModelController) updateModelRoute(ctx context.Context, model *registryv1alpha1.Model) error {
+	modelRoute := utils.BuildModelRoute(model)
+	oldModelRoute, err := mc.client.NetworkingV1alpha1().ModelRoutes(modelRoute.Namespace).Get(ctx, modelRoute.Name, metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// ModelRoute doesn't exist, create it.
+			if _, err := mc.client.NetworkingV1alpha1().ModelRoutes(model.Namespace).Create(ctx, modelRoute, metav1.CreateOptions{}); err != nil {
+				klog.Errorf("failed to create ModelRoute %s: %v", klog.KObj(modelRoute), err)
+				return err
+			}
+			return nil
+		}
+		klog.Errorf("failed to get ModelRoute %s: %v", klog.KObj(modelRoute), err)
+		return err
+	}
+	if equality.Semantic.DeepEqual(oldModelRoute.Spec, modelRoute.Spec) {
+		return nil
+	}
+	modelRoute.ResourceVersion = oldModelRoute.ResourceVersion
+	if _, err := mc.client.NetworkingV1alpha1().ModelRoutes(model.Namespace).Update(ctx, modelRoute, metav1.UpdateOptions{}); err != nil {
+		klog.Errorf("failed to update ModelRoute %s: %v", klog.KObj(modelRoute), err)
+		return err
+	}
+	return nil
+}
+
+// createModelInfer creates model infer
+func (mc *ModelController) createModelInfer(ctx context.Context, model *registryv1alpha1.Model) error {
+	klog.V(4).Info("start to create model infer")
+	modelInfers, err := utils.BuildModelInferCR(model)
+	if err != nil {
+		klog.Errorf("failed to build model infer for model %s: %v", model.Name, err)
+		return err
+	}
+	for _, modelInfer := range modelInfers {
+		if _, err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Create(ctx, modelInfer, metav1.CreateOptions{}); err != nil {
+			if errors.IsAlreadyExists(err) {
+				continue
+			}
 			return err
 		}
 	}

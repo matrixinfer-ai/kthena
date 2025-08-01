@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: infer-gateway-config
+  name: {{ include "matrixinfer.name" . }}-infer-gateway-config
   namespace: {{ .Release.Namespace }}
 data:
   schedulerConfiguration: |-

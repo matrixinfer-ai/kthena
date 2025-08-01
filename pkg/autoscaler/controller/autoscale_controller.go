@@ -48,11 +48,11 @@ import (
 	workloadLister "matrixinfer.ai/matrixinfer/client-go/listers/workload/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
+	"matrixinfer.ai/matrixinfer/pkg/autoscaler"
+	"matrixinfer.ai/matrixinfer/pkg/autoscaler/algorithm"
+	"matrixinfer.ai/matrixinfer/pkg/autoscaler/histogram"
+	"matrixinfer.ai/matrixinfer/pkg/autoscaler/util"
 	inferControllerUtils "matrixinfer.ai/matrixinfer/pkg/infer-controller/utils"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaler"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaler/algorithm"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaler/histogram"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/autoscaler/util"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
 )
 
@@ -93,8 +93,8 @@ func NewAutoscaleController(kubeClient kubernetes.Interface, client clientset.In
 	podsInformer := kubeInformerFactory.Core().V1().Pods()
 	ac := &AutoscaleController{
 		kubeClient:                  kubeClient,
-		client:                      client,
 		namespace:                   namespace,
+		client:                      client,
 		autoscalingPoliciesLister:   autoscalingPoliciesInformer.Lister(),
 		autoscalingPoliciesInformer: autoscalingPoliciesInformer.Informer(),
 		modelsLister:                modelInformer.Lister(),
@@ -140,7 +140,7 @@ func (ac *AutoscaleController) Reconcile(ctx context.Context) {
 	defer cancel()
 	modelList, err := ac.client.RegistryV1alpha1().Models(ac.namespace).List(modelCtx, metav1.ListOptions{})
 	if err != nil {
-		klog.Errorf("failed to list model,err:%v", err)
+		klog.Errorf("failed to list model, err:%v", err)
 		return
 	}
 
@@ -210,7 +210,7 @@ func (ac *AutoscaleController) processAutoscale(ctx context.Context, model v1alp
 			backendAutoscaler, ok := ac.autoscalerMap[backendKey]
 			if !ok {
 				metricTargets := getMetricTargets(autoscalePolicy)
-				globalInfo := autoscaler.NewGlobalInfo([]v1alpha1.ModelBackend{backend}, backend.Cost)
+				globalInfo := autoscaler.NewGlobalInfo([]v1alpha1.ModelBackend{backend}, backend.ScalingCost)
 				backendAutoscaler = autoscaler.NewAutoscaler(&autoscalePolicy.Spec.Behavior, globalInfo, metricTargets)
 				ac.autoscalerMap[backendKey] = backendAutoscaler
 			}
@@ -422,7 +422,7 @@ func (ac *AutoscaleController) doAutoscale(ctx context.Context, namespace string
 		return correctedInstances, skip
 	}
 
-	if recommendedInstances*100 >= currentInstancesCount*(*autoscalePolicy.Spec.Behavior.ScaleUp.PanicPolicy.PanicThresholdPercent) {
+	if autoscalePolicy.Spec.Behavior.ScaleUp.PanicPolicy.PanicThresholdPercent != nil && recommendedInstances*100 >= currentInstancesCount*(*autoscalePolicy.Spec.Behavior.ScaleUp.PanicPolicy.PanicThresholdPercent) {
 		scopeAutoscaler.RefreshPanicMode()
 	}
 	correctedInstances = algorithm.GetCorrectedInstances(algorithm.GetCorrectedInstancesArgs{

@@ -29,9 +29,13 @@ spec:
             max-model-len: 32768
             tensor-parallel-size: 2
             trust-remote-code: ""
+            served-model-name: "deepseek-v3"
           resources:
             requests:
               cpu: 100m
               huawei.com/ascend-1980: "1"
               memory: 1Gi
           type: server
+      loraAdapters:
+        - name: lora-sql
+          artifactURL: s3://aios_models/deepseek-ai/DeepSeek-V3-W8A8/vllm-ascend-lora

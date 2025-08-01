@@ -48,14 +48,25 @@ spec:
                   periodSeconds: 10
                 resources: {}
               - command:
-                  - bash
-                  - -c
-                  - chmod u+x /vllm-workspace/vllm/examples/online_serving/multi-node-serving.sh
-                    && /vllm-workspace/vllm/examples/online_serving/multi-node-serving.sh
-                    leader --ray_cluster_size=2 --num-gpus=1 && python -m vllm.entrypoints.openai.api_server
-                    --model /tmp/test/13a7c4d58031cdc502ca1bb4a592f2b9 --block-size 128
-                    --gpu-memory-utilization 0.9 --max-model-len 32768 --tensor-parallel-size
-                    2 --trust-remote-code --distributed_executor_backend ray
+                  - python
+                  - -m
+                  - vllm.entrypoints.openai.api_server
+                  - --model
+                  - /tmp/test/13a7c4d58031cdc502ca1bb4a592f2b9
+                  - --block-size
+                  - "128"
+                  - --gpu-memory-utilization
+                  - "0.9"
+                  - --max-model-len
+                  - "32768"
+                  - --served-model-name
+                  - "deepseek-v3"
+                  - --tensor-parallel-size
+                  - "2"
+                  - --trust-remote-code
+                  - --enable-lora
+                  - --lora-modules
+                  - lora-sql=/tmp/test/11e9a15be1e19ff056520bf67eaeb688
                 image: vllm-server:latest
                 lifecycle:
                   preStop:
@@ -110,8 +121,25 @@ spec:
                 envfrom:
                   - secretRef:
                       name: "test-secret"
-                name: test-model-downloader
+                name: test-model-model-downloader
                 resources: {}
+                volumeMounts:
+                  - mountPath: /tmp/test
+                    name: backend1-weights
+              - args:
+                  - --source
+                  - s3://aios_models/deepseek-ai/DeepSeek-V3-W8A8/vllm-ascend-lora
+                  - --output-dir
+                  - /tmp/test/11e9a15be1e19ff056520bf67eaeb688
+                env:
+                  - name: ENDPOINT
+                    value: https://obs.test.com
+                envFrom:
+                  - secretRef:
+                      name: "test-secret"
+                image: matrixinfer/downloader:latest
+                name: test-model-lora-downloader-0
+                resources: { }
                 volumeMounts:
                   - mountPath: /tmp/test
                     name: backend1-weights
@@ -126,7 +154,7 @@ spec:
           highestTierAllowed: 2
           mode: hard
         replicas: 0
-        workerReplicas: 1
+        workerReplicas: 0
         workerTemplate:
           spec:
             containers:
@@ -155,12 +183,32 @@ spec:
                   - s3://aios_models/deepseek-ai/DeepSeek-V3-W8A8/vllm-ascend
                   - --output-dir
                   - /tmp/test/13a7c4d58031cdc502ca1bb4a592f2b9
+                image: matrixinfer/downloader:latest
                 env:
                   - name: "ENDPOINT"
                     value: "https://obs.test.com"
+                envfrom:
+                  - secretRef:
+                      name: "test-secret"
+                name: test-model-model-downloader
+                resources: { }
+                volumeMounts:
+                  - mountPath: /tmp/test
+                    name: backend1-weights
+              - args:
+                  - --source
+                  - s3://aios_models/deepseek-ai/DeepSeek-V3-W8A8/vllm-ascend-lora
+                  - --output-dir
+                  - /tmp/test/11e9a15be1e19ff056520bf67eaeb688
+                env:
+                  - name: ENDPOINT
+                    value: https://obs.test.com
+                envFrom:
+                  - secretRef:
+                      name: "test-secret"
                 image: matrixinfer/downloader:latest
-                name: downloader
-                resources: {}
+                name: test-model-lora-downloader-0
+                resources: { }
                 volumeMounts:
                   - mountPath: /tmp/test
                     name: backend1-weights

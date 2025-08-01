@@ -67,7 +67,7 @@ func NewModelInferValidator(kubeClient kubernetes.Interface, modelInferClient cl
 
 func (v *ModelInferValidator) Run(tlsCertFile, tlsPrivateKey string, stopCh <-chan struct{}) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/validate-matrixinfer-ai-v1alpha1-modelinfer", v.Handle)
+	mux.HandleFunc("/validate-workload-ai-v1alpha1-modelinfer", v.Handle)
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		if _, err := w.Write([]byte("ok")); err != nil {

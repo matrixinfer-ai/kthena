@@ -119,7 +119,7 @@ func TestBuildModelInferCR(t *testing.T) {
 				assert.Contains(t, err.Error(), tt.expectErrMsg)
 				return
 			} else {
-				assert.Nil(t, err)
+				assert.NoError(t, err)
 			}
 			actualYAML, _ := yaml.Marshal(got)
 			expectedYAML, _ := yaml.Marshal(tt.expected)
@@ -130,9 +130,10 @@ func TestBuildModelInferCR(t *testing.T) {
 
 func TestBuildModelServer(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    *registry.Model
-		expected []*networking.ModelServer
+		name         string
+		input        *registry.Model
+		expected     []*networking.ModelServer
+		expectErrMsg string
 	}{
 		{
 			name:     "PD disaggregation",
@@ -147,7 +148,40 @@ func TestBuildModelServer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := BuildModelServer(tt.input)
+			got, err := BuildModelServer(tt.input)
+			if tt.expectErrMsg != "" {
+				assert.Contains(t, err.Error(), tt.expectErrMsg)
+				return
+			} else {
+				assert.NoError(t, err)
+			}
+			actualYAML, _ := yaml.Marshal(got)
+			expectedYAML, _ := yaml.Marshal(tt.expected)
+			assert.Equal(t, string(expectedYAML), string(actualYAML))
+		})
+	}
+}
+
+func TestBuildModelRoute(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    *registry.Model
+		expected *networking.ModelRoute
+	}{
+		{
+			name:     "simple model",
+			input:    loadYAML[registry.Model](t, "testdata/input/model.yaml"),
+			expected: loadYAML[networking.ModelRoute](t, "testdata/expected/model-route.yaml"),
+		},
+		{
+			name:     "model with multiple backends",
+			input:    loadYAML[registry.Model](t, "testdata/input/multi-backend-model.yaml"),
+			expected: loadYAML[networking.ModelRoute](t, "testdata/expected/model-route-subset.yaml"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := BuildModelRoute(tt.input)
 			actualYAML, _ := yaml.Marshal(got)
 			expectedYAML, _ := yaml.Marshal(tt.expected)
 			assert.Equal(t, string(expectedYAML), string(actualYAML))

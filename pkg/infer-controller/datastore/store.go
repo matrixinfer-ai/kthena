@@ -69,10 +69,10 @@ const (
 
 var ErrInferGroupNotFound = errors.New("infer group not found")
 
-func New() (Store, error) {
+func New() Store {
 	return &store{
 		inferGroup: make(map[types.NamespacedName]map[string]*InferGroup),
-	}, nil
+	}
 }
 
 // GetInferGroupByModelInfer returns the list of inferGroups and errors

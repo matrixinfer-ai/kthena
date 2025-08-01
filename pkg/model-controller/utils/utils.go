@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"k8s.io/utils/ptr"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -51,6 +52,7 @@ const (
 	VllmDisaggregatedTemplatePath  = "templates/vllm-pd.yaml"
 	VllmMultiNodeServingScriptPath = "/vllm-workspace/vllm/examples/online_serving/multi-node-serving.sh"
 	inClusterNamespacePath         = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+	modelRouteRuleName             = "default"
 )
 
 //go:embed templates/*
@@ -95,6 +97,25 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 		return nil, err
 	}
 	modelDownloadPath := getCachePath(backend.CacheURI) + getMountPath(backend.ModelURI)
+
+	// Build an initial container list including model downloader container
+	initContainers := []corev1.Container{
+		{
+			Name:  model.Name + "-model-downloader",
+			Image: config.Config.GetModelInferDownloaderImage(),
+			Args: []string{
+				"--source", backend.ModelURI,
+				"--output-dir", modelDownloadPath,
+			},
+			Env:     getEnvVarOrDefault(backend, "ENDPOINT", ""),
+			EnvFrom: backend.EnvFrom,
+			VolumeMounts: []corev1.VolumeMount{{
+				Name:      cacheVolume.Name,
+				MountPath: getCachePath(backend.CacheURI),
+			}},
+		},
+	}
+
 	var preFillCommand []string
 	var decodeCommand []string
 	for _, worker := range backend.Workers {
@@ -109,6 +130,14 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 				return nil, err
 			}
 		}
+	}
+
+	// Handle LoRA adapters
+	if len(backend.LoraAdapters) > 0 {
+		loraCommands, loraContainers := buildLoraComponents(model, backend, cacheVolume.Name)
+		preFillCommand = append(preFillCommand, loraCommands...)
+		decodeCommand = append(decodeCommand, loraCommands...)
+		initContainers = append(initContainers, loraContainers...)
 	}
 	data := map[string]interface{}{
 		"MODEL_INFER_TEMPLATE_METADATA": &metav1.ObjectMeta{
@@ -133,24 +162,21 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 		"VOLUMES": []*corev1.Volume{
 			cacheVolume,
 		},
-		"MODEL_NAME":                   model.Name,
-		"MODEL_URL":                    backend.ModelURI,
-		"BACKEND_REPLICAS":             backend.MinReplicas, // todo: backend replicas
-		"MODEL_DOWNLOAD_ENVFROM":       backend.EnvFrom,
-		"ENGINE_PREFILL_COMMAND":       preFillCommand,
-		"ENGINE_DECODE_COMMAND":        decodeCommand,
-		"MODEL_DOWNLOAD_PATH":          modelDownloadPath,
-		"MODEL_INFER_DOWNLOADER_IMAGE": config.Config.GetModelInferDownloaderImage(),
-		"MODEL_INFER_RUNTIME_IMAGE":    config.Config.GetModelInferRuntimeImage(),
-		"MODEL_INFER_RUNTIME_PORT":     getEnvValueOrDefault(backend, "RUNTIME_PORT", "8100"),
-		"MODEL_INFER_RUNTIME_URL":      getEnvValueOrDefault(backend, "RUNTIME_URL", "http://localhost:8000/metrics"),
-		"MODEL_INFER_RUNTIME_ENGINE":   strings.ToLower(string(backend.Type)),
-		"PREFILL_REPLICAS":             workersMap[registry.ModelWorkerTypePrefill].Replicas,
-		"DECODE_REPLICAS":              workersMap[registry.ModelWorkerTypeDecode].Replicas,
-		"ENGINE_DECODE_RESOURCES":      workersMap[registry.ModelWorkerTypeDecode].Resources,
-		"ENGINE_DECODE_IMAGE":          workersMap[registry.ModelWorkerTypeDecode].Image,
-		"ENGINE_PREFILL_RESOURCES":     workersMap[registry.ModelWorkerTypePrefill].Resources,
-		"ENGINE_PREFILL_IMAGE":         workersMap[registry.ModelWorkerTypePrefill].Image,
+		"MODEL_NAME":                 model.Name,
+		"BACKEND_REPLICAS":           backend.MinReplicas, // todo: backend replicas
+		"INIT_CONTAINERS":            initContainers,
+		"ENGINE_PREFILL_COMMAND":     preFillCommand,
+		"ENGINE_DECODE_COMMAND":      decodeCommand,
+		"MODEL_INFER_RUNTIME_IMAGE":  config.Config.GetModelInferRuntimeImage(),
+		"MODEL_INFER_RUNTIME_PORT":   getEnvValueOrDefault(backend, "RUNTIME_PORT", "8100"),
+		"MODEL_INFER_RUNTIME_URL":    getEnvValueOrDefault(backend, "RUNTIME_URL", "http://localhost:8000/metrics"),
+		"MODEL_INFER_RUNTIME_ENGINE": strings.ToLower(string(backend.Type)),
+		"PREFILL_REPLICAS":           workersMap[registry.ModelWorkerTypePrefill].Replicas,
+		"DECODE_REPLICAS":            workersMap[registry.ModelWorkerTypeDecode].Replicas,
+		"ENGINE_DECODE_RESOURCES":    workersMap[registry.ModelWorkerTypeDecode].Resources,
+		"ENGINE_DECODE_IMAGE":        workersMap[registry.ModelWorkerTypeDecode].Image,
+		"ENGINE_PREFILL_RESOURCES":   workersMap[registry.ModelWorkerTypePrefill].Resources,
+		"ENGINE_PREFILL_IMAGE":       workersMap[registry.ModelWorkerTypePrefill].Image,
 	}
 	return loadModelInferTemplate(VllmDisaggregatedTemplatePath, &data)
 }
@@ -172,6 +198,32 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 	if err != nil {
 		return nil, err
 	}
+
+	// Build an initial container list including model downloader container
+	initContainers := []corev1.Container{
+		{
+			Name:  model.Name + "-model-downloader",
+			Image: config.Config.GetModelInferDownloaderImage(),
+			Args: []string{
+				"--source", backend.ModelURI,
+				"--output-dir", modelDownloadPath,
+			},
+			Env:     getEnvVarOrDefault(backend, "ENDPOINT", ""),
+			EnvFrom: backend.EnvFrom,
+			VolumeMounts: []corev1.VolumeMount{{
+				Name:      cacheVolume.Name,
+				MountPath: getCachePath(backend.CacheURI),
+			}},
+		},
+	}
+
+	// Handle LoRA adapters
+	if len(backend.LoraAdapters) > 0 {
+		loraCommands, loraContainers := buildLoraComponents(model, backend, cacheVolume.Name)
+		commands = append(commands, loraCommands...)
+		initContainers = append(initContainers, loraContainers...)
+	}
+
 	data := map[string]interface{}{
 		"MODEL_INFER_TEMPLATE_METADATA": &metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-%d-%s-instance", model.Name, idx, strings.ToLower(string(backend.Type))),
@@ -209,19 +261,15 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 			Name:      cacheVolume.Name,
 			MountPath: getCachePath(backend.CacheURI),
 		}},
-		"MODEL_URL":                    backend.ModelURI,
-		"MODEL_DOWNLOAD_PATH":          modelDownloadPath,
-		"MODEL_DOWNLOAD_ENV":           getEnvVarOrDefault(backend, "ENDPOINT", ""),
-		"MODEL_DOWNLOAD_ENVFROM":       backend.EnvFrom,
-		"MODEL_INFER_DOWNLOADER_IMAGE": config.Config.GetModelInferDownloaderImage(),
-		"MODEL_INFER_RUNTIME_IMAGE":    config.Config.GetModelInferRuntimeImage(),
-		"MODEL_INFER_RUNTIME_PORT":     getEnvValueOrDefault(backend, "RUNTIME_PORT", "8100"),
-		"MODEL_INFER_RUNTIME_URL":      getEnvValueOrDefault(backend, "RUNTIME_URL", "http://localhost:8000/metrics"),
-		"MODEL_INFER_RUNTIME_ENGINE":   strings.ToLower(string(backend.Type)),
-		"ENGINE_SERVER_RESOURCES":      workersMap[registry.ModelWorkerTypeServer].Resources,
-		"ENGINE_SERVER_IMAGE":          workersMap[registry.ModelWorkerTypeServer].Image,
-		"ENGINE_SERVER_COMMAND":        commands,
-		"WORKER_REPLICAS":              workersMap[registry.ModelWorkerTypeServer].Pods - 1,
+		"INIT_CONTAINERS":            initContainers,
+		"MODEL_INFER_RUNTIME_IMAGE":  config.Config.GetModelInferRuntimeImage(),
+		"MODEL_INFER_RUNTIME_PORT":   getEnvValueOrDefault(backend, "RUNTIME_PORT", "8100"),
+		"MODEL_INFER_RUNTIME_URL":    getEnvValueOrDefault(backend, "RUNTIME_URL", "http://localhost:8000/metrics"),
+		"MODEL_INFER_RUNTIME_ENGINE": strings.ToLower(string(backend.Type)),
+		"ENGINE_SERVER_RESOURCES":    workersMap[registry.ModelWorkerTypeServer].Resources,
+		"ENGINE_SERVER_IMAGE":        workersMap[registry.ModelWorkerTypeServer].Image,
+		"ENGINE_SERVER_COMMAND":      commands,
+		"WORKER_REPLICAS":            workersMap[registry.ModelWorkerTypeServer].Pods - 1,
 	}
 	return loadModelInferTemplate(VllmTemplatePath, &data)
 }
@@ -525,7 +573,7 @@ func GetInClusterNameSpace() (string, error) {
 
 // BuildModelServer creates arrays of ModelServer for the given model.
 // Each model backend will create one model server.
-func BuildModelServer(model *registry.Model) []*networking.ModelServer {
+func BuildModelServer(model *registry.Model) ([]*networking.ModelServer, error) {
 	var modelServers []*networking.ModelServer
 	for idx, backend := range model.Spec.Backends {
 		var inferenceEngine networking.InferenceEngine
@@ -536,7 +584,7 @@ func BuildModelServer(model *registry.Model) []*networking.ModelServer {
 			inferenceEngine = networking.SGLang
 		case registry.ModelBackendTypeMindIE, registry.ModelBackendTypeMindIEDisaggregated:
 			klog.Warning("Not support MindIE backend yet, please use vLLM or SGLang backend")
-			return modelServers
+			return modelServers, nil
 		}
 		var pdGroup *networking.PDGroup
 		switch backend.Type {
@@ -550,6 +598,10 @@ func BuildModelServer(model *registry.Model) []*networking.ModelServer {
 					"modelinfer.matrixinfer.ai/role": "decode",
 				},
 			}
+		}
+		servedModelName, err := getServedModelName(model, backend)
+		if err != nil {
+			return nil, err
 		}
 		modelServer := networking.ModelServer{
 			TypeMeta: metav1.TypeMeta{
@@ -569,7 +621,7 @@ func BuildModelServer(model *registry.Model) []*networking.ModelServer {
 				},
 			},
 			Spec: networking.ModelServerSpec{
-				Model:           &model.Name,
+				Model:           &servedModelName,
 				InferenceEngine: inferenceEngine,
 				WorkloadSelector: &networking.WorkloadSelector{
 					MatchLabels: map[string]string{
@@ -590,5 +642,120 @@ func BuildModelServer(model *registry.Model) []*networking.ModelServer {
 		}
 		modelServers = append(modelServers, &modelServer)
 	}
-	return modelServers
+	return modelServers, nil
+}
+
+// getServedModelName gets served model name from the worker config. Default is the model name.
+func getServedModelName(model *registry.Model, backend registry.ModelBackend) (string, error) {
+	servedModelName := model.Name
+	for _, worker := range backend.Workers {
+		args, err := parseArgs(&worker.Config)
+		if err != nil {
+			return "", err
+		}
+		for i, str := range args {
+			if str == "--served-model-name" && i+1 < len(args) {
+				servedModelName = args[i+1]
+				break
+			}
+		}
+	}
+	return servedModelName, nil
+}
+
+// buildDownloaderContainer builds downloader container to reduce code duplication
+func buildDownloaderContainer(name, image, source, outputDir string, backend *registry.ModelBackend, cacheVolumeName string) corev1.Container {
+	return corev1.Container{
+		Name:  name,
+		Image: image,
+		Args: []string{
+			"--source", source,
+			"--output-dir", outputDir,
+		},
+		Env:     getEnvVarOrDefault(backend, "ENDPOINT", ""),
+		EnvFrom: backend.EnvFrom,
+		VolumeMounts: []corev1.VolumeMount{{
+			Name:      cacheVolumeName,
+			MountPath: getCachePath(backend.CacheURI),
+		}},
+	}
+}
+
+// buildLoraComponents builds LoRA related commands and containers
+func buildLoraComponents(model *registry.Model, backend *registry.ModelBackend, cacheVolumeName string) ([]string, []corev1.Container) {
+	adapterCount := len(backend.LoraAdapters)
+	loras := make([]string, 0, adapterCount)
+	loraContainers := make([]corev1.Container, 0, adapterCount)
+
+	for i, adapter := range backend.LoraAdapters {
+		// Create LoRA downloader container
+		containerName := fmt.Sprintf("%s-lora-downloader-%d", model.Name, i)
+		outputDir := getCachePath(backend.CacheURI) + getMountPath(adapter.ArtifactURL)
+
+		// Build LoRA module string
+		loraModule := fmt.Sprintf("%s=%s", adapter.Name, outputDir)
+		loras = append(loras, loraModule)
+
+		loraContainer := buildDownloaderContainer(
+			containerName,
+			config.Config.GetModelInferDownloaderImage(),
+			adapter.ArtifactURL,
+			outputDir,
+			backend,
+			cacheVolumeName,
+		)
+		loraContainers = append(loraContainers, loraContainer)
+	}
+
+	// Build LoRA command arguments
+	loraCommands := []string{"--enable-lora", "--lora-modules", strings.Join(loras, " ")}
+
+	return loraCommands, loraContainers
+}
+
+func BuildModelRoute(model *registry.Model) *networking.ModelRoute {
+	var rules []*networking.Rule
+	var loraAdapters []string
+	var targetModels []*networking.TargetModel
+	for idx, backend := range model.Spec.Backends {
+		for _, lora := range backend.LoraAdapters {
+			loraAdapters = append(loraAdapters, lora.Name)
+		}
+		targetModels = append(targetModels, &networking.TargetModel{
+			ModelServerName: fmt.Sprintf("%s-%d-%s-server", model.Name, idx, strings.ToLower(string(backend.Type))),
+			Weight:          backend.RouteWeight,
+		})
+	}
+	// sort and then remove duplicate lora name
+	slices.Sort(loraAdapters)
+	loraAdapters = slices.Compact(loraAdapters)
+	rules = append(rules, &networking.Rule{
+		Name:         modelRouteRuleName,
+		ModelMatch:   model.Spec.ModelMatch,
+		TargetModels: targetModels,
+	})
+	route := &networking.ModelRoute{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       networking.ModelRouteKind,
+			APIVersion: networking.GroupVersion.String(),
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-route", model.Name),
+			Namespace: model.Namespace,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: registry.GroupVersion.String(),
+					Kind:       registry.ModelKind,
+					Name:       model.Name,
+					UID:        model.UID,
+				},
+			},
+		},
+		Spec: networking.ModelRouteSpec{
+			ModelName:    model.Name,
+			LoraAdapters: loraAdapters,
+			Rules:        rules,
+		},
+	}
+	return route
 }

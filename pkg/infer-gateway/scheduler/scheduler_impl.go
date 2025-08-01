@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"sort"
 
-	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
@@ -30,6 +30,8 @@ import (
 )
 
 const (
+	schedulerConfigFile = "/etc/config/schedulerConfiguration.yaml"
+
 	// Get the top five scoring podinfo
 	topN = 5
 )
@@ -40,7 +42,7 @@ type SchedulerImpl struct {
 	filterPlugins []framework.FilterPlugin
 	scorePlugins  []*scorePlugin
 
-	ScheduleHooks []framework.ScheduleHook
+	postScheduleHooks []framework.PostScheduleHook
 }
 
 type scorePlugin struct {
@@ -54,7 +56,11 @@ type podInfoWithValue struct {
 }
 
 func NewScheduler(store datastore.Store) Scheduler {
-	scorePluginMap, filterPluginMap, pluginsArgMap, err := utils.LoadSchedulerConfig()
+	// For backward compatibility, use the default registry and ensure plugins are registered
+	registry := NewPluginRegistry()
+	registerDefaultPlugins(registry)
+
+	scorePluginMap, filterPluginMap, pluginsArgMap, err := utils.LoadSchedulerConfig(schedulerConfigFile)
 	if err != nil {
 		klog.Fatalf("failed to Load Scheduler: %v", err)
 	}
@@ -62,55 +68,12 @@ func NewScheduler(store datastore.Store) Scheduler {
 	prefixCache := plugins.NewPrefixCache(store, pluginsArgMap[plugins.PrefixCachePluginName])
 	return &SchedulerImpl{
 		store:         store,
-		filterPlugins: ParseFilterPlugin(filterPluginMap, pluginsArgMap),
-		scorePlugins:  GetScorePlugin(prefixCache, scorePluginMap, pluginsArgMap),
-		ScheduleHooks: []framework.ScheduleHook{
+		filterPlugins: getFilterPlugins(registry, filterPluginMap, pluginsArgMap),
+		scorePlugins:  getScorePlugins(registry, prefixCache, scorePluginMap, pluginsArgMap),
+		postScheduleHooks: []framework.PostScheduleHook{
 			prefixCache,
 		},
 	}
-}
-
-func ParseFilterPlugin(filterPluginMap []string, pluginsArgMap map[string]runtime.RawExtension) []framework.FilterPlugin {
-	var list []framework.FilterPlugin
-	// TODO: enable lora affinity when models from metrics are available.
-	for _, pluginName := range filterPluginMap {
-		if factory, exist := framework.GetFilterPluginBuilder(pluginName); !exist {
-			klog.Errorf("Failed to get plugin %s.", pluginName)
-			continue
-		} else {
-			plugin := factory(pluginsArgMap[pluginName])
-			list = append(list, plugin)
-		}
-	}
-	return list
-}
-
-func GetScorePlugin(prefixCache *plugins.PrefixCache, scorePluginMap map[string]int, pluginsArgMap map[string]runtime.RawExtension) []*scorePlugin {
-	var list []*scorePlugin
-	for pluginName, weight := range scorePluginMap {
-		if weight < 0 {
-			klog.Errorf("Weight for plugin '%s' is invalid, value is %d. Setting to 0", pluginName, weight)
-			weight = 0
-		}
-
-		if pluginName == plugins.PrefixCachePluginName {
-			list = append(list, &scorePlugin{
-				plugin: prefixCache,
-				weight: weight,
-			})
-			continue
-		}
-
-		if pb, exist := framework.GetScorePluginBuilder(pluginName); !exist {
-			klog.Errorf("Failed to get plugin %s.", pluginName)
-		} else {
-			list = append(list, &scorePlugin{
-				plugin: pb(pluginsArgMap[pluginName]),
-				weight: weight,
-			})
-		}
-	}
-	return list
 }
 
 func (s *SchedulerImpl) Schedule(ctx *framework.Context, pods []*datastore.PodInfo) error {
@@ -120,43 +83,41 @@ func (s *SchedulerImpl) Schedule(ctx *framework.Context, pods []*datastore.PodIn
 		return err
 	}
 
-	var pdFilter *plugins.PDFilter
 	if ctx.PDGroup != nil {
-		// Initialize PDFilter plugin if PD disaggregation is enabled.
+		// Use optimized PDGroup scheduling with pre-categorized pods from store
+		klog.V(4).Info("Using optimized PD disaggregated scheduling")
 
-		// First filter out decode pods.
-		// NOTE: Further optimization can be done on whether to filter out decode pod or prefill pod first,
-		// or even how to select the best PD group.
-		pdFilter = plugins.NewPDFilter(ctx.PDGroup)
-		decodePods := pdFilter.FilterDecodeInstances(ctx, pods)
+		// Get decode pods directly from store (O(1) lookup)
+		decodePods, err := s.store.GetDecodePods(ctx.ModelServerName)
+		if err != nil {
+			return fmt.Errorf("failed to get decode pods: %v", err)
+		}
+
 		if len(decodePods) == 0 {
 			return fmt.Errorf("no decode pod found")
 		}
 
 		klog.V(4).Info("Running score plugins for decode pod")
-		scores, err := s.RunScorePlugins(decodePods, ctx)
-		if err != nil {
-			return err
-		}
+		scores := s.RunScorePlugins(decodePods, ctx)
 
 		topNDecodePods := TopNPodInfos(scores, topN)
 		ctx.DecodePods = topNDecodePods
 		prefillPods := make([]*datastore.PodInfo, len(topNDecodePods))
-		for i := range ctx.DecodePods {
-			ctx.PDIndex = i
-			// Filter prefill pods if PD disaggregation is enabled.
-			// Also make sure the prefill pod is in the same infer group of decode pod we get before.
-			selectedPods := pdFilter.FilterPrefillInstances(ctx, pods)
-			if len(selectedPods) == 0 {
-				return fmt.Errorf("no prefill pod found")
+
+		for i, decodePod := range ctx.DecodePods {
+			// Get prefill pods for the same PD group as the decode pod (O(1) lookup)
+			selectedPods, err := s.store.GetPrefillPodsForDecodeGroup(ctx.ModelServerName,
+				types.NamespacedName{
+					Namespace: decodePod.Pod.Namespace,
+					Name:      decodePod.Pod.Name,
+				})
+			if err != nil || len(selectedPods) == 0 {
+				klog.V(4).InfoS("prefill pods for decode group not found", "decode instance", klog.KObj(decodePod.Pod), "error", err)
+				continue
 			}
 
 			klog.V(4).Info("Running score plugins for prefill pod")
-			scores, err = s.RunScorePlugins(selectedPods, ctx)
-			if err != nil {
-				return err
-			}
-
+			scores = s.RunScorePlugins(selectedPods, ctx)
 			bestPrefillPod := TopNPodInfos(scores, 1)
 			prefillPods[i] = bestPrefillPod[0]
 		}
@@ -165,10 +126,7 @@ func (s *SchedulerImpl) Schedule(ctx *framework.Context, pods []*datastore.PodIn
 	}
 
 	klog.V(4).Info("Running score plugins for PD aggregated pod")
-	scores, err := s.RunScorePlugins(pods, ctx)
-	if err != nil {
-		return err
-	}
+	scores := s.RunScorePlugins(pods, ctx)
 	ctx.BestPods = TopNPodInfos(scores, topN)
 
 	return nil
@@ -185,7 +143,7 @@ func (s *SchedulerImpl) RunFilterPlugins(pods []*datastore.PodInfo, ctx *framewo
 	return pods, nil
 }
 
-func (s *SchedulerImpl) RunScorePlugins(pods []*datastore.PodInfo, ctx *framework.Context) (map[*datastore.PodInfo]int, error) {
+func (s *SchedulerImpl) RunScorePlugins(pods []*datastore.PodInfo, ctx *framework.Context) map[*datastore.PodInfo]int {
 	res := make(map[*datastore.PodInfo]int)
 	for _, scorePlugin := range s.scorePlugins {
 		scores := scorePlugin.plugin.Score(ctx, pods)
@@ -211,11 +169,11 @@ func (s *SchedulerImpl) RunScorePlugins(pods []*datastore.PodInfo, ctx *framewor
 		}
 	}
 
-	return res, nil
+	return res
 }
 
 func (s *SchedulerImpl) RunPostHooks(ctx *framework.Context, index int) {
-	for _, hook := range s.ScheduleHooks {
+	for _, hook := range s.postScheduleHooks {
 		hook.PostSchedule(ctx, index)
 	}
 }

@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: model-config-map
+  name: model-controller-config
   namespace: {{ .Release.Namespace }}
   labels:
-    app.kubernetes.io/component: model-config-map
+    app.kubernetes.io/component: model-controller
     {{- include "matrixinfer.labels" . | nindent 4 }}
 data:
   model_infer_downloader_image: "{{ .Values.modelController.downloaderImage.repository }}:{{ .Values.modelController.downloaderImage.tag }}"

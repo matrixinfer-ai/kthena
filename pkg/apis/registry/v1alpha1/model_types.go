@@ -20,6 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	networking "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 )
 
 // ModelSpec defines the desired state of Model.
@@ -37,7 +38,10 @@ type ModelSpec struct {
 	// +listType=map
 	// +listMapKey=name
 	Backends []ModelBackend `json:"backends"`
-	// AutoscalingPolicyRef references the autoscaling policy to be used for this model.
+	// AutoscalingPolicy is the model-level autoscaling policy. There are two kinds of autoscaling policies:
+	// one for model and one for backend. The model-level autoscaling policy is used to control the overall
+	// scaling behavior of the model. The backend-level autoscaling policy is used to control the scaling
+	// behavior of each individual backend. Webhook will reject the CR if both are specified.
 	// +optional
 	AutoscalingPolicyRef corev1.LocalObjectReference `json:"autoscalingPolicyRef,omitempty"`
 	// CostExpansionRatePercent is the percentage rate at which the cost expands.
@@ -45,6 +49,11 @@ type ModelSpec struct {
 	// +kubebuilder:validation:Maximum=100
 	// +optional
 	CostExpansionRatePercent *int32 `json:"costExpansionRatePercent,omitempty"`
+	// ModelMatch defines the predicate used to match LLM inference requests to a given
+	// TargetModels. Multiple match conditions are ANDed together, i.e. the match will
+	// evaluate to true only if all conditions are satisfied.
+	// +optional
+	ModelMatch *networking.ModelMatch `json:"modelMatch,omitempty"`
 }
 
 // ModelBackend defines the configuration for a model backend.
@@ -86,10 +95,17 @@ type ModelBackend struct {
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=1000000
 	MaxReplicas int32 `json:"maxReplicas"`
-	// Cost is the cost associated with running this backend.
+	// ScalingCost is the cost associated with running this backend.
 	// +kubebuilder:validation:Minimum=0
 	// +optional
-	Cost int32 `json:"cost,omitempty"`
+	ScalingCost int32 `json:"scalingCost,omitempty"`
+	// RouteWeight is used to specify the percentage of traffic should be sent to the target backend.
+	// It's used to create model route.
+	// +optional
+	// +kubebuilder:default=100
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=100
+	RouteWeight *uint32 `json:"routeWeight,omitempty"`
 	// ScaleToZeroGracePeriod is the duration to wait before scaling to zero.
 	// +optional
 	ScaleToZeroGracePeriod *metav1.Duration `json:"scaleToZeroGracePeriod,omitempty"`
@@ -97,12 +113,22 @@ type ModelBackend struct {
 	// +kubebuilder:validation:MinItems=1
 	// +kubebuilder:validation:MaxItems=1000
 	Workers []ModelWorker `json:"workers"`
-	// LoraAdapterRefs is a list of references to LoRA adapters.
+	// LoraAdapter is a list of LoRA adapters.
 	// +optional
-	LoraAdapterRefs []corev1.LocalObjectReference `json:"loraAdapterRefs,omitempty"`
-	// AutoscalingPolicyRef references the autoscaling policy for this backend.
+	LoraAdapters []LoraAdapter `json:"loraAdapters,omitempty"`
+	// AutoscalingPolicy is the backend-level autoscaling policy.
 	// +optional
 	AutoscalingPolicyRef corev1.LocalObjectReference `json:"autoscalingPolicyRef,omitempty"`
+}
+
+// LoraAdapter defines a LoRA (Low-Rank Adaptation) adapter configuration.
+type LoraAdapter struct {
+	// Name is the name of the LoRA adapter.
+	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
+	Name string `json:"name"`
+	// ArtifactURL is the URL where the LoRA adapter artifact is stored.
+	// +kubebuilder:validation:Pattern=`^(hf://|s3://|pvc://).+`
+	ArtifactURL string `json:"artifactURL"`
 }
 
 // ModelBackendType defines the type of model backend.

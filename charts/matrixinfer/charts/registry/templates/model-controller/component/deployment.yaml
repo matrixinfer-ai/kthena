@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "matrixinfer.fullname" . }}-model-controller
+  name: {{ include "matrixinfer.name" . }}-model-controller
   namespace: {{ .Release.Namespace }}
   labels:
     app.kubernetes.io/component: model-controller
@@ -21,8 +21,9 @@ spec:
       containers:
         - name: model-controller
           image: "{{ .Values.modelController.image.repository }}:{{ .Values.modelController.image.tag }}"
-          args: {{ .Values.modelController.image.args }}
+          args:
+            {{- toYaml .Values.modelController.image.args | nindent 12 }}
           imagePullPolicy: {{ .Values.modelController.image.pullPolicy }}
           resources:
             {{- toYaml .Values.modelController.resource | nindent 12 }}
-      serviceAccountName: model-controller
+      serviceAccountName: {{ include "matrixinfer.name" . }}-model-controller

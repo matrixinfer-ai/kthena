@@ -17,6 +17,8 @@ limitations under the License.
 package framework
 
 import (
+	"k8s.io/apimachinery/pkg/types"
+
 	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 )
@@ -28,8 +30,9 @@ type Context struct {
 
 	Hashes []uint64
 
-	PDGroup *aiv1alpha1.PDGroup
-	PDIndex int
+	// ModelServer information for efficient PDGroup scheduling
+	ModelServerName types.NamespacedName
+	PDGroup         *aiv1alpha1.PDGroup
 	// 1. In PD Disaggregated mode, both DecodePods and PrefillPods are set.
 	DecodePods  []*datastore.PodInfo
 	PrefillPods []*datastore.PodInfo
@@ -52,7 +55,7 @@ type FilterPlugin interface {
 }
 
 // PostHook is an interface that is executed after the scheduling is complete.
-type ScheduleHook interface {
+type PostScheduleHook interface {
 	Name() string
 	PostSchedule(ctx *Context, index int)
 }

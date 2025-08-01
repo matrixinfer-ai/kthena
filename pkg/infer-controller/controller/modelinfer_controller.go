@@ -85,10 +85,7 @@ func NewModelInferController(kubeClientSet kubernetes.Interface, modelInferClien
 	modelInferInformerFactory := informersv1alpha1.NewSharedInformerFactory(modelInferClient, 0)
 	modelInferInformer := modelInferInformerFactory.Workload().V1alpha1().ModelInfers()
 
-	store, err := datastore.New()
-	if err != nil {
-		klog.Fatal("Unable to create data store")
-	}
+	store := datastore.New()
 
 	c := &ModelInferController{
 		kubeClientSet:       kubeClientSet,
