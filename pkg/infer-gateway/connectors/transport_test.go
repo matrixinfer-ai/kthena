@@ -469,7 +469,7 @@ func TestHandleStreamingResponse(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create gin context with proper request
-			w := httptest.NewRecorder()
+			w := CreateTestResponseRecorder()
 			req := httptest.NewRequest("POST", "/test", nil)
 			c, _ := gin.CreateTestContext(w)
 			c.Request = req
@@ -622,7 +622,7 @@ func TestDecoderProxy(t *testing.T) {
 			defer server.Close()
 
 			// Create gin context
-			w := httptest.NewRecorder()
+			w := CreateTestResponseRecorder()
 			req := httptest.NewRequest("POST", "/test", nil)
 			c, _ := gin.CreateTestContext(w)
 			c.Request = req

@@ -323,7 +323,7 @@ func TestRouter_HandlerFunc_DisaggregatedMode(t *testing.T) {
 	store.AddOrUpdateModelRoute(modelRoute)
 
 	// 3. Create request
-	w := CreateTestResponseRecorder()
+	w := connectors.CreateTestResponseRecorder()
 	c, _ := gin.CreateTestContext(w)
 
 	reqBody := `{"model": "test-model", "prompt": "hello", "stream": true}`
@@ -417,20 +417,4 @@ func TestRouter_HandlerFunc_ScheduleFailure(t *testing.T) {
 	// 5. Assertions
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	assert.Contains(t, w.Body.String(), "can't schedule to target pod")
-}
-
-type TestResponseRecorder struct {
-	*httptest.ResponseRecorder
-	closeChannel chan bool
-}
-
-func (r *TestResponseRecorder) CloseNotify() <-chan bool {
-	return r.closeChannel
-}
-
-func CreateTestResponseRecorder() *TestResponseRecorder {
-	return &TestResponseRecorder{
-		httptest.NewRecorder(),
-		make(chan bool, 1),
-	}
 }
