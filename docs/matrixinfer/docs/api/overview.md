@@ -16,8 +16,8 @@ Manages AI models and their lifecycle in the registry.
 
 | Resource | Description |
 |----------|-------------|
-| [Model](./registry/model.md) | Represents an AI model with metadata, specifications, and runtime requirements |
-| [AutoscalingPolicy](./registry/autoscaling-policy.md) | Defines scaling policies and strategies for models |
+| [Model](registry/model.md) | Represents an AI model with metadata, specifications, and runtime requirements |
+| [AutoscalingPolicy](registry/autoscaling-policy.md) | Defines scaling policies and strategies for models |
 
 ### Workload API Group (`workload.matrixinfer.ai/v1alpha1`)
 
@@ -25,7 +25,7 @@ Manages inference workloads and their deployment.
 
 | Resource | Description |
 |----------|-------------|
-| [ModelInfer](./workload/model-infer.md) | Represents an inference deployment with scaling and resource specifications |
+| [ModelInfer](workload/model-infer.md) | Represents an inference deployment with scaling and resource specifications |
 
 ### Networking API Group (`networking.matrixinfer.ai/v1alpha1`)
 
@@ -33,8 +33,8 @@ Manages network access and routing for inference services.
 
 | Resource | Description |
 |----------|-------------|
-| [ModelServer](./networking/model-server.md) | Exposes models through network services with routing and security policies |
-| [ModelRoute](./networking/model-route.md) | Defines advanced routing rules for traffic management and A/B testing |
+| [ModelServer](networking/model-server.md) | Exposes models through network services with routing and security policies |
+| [ModelRoute](networking/model-route.md) | Defines advanced routing rules for traffic management and A/B testing |
 
 ## Common Patterns
 
@@ -270,7 +270,7 @@ For complete examples and tutorials, see:
 
 The complete OpenAPI specification for all MatrixInfer APIs is available:
 
-- [Download OpenAPI Spec](./openapi.yaml)
+- [Download OpenAPI Spec](openapi.yaml)
 - [Interactive API Explorer](./swagger-ui/)
 
 ## Support
