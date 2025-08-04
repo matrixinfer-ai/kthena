@@ -20,12 +20,12 @@ import (
 	"os"
 	"testing"
 
-	"sigs.k8s.io/yaml"
-
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	networking "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
+	"sigs.k8s.io/yaml"
 )
 
 func TestGetMountPath(t *testing.T) {
@@ -104,13 +104,13 @@ func TestBuildModelInferCR(t *testing.T) {
 	}{
 		{
 			name:     "CacheVolume_HuggingFace_HostPath",
-			input:    loadYAML[registry.Model](t, "testdata/input/model.yaml"),
-			expected: []*workload.ModelInfer{loadYAML[workload.ModelInfer](t, "testdata/expected/model-infer.yaml")},
+			input:    loadYaml[registry.Model](t, "testdata/input/model.yaml"),
+			expected: []*workload.ModelInfer{loadYaml[workload.ModelInfer](t, "testdata/expected/model-infer.yaml")},
 		},
 		{
 			name:     "PD disaggregation",
-			input:    loadYAML[registry.Model](t, "testdata/input/pd-disaggregated-model.yaml"),
-			expected: []*workload.ModelInfer{loadYAML[workload.ModelInfer](t, "testdata/expected/disaggregated-model-infer.yaml")},
+			input:    loadYaml[registry.Model](t, "testdata/input/pd-disaggregated-model.yaml"),
+			expected: []*workload.ModelInfer{loadYaml[workload.ModelInfer](t, "testdata/expected/disaggregated-model-infer.yaml")},
 		},
 	}
 	for _, tt := range tests {
@@ -138,13 +138,13 @@ func TestBuildModelServer(t *testing.T) {
 	}{
 		{
 			name:     "PD disaggregation",
-			input:    loadYAML[registry.Model](t, "testdata/input/pd-disaggregated-model.yaml"),
-			expected: []*networking.ModelServer{loadYAML[networking.ModelServer](t, "testdata/expected/pd-model-server.yaml")},
+			input:    loadYaml[registry.Model](t, "testdata/input/pd-disaggregated-model.yaml"),
+			expected: []*networking.ModelServer{loadYaml[networking.ModelServer](t, "testdata/expected/pd-model-server.yaml")},
 		},
 		{
 			name:     "normal case",
-			input:    loadYAML[registry.Model](t, "testdata/input/model.yaml"),
-			expected: []*networking.ModelServer{loadYAML[networking.ModelServer](t, "testdata/expected/model-server.yaml")},
+			input:    loadYaml[registry.Model](t, "testdata/input/model.yaml"),
+			expected: []*networking.ModelServer{loadYaml[networking.ModelServer](t, "testdata/expected/model-server.yaml")},
 		},
 	}
 	for _, tt := range tests {
@@ -171,13 +171,13 @@ func TestBuildModelRoute(t *testing.T) {
 	}{
 		{
 			name:     "simple model",
-			input:    loadYAML[registry.Model](t, "testdata/input/model.yaml"),
-			expected: loadYAML[networking.ModelRoute](t, "testdata/expected/model-route.yaml"),
+			input:    loadYaml[registry.Model](t, "testdata/input/model.yaml"),
+			expected: loadYaml[networking.ModelRoute](t, "testdata/expected/model-route.yaml"),
 		},
 		{
 			name:     "model with multiple backends",
-			input:    loadYAML[registry.Model](t, "testdata/input/multi-backend-model.yaml"),
-			expected: loadYAML[networking.ModelRoute](t, "testdata/expected/model-route-subset.yaml"),
+			input:    loadYaml[registry.Model](t, "testdata/input/multi-backend-model.yaml"),
+			expected: loadYaml[networking.ModelRoute](t, "testdata/expected/model-route-subset.yaml"),
 		},
 	}
 	for _, tt := range tests {
@@ -190,7 +190,83 @@ func TestBuildModelRoute(t *testing.T) {
 	}
 }
 
-func loadYAML[T any](t *testing.T, path string) *T {
+func TestBuildCacheVolume(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        *registry.ModelBackend
+		expected     *corev1.Volume
+		expectErrMsg string
+	}{
+		{
+			name: "empty cache URI",
+			input: &registry.ModelBackend{
+				Name:     "test-backend",
+				CacheURI: "",
+			},
+			expected: &corev1.Volume{
+				Name: "test-backend-weights",
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
+		},
+		{
+			name: "PVC URI",
+			input: &registry.ModelBackend{
+				Name:     "test-backend",
+				CacheURI: "pvc://test-pvc",
+			},
+			expected: &corev1.Volume{
+				Name: "test-backend-weights",
+				VolumeSource: corev1.VolumeSource{
+					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+						ClaimName: "test-pvc",
+					},
+				},
+			},
+		},
+		{
+			name: "HostPath URI",
+			input: &registry.ModelBackend{
+				Name:     "test-backend",
+				CacheURI: "hostpath://test/path",
+			},
+			expected: &corev1.Volume{
+				Name: "test-backend-weights",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: "test/path",
+						Type: func() *corev1.HostPathType { typ := corev1.HostPathDirectoryOrCreate; return &typ }(),
+					},
+				},
+			},
+		},
+		{
+			name: "invalid URI",
+			input: &registry.ModelBackend{
+				Name:     "test-backend",
+				CacheURI: "hostPath://invalid/path",
+			},
+			expectErrMsg: "not support prefix in CacheURI: hostPath://invalid/path",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := buildCacheVolume(tt.input)
+			if len(tt.expectErrMsg) != 0 {
+				assert.Contains(t, err.Error(), tt.expectErrMsg)
+				return
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.Equal(t, tt.expected, got)
+		})
+	}
+}
+
+// loadYaml transfer yaml data into a struct of type T.
+// Used for test.
+func loadYaml[T any](t *testing.T, path string) *T {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("Failed to read YAML: %v", err)

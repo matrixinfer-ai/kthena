@@ -10,8 +10,8 @@ spec:
       type: vLLM
       modelURI: s3://aios_models/deepseek-ai/DeepSeek-V3-W8A8/vllm-ascend
       cacheURI: hostpath:///tmp/test
-      maxReplicas: 0
-      minReplicas: 1
+      minReplicas: 0
+      maxReplicas: 1
       env:
         - name: ENDPOINT
           value: https://obs.test.com
@@ -22,7 +22,7 @@ spec:
             name: test-secret
       workers:
         - image: vllm-server:latest
-          pods: 1
+          pods: 2
           config:
             block-size: 128
             gpu-memory-utilization: 0.9

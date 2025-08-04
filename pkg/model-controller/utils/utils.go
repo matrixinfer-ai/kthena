@@ -23,6 +23,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"k8s.io/utils/ptr"
 	"os"
 	"slices"
 	"sort"
@@ -329,7 +330,7 @@ func buildCacheVolume(backend *registry.ModelBackend) (*corev1.Volume, error) {
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: getCachePath(backend.CacheURI),
-					Type: func() *corev1.HostPathType { typ := corev1.HostPathDirectoryOrCreate; return &typ }(),
+					Type: ptr.To(corev1.HostPathDirectoryOrCreate),
 				},
 			},
 		}, nil

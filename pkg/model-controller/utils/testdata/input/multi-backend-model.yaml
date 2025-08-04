@@ -14,8 +14,8 @@ spec:
       type: vLLM
       modelURI: s3://aios_models/deepseek-ai/DeepSeek-V3-W8A8/vllm-ascend
       cacheURI: hostpath:///tmp/test
-      maxReplicas: 0
-      minReplicas: 1
+      minReplicas: 0
+      maxReplicas: 1
       routeWeight: 40
       env:
         - name: ENDPOINT
@@ -47,8 +47,8 @@ spec:
       type: vLLM
       modelURI: s3://aios_models/deepseek-ai/DeepSeek-V3
       cacheURI: hostpath:///tmp/test
-      maxReplicas: 0
-      minReplicas: 1
+      minReplicas: 0
+      maxReplicas: 1
       routeWeight: 60
       env:
         - name: ENDPOINT
