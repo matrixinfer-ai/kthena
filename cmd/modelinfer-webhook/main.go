@@ -33,11 +33,11 @@ import (
 )
 
 type modelInferConfig struct {
-	kubeconfig   string
-	masterURL    string
-	tlsCertFile  string
-	tksKeyFile   string
-	port         int
+	kubeconfig  string
+	masterURL   string
+	tlsCertFile string
+	tksKeyFile  string
+	port        int
 }
 
 func parseConfig() (modelInferConfig, error) {
