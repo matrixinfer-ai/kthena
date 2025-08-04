@@ -304,6 +304,7 @@ func TestModelPrefixStoreConcurrency(t *testing.T) {
 		}
 
 		wg.Wait()
+		time.Sleep(10 * time.Millisecond)
 
 		queryHashes := []uint64{1, 2, 3}
 		matches := store.FindTopMatches("deletion-model", queryHashes, pods)
