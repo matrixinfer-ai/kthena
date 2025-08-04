@@ -9,11 +9,13 @@ on:
       - '**.svg'
       - '**.png'
       - 'docs/**'
+      - '.github/**'
   push:
     branches:
       - main
     paths-ignore:
       - 'docs/**'
+      - '.github/**'
 
 jobs:
 
