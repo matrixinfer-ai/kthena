@@ -162,41 +162,22 @@ func (s *ModelPrefixStore) Add(model string, hashes []uint64, pod *datastore.Pod
 				hash := key.(uint64)
 				modelName := value.(string)
 
-				s.entriesMu.RLock()
-				modelCache, exists := s.entries[modelName]
-				s.entriesMu.RUnlock()
-				if !exists {
-					return
-				}
-
-				modelCache.mu.Lock()
-				defer modelCache.mu.Unlock()
-
-				if podSet, exists := modelCache.hashes[hash]; exists {
-					podSet.Delete(nsName)
-					if podSet.Len() == 0 {
-						delete(modelCache.hashes, hash)
-					}
-				}
+				s.onHashEvicted(hash, modelName, nsName)
 			}()
 		})
 		s.podHashes[nsName] = podLRU
 	}
 	s.podHashesMu.Unlock()
 
-	s.entriesMu.RLock()
+	// Note there could a be case where Add and Evict happen concurrently.
+	// The modelHash could be deleted, that does not matter much, since the prefix cache is an approximate cache.
+	s.entriesMu.Lock()
 	modelCache, exists := s.entries[model]
-	s.entriesMu.RUnlock()
-
 	if !exists {
-		s.entriesMu.Lock()
-		// Double check after getting write lock
-		if modelCache, exists = s.entries[model]; !exists {
-			modelCache = newModelHashes()
-			s.entries[model] = modelCache
-		}
-		s.entriesMu.Unlock()
+		modelCache = newModelHashes()
+		s.entries[model] = modelCache
 	}
+	s.entriesMu.Unlock()
 
 	modelCache.mu.Lock()
 	// Add pod to each hash's pod map
@@ -211,4 +192,29 @@ func (s *ModelPrefixStore) Add(model string, hashes []uint64, pod *datastore.Pod
 		podLRU.Add(hash, model)
 	}
 	modelCache.mu.Unlock()
+}
+
+// onHashEvicted handles the eviction of a hash from a pod's LRU cache
+func (s *ModelPrefixStore) onHashEvicted(hash uint64, modelName string, nsName types.NamespacedName) {
+	s.entriesMu.RLock()
+	modelCache, exists := s.entries[modelName]
+	s.entriesMu.RUnlock()
+	if !exists {
+		return
+	}
+
+	modelCache.mu.Lock()
+	defer modelCache.mu.Unlock()
+	if podSet, exists := modelCache.hashes[hash]; exists {
+		podSet.Delete(nsName)
+		if podSet.Len() == 0 {
+			delete(modelCache.hashes, hash)
+			if len(modelCache.hashes) == 0 {
+				// If no hashes left, we can remove the modelCache from entries
+				s.entriesMu.Lock()
+				delete(s.entries, modelName)
+				s.entriesMu.Unlock()
+			}
+		}
+	}
 }
