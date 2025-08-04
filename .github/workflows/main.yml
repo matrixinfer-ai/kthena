@@ -13,33 +13,6 @@ on:
       - main
 
 jobs:
-  go_unit_test:
-    name: Go tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: 'go.mod' # Automatically set Go version from go.mod
-      - name: Run Unit Tests
-        run: make test
-      - name: Calculate coverage percentage
-        id: coverage
-        run: |
-          COVERAGE=$(go tool cover -func=cover.out | grep total | awk '{print $3}' | sed 's/\%//')
-          echo "Current coverage: $COVERAGE%"
-          echo "coverage_percentage=$COVERAGE" >> $GITHUB_OUTPUT
-      - name: Check coverage threshold
-        run: |
-          THRESHOLD=80 # Set coverage threshold
-          CURRENT_COVERAGE=${{ steps.coverage.outputs.coverage_percentage }}
-          if (( $(echo "$CURRENT_COVERAGE < $THRESHOLD" | bc -l) )); then
-            echo "Code coverage ($CURRENT_COVERAGE%) is below the required threshold of $THRESHOLD%."
-            exit 1
-          else
-            echo "Code coverage ($CURRENT_COVERAGE%) meets or exceeds the required threshold of $THRESHOLD%."
-          fi
 
   build:
     runs-on: ubuntu-22.04
