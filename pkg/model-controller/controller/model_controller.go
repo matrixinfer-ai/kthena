@@ -21,11 +21,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"k8s.io/apimachinery/pkg/labels"
+	listerv1 "k8s.io/client-go/listers/core/v1"
 	"net/http"
 	"reflect"
 	"strings"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 
@@ -66,6 +69,8 @@ type ModelController struct {
 	modelsInformer      cache.Controller
 	modelInfersLister   workloadLister.ModelInferLister
 	modelInfersInformer cache.Controller
+	podsLister          listerv1.PodLister
+	podsInformer        cache.SharedIndexInformer
 	workQueue           workqueue.TypedRateLimitingInterface[any]
 }
 
@@ -76,10 +81,12 @@ func (mc *ModelController) Run(ctx context.Context, workers int) {
 	// start informers
 	go mc.modelsInformer.RunWithContext(ctx)
 	go mc.modelInfersInformer.RunWithContext(ctx)
+	go mc.podsInformer.RunWithContext(ctx)
 
 	cache.WaitForCacheSync(ctx.Done(),
 		mc.modelsInformer.HasSynced,
 		mc.modelInfersInformer.HasSynced,
+		mc.podsInformer.HasSynced,
 	)
 
 	klog.Info("start model controller")
@@ -299,9 +306,9 @@ func (mc *ModelController) isModelInferReady(modelInfer *workload.ModelInfer) bo
 // updateLoraAdapters updates LoRA adapters for a specific backend
 func (mc *ModelController) updateLoraAdapters(ctx context.Context, model *registryv1alpha1.Model, newBackend, oldBackend *registryv1alpha1.ModelBackend, modelInfer *workload.ModelInfer) error {
 	// Get runtime service URL
-	runtimeURL := mc.getModelInferRuntimeURL(modelInfer)
-	if runtimeURL == "" {
-		return fmt.Errorf("failed to get runtime URL for ModelInfer %s", modelInfer.Name)
+	runtimeURL, err := mc.getModelInferRuntimeURL(modelInfer, newBackend)
+	if err != nil {
+		return fmt.Errorf("failed to get runtime URL for ModelInfer %s: %v", modelInfer.Name, err)
 	}
 
 	// Unload old adapters that are not in the new list
@@ -341,12 +348,44 @@ func (mc *ModelController) updateLoraAdapters(ctx context.Context, model *regist
 	return nil
 }
 
-// getModelInferRuntimeURL constructs the runtime service URL for a ModelInfer
-func (mc *ModelController) getModelInferRuntimeURL(modelInfer *workload.ModelInfer) string {
-	// The runtime service runs on port 8100 by default
-	// Service name format: {modelinfer-name}-leader-entry
-	serviceName := fmt.Sprintf("%s-leader-entry", modelInfer.Name)
-	return fmt.Sprintf("http://%s.%s.svc.cluster.local:8100", serviceName, modelInfer.Namespace)
+// getModelInferRuntimeURL constructs the runtime service URL for a ModelInfer using pod IP
+func (mc *ModelController) getModelInferRuntimeURL(modelInfer *workload.ModelInfer, backend *registryv1alpha1.ModelBackend) (string, error) {
+	// Get port from backend environment variables with default fallback to 8100
+	port := utils.GetEnvPortOrDefault(backend, "RUNTIME_PORT", 8100)
+
+	// Get the first available pod IP for this ModelInfer
+	podIP, err := mc.getModelInferPodIP(modelInfer)
+	if err != nil {
+		return "", fmt.Errorf("failed to get pod IP for ModelInfer %s: %v", modelInfer.Name, err)
+	}
+
+	return fmt.Sprintf("http://%s:%d", podIP, port), nil
+}
+
+// getModelInferPodIP gets the IP of the first available pod for a ModelInfer
+func (mc *ModelController) getModelInferPodIP(modelInfer *workload.ModelInfer) (string, error) {
+	// Use PodLister to get pods with the ModelInfer label
+	labelSelector := labels.SelectorFromSet(labels.Set{
+		workload.ModelInferNameLabelKey: modelInfer.Name,
+	})
+
+	podList, err := mc.podsLister.Pods(modelInfer.Namespace).List(labelSelector)
+	if err != nil {
+		return "", fmt.Errorf("failed to list pods: %v", err)
+	}
+
+	if len(podList) == 0 {
+		return "", fmt.Errorf("no pods found for ModelInfer %s", modelInfer.Name)
+	}
+
+	// Find the first running pod with an IP
+	for _, pod := range podList {
+		if pod.Status.Phase == corev1.PodRunning && pod.Status.PodIP != "" {
+			return pod.Status.PodIP, nil
+		}
+	}
+
+	return "", fmt.Errorf("no running pods with IP found for ModelInfer %s", modelInfer.Name)
 }
 
 // loadLoraAdapter calls the load_lora_adapter API

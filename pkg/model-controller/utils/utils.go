@@ -161,22 +161,23 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 		"VOLUMES": []*corev1.Volume{
 			cacheVolume,
 		},
-		"MODEL_NAME":                 model.Name,
-		"BACKEND_REPLICAS":           backend.MinReplicas, // todo: backend replicas
-		"INIT_CONTAINERS":            initContainers,
-		"MODEL_DOWNLOAD_ENVFROM":     backend.EnvFrom,
-		"ENGINE_PREFILL_COMMAND":     preFillCommand,
-		"ENGINE_DECODE_COMMAND":      decodeCommand,
-		"MODEL_INFER_RUNTIME_IMAGE":  config.Config.GetModelInferRuntimeImage(),
-		"MODEL_INFER_RUNTIME_PORT":   getEnvPortOrDefault(backend, "RUNTIME_PORT", 8100),
-		"MODEL_INFER_RUNTIME_URL":    getEnvValueOrDefault(backend, "RUNTIME_URL", "http://localhost:8000/metrics"),
-		"MODEL_INFER_RUNTIME_ENGINE": strings.ToLower(string(backend.Type)),
-		"PREFILL_REPLICAS":           workersMap[registry.ModelWorkerTypePrefill].Replicas,
-		"DECODE_REPLICAS":            workersMap[registry.ModelWorkerTypeDecode].Replicas,
-		"ENGINE_DECODE_RESOURCES":    workersMap[registry.ModelWorkerTypeDecode].Resources,
-		"ENGINE_DECODE_IMAGE":        workersMap[registry.ModelWorkerTypeDecode].Image,
-		"ENGINE_PREFILL_RESOURCES":   workersMap[registry.ModelWorkerTypePrefill].Resources,
-		"ENGINE_PREFILL_IMAGE":       workersMap[registry.ModelWorkerTypePrefill].Image,
+		"MODEL_NAME":                       model.Name,
+		"BACKEND_REPLICAS":                 backend.MinReplicas, // todo: backend replicas
+		"INIT_CONTAINERS":                  initContainers,
+		"MODEL_DOWNLOAD_ENVFROM":           backend.EnvFrom,
+		"ENGINE_PREFILL_COMMAND":           preFillCommand,
+		"ENGINE_DECODE_COMMAND":            decodeCommand,
+		"MODEL_INFER_RUNTIME_IMAGE":        config.Config.GetModelInferRuntimeImage(),
+		"MODEL_INFER_RUNTIME_PORT":         GetEnvPortOrDefault(backend, "RUNTIME_PORT", 8100),
+		"MODEL_INFER_RUNTIME_URL":          getEnvValueOrDefault(backend, "RUNTIME_URL", "http://localhost:8000"),
+		"MODEL_INFER_RUNTIME_METRICS_PATH": getEnvValueOrDefault(backend, "RUNTIME_METRICS_PATH", "/metrics"),
+		"MODEL_INFER_RUNTIME_ENGINE":       strings.ToLower(string(backend.Type)),
+		"PREFILL_REPLICAS":                 workersMap[registry.ModelWorkerTypePrefill].Replicas,
+		"DECODE_REPLICAS":                  workersMap[registry.ModelWorkerTypeDecode].Replicas,
+		"ENGINE_DECODE_RESOURCES":          workersMap[registry.ModelWorkerTypeDecode].Resources,
+		"ENGINE_DECODE_IMAGE":              workersMap[registry.ModelWorkerTypeDecode].Image,
+		"ENGINE_PREFILL_RESOURCES":         workersMap[registry.ModelWorkerTypePrefill].Resources,
+		"ENGINE_PREFILL_IMAGE":             workersMap[registry.ModelWorkerTypePrefill].Image,
 	}
 	return loadModelInferTemplate(VllmDisaggregatedTemplatePath, &data)
 }
@@ -261,16 +262,17 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 			Name:      cacheVolume.Name,
 			MountPath: getCachePath(backend.CacheURI),
 		}},
-		"INIT_CONTAINERS":            initContainers,
-		"MODEL_DOWNLOAD_ENVFROM":     backend.EnvFrom,
-		"MODEL_INFER_RUNTIME_IMAGE":  config.Config.GetModelInferRuntimeImage(),
-		"MODEL_INFER_RUNTIME_PORT":   getEnvPortOrDefault(backend, "RUNTIME_PORT", 8100),
-		"MODEL_INFER_RUNTIME_URL":    getEnvValueOrDefault(backend, "RUNTIME_URL", "http://localhost:8000/metrics"),
-		"MODEL_INFER_RUNTIME_ENGINE": strings.ToLower(string(backend.Type)),
-		"ENGINE_SERVER_RESOURCES":    workersMap[registry.ModelWorkerTypeServer].Resources,
-		"ENGINE_SERVER_IMAGE":        workersMap[registry.ModelWorkerTypeServer].Image,
-		"ENGINE_SERVER_COMMAND":      commands,
-		"WORKER_REPLICAS":            workersMap[registry.ModelWorkerTypeServer].Pods - 1,
+		"INIT_CONTAINERS":                  initContainers,
+		"MODEL_DOWNLOAD_ENVFROM":           backend.EnvFrom,
+		"MODEL_INFER_RUNTIME_IMAGE":        config.Config.GetModelInferRuntimeImage(),
+		"MODEL_INFER_RUNTIME_PORT":         GetEnvPortOrDefault(backend, "RUNTIME_PORT", 8100),
+		"MODEL_INFER_RUNTIME_URL":          getEnvValueOrDefault(backend, "RUNTIME_URL", "http://localhost:8000"),
+		"MODEL_INFER_RUNTIME_METRICS_PATH": getEnvValueOrDefault(backend, "RUNTIME_METRICS_PATH", "/metrics"),
+		"MODEL_INFER_RUNTIME_ENGINE":       strings.ToLower(string(backend.Type)),
+		"ENGINE_SERVER_RESOURCES":          workersMap[registry.ModelWorkerTypeServer].Resources,
+		"ENGINE_SERVER_IMAGE":              workersMap[registry.ModelWorkerTypeServer].Image,
+		"ENGINE_SERVER_COMMAND":            commands,
+		"WORKER_REPLICAS":                  workersMap[registry.ModelWorkerTypeServer].Pods - 1,
 	}
 	return loadModelInferTemplate(VllmTemplatePath, &data)
 }
@@ -372,8 +374,8 @@ func getEnvValueOrDefault(backend *registry.ModelBackend, name string, defaultVa
 	return defaultValue
 }
 
-// getEnvPortOrDefault gets int32 port value of specific env, if env does not exist, return default value
-func getEnvPortOrDefault(backend *registry.ModelBackend, name string, defaultValue int32) int32 {
+// GetEnvPortOrDefault gets int32 port value of specific env, if env does not exist, return default value
+func GetEnvPortOrDefault(backend *registry.ModelBackend, name string, defaultValue int32) int32 {
 	for _, env := range backend.Env {
 		if env.Name == name {
 			if port, err := strconv.ParseInt(env.Value, 10, 32); err == nil {
