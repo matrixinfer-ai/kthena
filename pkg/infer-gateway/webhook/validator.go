@@ -64,8 +64,8 @@ func NewInferGatewayValidator(kubeClient kubernetes.Interface, modelInferClient 
 
 func (v *InferGatewayValidator) Run(tlsCertFile, tlsPrivateKey string, stopCh <-chan struct{}) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/validate-networking-ai-v1alpha1-modelroute", v.HandleModelRoute)
-	mux.HandleFunc("/validate-networking-ai-v1alpha1-modelserver", v.HandleModelServer)
+	mux.HandleFunc("/validate-networking-matrixinfer-ai-v1alpha1-modelroute", v.HandleModelRoute)
+	mux.HandleFunc("/validate-networking-matrixinfer-ai-v1alpha1-modelserver", v.HandleModelServer)
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		if _, err := w.Write([]byte("ok")); err != nil {
