@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	icUtils "matrixinfer.ai/matrixinfer/pkg/infer-controller/utils"
@@ -453,7 +454,10 @@ func (mc *ModelController) triggerModel(old any, new any) {
 // createModelServer creates model server
 func (mc *ModelController) createModelServer(ctx context.Context, model *registryv1alpha1.Model) error {
 	klog.V(4).Info("Start to create model server")
-	modelServers := convert.BuildModelServer(model)
+	modelServers, err := convert.BuildModelServer(model)
+	if err != nil {
+		return err
+	}
 	for _, modelServer := range modelServers {
 		if _, err := mc.client.NetworkingV1alpha1().ModelServers(model.Namespace).Create(ctx, modelServer, metav1.CreateOptions{}); err != nil {
 			if apierrors.IsAlreadyExists(err) {
@@ -469,7 +473,10 @@ func (mc *ModelController) createModelServer(ctx context.Context, model *registr
 
 // updateModelServer updates model server
 func (mc *ModelController) updateModelServer(ctx context.Context, model *registryv1alpha1.Model) error {
-	modelServers := convert.BuildModelServer(model)
+	modelServers, err := convert.BuildModelServer(model)
+	if err != nil {
+		return err
+	}
 	for _, modelServer := range modelServers {
 		oldModelServer, err := mc.client.NetworkingV1alpha1().ModelServers(modelServer.Namespace).Get(ctx, modelServer.Name, metav1.GetOptions{})
 		if err != nil {

@@ -3,7 +3,7 @@ kind: modelinfer
 metadata:
   labels:
     model.uid: randomUID
-  name: test-model-0-vllm-instance
+  name: test-model-backend1
   namespace: default
   ownerReferences:
     - apiVersion: registry.matrixinfer.ai/v1alpha1
@@ -12,7 +12,7 @@ metadata:
       uid: randomUID
 spec:
   recoveryPolicy: InferGroupRestart
-  replicas: 1
+  replicas: 0
   rolloutStrategy:
     type: InferGroupRollingUpdate
   schedulerName: ""

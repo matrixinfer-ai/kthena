@@ -1,0 +1,44 @@
+apiVersion: registry.matrixinfer.ai/v1alpha1
+kind: AutoscalingPolicyBinding
+metadata:
+  labels:
+    registry.matrixinfer.ai/backend-name: ""
+    registry.matrixinfer.ai/managed-by: registry.matrixinfer.ai
+    registry.matrixinfer.ai/model-name: multi-backend-model
+    registry.matrixinfer.ai/revision: 5d76964867
+  name: multi-backend-model
+  namespace: dev
+  ownerReferences:
+    - apiVersion: registry.matrixinfer.ai/v1alpha1
+      kind: Model
+      name: multi-backend-model
+      uid: randomUID
+      controller: true
+      blockOwnerDeletion: true
+spec:
+  policyRef:
+    name: multi-backend-model
+  optimizerConfiguration:
+    params:
+      - maxReplicas: 2
+        minReplicas: 0
+        cost: 0
+        target:
+          name: multi-backend-model-backend1
+          kind: ModelInfer
+          targetRef:
+            name: multi-backend-model-backend1
+          additionalMatchLabels: {}
+          metricFrom: {}
+      - maxReplicas: 1
+        minReplicas: 0
+        cost: 0
+        target:
+          name: multi-backend-model-backend2
+          kind: ModelInfer
+          targetRef:
+            name: multi-backend-model-backend2
+          additionalMatchLabels: { }
+          metricFrom: { }
+
+

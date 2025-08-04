@@ -20,6 +20,8 @@ import (
 	"os"
 	"testing"
 
+	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
+
 	"sigs.k8s.io/yaml"
 
 	"github.com/stretchr/testify/assert"
@@ -149,7 +151,13 @@ func TestBuildModelServer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := BuildModelServer(tt.input)
+			got, err := BuildModelServer(tt.input)
+			if tt.expectErrMsg != "" {
+				assert.Contains(t, err.Error(), tt.expectErrMsg)
+				return
+			} else {
+				assert.NoError(t, err)
+			}
 			actualYAML, _ := yaml.Marshal(got)
 			expectedYAML, _ := yaml.Marshal(tt.expected)
 			assert.Equal(t, string(expectedYAML), string(actualYAML))
@@ -184,6 +192,52 @@ func TestBuildModelRoute(t *testing.T) {
 	}
 }
 
+func TestBuildScalingPolicyBinding(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    *registry.Model
+		expected *registry.AutoscalingPolicyBinding
+	}{
+		{
+			name:     "simple backend",
+			input:    loadYAML[registry.Model](t, "testdata/input/model.yaml"),
+			expected: loadYAML[registry.AutoscalingPolicyBinding](t, "testdata/expected/scaling-asp-binding.yaml"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, backend := range tt.input.Spec.Backends {
+				got := BuildScalingPolicyBinding(tt.input, &backend, utils.GetBackendResourceName(tt.input.Name, backend.Name))
+				actualYAML, _ := yaml.Marshal(got)
+				expectedYAML, _ := yaml.Marshal(tt.expected)
+				assert.Equal(t, string(expectedYAML), string(actualYAML))
+			}
+		})
+	}
+}
+
+func TestBuildOptimizePolicyBinding(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    *registry.Model
+		expected *registry.AutoscalingPolicyBinding
+	}{
+		{
+			name:     "model with multiple backends",
+			input:    loadYAML[registry.Model](t, "testdata/input/multi-backends-model.yaml"),
+			expected: loadYAML[registry.AutoscalingPolicyBinding](t, "testdata/expected/optimize-asp-binding.yaml"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := BuildOptimizePolicyBinding(tt.input, utils.GetBackendResourceName(tt.input.Name, ""))
+			actualYAML, _ := yaml.Marshal(got)
+			expectedYAML, _ := yaml.Marshal(tt.expected)
+			assert.Equal(t, string(expectedYAML), string(actualYAML))
+		})
+	}
+}
+
 func TestBuildAutoscalingPolicy(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -193,12 +247,12 @@ func TestBuildAutoscalingPolicy(t *testing.T) {
 		{
 			name:     "simple-backend",
 			input:    loadYAML[registry.Model](t, "testdata/input/model.yaml"),
-			expected: loadYAML[registry.AutoscalingPolicy](t, "testdata/expected/scaling-autoscaling-policy.yaml"),
+			expected: loadYAML[registry.AutoscalingPolicy](t, "testdata/expected/scaling-asp.yaml"),
 		},
 		{
 			name:     "multi-backends",
 			input:    loadYAML[registry.Model](t, "testdata/input/multi-backends-model.yaml"),
-			expected: loadYAML[registry.AutoscalingPolicy](t, "testdata/expected/optimize-autoscaling-policy.yaml"),
+			expected: loadYAML[registry.AutoscalingPolicy](t, "testdata/expected/optimize-asp.yaml"),
 		},
 	}
 	for _, tt := range tests {

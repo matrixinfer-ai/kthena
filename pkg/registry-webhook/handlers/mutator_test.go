@@ -32,7 +32,7 @@ func TestCreatePatch(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: registryv1alpha1.ModelSpec{
-			AutoscalingPolicy: &registryv1alpha1.AutoscalingPolicyConfig{},
+			AutoscalingPolicy: &registryv1alpha1.AutoscalingPolicySpec{},
 			Backends: []registryv1alpha1.ModelBackend{
 				{
 					Name:        "backend1",

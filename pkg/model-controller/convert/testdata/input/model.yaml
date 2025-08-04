@@ -10,8 +10,8 @@ spec:
       type: vLLM
       modelURI: s3://aios_models/deepseek-ai/DeepSeek-V3-W8A8/vllm-ascend
       cacheURI: hostpath:///tmp/test
-      maxReplicas: 0
-      minReplicas: 1
+      maxReplicas: 1
+      minReplicas: 0
       autoscalingPolicy:
         metrics:
           - metricName: "vllm:iteration_tokens_total"

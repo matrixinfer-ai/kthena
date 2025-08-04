@@ -17,8 +17,9 @@ limitations under the License.
 package algorithm
 
 import (
-	"k8s.io/klog/v2"
 	"math"
+
+	"k8s.io/klog/v2"
 )
 
 type Metrics = map[string]float64

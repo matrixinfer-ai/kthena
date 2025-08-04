@@ -1,7 +1,25 @@
+/*
+Copyright MatrixInfer-AI Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package autoscaler
 
 import (
 	"context"
+	"sort"
+
 	listerv1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
@@ -11,7 +29,6 @@ import (
 	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/autoscaler/algorithm"
 	"matrixinfer.ai/matrixinfer/pkg/autoscaler/util"
-	"sort"
 )
 
 type Optimizer struct {
@@ -133,7 +150,7 @@ func (optimizer *Optimizer) Optimize(ctx context.Context, client clientset.Inter
 		}
 
 		// Get autoscaler target(model infer) instance
-		modelInfer, err := util.GetModelInferTarget(ctx, modelInferLister, optimizer.Meta.Scope.Namespace, param.Target.TargetRef.Name)
+		modelInfer, err := util.GetModelInferTarget(modelInferLister, optimizer.Meta.Scope.Namespace, param.Target.TargetRef.Name)
 		if err != nil {
 			klog.Errorf("get model infer error: %v", err)
 			return err

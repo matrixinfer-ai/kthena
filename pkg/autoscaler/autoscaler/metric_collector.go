@@ -1,11 +1,31 @@
+/*
+Copyright MatrixInfer-AI Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package autoscaler
 
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
+	"strings"
+	"time"
+
 	io_prometheus_client "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
-	"io"
 	"istio.io/istio/pkg/util/sets"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,9 +38,6 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/autoscaler/histogram"
 	"matrixinfer.ai/matrixinfer/pkg/autoscaler/util"
 	inferControllerUtils "matrixinfer.ai/matrixinfer/pkg/infer-controller/utils"
-	"net/http"
-	"strings"
-	"time"
 )
 
 type MetricCollector struct {
@@ -61,13 +78,12 @@ type InstanceInfo struct {
 func (collector *MetricCollector) UpdateMetrics(ctx context.Context, podLister listerv1.PodLister) (unreadyInstancesCount int32, readyInstancesMetric algorithm.Metrics, err error) {
 	// Get pod list which will be invoked api to get metrics
 	unreadyInstancesCount = int32(0)
-	err = nil
 	pods, err := util.GetMetricPods(podLister, collector.Scope.Namespace, util.GetTargetLabels(collector.Target))
 	if err != nil {
 		klog.Errorf("list watched pod error: %v in namespace: %s, labels: %v", err, collector.Scope.Namespace, collector.Target.AdditionalMatchLabels)
 		return
 	}
-	if pods == nil || len(pods) == 0 {
+	if len(pods) == 0 {
 		klog.Errorf("pod list is null")
 		return
 	}

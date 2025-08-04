@@ -50,7 +50,7 @@ type ModelSpec struct {
 	// TargetModels. Multiple match conditions are ANDed together, i.e. the match will
 	// evaluate to true only if all conditions are satisfied.
 	// +optional
-	ModelMatch networking.ModelMatch `json:"modelMatch,omitempty"`
+	ModelMatch *networking.ModelMatch `json:"modelMatch,omitempty"`
 }
 
 // ModelBackend defines the configuration for a model backend.

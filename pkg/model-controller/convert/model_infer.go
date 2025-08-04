@@ -23,9 +23,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	networking "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	"slices"
 	"strings"
+
+	networking "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -460,7 +461,7 @@ func BuildModelRoute(model *registry.Model) *networking.ModelRoute {
 	loraAdapters = slices.Compact(loraAdapters)
 	rules = append(rules, &networking.Rule{
 		Name:         modelRouteRuleName,
-		ModelMatch:   &model.Spec.ModelMatch,
+		ModelMatch:   model.Spec.ModelMatch,
 		TargetModels: targetModels,
 	})
 	route := &networking.ModelRoute{

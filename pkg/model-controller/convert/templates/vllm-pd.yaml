@@ -41,12 +41,6 @@ spec:
                     valueFrom:
                       fieldRef:
                         fieldPath: status.podIP
-                  - name: GLOO_SOCKET_IFNAME
-                    value: eth0
-                  - name: TP_SOCKET_IFNAME
-                    value: eth0
-                  - name: HCCL_SOCKET_IFNAME
-                    value: eth0
                 command: ${ENGINE_PREFILL_COMMAND}
                 imagePullPolicy: IfNotPresent
                 resources: ${ENGINE_PREFILL_RESOURCES}

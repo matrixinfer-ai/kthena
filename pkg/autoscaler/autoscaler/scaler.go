@@ -18,6 +18,7 @@ package autoscaler
 
 import (
 	"context"
+
 	"k8s.io/apimachinery/pkg/types"
 	listerv1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/klog/v2"
@@ -55,7 +56,7 @@ func NewAutoscaler(behavior *v1alpha1.AutoscalingPolicyBehavior, binding *v1alph
 
 func (autoscaler *Autoscaler) Scale(ctx context.Context, client clientset.Interface, modelInferLister workloadLister.ModelInferLister, podLister listerv1.PodLister, autoscalePolicy *v1alpha1.AutoscalingPolicy) error {
 	// Get autoscaler target(model infer) instance
-	modelInfer, err := util.GetModelInferTarget(ctx, modelInferLister, autoscaler.Meta.Namespace, autoscaler.Meta.Config.Target.TargetRef.Name)
+	modelInfer, err := util.GetModelInferTarget(modelInferLister, autoscaler.Meta.Namespace, autoscaler.Meta.Config.Target.TargetRef.Name)
 	if err != nil {
 		klog.Errorf("get model infer error: %v", err)
 		return err

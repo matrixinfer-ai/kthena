@@ -453,7 +453,7 @@ func TestGetRecommendedInstances(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			assert := assert.New(t)
-			recommended, skip := GetRecommendedInstances(tc.args)
+			recommended, skip := tc.args.GetRecommendedInstances()
 			assert.Equal(tc.expectedRecommended, recommended)
 			assert.Equal(tc.expectedSkip, skip)
 		})

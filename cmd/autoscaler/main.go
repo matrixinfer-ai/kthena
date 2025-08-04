@@ -19,11 +19,12 @@ package main
 import (
 	"context"
 	"flag"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
 
 	"github.com/spf13/pflag"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

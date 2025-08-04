@@ -1,0 +1,33 @@
+apiVersion: registry.matrixinfer.ai/v1alpha1
+kind: AutoscalingPolicyBinding
+metadata:
+  labels:
+    registry.matrixinfer.ai/backend-name: backend1
+    registry.matrixinfer.ai/managed-by: registry.matrixinfer.ai
+    registry.matrixinfer.ai/model-name: test-model
+    registry.matrixinfer.ai/revision: 7b695c446
+  name: test-model-backend1
+  namespace: default
+  ownerReferences:
+    - apiVersion: registry.matrixinfer.ai/v1alpha1
+      kind: Model
+      name: test-model
+      uid: randomUID
+      controller: true
+      blockOwnerDeletion: true
+spec:
+  policyRef:
+    name: test-model-backend1
+  scalingConfiguration:
+    maxReplicas: 1
+    minReplicas: 0
+    target:
+      name: test-model-backend1
+      kind: ModelInfer
+      targetRef:
+        name: test-model-backend1
+      additionalMatchLabels: {}
+      metricFrom: {}
+
+
+

@@ -18,8 +18,9 @@ package controller
 
 import (
 	"context"
-	"matrixinfer.ai/matrixinfer/pkg/autoscaler/autoscaler"
 	"time"
+
+	"matrixinfer.ai/matrixinfer/pkg/autoscaler/autoscaler"
 
 	"istio.io/istio/pkg/util/sets"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -49,7 +50,6 @@ type AutoscaleController struct {
 	// client for custom resource
 	client                             clientset.Interface
 	namespace                          string
-	syncHandler                        func(ctx context.Context, miKey string) error
 	autoscalingPoliciesLister          registryLister.AutoscalingPolicyLister
 	autoscalingPoliciesInformer        cache.Controller
 	autoscalingPoliciesBindingLister   registryLister.AutoscalingPolicyBindingLister

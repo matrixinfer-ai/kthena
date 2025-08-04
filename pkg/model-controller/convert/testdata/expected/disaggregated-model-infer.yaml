@@ -69,12 +69,6 @@ spec:
                     valueFrom:
                       fieldRef:
                         fieldPath: status.podIP
-                  - name: GLOO_SOCKET_IFNAME
-                    value: eth0
-                  - name: TP_SOCKET_IFNAME
-                    value: eth0
-                  - name: HCCL_SOCKET_IFNAME
-                    value: eth0
                 image: vllm-prefill:latest
                 imagePullPolicy: IfNotPresent
                 livenessProbe:
