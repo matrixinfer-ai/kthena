@@ -12,7 +12,7 @@ metadata:
       uid: randomUID
 spec:
   recoveryPolicy: InferGroupRestart
-  replicas: 1
+  replicas: 0
   rolloutStrategy:
     type: InferGroupRollingUpdate
   schedulerName: ""
