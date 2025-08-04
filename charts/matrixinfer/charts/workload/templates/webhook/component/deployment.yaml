@@ -1,0 +1,53 @@
+{{- if .Values.webhook.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "matrixinfer.name" . }}-webhook
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/component: webhook
+    {{- include "matrixinfer.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.webhook.replicas | default 1 }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: webhook
+      {{- include "matrixinfer.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: webhook
+        {{- include "matrixinfer.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: webhook
+          image: "{{ .Values.webhook.image.repository }}:{{ .Values.webhook.image.tag }}"
+          imagePullPolicy: {{ .Values.webhook.image.pullPolicy }}
+          args: {{- toYaml .Values.webhook.image.args | nindent 12 }}
+          ports:
+            - containerPort: 8443
+          volumeMounts:
+            - name: webhook-certs
+              mountPath: /etc/webhook/certs
+              readOnly: true
+          resources: {{- toYaml .Values.webhook.resource | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8443
+              scheme: HTTPS
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8443
+              scheme: HTTPS
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: webhook-certs
+          secret:
+            secretName: {{ include "matrixinfer.name" . }}-webhook-certs
+      serviceAccountName: {{ include "matrixinfer.name" . }}-webhook
+{{- end }}
