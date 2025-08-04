@@ -19,12 +19,9 @@ jobs:
 
   build:
     runs-on: ubuntu-22.04
-    strategy:
-      matrix:
-        go-version: [ '1.24' ]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: install sponge
         shell: bash
         run: sudo apt-get update && sudo apt-get install -y moreutils
@@ -45,9 +42,9 @@ jobs:
         run: |
           helm lint charts/matrixinfer
       - name: Setup Go
-        uses: actions/setup-go@v4.0.0
+        uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go-version }}
+          go-version-file: 'go.mod'
       - name: golangci-lint
         shell: bash
         run: |
