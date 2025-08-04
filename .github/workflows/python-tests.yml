@@ -31,6 +31,6 @@ jobs:
         run: |
           pip install coverage pytest
           coverage run -m pytest
-      - name: Enforce Python coverage limit
+      - name: Check coverage threshold
         run: |
           coverage report --fail-under=80 # Set coverage threshold

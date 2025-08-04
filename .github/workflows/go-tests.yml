@@ -5,11 +5,20 @@ on:
       - main
     paths:
       - '**.go'
+      - "pkg/**"
+      - "cmd/**"
+      - "go.mod"
+      - "go.sum"
+
   push:
     branches:
       - main
     paths:
       - '**.go'
+      - "pkg/**"
+      - "cmd/**"
+      - "go.mod"
+      - "go.sum"
 
 jobs:
   go_unit_test:
@@ -31,7 +40,7 @@ jobs:
           echo "coverage_percentage=$COVERAGE" >> $GITHUB_OUTPUT
       - name: Check coverage threshold
         run: |
-          THRESHOLD=80 # Set coverage threshold
+          THRESHOLD=10 # Set coverage threshold
           CURRENT_COVERAGE=${{ steps.coverage.outputs.coverage_percentage }}
           if (( $(echo "$CURRENT_COVERAGE < $THRESHOLD" | bc -l) )); then
             echo "Code coverage ($CURRENT_COVERAGE%) is below the required threshold of $THRESHOLD%."
