@@ -1,4 +1,4 @@
-name: python-tests.yml
+name: Python Test
 
 on:
   pull_request:
