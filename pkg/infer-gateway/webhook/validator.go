@@ -162,6 +162,17 @@ func (v *InferGatewayValidator) HandleModelServer(w http.ResponseWriter, r *http
 // validateModelRoute validates the ModelRoute resource
 func (v *InferGatewayValidator) validateModelRoute(modelRoute *networkingv1alpha1.ModelRoute) (bool, string) {
 	var allErrs field.ErrorList
+	specField := field.NewPath("spec")
+
+	if modelRoute.Spec.ModelName == "" && len(modelRoute.Spec.LoraAdapters) == 0 {
+		allErrs = append(allErrs, field.Required(specField, "either modelName or loraAdapters must be specified"))
+	}
+
+	for i, lora := range modelRoute.Spec.LoraAdapters {
+		if lora == "" {
+			allErrs = append(allErrs, field.Invalid(specField.Child("loraAdapters").Index(i), lora, "lora adapter name cannot be an empty string"))
+		}
+	}
 
 	if len(allErrs) > 0 {
 		var messages []string
