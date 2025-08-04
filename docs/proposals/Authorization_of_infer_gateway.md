@@ -49,7 +49,7 @@ The current Infer Gateway lacks an authentication mechanism; any user with acces
 By introducing JWT and API Key authentication, we can:
 
 - Control access to model services.
-- Implement user authentication and authorization.
+- Implement user authentication and authentication.
 - Provide different access rights for different users.
 - Support integration with existing identity providers(e.g. Keycloak).
 
@@ -73,7 +73,7 @@ What is out of scope for this KEP? Listing non-goals helps to focus discussion
 and make progress.
 -->
 
-1. Does not implement OAuth2 authorization process(only validates acquired tokens).
+1. Does not implement OAuth2 authentication process(only validates acquired tokens).
 2. Does not implement user management functionality(handled by an external identity provider).
 3. Does not implement a complex role and permission management system.
 
@@ -199,6 +199,10 @@ type ModelServerSpec struct {
     // JWTAuthentication defines the JWT Authentication configuration.
     // +optional
     JWTAuthentication *JWTAuthenticationSpec `json:"jwtAuthentication,omitempty"`
+
+    // APIKeyAuthentication defines the API Key Authentication configuration.
+    // +optional
+    APIKeyAuthentication *APIKeyAuthenticationSpec `json:"apiKeyAuthentication,omitempty"`
 }
 
 type JWTAuthenticationSpec struct {
@@ -225,7 +229,7 @@ type JWTAuthenticationSpec struct {
 API Key:
 
 ```go
-type APIKeyAuthorizationSpec struct {
+type APIKeyauthenticationSpec struct {
     // Source defines where to get API keys from.
     // +kubebuilder:validation:Enum=inline;secret
     Source APIKeySource `json:"source"`
@@ -266,8 +270,8 @@ metadata:
 spec:
   model: "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
   inferenceEngine: vLLM
-  needAuthorization: true
-  jwtAuthorization:
+  needauthentication: true
+  jwtauthentication:
     issuerURL: "http://localhost:9999/auth/realms/dashboard"
     audience: "infer-gateway"
     jwkCacheDuration: "1h"
@@ -298,8 +302,8 @@ metadata:
 spec:
   model: "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
   inferenceEngine: vllm
-  needAuthorization: true
-  apiKeyAuthorization:
+  needauthentication: true
+  apiKeyauthentication:
     source: "secret"
     secretName: "model-api-keys"
     headerName: "X-API-Key"
