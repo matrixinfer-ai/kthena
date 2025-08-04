@@ -358,7 +358,7 @@ func TestRouter_HandlerFunc_DisaggregatedMode(t *testing.T) {
 	store.AddOrUpdateModelRoute(modelRoute)
 
 	// 3. Create request
-	w := httptest.NewRecorder()
+	w := CreateTestResponseRecorder()
 	c, _ := gin.CreateTestContext(w)
 
 	reqBody := `{"model": "test-model", "prompt": "hello", "stream": true}`
@@ -525,5 +525,25 @@ func TestIsTokenUsageEnabled(t *testing.T) {
 			result := isTokenUsageEnabled(tt.modelRequest)
 			assert.Equal(t, tt.expected, result)
 		})
+	}
+}
+
+type TestResponseRecorder struct {
+	*httptest.ResponseRecorder
+	closeChannel chan bool
+}
+
+func (r *TestResponseRecorder) CloseNotify() <-chan bool {
+	return r.closeChannel
+}
+
+func (r *TestResponseRecorder) closeClient() {
+	r.closeChannel <- true
+}
+
+func CreateTestResponseRecorder() *TestResponseRecorder {
+	return &TestResponseRecorder{
+		httptest.NewRecorder(),
+		make(chan bool, 1),
 	}
 }

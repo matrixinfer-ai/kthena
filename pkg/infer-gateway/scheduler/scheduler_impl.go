@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"sort"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 
@@ -43,7 +42,7 @@ type SchedulerImpl struct {
 	filterPlugins []framework.FilterPlugin
 	scorePlugins  []*scorePlugin
 
-	ScheduleHooks []framework.ScheduleHook
+	postScheduleHooks []framework.PostScheduleHook
 }
 
 type scorePlugin struct {
@@ -57,6 +56,10 @@ type podInfoWithValue struct {
 }
 
 func NewScheduler(store datastore.Store) Scheduler {
+	// For backward compatibility, use the default registry and ensure plugins are registered
+	registry := NewPluginRegistry()
+	registerDefaultPlugins(registry)
+
 	scorePluginMap, filterPluginMap, pluginsArgMap, err := utils.LoadSchedulerConfig(schedulerConfigFile)
 	if err != nil {
 		klog.Fatalf("failed to Load Scheduler: %v", err)
@@ -65,55 +68,12 @@ func NewScheduler(store datastore.Store) Scheduler {
 	prefixCache := plugins.NewPrefixCache(store, pluginsArgMap[plugins.PrefixCachePluginName])
 	return &SchedulerImpl{
 		store:         store,
-		filterPlugins: ParseFilterPlugin(filterPluginMap, pluginsArgMap),
-		scorePlugins:  GetScorePlugin(prefixCache, scorePluginMap, pluginsArgMap),
-		ScheduleHooks: []framework.ScheduleHook{
+		filterPlugins: getFilterPlugins(registry, filterPluginMap, pluginsArgMap),
+		scorePlugins:  getScorePlugins(registry, prefixCache, scorePluginMap, pluginsArgMap),
+		postScheduleHooks: []framework.PostScheduleHook{
 			prefixCache,
 		},
 	}
-}
-
-func ParseFilterPlugin(filterPluginMap []string, pluginsArgMap map[string]runtime.RawExtension) []framework.FilterPlugin {
-	var list []framework.FilterPlugin
-	// TODO: enable lora affinity when models from metrics are available.
-	for _, pluginName := range filterPluginMap {
-		if factory, exist := framework.GetFilterPluginBuilder(pluginName); !exist {
-			klog.Errorf("Failed to get plugin %s.", pluginName)
-			continue
-		} else {
-			plugin := factory(pluginsArgMap[pluginName])
-			list = append(list, plugin)
-		}
-	}
-	return list
-}
-
-func GetScorePlugin(prefixCache *plugins.PrefixCache, scorePluginMap map[string]int, pluginsArgMap map[string]runtime.RawExtension) []*scorePlugin {
-	var list []*scorePlugin
-	for pluginName, weight := range scorePluginMap {
-		if weight < 0 {
-			klog.Errorf("Weight for plugin '%s' is invalid, value is %d. Setting to 0", pluginName, weight)
-			weight = 0
-		}
-
-		if pluginName == plugins.PrefixCachePluginName {
-			list = append(list, &scorePlugin{
-				plugin: prefixCache,
-				weight: weight,
-			})
-			continue
-		}
-
-		if pb, exist := framework.GetScorePluginBuilder(pluginName); !exist {
-			klog.Errorf("Failed to get plugin %s.", pluginName)
-		} else {
-			list = append(list, &scorePlugin{
-				plugin: pb(pluginsArgMap[pluginName]),
-				weight: weight,
-			})
-		}
-	}
-	return list
 }
 
 func (s *SchedulerImpl) Schedule(ctx *framework.Context, pods []*datastore.PodInfo) error {
@@ -213,7 +173,7 @@ func (s *SchedulerImpl) RunScorePlugins(pods []*datastore.PodInfo, ctx *framewor
 }
 
 func (s *SchedulerImpl) RunPostHooks(ctx *framework.Context, index int) {
-	for _, hook := range s.ScheduleHooks {
+	for _, hook := range s.postScheduleHooks {
 		hook.PostSchedule(ctx, index)
 	}
 }
