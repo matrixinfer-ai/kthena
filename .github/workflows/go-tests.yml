@@ -1,4 +1,4 @@
-name: go-tests.yml
+name: Go Test
 on:
   pull_request:
     branches:
