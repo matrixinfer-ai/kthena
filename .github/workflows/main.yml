@@ -8,9 +8,12 @@ on:
       - '**.md'
       - '**.svg'
       - '**.png'
+      - 'docs/**'
   push:
     branches:
       - main
+    paths-ignore:
+      - 'docs/**'
 
 jobs:
 
