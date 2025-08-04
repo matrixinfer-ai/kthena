@@ -23,22 +23,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins"
 )
-
-// Mock plugin implementations for testing
-type mockScorePlugin struct {
-	name string
-}
-
-func (m *mockScorePlugin) Name() string {
-	return m.name
-}
-
-func (m *mockScorePlugin) Score(ctx *framework.Context, pods []*datastore.PodInfo) map[*datastore.PodInfo]int {
-	return make(map[*datastore.PodInfo]int)
-}
 
 func TestNewPluginRegistry(t *testing.T) {
 	registry := NewPluginRegistry()
