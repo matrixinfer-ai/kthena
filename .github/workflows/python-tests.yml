@@ -1,0 +1,36 @@
+name: Python Test
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'python/**'
+  push:
+    branches:
+      - main
+    paths:
+      - 'python/**'
+
+jobs:
+  python_unit_test:
+    name: Python tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4.0.0
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r python/matrixinfer/downloader/requirements.txt
+          pip install -r python/matrixinfer/runtime/requirements.txt
+      - name: Run tests
+        run: |
+          pip install coverage pytest
+          coverage run -m pytest
+      - name: Check coverage threshold
+        run: |
+          coverage report --fail-under=80 # Set coverage threshold
