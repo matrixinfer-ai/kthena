@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -50,6 +51,7 @@ const (
 	VllmDisaggregatedTemplatePath  = "templates/vllm-pd.yaml"
 	VllmMultiNodeServingScriptPath = "/vllm-workspace/vllm/examples/online_serving/multi-node-serving.sh"
 	inClusterNamespacePath         = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+	modelRouteRuleName             = "default"
 )
 
 //go:embed templates/*
@@ -570,7 +572,7 @@ func GetInClusterNameSpace() (string, error) {
 
 // BuildModelServer creates arrays of ModelServer for the given model.
 // Each model backend will create one model server.
-func BuildModelServer(model *registry.Model) []*networking.ModelServer {
+func BuildModelServer(model *registry.Model) ([]*networking.ModelServer, error) {
 	var modelServers []*networking.ModelServer
 	for idx, backend := range model.Spec.Backends {
 		var inferenceEngine networking.InferenceEngine
@@ -581,7 +583,7 @@ func BuildModelServer(model *registry.Model) []*networking.ModelServer {
 			inferenceEngine = networking.SGLang
 		case registry.ModelBackendTypeMindIE, registry.ModelBackendTypeMindIEDisaggregated:
 			klog.Warning("Not support MindIE backend yet, please use vLLM or SGLang backend")
-			return modelServers
+			return modelServers, nil
 		}
 		var pdGroup *networking.PDGroup
 		switch backend.Type {
@@ -595,6 +597,10 @@ func BuildModelServer(model *registry.Model) []*networking.ModelServer {
 					"modelinfer.matrixinfer.ai/role": "decode",
 				},
 			}
+		}
+		servedModelName, err := getServedModelName(model, backend)
+		if err != nil {
+			return nil, err
 		}
 		modelServer := networking.ModelServer{
 			TypeMeta: metav1.TypeMeta{
@@ -614,7 +620,7 @@ func BuildModelServer(model *registry.Model) []*networking.ModelServer {
 				},
 			},
 			Spec: networking.ModelServerSpec{
-				Model:           &model.Name,
+				Model:           &servedModelName,
 				InferenceEngine: inferenceEngine,
 				WorkloadSelector: &networking.WorkloadSelector{
 					MatchLabels: map[string]string{
@@ -635,7 +641,25 @@ func BuildModelServer(model *registry.Model) []*networking.ModelServer {
 		}
 		modelServers = append(modelServers, &modelServer)
 	}
-	return modelServers
+	return modelServers, nil
+}
+
+// getServedModelName gets served model name from the worker config. Default is the model name.
+func getServedModelName(model *registry.Model, backend registry.ModelBackend) (string, error) {
+	servedModelName := model.Name
+	for _, worker := range backend.Workers {
+		args, err := parseArgs(&worker.Config)
+		if err != nil {
+			return "", err
+		}
+		for i, str := range args {
+			if str == "--served-model-name" && i+1 < len(args) {
+				servedModelName = args[i+1]
+				break
+			}
+		}
+	}
+	return servedModelName, nil
 }
 
 // buildDownloaderContainer builds downloader container to reduce code duplication
@@ -686,4 +710,51 @@ func buildLoraComponents(model *registry.Model, backend *registry.ModelBackend, 
 	loraCommands := []string{"--enable-lora", "--lora-modules", strings.Join(loras, " ")}
 
 	return loraCommands, loraContainers
+}
+
+func BuildModelRoute(model *registry.Model) *networking.ModelRoute {
+	var rules []*networking.Rule
+	var loraAdapters []string
+	var targetModels []*networking.TargetModel
+	for idx, backend := range model.Spec.Backends {
+		for _, lora := range backend.LoraAdapters {
+			loraAdapters = append(loraAdapters, lora.Name)
+		}
+		targetModels = append(targetModels, &networking.TargetModel{
+			ModelServerName: fmt.Sprintf("%s-%d-%s-server", model.Name, idx, strings.ToLower(string(backend.Type))),
+			Weight:          backend.RouteWeight,
+		})
+	}
+	// sort and then remove duplicate lora name
+	slices.Sort(loraAdapters)
+	loraAdapters = slices.Compact(loraAdapters)
+	rules = append(rules, &networking.Rule{
+		Name:         modelRouteRuleName,
+		ModelMatch:   model.Spec.ModelMatch,
+		TargetModels: targetModels,
+	})
+	route := &networking.ModelRoute{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       networking.ModelRouteKind,
+			APIVersion: networking.GroupVersion.String(),
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-route", model.Name),
+			Namespace: model.Namespace,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: registry.GroupVersion.String(),
+					Kind:       registry.ModelKind,
+					Name:       model.Name,
+					UID:        model.UID,
+				},
+			},
+		},
+		Spec: networking.ModelRouteSpec{
+			ModelName:    model.Name,
+			LoraAdapters: loraAdapters,
+			Rules:        rules,
+		},
+	}
+	return route
 }

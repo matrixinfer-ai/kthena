@@ -53,7 +53,7 @@ type ModelSpec struct {
 	// TargetModels. Multiple match conditions are ANDed together, i.e. the match will
 	// evaluate to true only if all conditions are satisfied.
 	// +optional
-	ModelMatch networking.ModelMatch `json:"modelMatch,omitempty"`
+	ModelMatch *networking.ModelMatch `json:"modelMatch,omitempty"`
 }
 
 // ModelBackend defines the configuration for a model backend.
@@ -105,7 +105,7 @@ type ModelBackend struct {
 	// +kubebuilder:default=100
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=100
-	RouteWeight int32 `json:"routeWeight,omitempty"`
+	RouteWeight *uint32 `json:"routeWeight,omitempty"`
 	// ScaleToZeroGracePeriod is the duration to wait before scaling to zero.
 	// +optional
 	ScaleToZeroGracePeriod *metav1.Duration `json:"scaleToZeroGracePeriod,omitempty"`
