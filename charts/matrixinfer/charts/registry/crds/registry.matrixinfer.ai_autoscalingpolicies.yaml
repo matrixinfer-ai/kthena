@@ -48,12 +48,14 @@ spec:
                       replicas).
                     properties:
                       instances:
+                        default: 1
                         description: Instances is the maximum number of instances
                           to scale.
                         format: int32
                         minimum: 0
                         type: integer
                       percent:
+                        default: "100"
                         description: Percent is the maximum percentage of instances
                           to scaling.
                         format: int32
@@ -61,6 +63,7 @@ spec:
                         minimum: 0
                         type: integer
                       period:
+                        default: 15s
                         description: Period is the duration over which scaling is
                           evaluated.
                         type: string
@@ -114,12 +117,14 @@ spec:
                           for stable scaling up or scaling down.
                         properties:
                           instances:
+                            default: 1
                             description: Instances is the maximum number of instances
                               to scale.
                             format: int32
                             minimum: 0
                             type: integer
                           percent:
+                            default: "100"
                             description: Percent is the maximum percentage of instances
                               to scaling.
                             format: int32
@@ -127,6 +132,7 @@ spec:
                             minimum: 0
                             type: integer
                           period:
+                            default: 15s
                             description: Period is the duration over which scaling
                               is evaluated.
                             type: string
@@ -169,6 +175,7 @@ spec:
                 minItems: 1
                 type: array
               tolerancePercent:
+                default: 10
                 description: TolerancePercent is the percentage of deviation tolerated
                   before scaling actions are triggered.
                 format: int32

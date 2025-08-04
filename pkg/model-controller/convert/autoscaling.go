@@ -8,22 +8,21 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
 )
 
-func BuildAutoscalingPolicy(autoscalingConfig *registry.AutoscalingPolicyConfig, model *registry.Model, backendName string) *registry.AutoscalingPolicy {
-	autoscalingPolicy := &registry.AutoscalingPolicySpec{}
-	autoscalingPolicy.TolerancePercent = autoscalingConfig.TolerancePercent
-	autoscalingPolicy.Metrics = append(autoscalingPolicy.Metrics, autoscalingConfig.Metrics...)
-	autoscalingPolicy.Behavior.ScaleUp.StablePolicy = autoscalingConfig.Behavior
-	autoscalingPolicy.Behavior.ScaleDown = autoscalingConfig.Behavior
+func BuildAutoscalingPolicy(autoscalingConfig *registry.AutoscalingPolicySpec, model *registry.Model, backendName string) *registry.AutoscalingPolicy {
 	return &registry.AutoscalingPolicy{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: registry.AutoscalingPolicyKind.GroupVersion().String(),
+			Kind:       registry.AutoscalingPolicyKind.Kind,
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   utils.GetBackendResourceName(model.Name, backendName),
-			Labels: utils.GetModelControllerLabels(model.Name, backendName, icUtils.Revision(*autoscalingPolicy)),
+			Labels: utils.GetModelControllerLabels(model.Name, backendName, icUtils.Revision(*autoscalingConfig)),
 			OwnerReferences: []metav1.OwnerReference{
 				utils.NewModelOwnerRef(model),
 			},
+			Namespace: model.Namespace,
 		},
-
-		Spec: *autoscalingPolicy,
+		Spec: *autoscalingConfig,
 	}
 }
 
@@ -60,6 +59,10 @@ func BuildPolicyBindingMeta(spec *registry.AutoscalingPolicyBindingSpec, model *
 func BuildScalingPolicyBinding(model *registry.Model, backend *registry.ModelBackend, name string) *registry.AutoscalingPolicyBinding {
 	spec := BuildScalingPolicyBindingSpec(backend, name)
 	return &registry.AutoscalingPolicyBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: registry.AutoscalingPolicyBindingKind.GroupVersion().String(),
+			Kind:       registry.AutoscalingPolicyBindingKind.Kind,
+		},
 		ObjectMeta: *BuildPolicyBindingMeta(spec, model, backend.Name, name),
 		Spec:       *spec,
 	}
@@ -94,6 +97,10 @@ func BuildOptimizePolicyBindingSpec(model *registry.Model, name string) *registr
 func BuildOptimizePolicyBinding(model *registry.Model, name string) *registry.AutoscalingPolicyBinding {
 	spec := BuildOptimizePolicyBindingSpec(model, name)
 	return &registry.AutoscalingPolicyBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: registry.AutoscalingPolicyBindingKind.GroupVersion().String(),
+			Kind:       registry.AutoscalingPolicyBindingKind.Kind,
+		},
 		ObjectMeta: *BuildPolicyBindingMeta(spec, model, "", name),
 		Spec:       *spec,
 	}

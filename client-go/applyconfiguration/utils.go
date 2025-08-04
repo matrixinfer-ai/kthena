@@ -76,8 +76,6 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &applyconfigurationregistryv1alpha1.AutoscalingPolicyBindingApplyConfiguration{}
 	case registryv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyBindingSpec"):
 		return &applyconfigurationregistryv1alpha1.AutoscalingPolicyBindingSpecApplyConfiguration{}
-	case registryv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyConfig"):
-		return &applyconfigurationregistryv1alpha1.AutoscalingPolicyConfigApplyConfiguration{}
 	case registryv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyMetric"):
 		return &applyconfigurationregistryv1alpha1.AutoscalingPolicyMetricApplyConfiguration{}
 	case registryv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyPanicPolicy"):

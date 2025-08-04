@@ -154,6 +154,9 @@ func ReplacePlaceholders(data *interface{}, values *map[string]interface{}) erro
 }
 
 func GetBackendResourceName(modelName string, backendName string) string {
+	if backendName == "" {
+		return modelName
+	}
 	return fmt.Sprintf("%s-%s", modelName, backendName)
 }
 

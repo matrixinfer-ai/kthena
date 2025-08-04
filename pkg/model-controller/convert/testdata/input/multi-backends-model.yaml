@@ -9,6 +9,10 @@ spec:
     headers:
       users:
         exact: "john"
+  autoscalingPolicy:
+    metrics:
+      - metricName: "matrixinfer:num_requests_waiting"
+        targetValue: 10
   backends:
     - name: backend1
       type: vLLM

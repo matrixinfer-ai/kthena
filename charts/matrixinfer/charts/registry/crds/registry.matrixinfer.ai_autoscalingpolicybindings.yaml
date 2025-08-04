@@ -196,6 +196,10 @@ spec:
                 - minReplicas
                 type: object
             type: object
+            x-kubernetes-validations:
+            - message: Either optimizerConfiguration or scalingConfiguration must
+                be set, but not both.
+              rule: has(self.optimizerConfiguration) != has(self.scalingConfiguration)
           status:
             description: AutoscalingPolicyBindingStatus defines the status of a autoscaling
               policy binding.

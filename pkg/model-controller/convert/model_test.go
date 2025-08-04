@@ -149,13 +149,7 @@ func TestBuildModelServer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := BuildModelServer(tt.input)
-			if tt.expectErrMsg != "" {
-				assert.Contains(t, err.Error(), tt.expectErrMsg)
-				return
-			} else {
-				assert.NoError(t, err)
-			}
+			got := BuildModelServer(tt.input)
 			actualYAML, _ := yaml.Marshal(got)
 			expectedYAML, _ := yaml.Marshal(tt.expected)
 			assert.Equal(t, string(expectedYAML), string(actualYAML))
@@ -170,13 +164,13 @@ func TestBuildModelRoute(t *testing.T) {
 		expected *networking.ModelRoute
 	}{
 		{
-			name:     "simple model",
+			name:     "simple backend",
 			input:    loadYAML[registry.Model](t, "testdata/input/model.yaml"),
 			expected: loadYAML[networking.ModelRoute](t, "testdata/expected/model-route.yaml"),
 		},
 		{
 			name:     "model with multiple backends",
-			input:    loadYAML[registry.Model](t, "testdata/input/multi-backend-model.yaml"),
+			input:    loadYAML[registry.Model](t, "testdata/input/multi-backends-model.yaml"),
 			expected: loadYAML[networking.ModelRoute](t, "testdata/expected/model-route-subset.yaml"),
 		},
 	}
@@ -186,6 +180,45 @@ func TestBuildModelRoute(t *testing.T) {
 			actualYAML, _ := yaml.Marshal(got)
 			expectedYAML, _ := yaml.Marshal(tt.expected)
 			assert.Equal(t, string(expectedYAML), string(actualYAML))
+		})
+	}
+}
+
+func TestBuildAutoscalingPolicy(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    *registry.Model
+		expected *registry.AutoscalingPolicy
+	}{
+		{
+			name:     "simple-backend",
+			input:    loadYAML[registry.Model](t, "testdata/input/model.yaml"),
+			expected: loadYAML[registry.AutoscalingPolicy](t, "testdata/expected/scaling-autoscaling-policy.yaml"),
+		},
+		{
+			name:     "multi-backends",
+			input:    loadYAML[registry.Model](t, "testdata/input/multi-backends-model.yaml"),
+			expected: loadYAML[registry.AutoscalingPolicy](t, "testdata/expected/optimize-autoscaling-policy.yaml"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.input.Spec.AutoscalingPolicy != nil {
+				got := BuildAutoscalingPolicy(tt.input.Spec.AutoscalingPolicy, tt.input, "")
+				actualYAML, _ := yaml.Marshal(got)
+				expectedYAML, _ := yaml.Marshal(tt.expected)
+				assert.Equal(t, string(expectedYAML), string(actualYAML))
+			} else {
+				for _, backend := range tt.input.Spec.Backends {
+					if backend.AutoscalingPolicy == nil {
+						continue
+					}
+					got := BuildAutoscalingPolicy(backend.AutoscalingPolicy, tt.input, backend.Name)
+					actualYAML, _ := yaml.Marshal(got)
+					expectedYAML, _ := yaml.Marshal(tt.expected)
+					assert.Equal(t, string(expectedYAML), string(actualYAML))
+				}
+			}
 		})
 	}
 }

@@ -30,7 +30,7 @@ func GetDeviceNum(worker *registryv1alpha1.ModelWorker) int64 {
 func NewModelOwnerRef(model *registryv1alpha1.Model) metav1.OwnerReference {
 	return metav1.OwnerReference{
 		APIVersion:         registryv1alpha1.GroupVersion.String(),
-		Kind:               registryv1alpha1.ModelKind,
+		Kind:               registryv1alpha1.ModelKind.Kind,
 		Name:               model.Name,
 		UID:                model.UID,
 		BlockOwnerDeletion: ptr.To(true),

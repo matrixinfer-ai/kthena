@@ -40,7 +40,7 @@ type ModelSpec struct {
 	Backends []ModelBackend `json:"backends"`
 	// AutoscalingPolicy references the autoscaling policy to be used for this model.
 	// +optional
-	AutoscalingPolicy *AutoscalingPolicyConfig `json:"autoscalingPolicy,omitempty"`
+	AutoscalingPolicy *AutoscalingPolicySpec `json:"autoscalingPolicy,omitempty"`
 	// CostExpansionRatePercent is the percentage rate at which the cost expands.
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=100
@@ -51,20 +51,6 @@ type ModelSpec struct {
 	// evaluate to true only if all conditions are satisfied.
 	// +optional
 	ModelMatch networking.ModelMatch `json:"modelMatch,omitempty"`
-}
-
-// AutoscalingPolicyConfig defines the configuration for autoscaling behavior.
-// It includes tolerance percentage, metrics to monitor, and scaling behavior settings.
-// Fields are optional and can be omitted in the configuration.
-type AutoscalingPolicyConfig struct {
-	// +optional
-	// +kubebuilder:validation:Minimum=0
-	// +kubebuilder:validation:Maximum=100
-	TolerancePercent int32 `json:"tolerancePercent,omitempty"`
-	// +optional
-	Metrics []AutoscalingPolicyMetric `json:"metrics,omitempty"`
-	// +optional
-	Behavior AutoscalingPolicyStablePolicy `json:"behavior,omitempty"`
 }
 
 // ModelBackend defines the configuration for a model backend.
@@ -129,7 +115,7 @@ type ModelBackend struct {
 	LoraAdapters []LoraAdapter `json:"loraAdapters,omitempty"`
 	// AutoscalingPolicyRef references the autoscaling policy for this backend.
 	// +optional
-	AutoscalingPolicy *AutoscalingPolicyConfig `json:"autoscalingPolicy,omitempty"`
+	AutoscalingPolicy *AutoscalingPolicySpec `json:"autoscalingPolicy,omitempty"`
 }
 
 // LoraAdapter defines a LoRA (Low-Rank Adaptation) adapter configuration.

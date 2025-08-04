@@ -25,14 +25,20 @@ import (
 // GroupName specifies the group name used to register the objects.
 const GroupName = "registry.matrixinfer.ai"
 
-const ModelKind = "Model"
+var SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: "v1alpha1"}
+var GroupVersion = v1.GroupVersion{Group: GroupName, Version: "v1alpha1"}
+
+// GroupVersionKind definitions
+var (
+	ModelKind                    = SchemeGroupVersion.WithKind("Model")
+	AutoscalingPolicyKind        = SchemeGroupVersion.WithKind("AutoscalingPolicy")
+	AutoscalingPolicyBindingKind = SchemeGroupVersion.WithKind("AutoscalingPolicyBinding")
+)
 
 // GroupVersion specifies the group and the version used to register the objects.
-var GroupVersion = v1.GroupVersion{Group: GroupName, Version: "v1alpha1"}
 
 // SchemeGroupVersion is group version used to register these objects
 // Deprecated: use GroupVersion instead.
-var SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: "v1alpha1"}
 
 // Resource takes an unqualified resource and returns a Group qualified GroupResource
 func Resource(resource string) schema.GroupResource {

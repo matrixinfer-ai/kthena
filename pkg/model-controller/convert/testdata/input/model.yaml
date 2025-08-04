@@ -12,6 +12,10 @@ spec:
       cacheURI: hostpath:///tmp/test
       maxReplicas: 0
       minReplicas: 1
+      autoscalingPolicy:
+        metrics:
+          - metricName: "vllm:iteration_tokens_total"
+            targetValue: 10
       env:
         - name: ENDPOINT
           value: https://obs.test.com

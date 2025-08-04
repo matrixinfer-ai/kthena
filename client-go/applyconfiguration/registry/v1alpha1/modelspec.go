@@ -28,7 +28,7 @@ type ModelSpecApplyConfiguration struct {
 	Name                     *string                                          `json:"name,omitempty"`
 	Owner                    *string                                          `json:"owner,omitempty"`
 	Backends                 []ModelBackendApplyConfiguration                 `json:"backends,omitempty"`
-	AutoscalingPolicy        *AutoscalingPolicyConfigApplyConfiguration       `json:"autoscalingPolicy,omitempty"`
+	AutoscalingPolicy        *AutoscalingPolicySpecApplyConfiguration         `json:"autoscalingPolicy,omitempty"`
 	CostExpansionRatePercent *int32                                           `json:"costExpansionRatePercent,omitempty"`
 	ModelMatch               *networkingv1alpha1.ModelMatchApplyConfiguration `json:"modelMatch,omitempty"`
 }
@@ -71,7 +71,7 @@ func (b *ModelSpecApplyConfiguration) WithBackends(values ...*ModelBackendApplyC
 // WithAutoscalingPolicy sets the AutoscalingPolicy field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the AutoscalingPolicy field is set to the value of the last call.
-func (b *ModelSpecApplyConfiguration) WithAutoscalingPolicy(value *AutoscalingPolicyConfigApplyConfiguration) *ModelSpecApplyConfiguration {
+func (b *ModelSpecApplyConfiguration) WithAutoscalingPolicy(value *AutoscalingPolicySpecApplyConfiguration) *ModelSpecApplyConfiguration {
 	b.AutoscalingPolicy = value
 	return b
 }

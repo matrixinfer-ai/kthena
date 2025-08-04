@@ -6,6 +6,7 @@ import (
 	"k8s.io/klog/v2"
 	networking "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
+	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
 	"strings"
 	"time"
@@ -30,12 +31,12 @@ func BuildModelServer(model *registry.Model) []*networking.ModelServer {
 		switch backend.Type {
 		case registry.ModelBackendTypeVLLMDisaggregated, registry.ModelBackendTypeMindIEDisaggregated:
 			pdGroup = &networking.PDGroup{
-				GroupKey: "modelinfer.matrixinfer.ai/group-name",
+				GroupKey: workload.GroupName,
 				PrefillLabels: map[string]string{
-					"modelinfer.matrixinfer.ai/role": "prefill",
+					workload.RoleLabelKey: "prefill",
 				},
 				DecodeLabels: map[string]string{
-					"modelinfer.matrixinfer.ai/role": "decode",
+					workload.RoleLabelKey: "decode",
 				},
 			}
 		}

@@ -140,7 +140,7 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion: registry.GroupVersion.String(),
-					Kind:       registry.ModelKind,
+					Kind:       registry.ModelKind.Kind,
 					Name:       model.Name,
 					UID:        model.UID,
 				},
@@ -226,7 +226,7 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion: registry.GroupVersion.String(),
-					Kind:       registry.ModelKind,
+					Kind:       registry.ModelKind.Kind,
 					Name:       model.Name,
 					UID:        model.UID,
 				},
@@ -474,7 +474,7 @@ func BuildModelRoute(model *registry.Model) *networking.ModelRoute {
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion: registry.GroupVersion.String(),
-					Kind:       registry.ModelKind,
+					Kind:       registry.ModelKind.Kind,
 					Name:       model.Name,
 					UID:        model.UID,
 				},

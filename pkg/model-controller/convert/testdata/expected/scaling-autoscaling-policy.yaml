@@ -1,0 +1,21 @@
+apiVersion: registry.matrixinfer.ai/v1alpha1
+kind: AutoscalingPolicy
+metadata:
+  labels:
+    registry.matrixinfer.ai/backend-name: backend1
+    registry.matrixinfer.ai/managed-by: registry.matrixinfer.ai
+    registry.matrixinfer.ai/model-name: test-model
+    registry.matrixinfer.ai/revision: 656cd7ccb9
+  name: test-model-backend1
+  namespace: default
+  ownerReferences:
+    - apiVersion: registry.matrixinfer.ai/v1alpha1
+      kind: Model
+      name: test-model
+      uid: randomUID
+      controller: true
+      blockOwnerDeletion: true
+spec:
+  metrics:
+    - metricName: "vllm:iteration_tokens_total"
+      targetValue: 10

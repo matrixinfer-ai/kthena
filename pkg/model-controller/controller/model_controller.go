@@ -591,7 +591,7 @@ func (mc *ModelController) tryUpdateAutoscalingPolicyBinding(ctx context.Context
 	return nil
 }
 
-func (mc *ModelController) tryUpdateAutoscalingPolicy(ctx context.Context, model *registryv1alpha1.Model, policy *registryv1alpha1.AutoscalingPolicyConfig, policyName string) error {
+func (mc *ModelController) tryUpdateAutoscalingPolicy(ctx context.Context, model *registryv1alpha1.Model, policy *registryv1alpha1.AutoscalingPolicySpec, policyName string) error {
 	targetAutoscalePolicy := convert.BuildAutoscalingPolicy(policy, model, policyName)
 	currentAutoscalePolicy, err := mc.autoscalingPoliciesLister.AutoscalingPolicies(model.Namespace).Get(policyName)
 	if err != nil {
