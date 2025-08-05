@@ -30,6 +30,7 @@ type ModelServerSpecApplyConfiguration struct {
 	WorkloadSelector *WorkloadSelectorApplyConfiguration `json:"workloadSelector,omitempty"`
 	WorkloadPort     *WorkloadPortApplyConfiguration     `json:"workloadPort,omitempty"`
 	TrafficPolicy    *TrafficPolicyApplyConfiguration    `json:"trafficPolicy,omitempty"`
+	KVConnector      *KVConnectorSpecApplyConfiguration  `json:"kvConnector,omitempty"`
 }
 
 // ModelServerSpecApplyConfiguration constructs a declarative configuration of the ModelServerSpec type for use with
@@ -75,5 +76,13 @@ func (b *ModelServerSpecApplyConfiguration) WithWorkloadPort(value *WorkloadPort
 // If called multiple times, the TrafficPolicy field is set to the value of the last call.
 func (b *ModelServerSpecApplyConfiguration) WithTrafficPolicy(value *TrafficPolicyApplyConfiguration) *ModelServerSpecApplyConfiguration {
 	b.TrafficPolicy = value
+	return b
+}
+
+// WithKVConnector sets the KVConnector field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the KVConnector field is set to the value of the last call.
+func (b *ModelServerSpecApplyConfiguration) WithKVConnector(value *KVConnectorSpecApplyConfiguration) *ModelServerSpecApplyConfiguration {
+	b.KVConnector = value
 	return b
 }

@@ -41,6 +41,7 @@ import (
 	"k8s.io/klog/v2"
 
 	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/connectors"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
@@ -91,97 +92,61 @@ func TestProxyModelEndpoint(t *testing.T) {
 	defer hookPatch.Reset()
 
 	tests := []struct {
-		name         string
-		ctx          *framework.Context
-		decodePatch  func() *gomonkey.Patches
-		prefillPatch func() *gomonkey.Patches
-		wantErr      error
+		name       string
+		ctx        *framework.Context
+		proxyPatch func() *gomonkey.Patches
+		wantErr    error
 	}{
 		{
-			name: "PD Separation, request success",
-			ctx: &framework.Context{
-				Model:       "test",
-				Prompt:      "it's test",
-				DecodePods:  []*datastore.PodInfo{buildPodInfo("decode1", "1.1.1.1")},
-				PrefillPods: []*datastore.PodInfo{buildPodInfo("prefill1", "1.1.1.2")},
-			},
-			decodePatch: func() *gomonkey.Patches {
-				return gomonkey.ApplyFunc(proxyDecodePod, func(c *gin.Context, req *http.Request, podIP string, port int32, stream bool) error {
-					return nil
-				})
-			},
-			prefillPatch: func() *gomonkey.Patches {
-				return gomonkey.ApplyFunc(proxyPrefillPod, func(req *http.Request, podIP string, port int32) error {
-					return nil
-				})
-			},
-			wantErr: nil,
-		},
-		{
-			name: "BestPods are set, only decode",
+			name: "BestPods are set, aggregated mode success",
 			ctx: &framework.Context{
 				Model:    "test",
 				Prompt:   "test",
 				BestPods: []*datastore.PodInfo{buildPodInfo("decode1", "1.1.1.1")},
 			},
-			decodePatch: func() *gomonkey.Patches {
-				return gomonkey.ApplyFunc(proxyDecodePod, func(c *gin.Context, req *http.Request, podIP string, port int32, stream bool) error {
+			proxyPatch: func() *gomonkey.Patches {
+				patches := gomonkey.ApplyFunc(connectors.BuildDecodeRequest, func(c *gin.Context, req *http.Request, modelRequest ModelRequest) *http.Request {
+					return req
+				})
+				patches.ApplyFunc(isStreaming, func(modelRequest ModelRequest) bool {
+					return false
+				})
+				patches.ApplyFunc(proxyRequest, func(c *gin.Context, req *http.Request, podIP string, port int32, stream bool) error {
 					return nil
 				})
-			},
-			prefillPatch: func() *gomonkey.Patches {
-				return gomonkey.ApplyFunc(proxyPrefillPod, func(req *http.Request, podIP string, port int32) error {
-					return nil
-				})
+				return patches
 			},
 			wantErr: nil,
 		},
 		{
-			name: "DecodePods empty, only prefill",
-			ctx: &framework.Context{
-				Model:       "test",
-				Prompt:      "test",
-				PrefillPods: []*datastore.PodInfo{buildPodInfo("prefill1", "1.1.1.2")},
-			},
-			decodePatch: func() *gomonkey.Patches {
-				return gomonkey.ApplyFunc(proxyDecodePod, func(c *gin.Context, req *http.Request, podIP string, port int32, stream bool) error {
-					return nil
-				})
-			},
-			prefillPatch: func() *gomonkey.Patches {
-				return gomonkey.ApplyFunc(proxyPrefillPod, func(req *http.Request, podIP string, port int32) error {
-					return nil
-				})
-			},
-			wantErr: errors.New("request to all pods failed"),
-		},
-		{
-			name: "proxyDecodePod returns error",
+			name: "BestPods proxy returns error",
 			ctx: &framework.Context{
 				Model:    "test",
 				Prompt:   "test",
 				BestPods: []*datastore.PodInfo{buildPodInfo("decode1", "1.1.1.1")},
 			},
-			decodePatch: func() *gomonkey.Patches {
-				return gomonkey.ApplyFunc(proxyDecodePod, func(c *gin.Context, req *http.Request, podIP string, port int32, stream bool) error {
-					return errors.New("decode error")
+			proxyPatch: func() *gomonkey.Patches {
+				patches := gomonkey.ApplyFunc(connectors.BuildDecodeRequest, func(c *gin.Context, req *http.Request, modelRequest ModelRequest) *http.Request {
+					return req
 				})
-			},
-			prefillPatch: func() *gomonkey.Patches {
-				return gomonkey.ApplyFunc(proxyPrefillPod, func(req *http.Request, podIP string, port int32) error {
-					return nil
+				patches.ApplyFunc(isStreaming, func(modelRequest ModelRequest) bool {
+					return false
 				})
+				patches.ApplyFunc(proxyRequest, func(c *gin.Context, req *http.Request, podIP string, port int32, stream bool) error {
+					return errors.New("proxy error")
+				})
+				return patches
 			},
 			wantErr: errors.New("request to all pods failed"),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			patchDecode := tt.decodePatch()
-			defer patchDecode.Reset()
-			patchPrefill := tt.prefillPatch()
-			defer patchPrefill.Reset()
-
+			var patch *gomonkey.Patches
+			if tt.proxyPatch != nil {
+				patch = tt.proxyPatch()
+				defer patch.Reset()
+			}
 			err := r.proxyModelEndpoint(c, req, tt.ctx, modelReq, int32(8080))
 			if tt.wantErr != nil {
 				assert.Error(t, err)
@@ -358,7 +323,7 @@ func TestRouter_HandlerFunc_DisaggregatedMode(t *testing.T) {
 	store.AddOrUpdateModelRoute(modelRoute)
 
 	// 3. Create request
-	w := CreateTestResponseRecorder()
+	w := connectors.CreateTestResponseRecorder()
 	c, _ := gin.CreateTestContext(w)
 
 	reqBody := `{"model": "test-model", "prompt": "hello", "stream": true}`
@@ -452,94 +417,4 @@ func TestRouter_HandlerFunc_ScheduleFailure(t *testing.T) {
 	// 5. Assertions
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	assert.Contains(t, w.Body.String(), "can't schedule to target pod")
-}
-func TestIsTokenUsageEnabled(t *testing.T) {
-	tests := []struct {
-		name         string
-		modelRequest ModelRequest
-		expected     bool
-	}{
-		{
-			name:         "no stream_options",
-			modelRequest: ModelRequest{"model": "test"},
-			expected:     false,
-		},
-		{
-			name: "stream_options exists but no include_usage",
-			modelRequest: ModelRequest{
-				"model":          "test",
-				"stream_options": map[string]interface{}{},
-			},
-			expected: false,
-		},
-		{
-			name: "include_usage is not a boolean",
-			modelRequest: ModelRequest{
-				"model": "test",
-				"stream_options": map[string]interface{}{
-					"include_usage": "true",
-				},
-			},
-			expected: false,
-		},
-		{
-			name: "include_usage is boolean false",
-			modelRequest: ModelRequest{
-				"model": "test",
-				"stream_options": map[string]interface{}{
-					"include_usage": false,
-				},
-			},
-			expected: false,
-		},
-		{
-			name: "include_usage is boolean true",
-			modelRequest: ModelRequest{
-				"model": "test",
-				"stream_options": map[string]interface{}{
-					"include_usage": true,
-				},
-			},
-			expected: true,
-		},
-		{
-			name: "stream_options is not a map",
-			modelRequest: ModelRequest{
-				"model":          "test",
-				"stream_options": "invalid",
-			},
-			expected: false,
-		},
-		{
-			name: "stream_options is not a map",
-			modelRequest: ModelRequest{
-				"model":          "test",
-				"stream_options": nil,
-			},
-			expected: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := isTokenUsageEnabled(tt.modelRequest)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
-type TestResponseRecorder struct {
-	*httptest.ResponseRecorder
-	closeChannel chan bool
-}
-
-func (r *TestResponseRecorder) CloseNotify() <-chan bool {
-	return r.closeChannel
-}
-
-func CreateTestResponseRecorder() *TestResponseRecorder {
-	return &TestResponseRecorder{
-		httptest.NewRecorder(),
-		make(chan bool, 1),
-	}
 }

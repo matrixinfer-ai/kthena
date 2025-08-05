@@ -43,6 +43,10 @@ type ModelServerSpec struct {
 	// Traffic Policy for accessing the model server instance.
 	// +optional
 	TrafficPolicy *TrafficPolicy `json:"trafficPolicy,omitempty"`
+
+	// KVConnector specifies the KV connector configuration for PD disaggregated routing
+	// +optional
+	KVConnector *KVConnectorSpec `json:"kvConnector,omitempty"`
 }
 
 // InferenceEngine defines the inference framework used by the modelServer to serve LLM requests.
@@ -95,6 +99,24 @@ type WorkloadPort struct {
 	// +kubebuilder:default="http"
 	// +kubebuilder:validation:Enum=http;https
 	Protocol string `json:"protocol,omitempty"`
+}
+
+type KVConnectorType string
+
+const (
+	ConnectorTypeHTTP     KVConnectorType = "http"
+	ConnectorTypeNIXL     KVConnectorType = "nixl"
+	ConnectorTypeLMCache  KVConnectorType = "lmcache"
+	ConnectorTypeMoonCake KVConnectorType = "mooncake"
+)
+
+// KVConnectorSpec defines KV connector configuration for PD disaggregated routing
+type KVConnectorSpec struct {
+	// Type specifies the connector type.
+	// If you donot know which type to use, please use "http" as default.
+	// +kubebuilder:validation:Enum=http;lmcache;nixl;mooncake
+	// +kubebuilder:default="http"
+	Type KVConnectorType `json:"type,omitempty"`
 }
 
 type TrafficPolicy struct {

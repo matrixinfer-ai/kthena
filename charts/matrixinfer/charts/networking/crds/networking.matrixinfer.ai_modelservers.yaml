@@ -45,6 +45,22 @@ spec:
                 - vLLM
                 - SGLang
                 type: string
+              kvConnector:
+                description: KVConnector specifies the KV connector configuration
+                  for PD disaggregated routing
+                properties:
+                  type:
+                    default: http
+                    description: |-
+                      Type specifies the connector type.
+                      If you donot know which type to use, please use "http" as default.
+                    enum:
+                    - http
+                    - lmcache
+                    - nixl
+                    - mooncake
+                    type: string
+                type: object
               model:
                 description: |-
                   The real model that the modelServers are running.
