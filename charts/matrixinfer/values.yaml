@@ -24,3 +24,8 @@ global:
     # - cert-manager must be installed in your cluster before enabling this option.
     #   See: https://cert-manager.io/docs/installation/
     enabled: true
+  webhook:
+    # caBundle is the base64-encoded CA bundle for webhook server certificates.
+    # This is required when cert-manager is disabled (global.certManager.enabled=false).
+    # You can generate it with: cat /path/to/your/ca.crt | base64 | tr -d '\n'
+    # caBundle: ""

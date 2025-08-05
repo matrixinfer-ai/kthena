@@ -40,3 +40,12 @@ webhook:
     requests:
       cpu: 100m
       memory: 128Mi
+
+global:
+  certManager:
+    enabled: true
+  webhook:
+    # caBundle is the base64-encoded CA bundle for webhook server certificates.
+    # This is required when cert-manager is disabled (global.certManager.enabled=false).
+    # You can generate it with: cat /path/to/your/ca.crt | base64 | tr -d '\n'
+    # caBundle: ""
