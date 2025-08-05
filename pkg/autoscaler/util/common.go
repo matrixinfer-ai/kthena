@@ -43,7 +43,7 @@ func IsPodFailed(pod *corev1.Pod) bool {
 func ExtractKeysToSet[K comparable, V any](m map[K]V) map[K]struct{} {
 	set := make(map[K]struct{})
 	for key := range m {
-		set[key] = struct{}{} // 使用空结构体节省内存
+		set[key] = struct{}{}
 	}
 	return set
 }

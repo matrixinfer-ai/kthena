@@ -82,7 +82,7 @@ func NewOptimizerMeta(binding *v1alpha1.AutoscalingPolicyBinding) *OptimizerMeta
 		if replicas <= 0 {
 			continue
 		}
-		if *binding.Spec.OptimizerConfiguration.CostExpansionRatePercent == 100 {
+		if binding.Spec.OptimizerConfiguration.CostExpansionRatePercent == 100 {
 			scalingOrder = append(scalingOrder, &ReplicaBlock{
 				index:    int32(index),
 				name:     param.Target.Name,
@@ -101,7 +101,7 @@ func NewOptimizerMeta(binding *v1alpha1.AutoscalingPolicyBinding) *OptimizerMeta
 				cost:     int64(param.Cost) * int64(currentLen),
 			})
 			replicas -= currentLen
-			packageLen = packageLen * float64(*binding.Spec.OptimizerConfiguration.CostExpansionRatePercent) / 100
+			packageLen = packageLen * float64(binding.Spec.OptimizerConfiguration.CostExpansionRatePercent) / 100
 		}
 	}
 	sort.Slice(scalingOrder, func(i, j int) bool {
