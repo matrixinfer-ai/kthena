@@ -18,7 +18,7 @@ networking:
     tls:
       enabled: false
       # The DNS name to use for the certificate.
-      dnsName: ""
+      dnsName: "your-domain.com"
       # The name of the secret to store the certificate and key.
       secretName: "infer-gateway-tls"
 
