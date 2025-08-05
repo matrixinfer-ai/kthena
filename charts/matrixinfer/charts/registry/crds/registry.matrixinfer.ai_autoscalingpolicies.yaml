@@ -55,7 +55,7 @@ spec:
                         minimum: 0
                         type: integer
                       percent:
-                        default: "100"
+                        default: 100
                         description: Percent is the maximum percentage of instances
                           to scaling.
                         format: int32
@@ -124,7 +124,7 @@ spec:
                             minimum: 0
                             type: integer
                           percent:
-                            default: "100"
+                            default: 100
                             description: Percent is the maximum percentage of instances
                               to scaling.
                             format: int32

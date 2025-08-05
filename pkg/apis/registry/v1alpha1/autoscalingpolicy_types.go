@@ -71,7 +71,7 @@ type AutoscalingPolicyStablePolicy struct {
 	// Percent is the maximum percentage of instances to scaling.
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=1000
-	// +kubebuilder:default="100"
+	// +kubebuilder:default=100
 	Percent *int32 `json:"percent,omitempty"`
 	// Period is the duration over which scaling is evaluated.
 	// +kubebuilder:default="15s"
