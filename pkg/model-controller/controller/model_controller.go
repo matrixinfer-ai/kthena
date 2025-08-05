@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"k8s.io/apimachinery/pkg/labels"
 	listerv1 "k8s.io/client-go/listers/core/v1"
 	"net/http"
@@ -37,6 +38,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
@@ -71,6 +73,7 @@ type ModelController struct {
 	modelInfersInformer cache.Controller
 	podsLister          listerv1.PodLister
 	podsInformer        cache.SharedIndexInformer
+	kubeInformerFactory informers.SharedInformerFactory
 	workQueue           workqueue.TypedRateLimitingInterface[any]
 }
 
@@ -82,6 +85,9 @@ func (mc *ModelController) Run(ctx context.Context, workers int) {
 	go mc.modelsInformer.RunWithContext(ctx)
 	go mc.modelInfersInformer.RunWithContext(ctx)
 	go mc.podsInformer.RunWithContext(ctx)
+
+	// start Kubernetes informer factory
+	go mc.kubeInformerFactory.Start(ctx.Done())
 
 	cache.WaitForCacheSync(ctx.Done(),
 		mc.modelsInformer.HasSynced,
@@ -151,18 +157,17 @@ func (mc *ModelController) updateModel(old any, new any) {
 		return
 	}
 
-	// Check for LoRA adapter updates before normal reconciliation
-	if mc.hasOnlyLoraAdaptersChanged(oldModel, newModel) {
-		// Handle LoRA adapter update without triggering full reconciliation
-		ctx := context.Background()
-		if err := mc.handleLoraAdapterUpdate(ctx, oldModel, newModel); err != nil {
-			klog.Errorf("Failed to handle LoRA adapter update: %v", err)
-		}
-		return
-	}
-
 	// When observed generation not equal to generation, reconcile model
 	if oldModel.Status.ObservedGeneration != newModel.Generation {
+		// Check for LoRA adapter updates before normal reconciliation
+		if mc.hasOnlyLoraAdaptersChanged(oldModel, newModel) {
+			// Handle LoRA adapter update without triggering full reconciliation
+			ctx := context.Background()
+			if err := mc.handleLoraAdapterUpdate(ctx, oldModel, newModel); err != nil {
+				klog.Errorf("Failed to handle LoRA adapter update: %v", err)
+			}
+			return
+		}
 		mc.enqueueModel(newModel)
 	}
 }
@@ -391,20 +396,13 @@ func (mc *ModelController) getModelInferPodIP(modelInfer *workload.ModelInfer) (
 // loadLoraAdapter calls the load_lora_adapter API
 func (mc *ModelController) loadLoraAdapter(ctx context.Context, runtimeURL string, adapter registryv1alpha1.LoraAdapter, backend *registryv1alpha1.ModelBackend) error {
 	url := fmt.Sprintf("%s/v1/load_lora_adapter", runtimeURL)
+	outputDir := utils.GetCachePath(backend.CacheURI) + utils.GetMountPath(adapter.ArtifactURL)
 
-	// Prepare request body
 	requestBody := map[string]interface{}{
 		"lora_name":      adapter.Name,
 		"source":         adapter.ArtifactURL,
-		"output_dir":     fmt.Sprintf("/tmp/lora_adapters/%s", adapter.Name),
+		"output_dir":     outputDir,
 		"async_download": false, // Use synchronous download for better error handling
-	}
-
-	// Add download configuration if available
-	if backend.EnvFrom != nil {
-		config := make(map[string]interface{})
-		// Add any necessary configuration from backend.EnvFrom
-		requestBody["config"] = config
 	}
 
 	jsonBody, err := json.Marshal(requestBody)
@@ -434,7 +432,16 @@ func (mc *ModelController) loadLoraAdapter(ctx context.Context, runtimeURL strin
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		return fmt.Errorf("load LoRA adapter failed with status code: %d", resp.StatusCode)
+		// Read response body to get detailed error message
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			klog.Errorf("Failed to read response body: %v", err)
+			return fmt.Errorf("load LoRA adapter failed with status code: %d", resp.StatusCode)
+		}
+
+		errorDetail := string(bodyBytes)
+		klog.Errorf("Load LoRA adapter failed - Status: %d, Response: %s", resp.StatusCode, errorDetail)
+		return fmt.Errorf("load LoRA adapter failed with status code: %d, error: %s", resp.StatusCode, errorDetail)
 	}
 
 	klog.Infof("Successfully loaded LoRA adapter %s", adapter.Name)
@@ -446,7 +453,7 @@ func (mc *ModelController) unloadLoraAdapter(ctx context.Context, runtimeURL str
 	url := fmt.Sprintf("%s/v1/unload_lora_adapter", runtimeURL)
 
 	requestBody := map[string]interface{}{
-		"adapter_name": adapterName,
+		"lora_name": adapterName,
 	}
 
 	jsonBody, err := json.Marshal(requestBody)
@@ -474,7 +481,16 @@ func (mc *ModelController) unloadLoraAdapter(ctx context.Context, runtimeURL str
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unload LoRA adapter failed with status code: %d", resp.StatusCode)
+		// Read response body to get detailed error message
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			klog.Errorf("Failed to read response body: %v", err)
+			return fmt.Errorf("unload LoRA adapter failed with status code: %d", resp.StatusCode)
+		}
+
+		errorDetail := string(bodyBytes)
+		klog.Errorf("Unload LoRA adapter failed - Status: %d, Response: %s", resp.StatusCode, errorDetail)
+		return fmt.Errorf("unload LoRA adapter failed with status code: %d, error: %s", resp.StatusCode, errorDetail)
 	}
 
 	klog.Infof("Successfully unloaded LoRA adapter %s", adapterName)
@@ -569,6 +585,12 @@ func NewModelController(kubeClient kubernetes.Interface, client clientset.Interf
 	informerFactory := informersv1alpha1.NewSharedInformerFactory(client, 0)
 	modelInformer := informerFactory.Registry().V1alpha1().Models()
 	modelInferInformer := informerFactory.Workload().V1alpha1().ModelInfers()
+
+	// Initialize Kubernetes informer factory for pods
+	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, 0)
+	podsInformer := kubeInformerFactory.Core().V1().Pods().Informer()
+	podsLister := kubeInformerFactory.Core().V1().Pods().Lister()
+
 	mc := &ModelController{
 		kubeClient:          kubeClient,
 		client:              client,
@@ -576,6 +598,9 @@ func NewModelController(kubeClient kubernetes.Interface, client clientset.Interf
 		modelsInformer:      modelInformer.Informer(),
 		modelInfersLister:   modelInferInformer.Lister(),
 		modelInfersInformer: modelInferInformer.Informer(),
+		podsLister:          podsLister,
+		podsInformer:        podsInformer,
+		kubeInformerFactory: kubeInformerFactory,
 		workQueue: workqueue.NewTypedRateLimitingQueueWithConfig(workqueue.DefaultTypedControllerRateLimiter[any](),
 			workqueue.TypedRateLimitingQueueConfig[any]{}),
 	}

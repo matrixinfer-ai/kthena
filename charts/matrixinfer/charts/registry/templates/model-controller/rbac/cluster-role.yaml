@@ -71,6 +71,14 @@ rules:
       - patch
       - delete
   - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
       - networking.matrixinfer.ai
     resources:
       - modelroutes

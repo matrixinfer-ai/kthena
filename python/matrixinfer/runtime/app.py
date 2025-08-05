@@ -200,9 +200,6 @@ async def load_lora_adapter(request: Request, background_tasks: BackgroundTasks)
         max_workers = body.get("max_workers", 8)
         async_download = body.get("async_download", False)
 
-        # Determine final adapter path
-        final_lora_path = lora_path
-
         def download_and_load_task():
             try:
                 logger.info(f"Downloading LoRA adapter from {source} to {output_dir}")
@@ -212,13 +209,16 @@ async def load_lora_adapter(request: Request, background_tasks: BackgroundTasks)
                 # Load the adapter
                 load_body = {
                     "lora_name": lora_name,
-                    "lora_path": final_lora_path
+                    "lora_path": lora_path
                 }
 
                 # Make synchronous request to engine
                 with httpx.Client(timeout=httpx.Timeout(TIMEOUT)) as sync_client:
                     response = sync_client.post(f"{state.engine_base_url}/v1/load_lora_adapter", json=load_body)
-                    response.raise_for_status()
+                    if response.status_code >= 400:
+                        error_detail = f"HTTP {response.status_code}: {response.text}"
+                        logger.error(f"Engine request failed: {error_detail}")
+                        raise Exception(error_detail)
                     logger.info(f"LoRA adapter loaded successfully: {lora_name}")
                     return response.json()
 
@@ -248,11 +248,14 @@ async def load_lora_adapter(request: Request, background_tasks: BackgroundTasks)
             # Load the adapter
             load_body = {
                 "lora_name": lora_name,
-                "lora_path": final_lora_path
+                "lora_path": lora_path
             }
 
             response = await state.client.post(f"{state.engine_base_url}/v1/load_lora_adapter", json=load_body)
-            response.raise_for_status()
+            if response.status_code >= 400:
+                error_detail = f"HTTP {response.status_code}: {response.text}"
+                logger.error(f"Engine request failed: {error_detail}")
+                raise HTTPException(status_code=response.status_code, detail=error_detail)
             return JSONResponse(content=response.text, status_code=response.status_code)
 
     except HTTPException:
@@ -267,8 +270,13 @@ async def unload_lora_adapter(request: Request) -> JSONResponse:
         state = request.app.state
         body = await request.json()
         response = await state.client.post(f"{state.engine_base_url}/v1/unload_lora_adapter", json=body)
-        response.raise_for_status()
+        if response.status_code >= 400:
+            error_detail = f"HTTP {response.status_code}: {response.text}"
+            logger.error(f"Engine request failed: {error_detail}")
+            raise HTTPException(status_code=response.status_code, detail=error_detail)
         return JSONResponse(content=response.text, status_code=response.status_code)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error unloading LoRA adapter: {e}")
         raise HTTPException(status_code=500, detail=str(e))
