@@ -119,8 +119,29 @@ func (s *ModelPrefixStore) onPodDeleted(data datastore.EventData) {
 		}
 		for model, hashSlice := range hashByModel {
 			s.onHashEvicted(model, hashSlice, data.Pod)
+			// check whether we need to delete entries
+			s.entriesMu.RLock()
+			modelCache, exists := s.entries[model]
+			s.entriesMu.RUnlock()
+			if exists && isModelHashShardEmpty(modelCache) {
+				s.entriesMu.Lock()
+				delete(s.entries, model)
+				s.entriesMu.Unlock()
+			}
 		}
 	}
+}
+
+func isModelHashShardEmpty(model *modelHashes) bool {
+	for _, shard := range model.shards {
+		shard.mu.RLock()
+		if len(shard.hashes) != 0 {
+			shard.mu.RUnlock()
+			return false
+		}
+		shard.mu.RUnlock()
+	}
+	return true
 }
 
 // FindTopMatches finds the topK pods with the longest matching prefixes for given model and hashes
