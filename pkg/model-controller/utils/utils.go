@@ -23,13 +23,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"k8s.io/utils/ptr"
 	"os"
 	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"k8s.io/utils/ptr"
 
 	"k8s.io/klog/v2"
 	networking "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
