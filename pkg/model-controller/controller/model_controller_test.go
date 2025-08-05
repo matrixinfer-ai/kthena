@@ -18,6 +18,10 @@ package controller
 
 import (
 	"context"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,9 +29,7 @@ import (
 	matrixinferfake "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/fake"
 	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
-	"os"
 	"sigs.k8s.io/yaml"
-	"testing"
 )
 
 // TestReconcile first creates a model and then checks if the ModelInfer, ModelServer and ModelRoute are created as expected.
@@ -42,6 +44,7 @@ func TestReconcile(t *testing.T) {
 	assert.NotNil(t, controller)
 	// Start controller
 	go controller.Run(ctx, 1)
+	time.Sleep(100 * time.Millisecond)
 	// Load test data
 	model := loadYaml[registry.Model](t, "../utils/testdata/input/model.yaml")
 
@@ -49,7 +52,7 @@ func TestReconcile(t *testing.T) {
 	createdModel, err := matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Create(ctx, model, metav1.CreateOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, createdModel)
-	waitForReconcile(ctx, controller)
+	time.Sleep(100 * time.Millisecond)
 	// model infer should be created
 	modelInfers, err := matrixinferClient.WorkloadV1alpha1().ModelInfers(model.Namespace).List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
@@ -72,27 +75,34 @@ func TestReconcile(t *testing.T) {
 		metav1.ConditionTrue, "AllGroupsReady", "AllGroupsReady"))
 	modelInfer, err = matrixinferClient.WorkloadV1alpha1().ModelInfers(model.Namespace).UpdateStatus(ctx, modelInfer, metav1.UpdateOptions{})
 	assert.NoError(t, err)
+	// model infer is available, model condition will be updated, so mock generation to 1
+	createdModel.Generation += 1
+	_, err = matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Update(ctx, createdModel, metav1.UpdateOptions{})
+	assert.NoError(t, err)
 	assert.Equal(t, string(workload.ModelInferAvailable), modelInfer.Status.Conditions[0].Type, "ModelInfer condition type should be Available")
-	waitForReconcile(ctx, controller)
+	time.Sleep(100 * time.Millisecond)
 	// model condition should be active
 	model, err = matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Get(ctx, model.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, true, meta.IsStatusConditionPresentAndEqual(model.Status.Conditions,
 		string(registry.ModelStatusConditionTypeActive), metav1.ConditionTrue))
-	// todo Case2: update model, and then model infer, model server, model route should be updated.
+	assert.Equal(t, int64(1), model.Status.ObservedGeneration)
+	assert.Equal(t, model.Generation, model.Status.ObservedGeneration)
 
-	// delete model and check if ModelInfer and ModelServer are deleted
+	// Case2: update model
+	weight := uint32(50)
+	model.Spec.Backends[0].RouteWeight = &weight
+	model.Generation += 1
+	_, err = matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Update(ctx, model, metav1.UpdateOptions{})
+	assert.NoError(t, err)
+	time.Sleep(100 * time.Millisecond)
+	modelRoutes, err = matrixinferClient.NetworkingV1alpha1().ModelRoutes(model.Namespace).List(ctx, metav1.ListOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, &weight, modelRoutes.Items[0].Spec.Rules[0].TargetModels[0].Weight)
+
+	// Case3: delete model
 	err = matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Delete(ctx, model.Name, metav1.DeleteOptions{})
 	assert.NoError(t, err)
-}
-
-// waitForReconcile waits for the controller to process the next work item.
-func waitForReconcile(ctx context.Context, controller *ModelController) {
-	stopCh := make(chan bool, 1)
-	select {
-	case <-ctx.Done():
-	case stopCh <- controller.processNextWorkItem(ctx):
-	}
 }
 
 // loadYaml transfer yaml data into a struct of type T.
