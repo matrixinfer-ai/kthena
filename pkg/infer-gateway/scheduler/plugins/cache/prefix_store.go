@@ -236,7 +236,7 @@ func (s *ModelPrefixStore) Add(model string, hashes []uint64, pod *datastore.Pod
 		}
 		shard.hashes[hash].Insert(nsName)
 		shard.mu.Unlock()
-		podLRU.Add(hashModelKey{hash: hashes[i], model: model}, struct{}{})
+		podLRU.Add(hashModelKey{hash: hash, model: model}, struct{}{})
 	}
 }
 

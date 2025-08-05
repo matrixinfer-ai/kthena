@@ -272,6 +272,7 @@ func TestModelPrefixStore(t *testing.T) {
 		matches2After := store.FindTopMatches("deletion-model-2", []uint64{300, 400}, []*datastore.PodInfo{pod})
 		assert.Equal(t, 0, len(matches1After))
 		assert.Equal(t, 0, len(matches2After))
+		assert.Equal(t, 0, len(store.entries))
 	})
 }
 
