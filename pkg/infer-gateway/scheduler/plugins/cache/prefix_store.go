@@ -215,9 +215,6 @@ func (s *ModelPrefixStore) Add(model string, hashes []uint64, pod *datastore.Pod
 		}
 		shard.hashes[hash].Insert(nsName)
 		shard.mu.Unlock()
-
-		// Here we protect podLRU and modelCache within a same lock, becasue we should make sure modelCache
-		// must be deleted when pod delete or LRU evict
 		podLRU.Add(hashModelKey{hash: hashes[i], model: model}, struct{}{})
 	}
 }
