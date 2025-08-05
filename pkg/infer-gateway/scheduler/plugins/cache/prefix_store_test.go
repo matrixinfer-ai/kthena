@@ -99,6 +99,33 @@ func TestModelPrefixStore(t *testing.T) {
 			expectedPods: []string{"ns1/pod1"},
 			expectedLens: []int{2},
 		},
+		{
+			name:      "LRU eviction with hashModelKey works correctly",
+			maxHashes: 3, // Small capacity to force eviction
+			topK:      5,
+			model:     "eviction-model",
+			pods: []*datastore.PodInfo{
+				{Pod: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "eviction-pod", Namespace: "test"}}},
+			},
+			addHashes:    [][]uint64{{1, 2, 3, 4, 5}}, // Add more hashes than capacity
+			queryHashes:  []uint64{1, 2, 3, 4, 5},
+			expectedPods: []string{"test/eviction-pod"},
+			expectedLens: []int{3}, // Only 3 hashes should remain due to LRU eviction
+		},
+		{
+			name:      "Model isolation with same hash values",
+			maxHashes: 10,
+			topK:      5,
+			model:     "isolated-model-1",
+			pods: []*datastore.PodInfo{
+				{Pod: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod1", Namespace: "ns1"}}},
+				{Pod: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod2", Namespace: "ns1"}}},
+			},
+			addHashes:    [][]uint64{{999, 888, 777}}, // Only add to first pod
+			queryHashes:  []uint64{999, 888, 777},
+			expectedPods: []string{"ns1/pod1"},
+			expectedLens: []int{3},
+		},
 	}
 
 	for _, tt := range tests {
@@ -136,6 +163,116 @@ func TestModelPrefixStore(t *testing.T) {
 			}
 		})
 	}
+
+	// Additional test cases that require special handling
+	t.Run("Model isolation verification", func(t *testing.T) {
+		mockStore := datastore.New()
+		store := NewModelPrefixStore(mockStore, 10, 5)
+
+		pod1 := &datastore.PodInfo{
+			Pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{Name: "pod1", Namespace: "ns1"},
+			},
+		}
+		pod2 := &datastore.PodInfo{
+			Pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{Name: "pod2", Namespace: "ns1"},
+			},
+		}
+
+		// Add same hash for different models
+		store.Add("model-a", []uint64{100, 200}, pod1)
+		store.Add("model-b", []uint64{100, 200}, pod2)
+
+		// Query model-a should only return pod1
+		matches1 := store.FindTopMatches("model-a", []uint64{100, 200}, []*datastore.PodInfo{pod1, pod2})
+		assert.Equal(t, 1, len(matches1))
+		assert.Equal(t, "ns1/pod1", matches1[0].NamespacedName.String())
+		assert.Equal(t, 2, matches1[0].MatchLen)
+
+		// Query model-b should only return pod2
+		matches2 := store.FindTopMatches("model-b", []uint64{100, 200}, []*datastore.PodInfo{pod1, pod2})
+		assert.Equal(t, 1, len(matches2))
+		assert.Equal(t, "ns1/pod2", matches2[0].NamespacedName.String())
+		assert.Equal(t, 2, matches2[0].MatchLen)
+
+		// Non-existent model should return no matches
+		matches3 := store.FindTopMatches("non-existent-model", []uint64{100, 200}, []*datastore.PodInfo{pod1, pod2})
+		assert.Equal(t, 0, len(matches3))
+	})
+
+	t.Run("Eviction callback uses correct hashModelKey", func(t *testing.T) {
+		mockStore := datastore.New()
+		store := NewModelPrefixStore(mockStore, 3, 5) // Capacity of 3
+
+		pod := &datastore.PodInfo{
+			Pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{Name: "callback-pod", Namespace: "test"},
+			},
+		}
+
+		// Add 2 hashes for model-1 (LRU: [m1:1, m1:2])
+		store.Add("callback-model-1", []uint64{1, 2}, pod)
+
+		// Add 1 hash for model-2 (LRU: [m1:1, m1:2, m2:3])
+		store.Add("callback-model-2", []uint64{3}, pod)
+
+		// Add 2 more hashes for model-1, should trigger eviction (LRU: [m2:3, m1:5, m1:6])
+		store.Add("callback-model-1", []uint64{5, 6}, pod)
+
+		// Wait for eviction callbacks
+		time.Sleep(100 * time.Millisecond)
+
+		// Verify eviction worked correctly
+		matches1Old := store.FindTopMatches("callback-model-1", []uint64{1, 2}, []*datastore.PodInfo{pod})
+		matches1New := store.FindTopMatches("callback-model-1", []uint64{5, 6}, []*datastore.PodInfo{pod})
+		matches2 := store.FindTopMatches("callback-model-2", []uint64{3}, []*datastore.PodInfo{pod})
+
+		// Old hashes for model-1 should be evicted
+		assert.Equal(t, 0, len(matches1Old), "Old model-1 hashes should be evicted")
+		// New hashes for model-1 should remain
+		assert.Equal(t, 1, len(matches1New), "New model-1 hashes should remain")
+		assert.Equal(t, 2, matches1New[0].MatchLen, "Should match both new hashes")
+		// Model-2 hash should remain (it wasn't evicted)
+		assert.Equal(t, 1, len(matches2), "Model-2 hash should remain")
+	})
+
+	t.Run("Pod deletion cleans up all model entries", func(t *testing.T) {
+		mockStore := datastore.New()
+		store := NewModelPrefixStore(mockStore, 10, 5)
+
+		podName := types.NamespacedName{Name: "deletion-pod", Namespace: "test"}
+		pod := &datastore.PodInfo{
+			Pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{Name: podName.Name, Namespace: podName.Namespace},
+			},
+		}
+
+		// Add hashes for multiple models
+		store.Add("deletion-model-1", []uint64{100, 200}, pod)
+		store.Add("deletion-model-2", []uint64{300, 400}, pod)
+
+		// Verify data exists
+		matches1Before := store.FindTopMatches("deletion-model-1", []uint64{100, 200}, []*datastore.PodInfo{pod})
+		matches2Before := store.FindTopMatches("deletion-model-2", []uint64{300, 400}, []*datastore.PodInfo{pod})
+		assert.Equal(t, 1, len(matches1Before))
+		assert.Equal(t, 1, len(matches2Before))
+
+		// Simulate pod deletion
+		store.onPodDeleted(datastore.EventData{
+			EventType: datastore.EventDelete,
+			Pod:       podName,
+		})
+
+		// Wait for cleanup
+		time.Sleep(100 * time.Millisecond)
+
+		// Verify all data for this pod is cleaned up from both models
+		matches1After := store.FindTopMatches("deletion-model-1", []uint64{100, 200}, []*datastore.PodInfo{pod})
+		matches2After := store.FindTopMatches("deletion-model-2", []uint64{300, 400}, []*datastore.PodInfo{pod})
+		assert.Equal(t, 0, len(matches1After))
+		assert.Equal(t, 0, len(matches2After))
+	})
 }
 
 func TestModelPrefixStoreConcurrency(t *testing.T) {
@@ -343,7 +480,7 @@ func TestModelPrefixStoreConcurrency(t *testing.T) {
 
 				// Generate many hashes to trigger evictions
 				hashes := make([]uint64, 10)
-				for j := 0; j < 10; j++ {
+				for j := range 10 {
 					hashes[j] = uint64(opIndex*10 + j + 1)
 				}
 
@@ -367,9 +504,12 @@ func TestModelPrefixStoreConcurrency(t *testing.T) {
 		time.Sleep(100 * time.Millisecond)
 
 		// Verify cache is still functional
-		queryHashes := []uint64{990, 991, 992} // Recent hashes
-		matches := store.FindTopMatches("eviction-model", queryHashes, pods)
-		assert.Equal(t, 0, len(matches))
+		for i := range numPods {
+			store.podHashesMu.RLock()
+			cacheLen := store.podHashes[types.NamespacedName{Namespace: pods[i].Pod.Namespace, Name: pods[i].Pod.Name}].Len()
+			assert.Equal(t, 5, cacheLen)
+			store.podHashesMu.RUnlock()
+		}
 	})
 
 	t.Run("High Load Stress Test", func(t *testing.T) {
