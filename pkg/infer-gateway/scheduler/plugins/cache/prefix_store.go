@@ -26,6 +26,12 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 )
 
+// hashModelKey represents a composite key combining hash and model name
+type hashModelKey struct {
+	hash  uint64
+	model string
+}
+
 // modelHashes holds the hashes for a specific model and a mutex to protect access.
 type modelHashes struct {
 	mu     sync.RWMutex
@@ -48,9 +54,9 @@ type ModelPrefixStore struct {
 
 	// Mutex to protect podHashes access
 	podHashesMu  sync.RWMutex
-	podHashes    map[types.NamespacedName]Cache[uint64, string] // Map of pod to its hash LRU
-	topK         int                                            // Each match returns at most topK pods.
-	hashCapacity int                                            // Capacity for each pod's hash LRU
+	podHashes    map[types.NamespacedName]Cache[hashModelKey, struct{}] // Map of pod to its hash LRU
+	topK         int                                                    // Each match returns at most topK pods.
+	hashCapacity int                                                    // Capacity for each pod's hash LRU
 }
 
 // MatchResult represents a matching pod and its match length
@@ -63,7 +69,7 @@ type MatchResult struct {
 func NewModelPrefixStore(store datastore.Store, hashCapacity, topK int) *ModelPrefixStore {
 	s := &ModelPrefixStore{
 		entries:      make(map[string]*modelHashes),
-		podHashes:    make(map[types.NamespacedName]Cache[uint64, string]),
+		podHashes:    make(map[types.NamespacedName]Cache[hashModelKey, struct{}]),
 		topK:         topK,
 		hashCapacity: hashCapacity,
 	}
@@ -154,15 +160,12 @@ func (s *ModelPrefixStore) Add(model string, hashes []uint64, pod *datastore.Pod
 	s.podHashesMu.Lock()
 	podLRU, exists := s.podHashes[nsName]
 	if !exists {
-		podLRU, _ = NewLRUCache[uint64, string](s.hashCapacity, func(key lru.Key, value interface{}) {
+		podLRU, _ = NewLRUCache[hashModelKey, struct{}](s.hashCapacity, func(key lru.Key, value interface{}) {
 			// The cb is protected by lru cache's lock, so we should start a new goroutine
 			// to avoid blocking the Add below.
 			go func() {
 				// onEvict callback
-				hash := key.(uint64)
-				modelName := value.(string)
-
-				s.onHashEvicted(hash, modelName, nsName)
+				s.onHashEvicted(key.(hashModelKey), nsName)
 			}()
 		})
 		s.podHashes[nsName] = podLRU
@@ -189,15 +192,15 @@ func (s *ModelPrefixStore) Add(model string, hashes []uint64, pod *datastore.Pod
 			modelCache.hashes[hash] = sets.New[types.NamespacedName]()
 		}
 		modelCache.hashes[hash].Insert(nsName)
-		podLRU.Add(hash, model)
+		podLRU.Add(hashModelKey{hash: hash, model: model}, struct{}{})
 	}
 	modelCache.mu.Unlock()
 }
 
 // onHashEvicted handles the eviction of a hash from a pod's LRU cache
-func (s *ModelPrefixStore) onHashEvicted(hash uint64, modelName string, nsName types.NamespacedName) {
+func (s *ModelPrefixStore) onHashEvicted(key hashModelKey, nsName types.NamespacedName) {
 	s.entriesMu.RLock()
-	modelCache, exists := s.entries[modelName]
+	modelCache, exists := s.entries[key.model]
 	s.entriesMu.RUnlock()
 	if !exists {
 		return
@@ -205,14 +208,14 @@ func (s *ModelPrefixStore) onHashEvicted(hash uint64, modelName string, nsName t
 
 	modelCache.mu.Lock()
 	defer modelCache.mu.Unlock()
-	if podSet, exists := modelCache.hashes[hash]; exists {
+	if podSet, exists := modelCache.hashes[key.hash]; exists {
 		podSet.Delete(nsName)
 		if podSet.Len() == 0 {
-			delete(modelCache.hashes, hash)
+			delete(modelCache.hashes, key.hash)
 			if len(modelCache.hashes) == 0 {
 				// If no hashes left, we can remove the modelCache from entries
 				s.entriesMu.Lock()
-				delete(s.entries, modelName)
+				delete(s.entries, key.model)
 				s.entriesMu.Unlock()
 			}
 		}
