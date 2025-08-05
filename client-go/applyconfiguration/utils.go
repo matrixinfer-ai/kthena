@@ -88,8 +88,8 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &applyconfigurationregistryv1alpha1.AutoscalingPolicyStablePolicyApplyConfiguration{}
 	case registryv1alpha1.SchemeGroupVersion.WithKind("LoraAdapter"):
 		return &applyconfigurationregistryv1alpha1.LoraAdapterApplyConfiguration{}
-	case registryv1alpha1.SchemeGroupVersion.WithKind("MetricFrom"):
-		return &applyconfigurationregistryv1alpha1.MetricFromApplyConfiguration{}
+	case registryv1alpha1.SchemeGroupVersion.WithKind("MetricEndpoint"):
+		return &applyconfigurationregistryv1alpha1.MetricEndpointApplyConfiguration{}
 	case registryv1alpha1.SchemeGroupVersion.WithKind("Model"):
 		return &applyconfigurationregistryv1alpha1.ModelApplyConfiguration{}
 	case registryv1alpha1.SchemeGroupVersion.WithKind("ModelBackend"):

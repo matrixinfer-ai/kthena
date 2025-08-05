@@ -132,7 +132,7 @@ func (collector *MetricCollector) fetchMetricsFromPods(ctx context.Context, pods
 			ip := pod.Status.PodIP
 			podCtx, cancel := context.WithTimeout(ctx, util.AutoscaleCtxTimeoutSeconds*time.Second)
 			defer cancel()
-			url := fmt.Sprintf("http://%s:%d%s", ip, collector.Target.MetricFrom.Port, collector.Target.MetricFrom.Uri)
+			url := fmt.Sprintf("http://%s:%d%s", ip, collector.Target.MetricEndpoint.Port, collector.Target.MetricEndpoint.Uri)
 
 			req, _ := http.NewRequestWithContext(podCtx, http.MethodGet, url, nil)
 			resp, err := http.DefaultClient.Do(req)

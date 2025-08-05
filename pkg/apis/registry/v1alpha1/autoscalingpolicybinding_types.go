@@ -28,8 +28,18 @@ type AutoscalingPolicyBindingSpec struct {
 	// +optional
 	PolicyRef *corev1.LocalObjectReference `json:"policyRef,omitempty"`
 
+	// It dynamically schedules replicas across different Model Infer groups based on overall computing power requirements - referred to as "optimize" behavior in the code.
+	//
+	// For example:
+	//
+	// When dealing with two types of Model Infer instances corresponding to heterogeneous hardware resources with different computing capabilities (e.g., H100/A100), the "optimize" behavior aims to:
+	//
+	// Dynamically adjust the deployment ratio of H100/A100 instances based on real-time computing power demands
+	// Use integer programming and similar methods to precisely meet computing requirements
+	// Maximize hardware utilization efficiency
 	OptimizerConfiguration *OptimizerConfiguration `json:"optimizerConfiguration,omitempty"`
 
+	// Adjust the number of related instances based on specified monitoring metrics and their target values.
 	ScalingConfiguration *ScalingConfiguration `json:"scalingConfiguration,omitempty"`
 }
 
@@ -39,7 +49,7 @@ const (
 	ModelInferenceTargetType AutoscalingTargetType = "ModelInfer"
 )
 
-type MetricFrom struct {
+type MetricEndpoint struct {
 	// The metric uri, e.g. /metrics
 	// +optional
 	// +kubebuilder:default="/metrics"
@@ -67,16 +77,22 @@ type OptimizerConfiguration struct {
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=100
 	// +optional
-	CostExpansionRatePercent int32 `json:"costExpansionRatePercent,omitempty"`
+	CostExpansionRatePercent *int32 `json:"costExpansionRatePercent,omitempty"`
 }
 
 type Target struct {
-	Name      string                       `json:"name"`
-	Kind      AutoscalingTargetType        `json:"kind"`
+	// Target name
+	Name string `json:"name"`
+	// Target kind, only support "Model Infer" currently.
+	Kind AutoscalingTargetType `json:"kind"`
+	// TargetRef references the target object.
+	// +optional
 	TargetRef *corev1.LocalObjectReference `json:"targetRef,omitempty"`
+	// AdditionalMatchLabels is the additional labels to match the target object.
 	// +optional
 	AdditionalMatchLabels map[string]string `json:"additionalMatchLabels,omitempty"`
-	MetricFrom            MetricFrom        `json:"metricFrom,omitempty"`
+	// MetricEndpoint is the metric source.
+	MetricEndpoint MetricEndpoint `json:"metricEndpoint,omitempty"`
 }
 
 type OptimizerParam struct {

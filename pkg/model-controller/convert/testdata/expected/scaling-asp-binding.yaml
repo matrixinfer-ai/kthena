@@ -5,7 +5,7 @@ metadata:
     registry.matrixinfer.ai/backend-name: backend1
     registry.matrixinfer.ai/managed-by: registry.matrixinfer.ai
     registry.matrixinfer.ai/model-name: test-model
-    registry.matrixinfer.ai/revision: 7b695c446
+    registry.matrixinfer.ai/revision: 67d4c46c88
   name: test-model-backend1
   namespace: default
   ownerReferences:

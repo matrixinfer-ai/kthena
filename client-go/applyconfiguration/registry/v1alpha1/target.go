@@ -30,7 +30,7 @@ type TargetApplyConfiguration struct {
 	Kind                  *registryv1alpha1.AutoscalingTargetType `json:"kind,omitempty"`
 	TargetRef             *v1.LocalObjectReference                `json:"targetRef,omitempty"`
 	AdditionalMatchLabels map[string]string                       `json:"additionalMatchLabels,omitempty"`
-	MetricFrom            *MetricFromApplyConfiguration           `json:"metricFrom,omitempty"`
+	MetricEndpoint        *MetricEndpointApplyConfiguration       `json:"metricEndpoint,omitempty"`
 }
 
 // TargetApplyConfiguration constructs a declarative configuration of the Target type for use with
@@ -77,10 +77,10 @@ func (b *TargetApplyConfiguration) WithAdditionalMatchLabels(entries map[string]
 	return b
 }
 
-// WithMetricFrom sets the MetricFrom field in the declarative configuration to the given value
+// WithMetricEndpoint sets the MetricEndpoint field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the MetricFrom field is set to the value of the last call.
-func (b *TargetApplyConfiguration) WithMetricFrom(value *MetricFromApplyConfiguration) *TargetApplyConfiguration {
-	b.MetricFrom = value
+// If called multiple times, the MetricEndpoint field is set to the value of the last call.
+func (b *TargetApplyConfiguration) WithMetricEndpoint(value *MetricEndpointApplyConfiguration) *TargetApplyConfiguration {
+	b.MetricEndpoint = value
 	return b
 }

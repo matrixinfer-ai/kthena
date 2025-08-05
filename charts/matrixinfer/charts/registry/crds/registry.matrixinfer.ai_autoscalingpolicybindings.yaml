@@ -41,6 +41,16 @@ spec:
               AutoscalingPolicyBinding.
             properties:
               optimizerConfiguration:
+                description: |-
+                  It dynamically schedules replicas across different Model Infer groups based on overall computing power requirements - referred to as "optimize" behavior in the code.
+
+                  For example:
+
+                  When dealing with two types of Model Infer instances corresponding to heterogeneous hardware resources with different computing capabilities (e.g., H100/A100), the "optimize" behavior aims to:
+
+                  Dynamically adjust the deployment ratio of H100/A100 instances based on real-time computing power demands
+                  Use integer programming and similar methods to precisely meet computing requirements
+                  Maximize hardware utilization efficiency
                 properties:
                   costExpansionRatePercent:
                     description: CostExpansionRatePercent is the percentage rate at
@@ -77,10 +87,15 @@ spec:
                             additionalMatchLabels:
                               additionalProperties:
                                 type: string
+                              description: AdditionalMatchLabels is the additional
+                                labels to match the target object.
                               type: object
                             kind:
+                              description: Target kind, only support "Model Infer"
+                                currently.
                               type: string
-                            metricFrom:
+                            metricEndpoint:
+                              description: MetricEndpoint is the metric source.
                               properties:
                                 port:
                                   default: 8100
@@ -92,11 +107,10 @@ spec:
                                   type: string
                               type: object
                             name:
+                              description: Target name
                               type: string
                             targetRef:
-                              description: |-
-                                LocalObjectReference contains enough information to let you locate the
-                                referenced object inside the same namespace.
+                              description: TargetRef references the target object.
                               properties:
                                 name:
                                   default: ""
@@ -135,6 +149,8 @@ spec:
                 type: object
                 x-kubernetes-map-type: atomic
               scalingConfiguration:
+                description: Adjust the number of related instances based on specified
+                  monitoring metrics and their target values.
                 properties:
                   maxReplicas:
                     description: MaxReplicas is the maximum number of replicas for
@@ -155,10 +171,14 @@ spec:
                       additionalMatchLabels:
                         additionalProperties:
                           type: string
+                        description: AdditionalMatchLabels is the additional labels
+                          to match the target object.
                         type: object
                       kind:
+                        description: Target kind, only support "Model Infer" currently.
                         type: string
-                      metricFrom:
+                      metricEndpoint:
+                        description: MetricEndpoint is the metric source.
                         properties:
                           port:
                             default: 8100
@@ -170,11 +190,10 @@ spec:
                             type: string
                         type: object
                       name:
+                        description: Target name
                         type: string
                       targetRef:
-                        description: |-
-                          LocalObjectReference contains enough information to let you locate the
-                          referenced object inside the same namespace.
+                        description: TargetRef references the target object.
                         properties:
                           name:
                             default: ""

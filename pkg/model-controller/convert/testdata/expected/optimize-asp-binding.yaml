@@ -5,7 +5,7 @@ metadata:
     registry.matrixinfer.ai/backend-name: ""
     registry.matrixinfer.ai/managed-by: registry.matrixinfer.ai
     registry.matrixinfer.ai/model-name: multi-backend-model
-    registry.matrixinfer.ai/revision: 5d76964867
+    registry.matrixinfer.ai/revision: 679bd5599
   name: multi-backend-model
   namespace: dev
   ownerReferences:

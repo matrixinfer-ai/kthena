@@ -18,23 +18,23 @@ limitations under the License.
 
 package v1alpha1
 
-// MetricFromApplyConfiguration represents a declarative configuration of the MetricFrom type for use
+// MetricEndpointApplyConfiguration represents a declarative configuration of the MetricEndpoint type for use
 // with apply.
-type MetricFromApplyConfiguration struct {
+type MetricEndpointApplyConfiguration struct {
 	Uri  *string `json:"uri,omitempty"`
 	Port *int32  `json:"port,omitempty"`
 }
 
-// MetricFromApplyConfiguration constructs a declarative configuration of the MetricFrom type for use with
+// MetricEndpointApplyConfiguration constructs a declarative configuration of the MetricEndpoint type for use with
 // apply.
-func MetricFrom() *MetricFromApplyConfiguration {
-	return &MetricFromApplyConfiguration{}
+func MetricEndpoint() *MetricEndpointApplyConfiguration {
+	return &MetricEndpointApplyConfiguration{}
 }
 
 // WithUri sets the Uri field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Uri field is set to the value of the last call.
-func (b *MetricFromApplyConfiguration) WithUri(value string) *MetricFromApplyConfiguration {
+func (b *MetricEndpointApplyConfiguration) WithUri(value string) *MetricEndpointApplyConfiguration {
 	b.Uri = &value
 	return b
 }
@@ -42,7 +42,7 @@ func (b *MetricFromApplyConfiguration) WithUri(value string) *MetricFromApplyCon
 // WithPort sets the Port field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Port field is set to the value of the last call.
-func (b *MetricFromApplyConfiguration) WithPort(value int32) *MetricFromApplyConfiguration {
+func (b *MetricEndpointApplyConfiguration) WithPort(value int32) *MetricEndpointApplyConfiguration {
 	b.Port = &value
 	return b
 }
