@@ -21,7 +21,6 @@ import (
 
 	"istio.io/istio/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/lru"
 
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 )
@@ -94,9 +93,13 @@ func (s *ModelPrefixStore) onPodDeleted(data datastore.EventData) {
 	s.podHashesMu.Unlock()
 
 	if exists {
-		// The Clear operation will trigger eviction for all items in the LRU.
-		// The onEvict callback will attempt to acquire locks.
-		hashLRU.Clear()
+		hashByModel := make(map[string][]uint64)
+		for _, key := range hashLRU.Keys() {
+			hashByModel[key.model] = append(hashByModel[key.model], key.hash)
+		}
+		for model, hashSlice := range hashByModel {
+			s.onHashEvicted(model, hashSlice, data.Pod)
+		}
 	}
 }
 
@@ -160,13 +163,9 @@ func (s *ModelPrefixStore) Add(model string, hashes []uint64, pod *datastore.Pod
 	s.podHashesMu.Lock()
 	podLRU, exists := s.podHashes[nsName]
 	if !exists {
-		podLRU, _ = NewLRUCache[hashModelKey, struct{}](s.hashCapacity, func(key lru.Key, value interface{}) {
-			// The cb is protected by lru cache's lock, so we should start a new goroutine
-			// to avoid blocking the Add below.
-			go func() {
-				// onEvict callback
-				s.onHashEvicted(key.(hashModelKey), nsName)
-			}()
+		podLRU, _ = NewLRUCache(s.hashCapacity, func(key hashModelKey, value struct{}) {
+			// onEvict callback need to acquire `modelCache.mu.Lock()` as well, so start a goroutine to run it async.
+			go s.onHashEvicted(key.model, []uint64{key.hash}, nsName)
 		})
 		s.podHashes[nsName] = podLRU
 	}
@@ -183,7 +182,6 @@ func (s *ModelPrefixStore) Add(model string, hashes []uint64, pod *datastore.Pod
 	s.entriesMu.Unlock()
 
 	modelCache.mu.Lock()
-	// Add pod to each hash's pod map
 	// Add hashes from the end to the beginning to avoid
 	// the situation where a long prefix can be matched but a shorter prefix cannot.
 	for i := len(hashes) - 1; i >= 0; i-- {
@@ -192,15 +190,17 @@ func (s *ModelPrefixStore) Add(model string, hashes []uint64, pod *datastore.Pod
 			modelCache.hashes[hash] = sets.New[types.NamespacedName]()
 		}
 		modelCache.hashes[hash].Insert(nsName)
-		podLRU.Add(hashModelKey{hash: hash, model: model}, struct{}{})
+		// Here we protect podLRU and modelCache within a same lock, becasue we should make sure modelCache
+		// must be deleted when pod delete or LRU evict
+		podLRU.Add(hashModelKey{hash: hashes[i], model: model}, struct{}{})
 	}
 	modelCache.mu.Unlock()
 }
 
 // onHashEvicted handles the eviction of a hash from a pod's LRU cache
-func (s *ModelPrefixStore) onHashEvicted(key hashModelKey, nsName types.NamespacedName) {
+func (s *ModelPrefixStore) onHashEvicted(model string, hashSlice []uint64, nsName types.NamespacedName) {
 	s.entriesMu.RLock()
-	modelCache, exists := s.entries[key.model]
+	modelCache, exists := s.entries[model]
 	s.entriesMu.RUnlock()
 	if !exists {
 		return
@@ -208,15 +208,17 @@ func (s *ModelPrefixStore) onHashEvicted(key hashModelKey, nsName types.Namespac
 
 	modelCache.mu.Lock()
 	defer modelCache.mu.Unlock()
-	if podSet, exists := modelCache.hashes[key.hash]; exists {
-		podSet.Delete(nsName)
-		if podSet.Len() == 0 {
-			delete(modelCache.hashes, key.hash)
-			if len(modelCache.hashes) == 0 {
-				// If no hashes left, we can remove the modelCache from entries
-				s.entriesMu.Lock()
-				delete(s.entries, key.model)
-				s.entriesMu.Unlock()
+	for _, hash := range hashSlice {
+		if podSet, exists := modelCache.hashes[hash]; exists {
+			podSet.Delete(nsName)
+			if podSet.Len() == 0 {
+				delete(modelCache.hashes, hash)
+				if len(modelCache.hashes) == 0 {
+					// If no hashes left, we can remove the modelCache from entries
+					s.entriesMu.Lock()
+					delete(s.entries, model)
+					s.entriesMu.Unlock()
+				}
 			}
 		}
 	}
