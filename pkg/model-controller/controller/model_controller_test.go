@@ -121,6 +121,29 @@ func TestReconcile(t *testing.T) {
 	}))
 }
 
+func TestCreateModel(t *testing.T) {
+	kubeClient := fake.NewClientset()
+	matrixinferClient := matrixinferfake.NewClientset()
+	controller := NewModelController(kubeClient, matrixinferClient)
+	controller.createModel("wrong")
+}
+
+func TestUpdateModel(t *testing.T) {
+	kubeClient := fake.NewClientset()
+	matrixinferClient := matrixinferfake.NewClientset()
+	controller := NewModelController(kubeClient, matrixinferClient)
+	model := loadYaml[registry.Model](t, "../utils/testdata/input/model.yaml")
+	controller.updateModel("wrong", model)
+	controller.updateModel(model, "wrong")
+}
+
+func TestDeleteModel(t *testing.T) {
+	kubeClient := fake.NewClientset()
+	matrixinferClient := matrixinferfake.NewClientset()
+	controller := NewModelController(kubeClient, matrixinferClient)
+	controller.deleteModel("wrong")
+}
+
 // loadYaml transfer yaml data into a struct of type T.
 // Used for test.
 func loadYaml[T any](t *testing.T, path string) *T {

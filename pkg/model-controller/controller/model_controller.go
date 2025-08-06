@@ -129,7 +129,7 @@ func (mc *ModelController) enqueueModel(model *registryv1alpha1.Model) {
 func (mc *ModelController) updateModel(old any, new any) {
 	newModel, ok := new.(*registryv1alpha1.Model)
 	if !ok {
-		klog.Error("failed to parse new Model type when updateModel")
+		klog.Error("failed to parse new Model when updateModel")
 		return
 	}
 	oldModel, ok := old.(*registryv1alpha1.Model)
