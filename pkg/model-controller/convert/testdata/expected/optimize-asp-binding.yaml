@@ -5,7 +5,7 @@ metadata:
     registry.matrixinfer.ai/backend-name: ""
     registry.matrixinfer.ai/managed-by: registry.matrixinfer.ai
     registry.matrixinfer.ai/model-name: multi-backend-model
-    registry.matrixinfer.ai/revision: 679bd5599
+    registry.matrixinfer.ai/revision: bf4d97788
   name: multi-backend-model
   namespace: dev
   ownerReferences:
@@ -24,21 +24,21 @@ spec:
         minReplicas: 0
         cost: 0
         target:
-          name: multi-backend-model-backend1
-          kind: ModelInfer
+          additionalMatchLabels:
+            modelinfer.matrixinfer.ai/role: leader
           targetRef:
             name: multi-backend-model-backend1
-          additionalMatchLabels: {}
+            kind: ModelInfer
           metricFrom: {}
       - maxReplicas: 1
         minReplicas: 0
         cost: 0
         target:
-          name: multi-backend-model-backend2
-          kind: ModelInfer
+          additionalMatchLabels:
+            modelinfer.matrixinfer.ai/role: leader
           targetRef:
             name: multi-backend-model-backend2
-          additionalMatchLabels: { }
+            kind: ModelInfer
           metricFrom: { }
 
 

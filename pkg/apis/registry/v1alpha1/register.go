@@ -30,9 +30,10 @@ var GroupVersion = v1.GroupVersion{Group: GroupName, Version: "v1alpha1"}
 
 // GroupVersionKind definitions
 var (
-	ModelKind                    = SchemeGroupVersion.WithKind("Model")
-	AutoscalingPolicyKind        = SchemeGroupVersion.WithKind("AutoscalingPolicy")
-	AutoscalingPolicyBindingKind = SchemeGroupVersion.WithKind("AutoscalingPolicyBinding")
+	ModelKind                     = SchemeGroupVersion.WithKind("Model")
+	AutoscalingPolicyKind         = SchemeGroupVersion.WithKind("AutoscalingPolicy")
+	AutoscalingPolicyBindingKind  = SchemeGroupVersion.WithKind("AutoscalingPolicyBinding")
+	ModelInferEntryPodLeaderLabel = "leader"
 )
 
 // GroupVersion specifies the group and the version used to register the objects.

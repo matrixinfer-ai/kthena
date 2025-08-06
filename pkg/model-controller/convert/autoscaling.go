@@ -20,6 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
+	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 	icUtils "matrixinfer.ai/matrixinfer/pkg/infer-controller/utils"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
 )
@@ -46,10 +47,12 @@ func BuildScalingPolicyBindingSpec(backend *registry.ModelBackend, name string) 
 	return &registry.AutoscalingPolicyBindingSpec{
 		ScalingConfiguration: &registry.ScalingConfiguration{
 			Target: registry.Target{
-				Kind: "ModelInfer",
-				Name: name,
-				TargetRef: &corev1.LocalObjectReference{
+				TargetRef: corev1.ObjectReference{
 					Name: name,
+					Kind: workload.ModelInferKind.Kind,
+				},
+				AdditionalMatchLabels: map[string]string{
+					workload.RoleLabelKey: registry.ModelInferEntryPodLeaderLabel,
 				},
 			},
 			MinReplicas: backend.MinReplicas,
@@ -90,10 +93,12 @@ func BuildOptimizePolicyBindingSpec(model *registry.Model, name string) *registr
 		targetName := utils.GetBackendResourceName(model.Name, backend.Name)
 		params = append(params, registry.OptimizerParam{
 			Target: registry.Target{
-				Kind: registry.ModelInferenceTargetType,
-				Name: targetName,
-				TargetRef: &corev1.LocalObjectReference{
+				TargetRef: corev1.ObjectReference{
 					Name: targetName,
+					Kind: workload.ModelInferKind.Kind,
+				},
+				AdditionalMatchLabels: map[string]string{
+					workload.RoleLabelKey: registry.ModelInferEntryPodLeaderLabel,
 				},
 			},
 			MinReplicas: backend.MinReplicas,

@@ -20,17 +20,14 @@ package v1alpha1
 
 import (
 	v1 "k8s.io/api/core/v1"
-	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
 
 // TargetApplyConfiguration represents a declarative configuration of the Target type for use
 // with apply.
 type TargetApplyConfiguration struct {
-	Name                  *string                                 `json:"name,omitempty"`
-	Kind                  *registryv1alpha1.AutoscalingTargetType `json:"kind,omitempty"`
-	TargetRef             *v1.LocalObjectReference                `json:"targetRef,omitempty"`
-	AdditionalMatchLabels map[string]string                       `json:"additionalMatchLabels,omitempty"`
-	MetricEndpoint        *MetricEndpointApplyConfiguration       `json:"metricEndpoint,omitempty"`
+	TargetRef             *v1.ObjectReference               `json:"targetRef,omitempty"`
+	AdditionalMatchLabels map[string]string                 `json:"additionalMatchLabels,omitempty"`
+	MetricEndpoint        *MetricEndpointApplyConfiguration `json:"metricEndpoint,omitempty"`
 }
 
 // TargetApplyConfiguration constructs a declarative configuration of the Target type for use with
@@ -39,26 +36,10 @@ func Target() *TargetApplyConfiguration {
 	return &TargetApplyConfiguration{}
 }
 
-// WithName sets the Name field in the declarative configuration to the given value
-// and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the Name field is set to the value of the last call.
-func (b *TargetApplyConfiguration) WithName(value string) *TargetApplyConfiguration {
-	b.Name = &value
-	return b
-}
-
-// WithKind sets the Kind field in the declarative configuration to the given value
-// and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the Kind field is set to the value of the last call.
-func (b *TargetApplyConfiguration) WithKind(value registryv1alpha1.AutoscalingTargetType) *TargetApplyConfiguration {
-	b.Kind = &value
-	return b
-}
-
 // WithTargetRef sets the TargetRef field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the TargetRef field is set to the value of the last call.
-func (b *TargetApplyConfiguration) WithTargetRef(value v1.LocalObjectReference) *TargetApplyConfiguration {
+func (b *TargetApplyConfiguration) WithTargetRef(value v1.ObjectReference) *TargetApplyConfiguration {
 	b.TargetRef = &value
 	return b
 }

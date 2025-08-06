@@ -144,7 +144,7 @@ func (ac *AutoscaleController) Reconcile(ctx context.Context) {
 		}
 		if binding.Spec.ScalingConfiguration != nil {
 			target := binding.Spec.ScalingConfiguration.Target
-			instanceKey := formatAutoscalerMapKey(binding.Name, target.Name)
+			instanceKey := formatAutoscalerMapKey(binding.Name, target.TargetRef.Name)
 			scalerSet.Insert(instanceKey)
 		} else if binding.Spec.OptimizerConfiguration != nil {
 			autoscalerMapKey := formatAutoscalerMapKey(binding.ObjectMeta.Name, "")
@@ -195,7 +195,7 @@ func (ac *AutoscaleController) schedule(ctx context.Context, binding *v1alpha1.A
 		}
 	} else if binding.Spec.ScalingConfiguration != nil {
 		target := binding.Spec.ScalingConfiguration.Target
-		instanceKey := formatAutoscalerMapKey(binding.Name, target.Name)
+		instanceKey := formatAutoscalerMapKey(binding.Name, target.TargetRef.Name)
 		scalingAutoscaler, ok := ac.scalerMap[instanceKey]
 		if !ok {
 			scalingAutoscaler = autoscaler.NewAutoscaler(&autoscalePolicy.Spec.Behavior, binding, metricTargets)

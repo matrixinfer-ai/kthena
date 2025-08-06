@@ -56,7 +56,7 @@ type ReplicaBlock struct {
 func (meta *OptimizerMeta) RestoreReplicasOfEachBackend(replicas int32) map[string]int32 {
 	replicasMap := make(map[string]int32, len(meta.Config.Params))
 	for _, param := range meta.Config.Params {
-		replicasMap[param.Target.Name] = param.MinReplicas
+		replicasMap[param.Target.TargetRef.Name] = param.MinReplicas
 	}
 	replicas = min(max(replicas, meta.MinReplicas), meta.MaxReplicas)
 	replicas -= meta.MinReplicas
@@ -85,7 +85,7 @@ func NewOptimizerMeta(binding *v1alpha1.AutoscalingPolicyBinding) *OptimizerMeta
 		if binding.Spec.OptimizerConfiguration.CostExpansionRatePercent != nil && *binding.Spec.OptimizerConfiguration.CostExpansionRatePercent == 100 {
 			scalingOrder = append(scalingOrder, &ReplicaBlock{
 				index:    int32(index),
-				name:     param.Target.Name,
+				name:     param.Target.TargetRef.Name,
 				replicas: replicas,
 				cost:     int64(param.Cost),
 			})
@@ -95,7 +95,7 @@ func NewOptimizerMeta(binding *v1alpha1.AutoscalingPolicyBinding) *OptimizerMeta
 		for replicas > 0 {
 			currentLen := min(replicas, max(int32(packageLen), 1))
 			scalingOrder = append(scalingOrder, &ReplicaBlock{
-				name:     param.Target.Name,
+				name:     param.Target.TargetRef.Name,
 				index:    int32(index),
 				replicas: currentLen,
 				cost:     int64(param.Cost) * int64(currentLen),
@@ -125,7 +125,7 @@ func NewOptimizerMeta(binding *v1alpha1.AutoscalingPolicyBinding) *OptimizerMeta
 func NewOptimizer(behavior *v1alpha1.AutoscalingPolicyBehavior, binding *v1alpha1.AutoscalingPolicyBinding, metricTargets map[string]float64) *Optimizer {
 	collectors := make(map[string]*MetricCollector)
 	for _, param := range binding.Spec.OptimizerConfiguration.Params {
-		collectors[param.Target.Name] = NewMetricCollector(&param.Target, binding, metricTargets)
+		collectors[param.Target.TargetRef.Name] = NewMetricCollector(&param.Target, binding, metricTargets)
 	}
 
 	return &Optimizer{
@@ -143,9 +143,9 @@ func (optimizer *Optimizer) Optimize(ctx context.Context, client clientset.Inter
 	modelInferList := make([]*workload.ModelInfer, 0, size)
 	// Update all model infer instances' metrics
 	for _, param := range optimizer.Meta.Config.Params {
-		collector, exists := optimizer.Collectors[param.Target.Name]
+		collector, exists := optimizer.Collectors[param.Target.TargetRef.Name]
 		if !exists {
-			klog.Warningf("collector for target %s not exists", param.Target.Name)
+			klog.Warningf("collector for target %s not exists", param.Target.TargetRef.Name)
 			continue
 		}
 

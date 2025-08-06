@@ -45,10 +45,6 @@ type AutoscalingPolicyBindingSpec struct {
 
 type AutoscalingTargetType string
 
-const (
-	ModelInferenceTargetType AutoscalingTargetType = "ModelInfer"
-)
-
 type MetricEndpoint struct {
 	// The metric uri, e.g. /metrics
 	// +optional
@@ -81,17 +77,14 @@ type OptimizerConfiguration struct {
 }
 
 type Target struct {
-	// Target name
-	Name string `json:"name"`
-	// Target kind, only support "Model Infer" currently.
-	Kind AutoscalingTargetType `json:"kind"`
 	// TargetRef references the target object.
 	// +optional
-	TargetRef *corev1.LocalObjectReference `json:"targetRef,omitempty"`
+	TargetRef corev1.ObjectReference `json:"targetRef"`
 	// AdditionalMatchLabels is the additional labels to match the target object.
 	// +optional
 	AdditionalMatchLabels map[string]string `json:"additionalMatchLabels,omitempty"`
 	// MetricEndpoint is the metric source.
+	// +optional
 	MetricEndpoint MetricEndpoint `json:"metricEndpoint,omitempty"`
 }
 

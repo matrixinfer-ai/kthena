@@ -69,8 +69,8 @@ func UpdateModelInfer(ctx context.Context, client clientset.Interface, modelInfe
 }
 
 func GetTargetLabels(target *v1alpha1.Target) map[string]string {
-	if target.Kind == v1alpha1.ModelInferenceTargetType {
-		var lbs map[string]string
+	if target.TargetRef.Kind == workload.ModelInferKind.Kind {
+		lbs := map[string]string{}
 		if target.AdditionalMatchLabels != nil {
 			lbs = maps.Clone(target.AdditionalMatchLabels)
 		}
