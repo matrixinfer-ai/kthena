@@ -190,6 +190,7 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 			return err
 		}
 		if err := mc.createAutoscalingPolicyAndBinding(ctx, model); err != nil {
+			mc.setModelFailedCondition(ctx, model, err)
 			return err
 		}
 		meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeInitialized),
@@ -217,6 +218,7 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 			return err
 		}
 		if err := mc.updateAutoscalingPolicyAndBinding(ctx, model); err != nil {
+			mc.setModelFailedCondition(ctx, model, err)
 			return err
 		}
 	}

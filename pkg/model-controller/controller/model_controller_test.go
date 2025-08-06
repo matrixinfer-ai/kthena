@@ -47,19 +47,26 @@ func TestReconcile(t *testing.T) {
 	// Load test data
 	model := loadYaml[registry.Model](t, "../convert/testdata/input/model.yaml")
 
-	// Case1: create model, and then model infer, model server, model route should be created.
+	// Case1: create model with ASP, and then model infer, model server, model route, ASP, ASP binding should be created.
 	createdModel, err := matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Create(ctx, model, metav1.CreateOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, createdModel)
-	// model infer should be created
-	var modelInfers *workload.ModelInferList
 	assert.True(t, waitForCondition(func() bool {
-		modelInfers, err = matrixinferClient.WorkloadV1alpha1().ModelInfers(model.Namespace).List(ctx, metav1.ListOptions{})
+		// ASP binding should be created
+		aspBindings, err := matrixinferClient.RegistryV1alpha1().AutoscalingPolicyBindings(model.Namespace).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			return false
 		}
-		return len(modelInfers.Items) == 1
+		return len(aspBindings.Items) == 1
 	}))
+	// ASP should be created
+	aspList, err := matrixinferClient.RegistryV1alpha1().AutoscalingPolicies(model.Namespace).List(ctx, metav1.ListOptions{})
+	assert.NoError(t, err)
+	assert.Len(t, aspList.Items, 1, "Expected 1 AutoscalingPolicy to be created")
+	// model infer should be created
+	modelInfers, err := matrixinferClient.WorkloadV1alpha1().ModelInfers(model.Namespace).List(ctx, metav1.ListOptions{})
+	assert.NoError(t, err)
+	assert.Len(t, modelInfers.Items, 1, "Expected 1 ModelInfer to be created")
 	// model server should be created
 	modelServers, err := matrixinferClient.NetworkingV1alpha1().ModelServers(model.Namespace).List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
