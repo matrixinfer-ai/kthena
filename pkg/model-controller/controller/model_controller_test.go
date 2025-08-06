@@ -45,7 +45,7 @@ func TestReconcile(t *testing.T) {
 	// Start controller
 	go controller.Run(ctx, 1)
 	// Load test data
-	model := loadYaml[registry.Model](t, "../utils/testdata/input/model.yaml")
+	model := loadYaml[registry.Model](t, "../convert/testdata/input/model.yaml")
 
 	// Case1: create model, and then model infer, model server, model route should be created.
 	createdModel, err := matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Create(ctx, model, metav1.CreateOptions{})
@@ -132,7 +132,7 @@ func TestUpdateModel(t *testing.T) {
 	kubeClient := fake.NewClientset()
 	matrixinferClient := matrixinferfake.NewClientset()
 	controller := NewModelController(kubeClient, matrixinferClient)
-	model := loadYaml[registry.Model](t, "../utils/testdata/input/model.yaml")
+	model := loadYaml[registry.Model](t, "../convert/testdata/input/model.yaml")
 	// invalid old
 	controller.updateModel("invalid", model)
 	assert.Equal(t, 0, controller.workQueue.Len())
@@ -152,7 +152,7 @@ func TestTriggerModel(t *testing.T) {
 	kubeClient := fake.NewClientset()
 	matrixinferClient := matrixinferfake.NewSimpleClientset()
 	controller := NewModelController(kubeClient, matrixinferClient)
-	modelInfer := loadYaml[workload.ModelInfer](t, "../utils/testdata/expected/model-infer.yaml")
+	modelInfer := loadYaml[workload.ModelInfer](t, "../convert/testdata/expected/model-infer.yaml")
 	// invalid new
 	controller.triggerModel(modelInfer, "invalid")
 	assert.Equal(t, 0, controller.workQueue.Len())
