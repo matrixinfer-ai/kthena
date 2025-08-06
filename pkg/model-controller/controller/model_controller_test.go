@@ -135,6 +135,7 @@ func loadYaml[T any](t *testing.T, path string) *T {
 	return &expected
 }
 
+// waitForCondition repeatedly checks a condition function until it returns true or a timeout occurs.
 func waitForCondition(checkFunc func() bool) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
