@@ -28,10 +28,20 @@ import (
 type Server struct {
 	store       datastore.Store
 	controllers Controller
+	EnableTLS   bool
+	TLSCertFile string
+	TLSKeyFile  string
+	Port        string
 }
 
-func NewServer() *Server {
-	return &Server{}
+func NewServer(port string, enableTLS bool, cert, key string) *Server {
+	return &Server{
+		store:       nil,
+		EnableTLS:   enableTLS,
+		TLSCertFile: cert,
+		TLSKeyFile:  key,
+		Port:        port,
+	}
 }
 
 func (s *Server) Run(ctx context.Context) {

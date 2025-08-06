@@ -1,6 +1,13 @@
 inferGateway:
   # replicas is the number of infer-gateway instances to run.
   replicas: 1
+  enabled: true
+  tls:
+    enabled: false
+    # The DNS name to use for the certificate.
+    dnsName: ""
+    # The name of the secret to store the certificate and key.
+    secretName: "infer-gateway-tls"
   image:
     # repository is the container image repository for the infer-gateway.
     repository: ghcr.io/matrixinfer-ai/infer-gateway
