@@ -62,9 +62,7 @@ know that this has succeeded?
 
 1. Implement JWT authentication mechanism in Infer Gateway.
 2. Implement API Key authentication mechanism in Infer Gateway.
-3. Allow users to configure different authentication methods for different model services.
-4. Support integration with external identity providers(e.g. Keycloak).
-5. Provide flexible configuration options to meet the needs of different deployment environments.
+3. Support integration with external identity providers(e.g. Keycloak).
 
 #### Non-Goals
 
@@ -143,39 +141,51 @@ The infer gateway determines whether or not to validate the token based on the m
 
 **Process of JWT:**
 
-- Extract the `modelName` from the request, get the `modelServer` based on the `modelName`, and determine if the request needs to be authenticated.
-- If need authenticated, extracting `Bearer Token` from Authorization header.
+- Extracting `Bearer Token` from Authorization header.
 - Parse JWT header to get kid(key ID).
-- Get corresponding public key from JWKS endpoint based on kid.
 - Verify JWT signature using public key.
 - Verify JWT declaration (expiration time, issuer, audience, etc.).
 - Allow request to proceed if validation passes
 
-Provide caching mechanism for jwks to improve the performance of JWT authentication.
+The above is the processing of getting jwsks to do the validation locally.
+
+Provide caching mechanism for jwks to improve the performance of JWT authentication. Storing jwks as `Jwks` in store.
+
+Since we have designed a cache for jwks, the create, delete, update, and retrieve related implementations of this cache should also be completed.
 
 ```go
-type JWKSProvider struct {
-	config     *JWTConfig
-	jwksSet    jwk.Set
-	lastUpdate time.Time
-	mutex      sync.RWMutex
+type JWTValidator struct {
+  enable bool
+  cache  datastore.Store
 }
 
-type JWTConfig struct {
-	IssuerURL    string `json:"issuerURL"` // jwks issuer URL
-	Audience     string `json:"audience"`
-	JWKSEndpoint string `json:"jwksEndpoint"`
+type Jwks struct {
+  Jwks      jwk.Set
+  Audiences []string
+  Issuer    string
+  // Used to update jwks
+  Uri         string
+  ExpiredTime time.Duration
+}
 
-	JWKSCacheDuration time.Duration `json:"jwkCacheDuration"` // default: 1 hour
+type store struct {
+  jwksCache   *Jwks
+  modelServer sync.Map // map[types.NamespacedName]*modelServer
+  pods        sync.Map // map[types.NamespacedName]*PodInfo
+  // ......
 }
 ```
 
-- Default cache time: 1 hour.
-- Support for configuring cache time.
-- Automatically refreshes expired JWKS.
-- Attempts to refetch JWKS on failure.
+We are using configMap to configure JWT Authentication at this stage.
 
-Process of API Key:
+```yaml
+auth:
+  issuer: "https://secure.istio.io"
+  audiences: ["matrixinfer.io"]
+  jwksUri: "https://raw.githubusercontent.com/istio/istio/release-1.27/security/tools/jwt/samples/jwks.json"
+```
+
+**Process of API Key:**
 
 - Determine if `modelServer` needs authentication
 - Extract API Key from configured location (Header or Query Parameter).
@@ -186,101 +196,37 @@ Process of API Key:
 
 #### CRD Extensions
 
-JWT:
-
 ```go
 type ModelServerSpec struct {
-    // Existing fields...
-    
-    // NeedAuthenticate defines whether the model server requires Authentication.
+    // APIKeyRules define the API Key Authentication configuration.
     // +optional
-    NeedAuthenticate bool `json:"needAuthenticate,omitempty"`
-
-    // JWTAuthentication defines the JWT Authentication configuration.
-    // +optional
-    JWTAuthentication *JWTAuthenticationSpec `json:"jwtAuthentication,omitempty"`
-
-    // APIKeyAuthentication defines the API Key Authentication configuration.
-    // +optional
-    APIKeyAuthentication *APIKeyAuthenticationSpec `json:"apiKeyAuthentication,omitempty"`
+    APIKeyRules []APIKeyRuls `json:"apiKeyAuthentication,omitempty"`
 }
 
-type JWTAuthenticationSpec struct {
-    // IssuerURL is the URL of the JWT issuer (e.g., Keycloak realm URL).
+type APIKeyRules struct {
+    // FromHeader is the HTTP header name to extract API key from.
     // +optional
-    IssuerURL string `json:"issuerURL,omitempty"`
+    FromHeader string`json:"fromHeader,omitempty"`
     
-    // Audience is the expected audience of the JWT token.
+    // FromParam is the query parameter name to extract API key from.
     // +optional
-    Audience string `json:"audience,omitempty"`
-    
-    // JWKSEndpoint is the endpoint to fetch JWKS keys.
-    // If not specified, it will be constructed from IssuerURL.
-    // +optional
-    JWKSEndpoint string `json:"jwksEndpoint,omitempty"`
-    
-    // JWKSCacheDuration is the duration to cache JWKS keys.
-    // +optional
-    // +kubebuilder:default="1h"
-    JWKSCacheDuration *metav1.Duration `json:"jwkCacheDuration,omitempty"`
-}
-```
-
-API Key:
-
-```go
-type APIKeyauthenticationSpec struct {
-    // Source defines where to get API keys from.
-    // +kubebuilder:validation:Enum=inline;secret
-    Source APIKeySource `json:"source"`
-    
-    // HeaderName is the HTTP header name to extract API key from.
-    // +optional
-    HeaderName string `json:"headerName,omitempty"`
-    
-    // QueryParam is the query parameter name to extract API key from.
-    // +optional
-    QueryParam string `json:"queryParam,omitempty"`
-    
-    // InlineKeys are API keys defined inline (for testing only).
-    // +optional
-    InlineKeys []string `json:"inlineKeys,omitempty"`
+    FromParam string `json:"fromParam,omitempty"`
     
     // SecretName is the name of Kubernetes Secret containing API keys.
+    // Only one of labelSelector and secretName should be specified. When both are specified, labelSelector takes precedence.
     // +optional
-    SecretName string `json:"secretName,omitempty"`
+    SecretName types.NamespacedName `json:"secretName,omitempty"`
+
+    // labelSelector is the label selector to filter API keys.
+    // Only one of labelSelector and secretName should be specified. When both are specified, labelSelector takes precedence.
+    // +optional
+    labelSelector map[string]string `json:"labelSelector,omitempty"`
 }
-
-type APIKeySource string
-
-const (
-    APIKeySourceInline APIKeySource = "inline"
-    APIKeySourceSecret APIKeySource = "secret"
-)
 ```
 
-example:
+You can use the `labelSelector` to specify the required `secrets`.
 
-```yaml
-apiVersion: networking.matrixinfer.ai/v1alpha1
-kind: ModelServer
-metadata:
-  name: deepseek-r1-1-5b
-  namespace: default
-spec:
-  model: "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
-  inferenceEngine: vLLM
-  needauthentication: true
-  jwtauthentication:
-    issuerURL: "http://localhost:9999/auth/realms/dashboard"
-    audience: "infer-gateway"
-    jwkCacheDuration: "1h"
-  workloadSelector:
-    matchLabels:
-      app: deepseek-r1-1-5b
-  workloadPort:
-    port: 8000
-```
+#### Example
 
 ```yaml
 apiVersion: v1
@@ -290,8 +236,8 @@ metadata:
   namespace: default
 type: Opaque
 data:
-  key1: "c2stMTIzNDU2Nzg5MGFiY2RlZg=="  # base64 encoded "sk-1234567890abcdef"
-  key2: "c2stZmVkY2JhMDk4NzY1NDMyMQ=="  # base64 encoded "sk-fedcba0987654321"
+  api_key1: "c2stMTIzNDU2Nzg5MGFiY2RlZg=="  # base64 encoded "sk-1234567890abcdef"
+  api_key2: "c2stZmVkY2JhMDk4NzY1NDMyMQ=="  # base64 encoded "sk-fedcba0987654321"
 
 ---
 apiVersion: networking.matrixinfer.ai/v1alpha1
@@ -301,12 +247,12 @@ metadata:
   namespace: default
 spec:
   model: "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
-  inferenceEngine: vllm
-  needauthentication: true
-  apiKeyauthentication:
-    source: "secret"
-    secretName: "model-api-keys"
-    headerName: "X-API-Key"
+  inferenceEngine: vLLM
+  apiKeyRules:
+  - secretName:
+      name: "model-api-keys"
+      namespace: "default"
+    fromHeader: "X-API-Key"
   workloadSelector:
     matchLabels:
       app: deepseek-r1-1-5b
