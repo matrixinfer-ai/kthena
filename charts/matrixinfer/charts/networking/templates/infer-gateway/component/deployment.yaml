@@ -22,19 +22,20 @@ spec:
         - name: infer-gateway
           image: "{{ .Values.inferGateway.image.repository }}:{{ .Values.inferGateway.image.tag }}"
           imagePullPolicy: {{ .Values.inferGateway.image.pullPolicy }}
-          {{- if and .Values.global.certManager.enabled .Values.inferGateway.tls.enabled }}
           args:
+            - --port={{ .Values.inferGateway.port }}
+          {{- if and .Values.global.certManager.enabled .Values.inferGateway.tls.enabled }}
             - --tls-cert=/etc/tls/tls.crt
             - --tls-key=/etc/tls/tls.key
           {{- end }}
           ports:
-            - containerPort: 8080
+            - containerPort: {{ .Values.inferGateway.port }}
               name: http
           resources: {{- toYaml .Values.inferGateway.resource | nindent 12 }}
           livenessProbe:
             httpGet:
               path: /healthz
-              port: 8080
+              port: {{ .Values.inferGateway.port }}
               {{- if and .Values.global.certManager.enabled .Values.inferGateway.tls.enabled }}
               scheme: HTTPS
               {{- end }}
@@ -43,7 +44,7 @@ spec:
           readinessProbe:
             httpGet:
               path: /healthz
-              port: 8080
+              port: {{ .Values.inferGateway.port }}
               {{- if and .Values.global.certManager.enabled .Values.inferGateway.tls.enabled }}
               scheme: HTTPS
               {{- end }}

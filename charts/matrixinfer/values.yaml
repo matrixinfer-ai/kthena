@@ -15,6 +15,7 @@ networking:
   enabled: true
   inferGateway:
     enabled: true
+    port: 8080
     tls:
       enabled: false
       # The DNS name to use for the certificate.

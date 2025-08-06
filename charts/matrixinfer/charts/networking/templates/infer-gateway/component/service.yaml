@@ -12,6 +12,6 @@ spec:
     {{- include "matrixinfer.selectorLabels" . | nindent 4 }}
   ports:
     - port: 80
-      targetPort: 8080
+      targetPort: {{ .Values.inferGateway.port }}
       name: http
   type: LoadBalancer
