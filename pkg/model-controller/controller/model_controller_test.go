@@ -33,8 +33,7 @@ import (
 )
 
 // TestReconcile first creates a model and then checks if the ModelInfer, ModelServer and ModelRoute are created as expected.
-// Then the model is updated, check if the ModelInfer, ModelServer and ModelRoute are updated.
-// Eventually, model will be deleted, and ensure ModelInfer, ModelServer and ModelRoute are deleted as well.
+// Then the model is updated, check if ModelRoute is updated. At last, model will be deleted.
 func TestReconcile(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
