@@ -36,7 +36,8 @@ import (
 // Then the model is updated, check if the ModelInfer, ModelServer and ModelRoute are updated.
 // Eventually, model will be deleted, and ensure ModelInfer, ModelServer and ModelRoute are deleted as well.
 func TestReconcile(t *testing.T) {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	// Create fake clients for Kubernetes and MatrixInfer
 	kubeClient := fake.NewClientset()
 	matrixinferClient := matrixinferfake.NewSimpleClientset()
