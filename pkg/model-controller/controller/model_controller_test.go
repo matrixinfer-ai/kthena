@@ -112,6 +112,13 @@ func TestReconcile(t *testing.T) {
 	// Case3: delete model
 	err = matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Delete(ctx, model.Name, metav1.DeleteOptions{})
 	assert.NoError(t, err)
+	assert.True(t, waitForCondition(func() bool {
+		modelList, err := matrixinferClient.RegistryV1alpha1().Models(model.Namespace).List(ctx, metav1.ListOptions{})
+		if err != nil {
+			return false
+		}
+		return len(modelList.Items) == 0
+	}))
 }
 
 // loadYaml transfer yaml data into a struct of type T.
