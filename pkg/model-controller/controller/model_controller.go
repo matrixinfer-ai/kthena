@@ -43,9 +43,10 @@ import (
 )
 
 const (
-	ModelInitsReason    = "ModelInits"
+	ModelInitsReason    = "ModelCreating"
+	ModelActiveReason   = "ModelAvailable"
 	ModelUpdatingReason = "ModelUpdating"
-	ModelActiveReason   = "ModelActive"
+	ModelFailedReason   = "ModelAbnormal"
 	ConfigMapName       = "model-controller-config"
 )
 
@@ -101,10 +102,8 @@ func (mc *ModelController) processNextWorkItem(ctx context.Context) bool {
 		mc.workQueue.Forget(key)
 		return true
 	}
-
 	utilruntime.HandleError(fmt.Errorf("sync %q failed with %v", key, err))
 	mc.workQueue.AddRateLimited(key)
-
 	return true
 }
 
@@ -166,33 +165,39 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 	klog.InfoS("Start to process model", "namespace", namespace, "model name", model.Name, "model status", model.Status)
 	if len(model.Status.Conditions) == 0 {
 		if err := mc.createModelInfer(ctx, model); err != nil {
+			mc.setModelFailedCondition(ctx, model, err)
 			return err
 		}
 		if err := mc.createModelServer(ctx, model); err != nil {
+			mc.setModelFailedCondition(ctx, model, err)
 			return err
 		}
 		if err := mc.createModelRoute(ctx, model); err != nil {
+			mc.setModelFailedCondition(ctx, model, err)
 			return err
 		}
-		meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeInitializing),
-			metav1.ConditionTrue, ModelInitsReason, "Model is initializing"))
+		meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeInitialized),
+			metav1.ConditionTrue, ModelInitsReason, "Model initialized"))
 		if err := mc.updateModelStatus(ctx, model); err != nil {
 			klog.Errorf("update model status failed: %v", err)
 			return err
 		}
 	}
 	if model.Generation != model.Status.ObservedGeneration {
-		klog.Info("model generation is not equal to observed generation, update model infer")
+		klog.Info("model generation is not equal to observed generation, update model infer, model server and model route")
 		if err := mc.setModelUpdateCondition(ctx, model); err != nil {
 			return err
 		}
 		if err := mc.updateModelInfer(ctx, model); err != nil {
+			mc.setModelFailedCondition(ctx, model, err)
 			return err
 		}
 		if err := mc.updateModelServer(ctx, model); err != nil {
+			mc.setModelFailedCondition(ctx, model, err)
 			return err
 		}
 		if err := mc.updateModelRoute(ctx, model); err != nil {
+			mc.setModelFailedCondition(ctx, model, err)
 			return err
 		}
 	}
@@ -231,11 +236,7 @@ func (mc *ModelController) isModelInferActive(ctx context.Context, model *regist
 // setModelActiveCondition sets model conditions when all Model Infers are active.
 func (mc *ModelController) setModelActiveCondition(ctx context.Context, model *registryv1alpha1.Model) error {
 	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeActive),
-		metav1.ConditionTrue, ModelActiveReason, "Model is active"))
-	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeInitializing),
-		metav1.ConditionFalse, ModelActiveReason, "Model is active, so initializing is false"))
-	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeUpdating),
-		metav1.ConditionFalse, ModelActiveReason, "Model not updating"))
+		metav1.ConditionTrue, ModelActiveReason, "Model is ready"))
 	if err := mc.updateModelStatus(ctx, model); err != nil {
 		klog.Errorf("update model status failed: %v", err)
 		return err
@@ -357,13 +358,20 @@ func (mc *ModelController) updateModelInfer(ctx context.Context, model *registry
 func (mc *ModelController) setModelUpdateCondition(ctx context.Context, model *registryv1alpha1.Model) error {
 	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeActive),
 		metav1.ConditionFalse, ModelUpdatingReason, "Model is updating, not ready yet"))
-	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeUpdating),
-		metav1.ConditionTrue, ModelUpdatingReason, "Model is updating"))
 	if err := mc.updateModelStatus(ctx, model); err != nil {
 		klog.Errorf("update model status failed: %v", err)
 		return err
 	}
 	return nil
+}
+
+// setModelFailedCondition sets model condition to failed
+func (mc *ModelController) setModelFailedCondition(ctx context.Context, model *registryv1alpha1.Model, err error) {
+	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeFailed),
+		metav1.ConditionTrue, ModelFailedReason, err.Error()))
+	if err := mc.updateModelStatus(ctx, model); err != nil {
+		klog.Errorf("update model status failed: %v", err)
+	}
 }
 
 func (mc *ModelController) loadConfigFromConfigMap() {

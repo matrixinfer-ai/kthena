@@ -208,10 +208,9 @@ type ModelStatus struct {
 type ModelStatusConditionType string
 
 const (
-	ModelStatusConditionTypeInitializing ModelStatusConditionType = "Initializing"
-	ModelStatusConditionTypeActive       ModelStatusConditionType = "Active"
-	ModelStatusConditionTypeUpdating     ModelStatusConditionType = "Updating"
-	ModelStatusConditionTypeFailed       ModelStatusConditionType = "Failed"
+	ModelStatusConditionTypeInitialized ModelStatusConditionType = "Initialized"
+	ModelStatusConditionTypeActive      ModelStatusConditionType = "Active"
+	ModelStatusConditionTypeFailed      ModelStatusConditionType = "Failed"
 )
 
 // ModelBackendStatus defines the status of a model backend.
