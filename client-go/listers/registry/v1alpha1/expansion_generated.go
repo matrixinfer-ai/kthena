@@ -26,6 +26,14 @@ type AutoscalingPolicyListerExpansion interface{}
 // AutoscalingPolicyNamespaceLister.
 type AutoscalingPolicyNamespaceListerExpansion interface{}
 
+// AutoscalingPolicyBindingListerExpansion allows custom methods to be added to
+// AutoscalingPolicyBindingLister.
+type AutoscalingPolicyBindingListerExpansion interface{}
+
+// AutoscalingPolicyBindingNamespaceListerExpansion allows custom methods to be added to
+// AutoscalingPolicyBindingNamespaceLister.
+type AutoscalingPolicyBindingNamespaceListerExpansion interface{}
+
 // ModelListerExpansion allows custom methods to be added to
 // ModelLister.
 type ModelListerExpansion interface{}

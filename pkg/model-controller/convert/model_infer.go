@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package utils
+package convert
 
 import (
 	"bytes"
@@ -23,14 +23,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"os"
 	"slices"
-	"sort"
-	"strconv"
 	"strings"
-	"time"
 
-	"k8s.io/klog/v2"
 	networking "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 
 	corev1 "k8s.io/api/core/v1"
@@ -40,6 +35,7 @@ import (
 	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/config"
+	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
 )
 
 const (
@@ -50,17 +46,14 @@ const (
 	VllmTemplatePath               = "templates/vllm.yaml"
 	VllmDisaggregatedTemplatePath  = "templates/vllm-pd.yaml"
 	VllmMultiNodeServingScriptPath = "/vllm-workspace/vllm/examples/online_serving/multi-node-serving.sh"
-	inClusterNamespacePath         = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 	modelRouteRuleName             = "default"
 )
 
 //go:embed templates/*
 var templateFS embed.FS
 
-var XPUList = []corev1.ResourceName{"nvidia.com/gpu", "huawei.com/ascend-1980"}
-
-// BuildModelInferCR creates ModelInfer objects based on the model's backends.
-func BuildModelInferCR(model *registry.Model) ([]*workload.ModelInfer, error) {
+// CreateModelInferResources creates ModelInfer objects based on the model's backends.
+func CreateModelInferResources(model *registry.Model) ([]*workload.ModelInfer, error) {
 	var infers []*workload.ModelInfer
 	for idx, backend := range model.Spec.Backends {
 		var infer *workload.ModelInfer
@@ -148,7 +141,7 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion: registry.GroupVersion.String(),
-					Kind:       registry.ModelKind,
+					Kind:       registry.ModelKind.Kind,
 					Name:       model.Name,
 					UID:        model.UID,
 				},
@@ -225,7 +218,7 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 
 	data := map[string]interface{}{
 		"MODEL_INFER_TEMPLATE_METADATA": &metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%d-%s-instance", model.Name, idx, strings.ToLower(string(backend.Type))),
+			Name:      utils.GetBackendResourceName(model.Name, backend.Name),
 			Namespace: model.Namespace,
 			Labels: map[string]string{
 				ModelInferOwnerKey: string(model.UID),
@@ -234,7 +227,7 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion: registry.GroupVersion.String(),
-					Kind:       registry.ModelKind,
+					Kind:       registry.ModelKind.Kind,
 					Name:       model.Name,
 					UID:        model.UID,
 				},
@@ -286,11 +279,11 @@ func mapWorkers(workers []registry.ModelWorker) map[registry.ModelWorkerType]*re
 func buildCommands(config *apiextensionsv1.JSON, modelDownloadPath string,
 	workersMap map[registry.ModelWorkerType]*registry.ModelWorker) ([]string, error) {
 	commands := []string{"python", "-m", "vllm.entrypoints.openai.api_server", "--model", modelDownloadPath}
-	args, err := parseArgs(config)
+	args, err := utils.ParseArgs(config)
 	commands = append(commands, args...)
 	if workersMap[registry.ModelWorkerTypeServer] != nil && workersMap[registry.ModelWorkerTypeServer].Pods > 1 {
 		commands = append(commands, "--distributed_executor_backend", "ray")
-		commands = []string{"bash", "-c", fmt.Sprintf("chmod u+x %s && %s leader --ray_cluster_size=%d --num-gpus=%d && %s", VllmMultiNodeServingScriptPath, VllmMultiNodeServingScriptPath, workersMap[registry.ModelWorkerTypeServer].Pods, getDeviceNum(workersMap[registry.ModelWorkerTypeServer]), strings.Join(commands, " "))}
+		commands = []string{"bash", "-c", fmt.Sprintf("chmod u+x %s && %s leader --ray_cluster_size=%d --num-gpus=%d && %s", VllmMultiNodeServingScriptPath, VllmMultiNodeServingScriptPath, workersMap[registry.ModelWorkerTypeServer].Pods, utils.GetDeviceNum(workersMap[registry.ModelWorkerTypeServer]), strings.Join(commands, " "))}
 	}
 	return commands, err
 }
@@ -370,122 +363,6 @@ func getEnvValueOrDefault(backend *registry.ModelBackend, name string, defaultVa
 	return defaultValue
 }
 
-func getDeviceNum(worker *registry.ModelWorker) int64 {
-	sum := int64(0)
-	if worker.Resources.Requests != nil {
-		for _, xpu := range XPUList {
-			if val, exists := worker.Resources.Requests[xpu]; exists {
-				sum += val.Value()
-			}
-		}
-	}
-	return sum
-}
-
-func replacePlaceholders(data *interface{}, values *map[string]interface{}) error {
-	switch v := (*data).(type) {
-	case map[string]interface{}:
-		for key, val := range v {
-			if err := replacePlaceholders(&val, values); err != nil {
-				return err
-			}
-			v[key] = val
-		}
-	case []interface{}:
-		for i := range v {
-			if err := replacePlaceholders(&v[i], values); err != nil {
-				return err
-			}
-		}
-	case string:
-		if strings.HasPrefix(v, "${") && strings.HasSuffix(v, "}") {
-			key := strings.TrimSuffix(strings.TrimPrefix(v, "${"), "}")
-			if val, exists := (*values)[key]; exists {
-				*data = deepCopyValue(val)
-				return replacePlaceholders(data, values)
-			}
-			return fmt.Errorf("not found placeholder: %s", key)
-		} else if strings.Contains(v, "${") {
-			newStr, err := replaceEmbeddedPlaceholders(v, values)
-			if err != nil {
-				return err
-			}
-			*data = newStr
-		}
-	}
-	return nil
-}
-
-func deepCopyValue(src interface{}) interface{} {
-	if src == nil {
-		return nil
-	}
-
-	switch src.(type) {
-	case string, bool, int, int32, int64, float32, float64:
-		return src
-	}
-
-	bytes, err := json.Marshal(src)
-	if err != nil {
-		return src
-	}
-
-	var dest interface{}
-	if err := json.Unmarshal(bytes, &dest); err != nil {
-		return src
-	}
-
-	return dest
-}
-
-func replaceEmbeddedPlaceholders(s string, values *map[string]interface{}) (string, error) {
-	var result strings.Builder
-	pos := 0
-
-	for {
-		start := strings.Index(s[pos:], "${")
-		if start == -1 {
-			result.WriteString(s[pos:])
-			break
-		}
-		start += pos
-
-		end := strings.Index(s[start:], "}")
-		if end == -1 {
-			return "", fmt.Errorf("not found end } in: %s", s[start:])
-		}
-		end += start
-
-		result.WriteString(s[pos:start])
-
-		key := s[start+2 : end]
-
-		if val, exists := (*values)[key]; exists {
-			switch v := val.(type) {
-			case string:
-				result.WriteString(v)
-			case int, int32, int64, float32, float64:
-				result.WriteString(fmt.Sprintf("%v", v))
-			case bool:
-				result.WriteString(strconv.FormatBool(v))
-			default:
-				jsonBytes, err := json.Marshal(val)
-				if err != nil {
-					return "", fmt.Errorf("failed to marshal value to JSON: %w", err)
-				}
-				result.WriteString(string(jsonBytes))
-			}
-		} else {
-			return "", fmt.Errorf("key not found: %s", key)
-		}
-
-		pos = end + 1
-	}
-
-	return result.String(), nil
-}
-
 // loadModelInferTemplate loads and processes the template file.
 func loadModelInferTemplate(templatePath string, data *map[string]interface{}) (*workload.ModelInfer, error) {
 	templateBytes, err := templateFS.ReadFile(templatePath)
@@ -497,7 +374,7 @@ func loadModelInferTemplate(templatePath string, data *map[string]interface{}) (
 	if err := yaml.Unmarshal(templateBytes, &jsonObj); err != nil {
 		return nil, fmt.Errorf("YAML template parse failed: %w", err)
 	}
-	if err := replacePlaceholders(&jsonObj, data); err != nil {
+	if err := utils.ReplacePlaceholders(&jsonObj, data); err != nil {
 		return nil, fmt.Errorf("replace placeholders failed: %v", err)
 	}
 
@@ -514,152 +391,6 @@ func loadModelInferTemplate(templatePath string, data *map[string]interface{}) (
 	}
 
 	return modelInfer, nil
-}
-
-func parseArgs(config *apiextensionsv1.JSON) ([]string, error) {
-	if config == nil || config.Raw == nil {
-		return []string{}, nil
-	}
-	var configMap map[string]interface{}
-	if err := json.Unmarshal(config.Raw, &configMap); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
-	}
-	keys := make([]string, 0, len(configMap))
-	for k := range configMap {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	args := make([]string, 0, len(configMap)*2)
-	for _, key := range keys {
-		value := configMap[key]
-
-		keyStr := fmt.Sprintf("--%s", strings.ReplaceAll(key, "_", "-"))
-
-		var strValue string
-		switch v := value.(type) {
-		case string:
-			strValue = v
-		case bool:
-			strValue = fmt.Sprintf("%t", v)
-		case json.Number:
-			strValue = value.(json.Number).String()
-		default:
-			strValue = fmt.Sprintf("%v", v)
-		}
-		args = append(args, keyStr)
-		if strValue != "" {
-			args = append(args, strValue)
-		}
-	}
-
-	return args, nil
-}
-
-// GetInClusterNameSpace gets the namespace of model controller
-func GetInClusterNameSpace() (string, error) {
-	if _, err := os.Stat(inClusterNamespacePath); os.IsNotExist(err) {
-		return "", fmt.Errorf("not running in-cluster, please specify namespace")
-	} else if err != nil {
-		return "", fmt.Errorf("error checking namespace file: %v", err)
-	}
-	// Load the namespace file and return its content
-	namespace, err := os.ReadFile(inClusterNamespacePath)
-	if err != nil {
-		return "", fmt.Errorf("error reading namespace file: %v", err)
-	}
-	return string(namespace), nil
-}
-
-// BuildModelServer creates arrays of ModelServer for the given model.
-// Each model backend will create one model server.
-func BuildModelServer(model *registry.Model) ([]*networking.ModelServer, error) {
-	var modelServers []*networking.ModelServer
-	for idx, backend := range model.Spec.Backends {
-		var inferenceEngine networking.InferenceEngine
-		switch backend.Type {
-		case registry.ModelBackendTypeVLLM, registry.ModelBackendTypeVLLMDisaggregated:
-			inferenceEngine = networking.VLLM
-		case registry.ModelBackendTypeSGLang:
-			inferenceEngine = networking.SGLang
-		case registry.ModelBackendTypeMindIE, registry.ModelBackendTypeMindIEDisaggregated:
-			klog.Warning("Not support MindIE backend yet, please use vLLM or SGLang backend")
-			return modelServers, nil
-		}
-		var pdGroup *networking.PDGroup
-		switch backend.Type {
-		case registry.ModelBackendTypeVLLMDisaggregated, registry.ModelBackendTypeMindIEDisaggregated:
-			pdGroup = &networking.PDGroup{
-				GroupKey: "modelinfer.matrixinfer.ai/group-name",
-				PrefillLabels: map[string]string{
-					"modelinfer.matrixinfer.ai/role": "prefill",
-				},
-				DecodeLabels: map[string]string{
-					"modelinfer.matrixinfer.ai/role": "decode",
-				},
-			}
-		}
-		servedModelName, err := getServedModelName(model, backend)
-		if err != nil {
-			return nil, err
-		}
-		modelServer := networking.ModelServer{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       networking.ModelServerKind,
-				APIVersion: networking.GroupVersion.String(),
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      fmt.Sprintf("%s-%d-%s-server", model.Name, idx, strings.ToLower(string(backend.Type))),
-				Namespace: model.Namespace,
-				OwnerReferences: []metav1.OwnerReference{
-					{
-						APIVersion: registry.GroupVersion.String(),
-						Kind:       registry.ModelKind,
-						Name:       model.Name,
-						UID:        model.UID,
-					},
-				},
-			},
-			Spec: networking.ModelServerSpec{
-				Model:           &servedModelName,
-				InferenceEngine: inferenceEngine,
-				WorkloadSelector: &networking.WorkloadSelector{
-					MatchLabels: map[string]string{
-						"model.uid": string(model.UID),
-					},
-					PDGroup: pdGroup,
-				},
-				WorkloadPort: networking.WorkloadPort{
-					Port: 8000, // todo: get port from config
-				},
-				TrafficPolicy: &networking.TrafficPolicy{
-					Retry: &networking.Retry{
-						Attempts:      5,
-						RetryInterval: &metav1.Duration{Duration: time.Duration(0) * time.Second},
-					},
-				},
-			},
-		}
-		modelServers = append(modelServers, &modelServer)
-	}
-	return modelServers, nil
-}
-
-// getServedModelName gets served model name from the worker config. Default is the model name.
-func getServedModelName(model *registry.Model, backend registry.ModelBackend) (string, error) {
-	servedModelName := model.Name
-	for _, worker := range backend.Workers {
-		args, err := parseArgs(&worker.Config)
-		if err != nil {
-			return "", err
-		}
-		for i, str := range args {
-			if str == "--served-model-name" && i+1 < len(args) {
-				servedModelName = args[i+1]
-				break
-			}
-		}
-	}
-	return servedModelName, nil
 }
 
 // buildDownloaderContainer builds downloader container to reduce code duplication
@@ -744,7 +475,7 @@ func BuildModelRoute(model *registry.Model) *networking.ModelRoute {
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion: registry.GroupVersion.String(),
-					Kind:       registry.ModelKind,
+					Kind:       registry.ModelKind.Kind,
 					Name:       model.Name,
 					UID:        model.UID,
 				},

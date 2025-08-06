@@ -20,9 +20,14 @@ import (
 	"context"
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/api/equality"
-	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
+	icUtils "matrixinfer.ai/matrixinfer/pkg/infer-controller/utils"
+	"matrixinfer.ai/matrixinfer/pkg/model-controller/convert"
+	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
 
+	"k8s.io/apimachinery/pkg/api/equality"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	workloadLister "matrixinfer.ai/matrixinfer/client-go/listers/workload/v1alpha1"
 
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -38,7 +43,6 @@ import (
 	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/config"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -55,12 +59,16 @@ type ModelController struct {
 	// client for custom resource
 	client clientset.Interface
 
-	syncHandler         func(ctx context.Context, miKey string) error
-	modelsLister        registryLister.ModelLister
-	modelsInformer      cache.Controller
-	modelInfersLister   workloadLister.ModelInferLister
-	modelInfersInformer cache.Controller
-	workQueue           workqueue.TypedRateLimitingInterface[any]
+	syncHandler                       func(ctx context.Context, miKey string) error
+	modelsLister                      registryLister.ModelLister
+	modelsInformer                    cache.Controller
+	modelInfersLister                 workloadLister.ModelInferLister
+	modelInfersInformer               cache.SharedIndexInformer
+	autoscalingPoliciesLister         registryLister.AutoscalingPolicyLister
+	autoscalingPoliciesInformer       cache.SharedIndexInformer
+	autoscalingPolicyBindingsLister   registryLister.AutoscalingPolicyBindingLister
+	autoscalingPolicyBindingsInformer cache.SharedIndexInformer
+	workQueue                         workqueue.TypedRateLimitingInterface[any]
 }
 
 func (mc *ModelController) Run(ctx context.Context, workers int) {
@@ -70,10 +78,14 @@ func (mc *ModelController) Run(ctx context.Context, workers int) {
 	// start informers
 	go mc.modelsInformer.RunWithContext(ctx)
 	go mc.modelInfersInformer.RunWithContext(ctx)
+	go mc.autoscalingPoliciesInformer.RunWithContext(ctx)
+	go mc.autoscalingPolicyBindingsInformer.RunWithContext(ctx)
 
 	cache.WaitForCacheSync(ctx.Done(),
 		mc.modelsInformer.HasSynced,
 		mc.modelInfersInformer.HasSynced,
+		mc.autoscalingPoliciesInformer.HasSynced,
+		mc.autoscalingPolicyBindingsInformer.HasSynced,
 	)
 
 	klog.Info("start model controller")
@@ -163,6 +175,7 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 	if err != nil {
 		return client.IgnoreNotFound(err)
 	}
+	// TODO: Expect no distinction between create phase and update phase
 	klog.InfoS("Start to process model", "namespace", namespace, "model name", model.Name, "model status", model.Status)
 	if len(model.Status.Conditions) == 0 {
 		if err := mc.createModelInfer(ctx, model); err != nil {
@@ -172,6 +185,9 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 			return err
 		}
 		if err := mc.createModelRoute(ctx, model); err != nil {
+			return err
+		}
+		if err := mc.createAutoscalingPolicyAndBinding(ctx, model); err != nil {
 			return err
 		}
 		meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeInitializing),
@@ -195,8 +211,11 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 		if err := mc.updateModelRoute(ctx, model); err != nil {
 			return err
 		}
+		if err := mc.updateAutoscalingPolicyAndBinding(ctx, model); err != nil {
+			return err
+		}
 	}
-	modelInferActive, err := mc.isModelInferActive(ctx, model)
+	modelInferActive, err := mc.isModelInferActive(model)
 	if err != nil || !modelInferActive {
 		return err
 	}
@@ -207,18 +226,18 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 }
 
 // isModelInferActive returns true if all Model Infers are available.
-func (mc *ModelController) isModelInferActive(ctx context.Context, model *registryv1alpha1.Model) (bool, error) {
+func (mc *ModelController) isModelInferActive(model *registryv1alpha1.Model) (bool, error) {
 	// List all Model Infers associated with the model
-	modelInferList, err := mc.listModelInferByLabel(ctx, model)
+	modelInfers, err := mc.listModelInferByLabel(model)
 	if err != nil {
 		return false, err
 	}
 	// Ensure the number of Model Infers matches the number of backends
-	if len(modelInferList.Items) != len(model.Spec.Backends) {
+	if len(modelInfers) != len(model.Spec.Backends) {
 		return false, fmt.Errorf("model infer number not equal to backend number")
 	}
 	// Check if all Model Infers are available
-	for _, modelInfer := range modelInferList.Items {
+	for _, modelInfer := range modelInfers {
 		if !meta.IsStatusConditionPresentAndEqual(modelInfer.Status.Conditions, string(workload.ModelInferAvailable), metav1.ConditionTrue) {
 			// requeue until all Model Infers are active
 			klog.InfoS("model infer is not available", "model infer", modelInfer.Name, "namespace", modelInfer.Namespace)
@@ -256,12 +275,12 @@ func newCondition(conditionType string, status metav1.ConditionStatus, reason st
 
 // updateModelStatus updates model status.
 func (mc *ModelController) updateModelStatus(ctx context.Context, model *registryv1alpha1.Model) error {
-	modelInferList, err := mc.listModelInferByLabel(ctx, model)
+	modelInfers, err := mc.listModelInferByLabel(model)
 	if err != nil {
 		return err
 	}
 	var backendStatus []registryv1alpha1.ModelBackendStatus
-	for _, infer := range modelInferList.Items {
+	for _, infer := range modelInfers {
 		backendStatus = append(backendStatus, registryv1alpha1.ModelBackendStatus{
 			Name:     infer.Name,
 			Hash:     "", // todo: get hash
@@ -278,21 +297,42 @@ func (mc *ModelController) updateModelStatus(ctx context.Context, model *registr
 }
 
 func NewModelController(kubeClient kubernetes.Interface, client clientset.Interface) *ModelController {
+	selector, err := labels.NewRequirement(registryv1alpha1.ManageBy, selection.Equals, []string{registryv1alpha1.GroupName})
+	if err != nil {
+		klog.Errorf("cannot create label selector, err: %v", err)
+		return nil
+	}
+
+	filterInformerFactory := informersv1alpha1.NewSharedInformerFactoryWithOptions(
+		client,
+		0,
+		informersv1alpha1.WithTweakListOptions(func(opts *metav1.ListOptions) {
+			opts.LabelSelector = selector.String()
+		}),
+	)
+
 	informerFactory := informersv1alpha1.NewSharedInformerFactory(client, 0)
 	modelInformer := informerFactory.Registry().V1alpha1().Models()
-	modelInferInformer := informerFactory.Workload().V1alpha1().ModelInfers()
+	modelInferInformer := filterInformerFactory.Workload().V1alpha1().ModelInfers()
+	autoscalingPoliciesInformer := filterInformerFactory.Registry().V1alpha1().AutoscalingPolicies()
+	autoscalingPolicyBindingsInformer := filterInformerFactory.Registry().V1alpha1().AutoscalingPolicyBindings()
 	mc := &ModelController{
-		kubeClient:          kubeClient,
-		client:              client,
-		modelsLister:        modelInformer.Lister(),
-		modelsInformer:      modelInformer.Informer(),
-		modelInfersLister:   modelInferInformer.Lister(),
-		modelInfersInformer: modelInferInformer.Informer(),
+		kubeClient:                        kubeClient,
+		client:                            client,
+		modelsLister:                      modelInformer.Lister(),
+		modelsInformer:                    modelInformer.Informer(),
+		modelInfersLister:                 modelInferInformer.Lister(),
+		modelInfersInformer:               modelInferInformer.Informer(),
+		autoscalingPoliciesLister:         autoscalingPoliciesInformer.Lister(),
+		autoscalingPoliciesInformer:       autoscalingPoliciesInformer.Informer(),
+		autoscalingPolicyBindingsLister:   autoscalingPolicyBindingsInformer.Lister(),
+		autoscalingPolicyBindingsInformer: autoscalingPolicyBindingsInformer.Informer(),
+
 		workQueue: workqueue.NewTypedRateLimitingQueueWithConfig(workqueue.DefaultTypedControllerRateLimiter[any](),
 			workqueue.TypedRateLimitingQueueConfig[any]{}),
 	}
 	klog.Info("Set the Model event handler")
-	_, err := modelInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = modelInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    mc.createModel,
 		UpdateFunc: mc.updateModel,
 		DeleteFunc: mc.deleteModel,
@@ -314,10 +354,10 @@ func NewModelController(kubeClient kubernetes.Interface, client clientset.Interf
 }
 
 // listModelInferByLabel list all model infer which label key is "owner" and label value is model uid
-func (mc *ModelController) listModelInferByLabel(ctx context.Context, model *registryv1alpha1.Model) (*workload.ModelInferList, error) {
-	if modelInfers, err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("%s=%s", utils.ModelInferOwnerKey, model.UID),
-	}); err != nil {
+func (mc *ModelController) listModelInferByLabel(model *registryv1alpha1.Model) ([]*workload.ModelInfer, error) {
+	if modelInfers, err := mc.modelInfersLister.ModelInfers(model.Namespace).List(labels.SelectorFromSet(map[string]string{
+		convert.ModelInferOwnerKey: string(model.UID),
+	})); err != nil {
 		return nil, err
 	} else {
 		return modelInfers, nil
@@ -326,14 +366,14 @@ func (mc *ModelController) listModelInferByLabel(ctx context.Context, model *reg
 
 // updateModelInfer updates model infer when model changed
 func (mc *ModelController) updateModelInfer(ctx context.Context, model *registryv1alpha1.Model) error {
-	modelInfers, err := utils.BuildModelInferCR(model)
+	modelInfers, err := convert.CreateModelInferResources(model)
 	if err != nil {
 		return err
 	}
 	for _, modelInfer := range modelInfers {
-		oldModelInfer, err := mc.client.WorkloadV1alpha1().ModelInfers(modelInfer.Namespace).Get(ctx, modelInfer.Name, metav1.GetOptions{})
+		oldModelInfer, err := mc.modelInfersLister.ModelInfers(modelInfer.Namespace).Get(modelInfer.Name)
 		if err != nil {
-			if errors.IsNotFound(err) {
+			if apierrors.IsNotFound(err) {
 				if _, err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Create(ctx, modelInfer, metav1.CreateOptions{}); err != nil {
 					klog.Errorf("failed to create ModelInfer %s: %v", klog.KObj(modelInfer), err)
 					return err
@@ -414,17 +454,17 @@ func (mc *ModelController) triggerModel(old any, new any) {
 // createModelServer creates model server
 func (mc *ModelController) createModelServer(ctx context.Context, model *registryv1alpha1.Model) error {
 	klog.V(4).Info("Start to create model server")
-	modelServers, err := utils.BuildModelServer(model)
+	modelServers, err := convert.BuildModelServer(model)
 	if err != nil {
 		return err
 	}
 	for _, modelServer := range modelServers {
 		if _, err := mc.client.NetworkingV1alpha1().ModelServers(model.Namespace).Create(ctx, modelServer, metav1.CreateOptions{}); err != nil {
-			if errors.IsAlreadyExists(err) {
+			if apierrors.IsAlreadyExists(err) {
 				klog.V(4).InfoS("ModelServer already exists, skipping creation", "modelServer", klog.KObj(modelServer))
 				continue
 			}
-			klog.Errorf("create model server failed: %v", err)
+			klog.Errorf("Create model server failed: %v", err)
 			return err
 		}
 	}
@@ -433,14 +473,14 @@ func (mc *ModelController) createModelServer(ctx context.Context, model *registr
 
 // updateModelServer updates model server
 func (mc *ModelController) updateModelServer(ctx context.Context, model *registryv1alpha1.Model) error {
-	modelServers, err := utils.BuildModelServer(model)
+	modelServers, err := convert.BuildModelServer(model)
 	if err != nil {
 		return err
 	}
 	for _, modelServer := range modelServers {
 		oldModelServer, err := mc.client.NetworkingV1alpha1().ModelServers(modelServer.Namespace).Get(ctx, modelServer.Name, metav1.GetOptions{})
 		if err != nil {
-			if errors.IsNotFound(err) {
+			if apierrors.IsNotFound(err) {
 				// ModelServer doesn't exist, create it.
 				if _, err := mc.client.NetworkingV1alpha1().ModelServers(model.Namespace).Create(ctx, modelServer, metav1.CreateOptions{}); err != nil {
 					klog.Errorf("failed to create ModelServer %s: %v", klog.KObj(modelServer), err)
@@ -463,12 +503,134 @@ func (mc *ModelController) updateModelServer(ctx context.Context, model *registr
 	return nil
 }
 
+func (mc *ModelController) createAutoscalingPolicyAndBinding(ctx context.Context, model *registryv1alpha1.Model) error {
+	if model.Spec.AutoscalingPolicy != nil {
+		// Create autoscaling policy and optimize policy binding
+		modelAutoscalePolicy := convert.BuildAutoscalingPolicy(model.Spec.AutoscalingPolicy, model, "")
+		if _, err := mc.client.RegistryV1alpha1().AutoscalingPolicies(model.Namespace).Create(ctx, modelAutoscalePolicy, metav1.CreateOptions{}); err != nil {
+			klog.Errorf("Create autoscaling policy of model: [%s] failed: %v", model.Name, err)
+			return err
+		}
+		modelPolicyBinding := convert.BuildOptimizePolicyBinding(model, utils.GetBackendResourceName(model.Name, ""))
+		if _, err := mc.client.RegistryV1alpha1().AutoscalingPolicyBindings(model.Namespace).Create(ctx, modelPolicyBinding, metav1.CreateOptions{}); err != nil {
+			klog.Errorf("Create autoscaling policy binding of model: [%s] failed: %v", model.Name, err)
+			return err
+		}
+	} else {
+		// Create autoscaling policy and scaling policy binding
+		for _, backend := range model.Spec.Backends {
+			if backend.AutoscalingPolicy == nil {
+				continue
+			}
+			backendAutoscalePolicy := convert.BuildAutoscalingPolicy(backend.AutoscalingPolicy, model, backend.Name)
+			if _, err := mc.client.RegistryV1alpha1().AutoscalingPolicies(model.Namespace).Create(ctx, backendAutoscalePolicy, metav1.CreateOptions{}); err != nil {
+				klog.Errorf("Create autoscaling policy of backend: [%s] in model: [%s] failed: %v", backend.Name, model.Name, err)
+				return err
+			}
+			backendPolicyBinding := convert.BuildScalingPolicyBinding(model, &backend, utils.GetBackendResourceName(model.Name, backend.Name))
+			if _, err := mc.client.RegistryV1alpha1().AutoscalingPolicyBindings(model.Namespace).Create(ctx, backendPolicyBinding, metav1.CreateOptions{}); err != nil {
+				klog.Errorf("Create autoscaling policy binding of backend: [%s] in model: [%s] failed: %v", backend.Name, model.Name, err)
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (mc *ModelController) updateAutoscalingPolicyAndBinding(ctx context.Context, model *registryv1alpha1.Model) error {
+	if model.Spec.AutoscalingPolicy != nil {
+		name := utils.GetBackendResourceName(model.Name, "")
+		err := mc.tryUpdateAutoscalingPolicy(ctx, model, model.Spec.AutoscalingPolicy, name)
+		if err != nil {
+			return err
+		}
+		err = mc.tryUpdateAutoscalingPolicyBinding(ctx, model, nil)
+		if err != nil {
+			return err
+		}
+	} else {
+		for _, backend := range model.Spec.Backends {
+			if backend.AutoscalingPolicy == nil {
+				continue
+			}
+			err := mc.tryUpdateAutoscalingPolicy(ctx, model, backend.AutoscalingPolicy, utils.GetBackendResourceName(model.Name, backend.Name))
+			if err != nil {
+				return err
+			}
+			err = mc.tryUpdateAutoscalingPolicyBinding(ctx, model, &backend)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (mc *ModelController) tryUpdateAutoscalingPolicyBinding(ctx context.Context, model *registryv1alpha1.Model, backend *registryv1alpha1.ModelBackend) error {
+	var targetAutoscalePolicyBinding *registryv1alpha1.AutoscalingPolicyBinding
+	if backend == nil {
+		targetAutoscalePolicyBinding = convert.BuildOptimizePolicyBinding(model, utils.GetBackendResourceName(model.Name, ""))
+	} else {
+		targetAutoscalePolicyBinding = convert.BuildScalingPolicyBinding(model, backend, utils.GetBackendResourceName(model.Name, backend.Name))
+	}
+	currentAutoscalePolicyBinding, err := mc.autoscalingPolicyBindingsLister.AutoscalingPolicyBindings(model.Namespace).Get(targetAutoscalePolicyBinding.Name)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			if _, err := mc.client.RegistryV1alpha1().AutoscalingPolicyBindings(model.Namespace).Create(ctx, targetAutoscalePolicyBinding, metav1.CreateOptions{}); err != nil {
+				klog.Errorf("Create autoscaling policy binding of model: [%s] failed: %v", model.Name, err)
+				return err
+			}
+			return nil
+		}
+		klog.Errorf("Failed to get autoscaling policy binding of model: [%s] failed: %v", model.Name, err)
+		return err
+	}
+	if utils.GetAutoscalingPolicyBindingRevision(currentAutoscalePolicyBinding) == icUtils.Revision(targetAutoscalePolicyBinding.Spec) {
+		klog.InfoS("Autoscaling policy binding [%s] of model: [%s] need not to update", currentAutoscalePolicyBinding.Name, model.Name)
+		return nil
+	}
+
+	_, err = mc.client.RegistryV1alpha1().AutoscalingPolicyBindings(model.Namespace).Update(ctx, targetAutoscalePolicyBinding, metav1.UpdateOptions{})
+	if err != nil {
+		klog.Errorf("Update autoscaling policy binding of model: [%s] failed: %v", model.Name, err)
+		return err
+	}
+	return nil
+}
+
+func (mc *ModelController) tryUpdateAutoscalingPolicy(ctx context.Context, model *registryv1alpha1.Model, policy *registryv1alpha1.AutoscalingPolicySpec, policyName string) error {
+	targetAutoscalePolicy := convert.BuildAutoscalingPolicy(policy, model, policyName)
+	currentAutoscalePolicy, err := mc.autoscalingPoliciesLister.AutoscalingPolicies(model.Namespace).Get(policyName)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			if _, err := mc.client.RegistryV1alpha1().AutoscalingPolicies(model.Namespace).Create(ctx, targetAutoscalePolicy, metav1.CreateOptions{}); err != nil {
+				klog.Errorf("Create autoscaling policy of model: [%s] failed: %v", model.Name, err)
+				return err
+			}
+			return nil
+		}
+		klog.Errorf("Failed to get autoscaling policy of model: [%s] failed: %v", model.Name, err)
+		return err
+	}
+	if utils.GetAutoscalingPolicyRevision(currentAutoscalePolicy) == icUtils.Revision(targetAutoscalePolicy.Spec) {
+		klog.InfoS("Autoscaling policy [%s] of model: [%s] need not to update", currentAutoscalePolicy.Name, model.Name)
+		return nil
+	}
+
+	_, err = mc.client.RegistryV1alpha1().AutoscalingPolicies(model.Namespace).Update(ctx, targetAutoscalePolicy, metav1.UpdateOptions{})
+	if err != nil {
+		klog.Errorf("Update autoscaling policy of model: [%s] failed: %v", model.Name, err)
+		return err
+	}
+	return nil
+}
+
 // createModelRoute creates model route
 func (mc *ModelController) createModelRoute(ctx context.Context, model *registryv1alpha1.Model) error {
 	klog.V(4).Info("Start to create model route")
-	modelRoute := utils.BuildModelRoute(model)
+	modelRoute := convert.BuildModelRoute(model)
 	if _, err := mc.client.NetworkingV1alpha1().ModelRoutes(model.Namespace).Create(ctx, modelRoute, metav1.CreateOptions{}); err != nil {
-		if errors.IsAlreadyExists(err) {
+		if apierrors.IsAlreadyExists(err) {
 			klog.V(4).InfoS("ModelRoute already exists, skipping creation", "modelRoute", klog.KObj(modelRoute))
 			return nil
 		}
@@ -480,10 +642,10 @@ func (mc *ModelController) createModelRoute(ctx context.Context, model *registry
 
 // updateModelRoute updates model route
 func (mc *ModelController) updateModelRoute(ctx context.Context, model *registryv1alpha1.Model) error {
-	modelRoute := utils.BuildModelRoute(model)
+	modelRoute := convert.BuildModelRoute(model)
 	oldModelRoute, err := mc.client.NetworkingV1alpha1().ModelRoutes(modelRoute.Namespace).Get(ctx, modelRoute.Name, metav1.GetOptions{})
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			// ModelRoute doesn't exist, create it.
 			if _, err := mc.client.NetworkingV1alpha1().ModelRoutes(model.Namespace).Create(ctx, modelRoute, metav1.CreateOptions{}); err != nil {
 				klog.Errorf("failed to create ModelRoute %s: %v", klog.KObj(modelRoute), err)
@@ -508,14 +670,14 @@ func (mc *ModelController) updateModelRoute(ctx context.Context, model *registry
 // createModelInfer creates model infer
 func (mc *ModelController) createModelInfer(ctx context.Context, model *registryv1alpha1.Model) error {
 	klog.V(4).Info("start to create model infer")
-	modelInfers, err := utils.BuildModelInferCR(model)
+	modelInfers, err := convert.CreateModelInferResources(model)
 	if err != nil {
 		klog.Errorf("failed to build model infer for model %s: %v", model.Name, err)
 		return err
 	}
 	for _, modelInfer := range modelInfers {
 		if _, err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Create(ctx, modelInfer, metav1.CreateOptions{}); err != nil {
-			if errors.IsAlreadyExists(err) {
+			if apierrors.IsAlreadyExists(err) {
 				continue
 			}
 			return err

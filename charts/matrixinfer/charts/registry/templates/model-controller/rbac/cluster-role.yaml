@@ -14,8 +14,25 @@ rules:
   - apiGroups:
       - registry.matrixinfer.ai
     resources:
-      - autoscalingpolicies
       - models
+    verbs:
+      - get
+      - list
+      - patch
+      - watch
+  - apiGroups:
+      - registry.matrixinfer.ai
+    resources:
+      - models/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - registry.matrixinfer.ai
+    resources:
+      - autoscalingpolicies
+      - autoscalingpolicybindings
     verbs:
       - create
       - delete
@@ -27,18 +44,17 @@ rules:
   - apiGroups:
       - registry.matrixinfer.ai
     resources:
-      - autoscalingpolicies/finalizers
-      - models/finalizers
+      - autoscalingpolicies/status
+      - autoscalingpolicybindings/status
     verbs:
-      - update
+      - get
   - apiGroups:
       - registry.matrixinfer.ai
     resources:
-      - autoscalingpolicies/status
-      - models/status
+      - autoscalingpolicies/finalizers
+      - autoscalingpolicybindings/finalizers
+      - models/finalizers
     verbs:
-      - get
-      - patch
       - update
   - apiGroups:
       - workload.matrixinfer.ai
@@ -59,18 +75,6 @@ rules:
     verbs:
       - get
   - apiGroups:
-      - coordination.k8s.io
-    resources:
-      - leases
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - update
-      - patch
-      - delete
-  - apiGroups:
       - networking.matrixinfer.ai
     resources:
       - modelroutes
@@ -83,3 +87,22 @@ rules:
       - patch
       - update
       - watch
+  - apiGroups:
+      - workload.matrixinfer.ai
+    resources:
+      - modelroutes/status
+      - modelservers/status
+    verbs:
+      - get
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete

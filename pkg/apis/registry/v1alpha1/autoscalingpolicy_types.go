@@ -26,6 +26,7 @@ type AutoscalingPolicySpec struct {
 	// TolerancePercent is the percentage of deviation tolerated before scaling actions are triggered.
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=100
+	// +kubebuilder:default=10
 	// +optional
 	TolerancePercent int32 `json:"tolerancePercent"`
 	// Metrics is the list of metrics used to evaluate scaling decisions.
@@ -65,12 +66,15 @@ type AutoscalingPolicyScaleUpPolicy struct {
 type AutoscalingPolicyStablePolicy struct {
 	// Instances is the maximum number of instances to scale.
 	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:default=1
 	Instances *int32 `json:"instances,omitempty"`
 	// Percent is the maximum percentage of instances to scaling.
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=1000
+	// +kubebuilder:default=100
 	Percent *int32 `json:"percent,omitempty"`
 	// Period is the duration over which scaling is evaluated.
+	// +kubebuilder:default="15s"
 	Period *metav1.Duration `json:"period,omitempty"`
 	// SelectPolicy determines the selection strategy for scaling up (e.g., Or, And).
 	// +optional
