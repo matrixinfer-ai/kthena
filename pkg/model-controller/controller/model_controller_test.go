@@ -45,7 +45,6 @@ func TestReconcile(t *testing.T) {
 	assert.NotNil(t, controller)
 	// Start controller
 	go controller.Run(ctx, 1)
-	time.Sleep(100 * time.Millisecond)
 	// Load test data
 	model := loadYaml[registry.Model](t, "../utils/testdata/input/model.yaml")
 
@@ -53,11 +52,15 @@ func TestReconcile(t *testing.T) {
 	createdModel, err := matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Create(ctx, model, metav1.CreateOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, createdModel)
-	time.Sleep(100 * time.Millisecond)
 	// model infer should be created
-	modelInfers, err := matrixinferClient.WorkloadV1alpha1().ModelInfers(model.Namespace).List(ctx, metav1.ListOptions{})
-	assert.NoError(t, err)
-	assert.Len(t, modelInfers.Items, 1, "Expected 1 ModelInfer to be created")
+	var modelInfers *workload.ModelInferList
+	assert.True(t, waitForCondition(func() bool {
+		modelInfers, err = matrixinferClient.WorkloadV1alpha1().ModelInfers(model.Namespace).List(ctx, metav1.ListOptions{})
+		if err != nil {
+			return false
+		}
+		return len(modelInfers.Items) == 1
+	}))
 	// model server should be created
 	modelServers, err := matrixinferClient.NetworkingV1alpha1().ModelServers(model.Namespace).List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
@@ -66,7 +69,7 @@ func TestReconcile(t *testing.T) {
 	modelRoutes, err := matrixinferClient.NetworkingV1alpha1().ModelRoutes(model.Namespace).List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
 	assert.Len(t, modelRoutes.Items, 1, "Expected 1 ModelRoute to be create")
-	// model should be not updated
+	// model should not be updated
 	get, err := matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Get(ctx, model.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, int64(0), get.Status.ObservedGeneration, "ObservedGeneration not updated")
@@ -81,13 +84,16 @@ func TestReconcile(t *testing.T) {
 	_, err = matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Update(ctx, createdModel, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, string(workload.ModelInferAvailable), modelInfer.Status.Conditions[0].Type, "ModelInfer condition type should be Available")
-	time.Sleep(100 * time.Millisecond)
 	// model condition should be active
-	model, err = matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Get(ctx, model.Name, metav1.GetOptions{})
-	assert.NoError(t, err)
+	assert.True(t, waitForCondition(func() bool {
+		model, err = matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Get(ctx, model.Name, metav1.GetOptions{})
+		if err != nil {
+			return false
+		}
+		return int64(1) == model.Status.ObservedGeneration
+	}))
 	assert.Equal(t, true, meta.IsStatusConditionPresentAndEqual(model.Status.Conditions,
 		string(registry.ModelStatusConditionTypeActive), metav1.ConditionTrue))
-	assert.Equal(t, int64(1), model.Status.ObservedGeneration)
 	assert.Equal(t, model.Generation, model.Status.ObservedGeneration)
 
 	// Case2: update model
@@ -96,10 +102,13 @@ func TestReconcile(t *testing.T) {
 	model.Generation += 1
 	_, err = matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Update(ctx, model, metav1.UpdateOptions{})
 	assert.NoError(t, err)
-	time.Sleep(100 * time.Millisecond)
-	modelRoutes, err = matrixinferClient.NetworkingV1alpha1().ModelRoutes(model.Namespace).List(ctx, metav1.ListOptions{})
-	assert.NoError(t, err)
-	assert.Equal(t, &weight, modelRoutes.Items[0].Spec.Rules[0].TargetModels[0].Weight)
+	assert.True(t, waitForCondition(func() bool {
+		modelRoutes, err = matrixinferClient.NetworkingV1alpha1().ModelRoutes(model.Namespace).List(ctx, metav1.ListOptions{})
+		if err != nil {
+			return false
+		}
+		return weight == *modelRoutes.Items[0].Spec.Rules[0].TargetModels[0].Weight
+	}))
 
 	// Case3: delete model
 	err = matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Delete(ctx, model.Name, metav1.DeleteOptions{})
@@ -118,4 +127,21 @@ func loadYaml[T any](t *testing.T, path string) *T {
 		t.Fatalf("Failed to unmarshal YAML: %v", err)
 	}
 	return &expected
+}
+
+func waitForCondition(checkFunc func() bool) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return false
+		case <-ticker.C:
+			if checkFunc() {
+				return true
+			}
+		}
+	}
 }
