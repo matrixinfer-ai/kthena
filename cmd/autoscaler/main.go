@@ -24,6 +24,8 @@ import (
 	"syscall"
 	"time"
 
+	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
+
 	"github.com/spf13/pflag"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/uuid"
@@ -34,7 +36,6 @@ import (
 	"k8s.io/klog/v2"
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
 	"matrixinfer.ai/matrixinfer/pkg/autoscaler/controller"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
 )
 
 const (

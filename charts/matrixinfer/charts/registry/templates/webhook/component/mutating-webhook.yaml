@@ -2,12 +2,14 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: {{ include "matrixinfer.name" . }}-registry-mutating-webhook
+  name: {{ include "matrixinfer.name" . }}-mutating-webhook
   labels:
     app.kubernetes.io/component: webhook
     {{- include "matrixinfer.labels" . | nindent 4 }}
+  {{- if .Values.global.certManager.enabled }}
   annotations:
     cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "matrixinfer.name" . }}-webhook-cert
+  {{- end }}
 webhooks:
   - name: mutate-registry-matrixinfer-ai-v1alpha1-model.matrixinfer.ai
     admissionReviewVersions: [ "v1" ]
@@ -20,7 +22,11 @@ webhooks:
         namespace: {{ .Release.Namespace }}
         path: "/mutate-registry-matrixinfer-ai-v1alpha1-model"
         port: 443
+      {{- if .Values.global.certManager.enabled }}
       caBundle: ""
+      {{- else }}
+      caBundle: {{ required "A caBundle is required for the registry mutating webhook when cert-manager is disabled (global.webhook.caBundle)" .Values.global.webhook.caBundle | quote }}
+      {{- end }}
     rules:
       - apiGroups: [ "registry.matrixinfer.ai" ]
         apiVersions: [ "v1alpha1" ]

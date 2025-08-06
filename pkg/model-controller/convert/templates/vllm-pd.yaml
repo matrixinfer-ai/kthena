@@ -1,0 +1,137 @@
+apiVersion: workload.matrixinfer.ai/v1alpha1
+kind: modelinfer
+metadata: ${MODEL_INFER_TEMPLATE_METADATA}
+spec:
+  recoveryPolicy: InferGroupRestart
+  rolloutStrategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: InferGroupRollingUpdate
+  schedulerName: volcano
+  replicas: ${BACKEND_REPLICAS}
+  template:
+    restartGracePeriodSeconds: 60
+    roles:
+      - name: prefill
+        replicas: ${PREFILL_REPLICAS}
+        entryTemplate:
+          spec:
+            initContainers: ${INIT_CONTAINERS}
+            containers:
+              - name: runtime
+                image: ${MODEL_INFER_RUNTIME_IMAGE}
+                ports:
+                  - containerPort: 8100
+                args:
+                  - --port
+                  - ${MODEL_INFER_RUNTIME_PORT}
+                  - --url
+                  - ${MODEL_INFER_RUNTIME_URL}
+                  - --engine
+                  - ${MODEL_INFER_RUNTIME_ENGINE}
+              - name: vllm
+                image: ${ENGINE_PREFILL_IMAGE}
+                ports:
+                  - containerPort: 8000
+                env:
+                  - name: HF_HUB_OFFLINE
+                    value: "1"
+                  - name: HCCL_IF_IP
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: status.podIP
+                command: ${ENGINE_PREFILL_COMMAND}
+                imagePullPolicy: IfNotPresent
+                resources: ${ENGINE_PREFILL_RESOURCES}
+                readinessProbe:
+                  initialDelaySeconds: 5
+                  periodSeconds: 5
+                  failureThreshold: 3
+                  httpGet:
+                    path: /health
+                    port: 8000
+                livenessProbe:
+                  initialDelaySeconds: 90
+                  periodSeconds: 5
+                  failureThreshold: 3
+                  httpGet:
+                    path: /health
+                    port: 8000
+                volumeMounts: ${VOLUME_MOUNTS}
+            volumes: ${VOLUMES}
+            affinity:
+              nodeAffinity:
+                requiredDuringSchedulingIgnoredDuringExecution:
+                  nodeSelectorTerms:
+                    - matchExpressions:
+                        - key: node.kubernetes.io/npu.chip.name
+                          operator: In
+                          values:
+                            - Ascend910
+        workerReplicas: 0
+        workerTemplate:
+          spec:
+            containers: []
+      - name: decode
+        replicas: ${DECODE_REPLICAS}
+        entryTemplate:
+          spec:
+            initContainers: ${INIT_CONTAINERS}
+            containers:
+              - name: runtime
+                image: ${MODEL_INFER_RUNTIME_IMAGE}
+                ports:
+                  - containerPort: 8100
+                args:
+                  - --port
+                  - ${MODEL_INFER_RUNTIME_PORT}
+                  - --url
+                  - ${MODEL_INFER_RUNTIME_URL}
+                  - --engine
+                  - ${MODEL_INFER_RUNTIME_ENGINE}
+              - name: vllm
+                image: ${ENGINE_DECODE_IMAGE}
+                ports:
+                  - containerPort: 8000
+                env:
+                  - name: HF_HUB_OFFLINE
+                    value: "1"
+                  - name: GLOO_SOCKET_IFNAME
+                    value: eth0
+                  - name: TP_SOCKET_IFNAME
+                    value: eth0
+                  - name: HCCL_SOCKET_IFNAME
+                    value: eth0
+                command: ${ENGINE_DECODE_COMMAND}
+                imagePullPolicy: IfNotPresent
+                resources: ${ENGINE_DECODE_RESOURCES}
+                readinessProbe:
+                  initialDelaySeconds: 5
+                  periodSeconds: 5
+                  failureThreshold: 3
+                  httpGet:
+                    path: /health
+                    port: 8000
+                livenessProbe:
+                  initialDelaySeconds: 90
+                  periodSeconds: 5
+                  failureThreshold: 3
+                  httpGet:
+                    path: /health
+                    port: 8000
+                volumeMounts: ${VOLUME_MOUNTS}
+            affinity:
+              nodeAffinity:
+                requiredDuringSchedulingIgnoredDuringExecution:
+                  nodeSelectorTerms:
+                    - matchExpressions:
+                        - key: node.kubernetes.io/npu.chip.name
+                          operator: In
+                          values:
+                            - Ascend910
+            volumes: ${VOLUMES}
+        workerReplicas: 0
+        workerTemplate:
+          spec:
+            containers: []

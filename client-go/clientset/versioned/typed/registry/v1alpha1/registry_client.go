@@ -29,6 +29,7 @@ import (
 type RegistryV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	AutoscalingPoliciesGetter
+	AutoscalingPolicyBindingsGetter
 	ModelsGetter
 }
 
@@ -39,6 +40,10 @@ type RegistryV1alpha1Client struct {
 
 func (c *RegistryV1alpha1Client) AutoscalingPolicies(namespace string) AutoscalingPolicyInterface {
 	return newAutoscalingPolicies(c, namespace)
+}
+
+func (c *RegistryV1alpha1Client) AutoscalingPolicyBindings(namespace string) AutoscalingPolicyBindingInterface {
+	return newAutoscalingPolicyBindings(c, namespace)
 }
 
 func (c *RegistryV1alpha1Client) Models(namespace string) ModelInterface {

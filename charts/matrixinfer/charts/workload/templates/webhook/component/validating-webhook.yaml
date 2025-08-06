@@ -6,8 +6,10 @@ metadata:
   labels:
     app.kubernetes.io/component: webhook
     {{- include "matrixinfer.labels" . | nindent 4 }}
+  {{- if .Values.global.certManager.enabled }}
   annotations:
     cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "matrixinfer.name" . }}-webhook-cert
+  {{- end }}
 webhooks:
   - name: validate-workload-matrixinfer-ai-v1alpha1-model.matrixinfer.ai
     admissionReviewVersions: [ "v1" ]
@@ -20,7 +22,11 @@ webhooks:
         namespace: {{ .Release.Namespace }}
         path: "/validate-workload-ai-v1alpha1-modelinfer"
         port: 443
+      {{- if .Values.global.certManager.enabled }}
       caBundle: ""
+      {{- else }}
+      caBundle: {{ required "A caBundle is required for the workload validating webhook when cert-manager is disabled (global.webhook.caBundle)" .Values.global.webhook.caBundle | quote }}
+      {{- end }}
     rules:
       - apiGroups: [ "workload.matrixinfer.ai" ]
         apiVersions: [ "v1alpha1" ]

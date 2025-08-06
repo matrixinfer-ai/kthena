@@ -22,54 +22,54 @@ import (
 	"k8s.io/klog/v2"
 )
 
-type MetricsMap = map[string]float64
+type Metrics = map[string]float64
 
-type GetRecommendedInstancesArgs struct {
+type RecommendedInstancesAlgorithm struct {
 	MinInstances          int32
 	MaxInstances          int32
 	CurrentInstancesCount int32
 	Tolerance             float64
-	MetricTargets         MetricsMap
+	MetricTargets         Metrics
 	UnreadyInstancesCount int32
-	ReadyInstancesMetrics []MetricsMap
-	ExternalMetrics       MetricsMap
+	ReadyInstancesMetrics []Metrics
+	ExternalMetrics       Metrics
 }
 
-func GetRecommendedInstances(args GetRecommendedInstancesArgs) (recommendedInstances int32, skip bool) {
-	klog.InfoS("start to getRecommendedInstances", "args", args)
-	if args.CurrentInstancesCount < args.MinInstances {
-		return args.MinInstances, false
+func (alg *RecommendedInstancesAlgorithm) GetRecommendedInstances() (recommendedInstances int32, skip bool) {
+	klog.InfoS("start to getRecommendedInstances", "args", alg)
+	if alg.CurrentInstancesCount < alg.MinInstances {
+		return alg.MinInstances, false
 	}
-	if args.CurrentInstancesCount > args.MaxInstances {
-		return args.MaxInstances, false
+	if alg.CurrentInstancesCount > alg.MaxInstances {
+		return alg.MaxInstances, false
 	}
 	recommendedInstances = 0
 	skip = true
-	for name, target := range args.MetricTargets {
-		externalMetric, ok := args.ExternalMetrics[name]
+	for name, target := range alg.MetricTargets {
+		externalMetric, ok := alg.ExternalMetrics[name]
 		if ok {
 			updateRecommendation(&recommendedInstances, &skip,
 				getDesiredInstancesForSingleExternalMetric(
-					args.CurrentInstancesCount,
-					args.Tolerance,
+					alg.CurrentInstancesCount,
+					alg.Tolerance,
 					target,
 					externalMetric,
 				))
 		} else {
 			if desired, ok := getDesiredInstancesForSingleInstanceMetric(
-				args.CurrentInstancesCount,
-				args.Tolerance,
+				alg.CurrentInstancesCount,
+				alg.Tolerance,
 				name,
 				target,
-				args.UnreadyInstancesCount,
-				args.ReadyInstancesMetrics,
+				alg.UnreadyInstancesCount,
+				alg.ReadyInstancesMetrics,
 			); ok {
 				updateRecommendation(&recommendedInstances, &skip, desired)
 			}
 		}
 	}
 	if !skip {
-		recommendedInstances = min(max(recommendedInstances, args.MinInstances), args.MaxInstances)
+		recommendedInstances = min(max(recommendedInstances, alg.MinInstances), alg.MaxInstances)
 	}
 	return recommendedInstances, skip
 }
@@ -103,7 +103,7 @@ func getDesiredInstancesForSingleInstanceMetric(
 	name string,
 	target float64,
 	unreadyCount int32,
-	readyMetrics []MetricsMap,
+	readyMetrics []Metrics,
 ) (desired int32, ok bool) {
 	currentMetricSum := 0.0
 	missingCount := int32(0)

@@ -13,6 +13,15 @@ workload:
 networking:
   # enabled is a flag to enable or disable the networking subchart. Default is true.
   enabled: true
+  inferGateway:
+    enabled: true
+    port: 8080
+    tls:
+      enabled: false
+      # The DNS name to use for the certificate.
+      dnsName: "your-domain.com"
+      # The name of the secret to store the certificate and key.
+      secretName: "infer-gateway-tls"
 
 global:
   certManager:
@@ -24,3 +33,8 @@ global:
     # - cert-manager must be installed in your cluster before enabling this option.
     #   See: https://cert-manager.io/docs/installation/
     enabled: true
+  webhook:
+    # caBundle is the base64-encoded CA bundle for webhook server certificates.
+    # This is required when cert-manager is disabled (global.certManager.enabled=false).
+    # You can generate it with: cat /path/to/your/ca.crt | base64 | tr -d '\n'
+    # caBundle: ""

@@ -76,6 +76,7 @@ import (
 	"github.com/cespare/xxhash"
 	"github.com/stretchr/testify/assert/yaml"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
@@ -130,31 +131,35 @@ func (p *PrefixCache) Name() string {
 }
 
 func (p *PrefixCache) Score(ctx *framework.Context, pods []*datastore.PodInfo) map[*datastore.PodInfo]int {
-	scoreResults := make(map[*datastore.PodInfo]int)
-
-	// Initialize all pods with score 0
-	for _, pod := range pods {
-		scoreResults[pod] = 0
-	}
-
 	// Hash the prompt
 	hashes := p.hashPrompt(ctx.Model, ctx.Prompt)
 	if len(hashes) == 0 {
-		return scoreResults
+		return nil
 	}
 
+	scoreResults := make(map[*datastore.PodInfo]int, len(pods))
 	// Store hashes in context for later use in PostSchedule
 	ctx.Hashes = hashes
 
 	// Find pods with matching prefixes
 	matches := p.store.FindTopMatches(ctx.Model, hashes, pods)
 
+	podMap := make(map[types.NamespacedName]*datastore.PodInfo, len(pods))
+	for _, pod := range pods {
+		podMap[types.NamespacedName{Namespace: pod.Pod.Namespace, Name: pod.Pod.Name}] = pod
+	}
+
 	// Calculate scores based on prefix match length
 	totalHashes := len(hashes)
 	for _, match := range matches {
 		// Score is the ratio of matching hashes to total hashes, scaled to 0-100
 		score := int((float64(match.MatchLen) / float64(totalHashes)) * 100)
-		scoreResults[match.Pod] = score
+		pod := podMap[match.NamespacedName]
+		if pod == nil {
+			klog.Errorf("Pod %s not found in pod map, this maybe because of prefix cache state inconsistency", match.NamespacedName)
+			continue
+		}
+		scoreResults[pod] = score
 	}
 
 	return scoreResults

@@ -264,18 +264,18 @@ func (v *ModelValidator) validateAutoscalingPolicyRefs(ctx context.Context, mode
 	var allErrs field.ErrorList
 
 	// Model-level ref
-	if name := model.Spec.AutoscalingPolicyRef.Name; name != "" {
+	if model.Spec.AutoscalingPolicy != nil {
 		// For now, we'll skip the actual client lookup since we need to adapt the client interface
 		// In a real implementation, you would check if the AutoscalingPolicy exists
-		klog.V(4).Infof("Skipping validation of AutoscalingPolicy %s in namespace %s", name, model.Namespace)
+		klog.V(4).Infof("Skipping optimize autoscaling policy validation of model %s in namespace %s", model.Name, model.Namespace)
 	}
 
 	// Backend-level refs
-	for i, backend := range model.Spec.Backends {
-		if name := backend.AutoscalingPolicyRef.Name; name != "" {
+	for _, backend := range model.Spec.Backends {
+		if backend.AutoscalingPolicy != nil {
 			// For now, we'll skip the actual client lookup since we need to adapt the client interface
 			// In a real implementation, you would check if the AutoscalingPolicy exists
-			klog.V(4).Infof("Skipping validation of AutoscalingPolicy %s for backend %d in namespace %s", name, i, model.Namespace)
+			klog.V(4).Infof("Skipping scaling autoscaling policy validation of model %s for backend %s in namespace %s", model.Name, backend.Name, model.Namespace)
 		}
 	}
 	return allErrs
@@ -286,10 +286,10 @@ func validateAutoScalingPolicyScope(model *registryv1alpha1.Model) field.ErrorLi
 	spec := model.Spec
 	var allErrs field.ErrorList
 
-	modelAutoScalingEmpty := spec.AutoscalingPolicyRef.Name == ""
+	modelAutoScalingEmpty := spec.AutoscalingPolicy == nil
 	allBackendAutoScalingEmpty := true
 	for _, backend := range spec.Backends {
-		if backend.AutoscalingPolicyRef.Name != "" {
+		if backend.AutoscalingPolicy != nil {
 			allBackendAutoScalingEmpty = false
 			break
 		}
@@ -317,7 +317,7 @@ func validateAutoScalingPolicyScope(model *registryv1alpha1.Model) field.ErrorLi
 			))
 		}
 		for i, backend := range spec.Backends {
-			if backend.AutoscalingPolicyRef.Name != "" && backend.MinReplicas < 1 {
+			if backend.AutoscalingPolicy != nil && backend.MinReplicas < 1 {
 				allErrs = append(allErrs, field.Invalid(
 					field.NewPath("spec").Child("backends").Index(i).Child("minReplicas"),
 					backend.MinReplicas,
