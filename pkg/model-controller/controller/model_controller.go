@@ -114,7 +114,7 @@ func (mc *ModelController) createModel(obj any) {
 		klog.Error("failed to parse Model when createModel")
 		return
 	}
-	klog.V(4).Info("Creating", "model", klog.KObj(model))
+	klog.V(4).Infof("Create model: %s", klog.KObj(model))
 	mc.enqueueModel(model)
 }
 
@@ -149,7 +149,7 @@ func (mc *ModelController) deleteModel(obj any) {
 		klog.Error("failed to parse Model when deleteModel")
 		return
 	}
-	klog.Infof("Delete model: %s", model.Name)
+	klog.V(4).Infof("Delete model: %s", klog.KObj(model))
 }
 
 // reconcile is part of the main kubernetes reconciliation loop which aims to
