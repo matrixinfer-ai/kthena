@@ -133,15 +133,32 @@ func TestUpdateModel(t *testing.T) {
 	matrixinferClient := matrixinferfake.NewClientset()
 	controller := NewModelController(kubeClient, matrixinferClient)
 	model := loadYaml[registry.Model](t, "../utils/testdata/input/model.yaml")
-	controller.updateModel("wrong", model)
-	controller.updateModel(model, "wrong")
+	// invalid old
+	controller.updateModel("invalid", model)
+	assert.Equal(t, 0, controller.workQueue.Len())
+	// invalid new
+	controller.updateModel(model, "invalid")
+	assert.Equal(t, 0, controller.workQueue.Len())
 }
 
 func TestDeleteModel(t *testing.T) {
 	kubeClient := fake.NewClientset()
 	matrixinferClient := matrixinferfake.NewClientset()
 	controller := NewModelController(kubeClient, matrixinferClient)
-	controller.deleteModel("wrong")
+	controller.deleteModel("invalid")
+}
+
+func TestTriggerModel(t *testing.T) {
+	kubeClient := fake.NewClientset()
+	matrixinferClient := matrixinferfake.NewSimpleClientset()
+	controller := NewModelController(kubeClient, matrixinferClient)
+	modelInfer := loadYaml[workload.ModelInfer](t, "../utils/testdata/expected/model-infer.yaml")
+	// invalid new
+	controller.triggerModel(modelInfer, "invalid")
+	assert.Equal(t, 0, controller.workQueue.Len())
+	// invalid old
+	controller.triggerModel("invalid", modelInfer)
+	assert.Equal(t, 0, controller.workQueue.Len())
 }
 
 // loadYaml transfer yaml data into a struct of type T.
