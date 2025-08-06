@@ -613,3 +613,72 @@ func TestModelPrefixStoreConcurrency(t *testing.T) {
 		}
 	})
 }
+
+func BenchmarkModelPrefixStore_FindAndAdd(b *testing.B) {
+	mockStore := datastore.New()
+	store := NewModelPrefixStore(mockStore, 500, 15)
+
+	const numPods = 100
+	const numModels = 3
+
+	// Pre-generate test data
+	pods := make([]*datastore.PodInfo, numPods)
+	hashSets := make([][][]uint64, numModels)
+	queryPatterns := make([][]uint64, numModels)
+
+	for i := 0; i < numPods; i++ {
+		pods[i] = &datastore.PodInfo{
+			Pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      fmt.Sprintf("mixed-pod-%d", i),
+					Namespace: fmt.Sprintf("mixed-ns-%d", i%5),
+				},
+			},
+		}
+	}
+
+	for m := 0; m < numModels; m++ {
+		hashSets[m] = make([][]uint64, numPods)
+		for i := 0; i < numPods; i++ {
+			hashSets[m][i] = make([]uint64, 40)
+			for j := 0; j < 40; j++ {
+				if j < 8 {
+					hashSets[m][i][j] = uint64(m*20 + j + 1)
+				} else {
+					hashSets[m][i][j] = uint64(i*1000 + j + m*100)
+				}
+			}
+		}
+
+		queryPatterns[m] = make([]uint64, 25)
+		for j := 0; j < 25; j++ {
+			if j < 8 {
+				queryPatterns[m][j] = uint64(m*20 + j + 1)
+			} else {
+				queryPatterns[m][j] = uint64(m*200 + j)
+			}
+		}
+	}
+
+	concurrency := 50
+
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		wg := sync.WaitGroup{}
+		wg.Add(concurrency)
+		for j := 0; j < concurrency; j++ {
+			go func(i int) {
+				defer wg.Done()
+				podIdx := i % numPods
+				modelIdx := i % numModels
+				modelName := fmt.Sprintf("mixed-model-%d", modelIdx)
+				// FindTopMatches operation
+				_ = store.FindTopMatches(modelName, queryPatterns[modelIdx], pods)
+				store.Add(modelName, hashSets[modelIdx][podIdx], pods[podIdx])
+			}(i + j)
+		}
+		wg.Wait()
+	}
+}
