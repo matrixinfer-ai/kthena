@@ -28,20 +28,23 @@ import (
 
 func BuildModelRoute(model *registry.Model) *networking.ModelRoute {
 	var rules []*networking.Rule
-	var loraAdapters []string
 	var targetModels []*networking.TargetModel
+	// Use map to deduplicate lora adapters
+	loraMap := make(map[string]struct{})
 	for idx, backend := range model.Spec.Backends {
 		for _, lora := range backend.LoraAdapters {
-			loraAdapters = append(loraAdapters, lora.Name)
+			loraMap[lora.Name] = struct{}{}
 		}
 		targetModels = append(targetModels, &networking.TargetModel{
 			ModelServerName: fmt.Sprintf("%s-%d-%s-server", model.Name, idx, strings.ToLower(string(backend.Type))),
 			Weight:          backend.RouteWeight,
 		})
 	}
-	// sort and then remove duplicate lora name
+	var loraAdapters []string
+	for loraName := range loraMap {
+		loraAdapters = append(loraAdapters, loraName)
+	}
 	slices.Sort(loraAdapters)
-	loraAdapters = slices.Compact(loraAdapters)
 	rules = append(rules, &networking.Rule{
 		Name:         modelRouteRuleName,
 		ModelMatch:   model.Spec.ModelMatch,
