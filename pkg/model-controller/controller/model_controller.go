@@ -24,6 +24,7 @@ import (
 	"io"
 	"net/http"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -84,6 +85,9 @@ type ModelController struct {
 	podsInformer                      cache.SharedIndexInformer
 	kubeInformerFactory               informers.SharedInformerFactory
 	workQueue                         workqueue.TypedRateLimitingInterface[any]
+	// loraUpdateCache stores the previous model version for LoRA adapter comparison
+	// Key format: "namespace/name:generation" to avoid version conflicts
+	loraUpdateCache map[string]*registryv1alpha1.Model
 }
 
 func (mc *ModelController) Run(ctx context.Context, workers int) {
@@ -170,15 +174,10 @@ func (mc *ModelController) updateModel(old any, new any) {
 
 	// When observed generation not equal to generation, reconcile model
 	if oldModel.Status.ObservedGeneration != newModel.Generation {
-		// Check for LoRA adapter updates before normal reconciliation
-		if mc.hasOnlyLoraAdaptersChanged(oldModel, newModel) {
-			// Handle LoRA adapter update without triggering full reconciliation
-			if err := mc.handleLoraAdapterUpdate(oldModel, newModel); err != nil {
-				klog.Errorf("Failed to handle LoRA adapter update: %v, falling back to full reconciliation", err)
-				mc.enqueueModel(newModel)
-			}
-			return
-		}
+		// Store the old model in cache with generation-specific key to avoid conflicts
+		cacheKey := fmt.Sprintf("%s/%s:%d", newModel.Namespace, newModel.Name, newModel.Generation)
+		mc.loraUpdateCache[cacheKey] = oldModel.DeepCopy()
+
 		mc.enqueueModel(newModel)
 	}
 }
@@ -230,7 +229,30 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 		}
 	}
 	if model.Generation != model.Status.ObservedGeneration {
-		klog.Info("model generation is not equal to observed generation, update model infer, model server and model route")
+		klog.Info("model generation is not equal to observed generation, checking for LoRA adapter changes")
+
+		// First, check if only LoRA adapters have changed for runtime update
+		if oldModel, err := mc.getPreviousModelVersion(model); err == nil && oldModel != nil {
+			if mc.hasOnlyLoraAdaptersChanged(oldModel, model) {
+				klog.Info("Detected only LoRA adapter changes, attempting runtime update")
+				if err := mc.handleLoraAdapterUpdate(oldModel, model); err != nil {
+					klog.Errorf("Failed to handle LoRA adapter update: %v, falling back to full reconciliation", err)
+					mc.setModelFailedCondition(ctx, model, err)
+					return err
+				} else {
+					// LoRA adapter update successful, update observed generation and return
+					if err := mc.updateModelStatus(ctx, model); err != nil {
+						klog.Errorf("Failed to update model status after LoRA adapter update: %v", err)
+						return err
+					}
+					klog.Info("LoRA adapter update completed successfully")
+					return nil
+				}
+			}
+		}
+
+		// If not only LoRA adapters changed or LoRA update failed, proceed with full reconciliation
+		klog.Info("Proceeding with full reconciliation")
 		if err := mc.setModelUpdateCondition(ctx, model); err != nil {
 			return err
 		}
@@ -258,7 +280,21 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 	if err := mc.setModelActiveCondition(ctx, model); err != nil {
 		return err
 	}
+
 	return nil
+}
+
+// getPreviousModelVersion gets the previous version of the model from cache for comparison
+func (mc *ModelController) getPreviousModelVersion(model *registryv1alpha1.Model) (*registryv1alpha1.Model, error) {
+	cacheKey := fmt.Sprintf("%s/%s:%d", model.Namespace, model.Name, model.Generation)
+
+	// Get the previous model from cache
+	oldModel, exists := mc.loraUpdateCache[cacheKey]
+	if !exists {
+		return nil, nil
+	}
+
+	return oldModel, nil
 }
 
 // hasOnlyLoraAdaptersChanged checks if only LoRA adapters have changed between old and new model
@@ -305,23 +341,23 @@ func (mc *ModelController) handleLoraAdapterUpdate(oldModel, newModel *registryv
 
 	for i, newBackend := range newModel.Spec.Backends {
 		if newBackend.Type != registryv1alpha1.ModelBackendTypeVLLM {
-			continue
+			return fmt.Errorf("only VLLM backends are supported for LoRA adapter updates")
 		}
 
 		oldBackend := oldModel.Spec.Backends[i]
 
 		// Get ModelInfer for this backend using the correct naming convention
-		modelInferName := fmt.Sprintf("%s-%d-%s-instance", newModel.Name, i, strings.ToLower(string(newBackend.Type)))
+		modelInferName := utils.GetBackendResourceName(newModel.Name, newBackend.Name)
 		modelInfer, err := mc.client.WorkloadV1alpha1().ModelInfers(newModel.Namespace).Get(ctx, modelInferName, metav1.GetOptions{})
 		if err != nil {
 			klog.Errorf("Failed to get ModelInfer %s: %v", modelInferName, err)
-			continue
+			return err
 		}
 
 		// Check if ModelInfer is ready
 		if !mc.isModelInferReady(modelInfer) {
 			klog.Warningf("ModelInfer %s is not ready, skipping LoRA adapter update", modelInferName)
-			continue
+			return fmt.Errorf("model infer %s is not ready", modelInferName)
 		}
 
 		// Handle LoRA adapter changes
@@ -507,15 +543,6 @@ func (mc *ModelController) getModelInferRuntimeURLs(modelInfer *workload.ModelIn
 	return runtimeURLs, nil
 }
 
-// getModelInferRuntimeURL constructs the runtime service URL for a ModelInfer using pod IP (backward compatibility)
-func (mc *ModelController) getModelInferRuntimeURL(modelInfer *workload.ModelInfer, backend *registryv1alpha1.ModelBackend) (string, error) {
-	runtimeURLs, err := mc.getModelInferRuntimeURLs(modelInfer, backend)
-	if err != nil {
-		return "", err
-	}
-	return runtimeURLs[0], nil
-}
-
 // getModelInferPodIPs gets the IPs of all available pods for a ModelInfer
 func (mc *ModelController) getModelInferPodIPs(modelInfer *workload.ModelInfer) ([]string, error) {
 	// Use PodLister to get pods with the ModelInfer label
@@ -545,15 +572,6 @@ func (mc *ModelController) getModelInferPodIPs(modelInfer *workload.ModelInfer) 
 	}
 
 	return podIPs, nil
-}
-
-// getModelInferPodIP gets the IP of the first available pod for a ModelInfer (backward compatibility)
-func (mc *ModelController) getModelInferPodIP(modelInfer *workload.ModelInfer) (string, error) {
-	podIPs, err := mc.getModelInferPodIPs(modelInfer)
-	if err != nil {
-		return "", err
-	}
-	return podIPs[0], nil
 }
 
 // loadLoraAdapter calls the load_lora_adapter API
@@ -722,7 +740,39 @@ func (mc *ModelController) updateModelStatus(ctx context.Context, model *registr
 		klog.Errorf("update model status failed: %v", err)
 		return err
 	}
+
+	// Clean up outdated cache entries for this model
+	mc.cleanupOutdatedLoraUpdateCache(model)
 	return nil
+}
+
+// cleanupOutdatedLoraUpdateCache removes all cache entries for the specified model
+// that have a generation less than the current model generation
+func (mc *ModelController) cleanupOutdatedLoraUpdateCache(model *registryv1alpha1.Model) {
+	modelPrefix := fmt.Sprintf("%s/%s:", model.Namespace, model.Name)
+	currentGeneration := model.Generation
+
+	keysToDelete := make([]string, 0)
+	for key := range mc.loraUpdateCache {
+		if strings.HasPrefix(key, modelPrefix) {
+			// Extract generation from the cache key
+			// Cache key format: "namespace/name:generation"
+			parts := strings.Split(key, ":")
+			if len(parts) >= 2 {
+				generationStr := parts[len(parts)-1]
+				if generation, err := strconv.ParseInt(generationStr, 10, 64); err == nil {
+					if generation < currentGeneration {
+						keysToDelete = append(keysToDelete, key)
+					}
+				}
+			}
+		}
+	}
+
+	for _, key := range keysToDelete {
+		delete(mc.loraUpdateCache, key)
+		klog.V(4).Infof("Cleaned up outdated LoRA update cache entry: %s", key)
+	}
 }
 
 func NewModelController(kubeClient kubernetes.Interface, client clientset.Interface) *ModelController {
@@ -777,6 +827,7 @@ func NewModelController(kubeClient kubernetes.Interface, client clientset.Interf
 		podsLister:                        podsLister,
 		podsInformer:                      podsInformer,
 		kubeInformerFactory:               kubeInformerFactory,
+		loraUpdateCache:                   make(map[string]*registryv1alpha1.Model),
 
 		workQueue: workqueue.NewTypedRateLimitingQueueWithConfig(workqueue.DefaultTypedControllerRateLimiter[any](),
 			workqueue.TypedRateLimitingQueueConfig[any]{}),
