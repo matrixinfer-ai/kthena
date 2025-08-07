@@ -56,7 +56,7 @@ func BuildModelRoute(model *registry.Model) *networking.ModelRoute {
 			APIVersion: networking.GroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-route", model.Name),
+			Name:      model.Name,
 			Namespace: model.Namespace,
 			OwnerReferences: []metav1.OwnerReference{
 				{
