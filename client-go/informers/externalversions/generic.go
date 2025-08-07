@@ -63,6 +63,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		// Group=registry.matrixinfer.ai, Version=v1alpha1
 	case registryv1alpha1.SchemeGroupVersion.WithResource("autoscalingpolicies"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Registry().V1alpha1().AutoscalingPolicies().Informer()}, nil
+	case registryv1alpha1.SchemeGroupVersion.WithResource("autoscalingpolicybindings"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Registry().V1alpha1().AutoscalingPolicyBindings().Informer()}, nil
 	case registryv1alpha1.SchemeGroupVersion.WithResource("models"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Registry().V1alpha1().Models().Informer()}, nil
 

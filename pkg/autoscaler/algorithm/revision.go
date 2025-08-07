@@ -20,11 +20,12 @@ import (
 	"math"
 
 	"matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
-	"matrixinfer.ai/matrixinfer/pkg/autoscaler"
+	"matrixinfer.ai/matrixinfer/pkg/autoscaler/datastructure"
 )
 
-type GetCorrectedInstancesArgs struct {
-	Autoscaler           *autoscaler.Autoscaler
+type CorrectedInstancesAlgorithm struct {
+	IsPanic              bool
+	History              *History
 	Behavior             *v1alpha1.AutoscalingPolicyBehavior
 	MinInstances         int32
 	MaxInstances         int32
@@ -32,49 +33,57 @@ type GetCorrectedInstancesArgs struct {
 	RecommendedInstances int32
 }
 
-func GetCorrectedInstances(args GetCorrectedInstancesArgs) int32 {
-	var corrected int32
-	if args.Autoscaler.IsPanicMode() {
-		corrected = getCorrectedInstancesForPanic(args)
-	} else {
-		corrected = getCorrectedInstancesForStable(args)
-	}
-	return min(max(corrected, args.MinInstances), args.MaxInstances)
+type History struct {
+	MaxRecommendation     *datastructure.RmqRecordSlidingWindow[int32]
+	MinRecommendation     *datastructure.RmqRecordSlidingWindow[int32]
+	MaxCorrected          *datastructure.RmqLineChartSlidingWindow[int32]
+	MinCorrectedForStable *datastructure.RmqLineChartSlidingWindow[int32]
+	MinCorrectedForPanic  *datastructure.RmqLineChartSlidingWindow[int32]
 }
 
-func getCorrectedInstancesForPanic(args GetCorrectedInstancesArgs) int32 {
-	corrected := args.RecommendedInstances
-	if pastSample, ok := args.Autoscaler.MinCorrectedForPanic.GetBest(args.CurrentInstances); ok {
-		relativeConstraint := pastSample + int32(float64(pastSample)*float64(*args.Behavior.ScaleUp.PanicPolicy.Percent)/100.0)
+func (alg CorrectedInstancesAlgorithm) GetCorrectedInstances() int32 {
+	var corrected int32
+	if alg.IsPanic {
+		corrected = alg.getCorrectedInstancesForPanic()
+	} else {
+		corrected = alg.getCorrectedInstancesForStable()
+	}
+	return min(max(corrected, alg.MinInstances), alg.MaxInstances)
+}
+
+func (alg CorrectedInstancesAlgorithm) getCorrectedInstancesForPanic() int32 {
+	corrected := alg.RecommendedInstances
+	if pastSample, ok := alg.History.MinCorrectedForPanic.GetBest(alg.CurrentInstances); ok {
+		relativeConstraint := pastSample + int32(float64(pastSample)*float64(*alg.Behavior.ScaleUp.PanicPolicy.Percent)/100.0)
 		corrected = min(corrected, relativeConstraint)
 	}
-	corrected = max(corrected, args.CurrentInstances)
+	corrected = max(corrected, alg.CurrentInstances)
 	return corrected
 }
 
-func getCorrectedInstancesForStable(args GetCorrectedInstancesArgs) int32 {
+func (alg CorrectedInstancesAlgorithm) getCorrectedInstancesForStable() int32 {
 	var corrected int32
 	switch {
-	case args.RecommendedInstances < args.CurrentInstances:
-		corrected = getCorrectedInstancesForStableScaleDown(args)
-	case args.RecommendedInstances > args.CurrentInstances:
-		corrected = getCorrectedInstancesForStableScaleUp(args)
+	case alg.RecommendedInstances < alg.CurrentInstances:
+		corrected = alg.getCorrectedInstancesForStableScaleDown()
+	case alg.RecommendedInstances > alg.CurrentInstances:
+		corrected = alg.getCorrectedInstancesForStableScaleUp()
 	default:
-		corrected = args.RecommendedInstances
+		corrected = alg.RecommendedInstances
 	}
 	return corrected
 }
 
-func getCorrectedInstancesForStableScaleDown(args GetCorrectedInstancesArgs) int32 {
-	corrected := args.RecommendedInstances
-	if betterRecommendation, ok := args.Autoscaler.MaxRecommendation.GetBest(); ok {
+func (alg CorrectedInstancesAlgorithm) getCorrectedInstancesForStableScaleDown() int32 {
+	corrected := alg.RecommendedInstances
+	if betterRecommendation, ok := alg.History.MaxRecommendation.GetBest(); ok {
 		corrected = max(corrected, betterRecommendation)
 	}
-	if pastSample, ok := args.Autoscaler.MaxCorrected.GetBest(args.CurrentInstances); ok {
-		absoluteConstraint := pastSample - *args.Behavior.ScaleDown.Instances
-		relativeConstraint := pastSample - pastSample*(*args.Behavior.ScaleDown.Percent)/100
+	if pastSample, ok := alg.History.MaxCorrected.GetBest(alg.CurrentInstances); ok {
+		absoluteConstraint := pastSample - *alg.Behavior.ScaleDown.Instances
+		relativeConstraint := pastSample - pastSample*(*alg.Behavior.ScaleDown.Percent)/100
 		var constraint int32
-		switch args.Behavior.ScaleDown.SelectPolicy {
+		switch alg.Behavior.ScaleDown.SelectPolicy {
 		case v1alpha1.SelectPolicyOr:
 			constraint = min(absoluteConstraint, relativeConstraint)
 		case v1alpha1.SelectPolicyAnd:
@@ -84,20 +93,20 @@ func getCorrectedInstancesForStableScaleDown(args GetCorrectedInstancesArgs) int
 		}
 		corrected = max(corrected, constraint)
 	}
-	corrected = min(corrected, args.CurrentInstances)
+	corrected = min(corrected, alg.CurrentInstances)
 	return corrected
 }
 
-func getCorrectedInstancesForStableScaleUp(args GetCorrectedInstancesArgs) int32 {
-	corrected := args.RecommendedInstances
-	if betterRecommendation, ok := args.Autoscaler.MinRecommendation.GetBest(); ok {
+func (alg CorrectedInstancesAlgorithm) getCorrectedInstancesForStableScaleUp() int32 {
+	corrected := alg.RecommendedInstances
+	if betterRecommendation, ok := alg.History.MinRecommendation.GetBest(); ok {
 		corrected = min(corrected, betterRecommendation)
 	}
-	if pastSample, ok := args.Autoscaler.MinCorrectedForStable.GetBest(args.CurrentInstances); ok {
-		absoluteConstraint := pastSample + *args.Behavior.ScaleUp.StablePolicy.Instances
-		relativeConstraint := pastSample + pastSample*(*args.Behavior.ScaleUp.StablePolicy.Percent)/100
+	if pastSample, ok := alg.History.MinCorrectedForStable.GetBest(alg.CurrentInstances); ok {
+		absoluteConstraint := pastSample + *alg.Behavior.ScaleUp.StablePolicy.Instances
+		relativeConstraint := pastSample + pastSample*(*alg.Behavior.ScaleUp.StablePolicy.Percent)/100
 		var constraint int32
-		switch args.Behavior.ScaleUp.StablePolicy.SelectPolicy {
+		switch alg.Behavior.ScaleUp.StablePolicy.SelectPolicy {
 		case v1alpha1.SelectPolicyOr:
 			constraint = max(absoluteConstraint, relativeConstraint)
 		case v1alpha1.SelectPolicyAnd:
@@ -107,6 +116,6 @@ func getCorrectedInstancesForStableScaleUp(args GetCorrectedInstancesArgs) int32
 		}
 		corrected = min(corrected, constraint)
 	}
-	corrected = max(corrected, args.CurrentInstances)
+	corrected = max(corrected, alg.CurrentInstances)
 	return corrected
 }

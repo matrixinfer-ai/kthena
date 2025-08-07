@@ -1,0 +1,253 @@
+apiVersion: workload.matrixinfer.ai/v1alpha1
+kind: modelinfer
+metadata:
+  labels:
+    model.uid: randomUID
+  name: ds-r1-qwen-7b-pd-0-vllmdisaggregated-instance
+  namespace: demo
+  ownerReferences:
+    - apiVersion: registry.matrixinfer.ai/v1alpha1
+      kind: Model
+      name: ds-r1-qwen-7b-pd
+      uid: randomUID
+spec:
+  recoveryPolicy: InferGroupRestart
+  replicas: 1
+  rolloutStrategy:
+    type: InferGroupRollingUpdate
+  schedulerName: volcano
+  template:
+    gangSchedule: {}
+    restartGracePeriodSeconds: 60
+    roles:
+      - entryTemplate:
+          spec:
+            affinity:
+              nodeAffinity:
+                requiredDuringSchedulingIgnoredDuringExecution:
+                  nodeSelectorTerms:
+                    - matchExpressions:
+                        - key: node.kubernetes.io/npu.chip.name
+                          operator: In
+                          values:
+                            - Ascend910
+            containers:
+              - args:
+                  - --port
+                  - "8100"
+                  - --engine
+                  - vllmdisaggregated
+                  - --engine-base-url
+                  - http://localhost:8000
+                  - --engine-metrics-path
+                  - /metrics
+                image: matrixinfer/runtime:latest
+                name: runtime
+                ports:
+                  - containerPort: 8100
+                resources: {}
+              - command:
+                  - python
+                  - -m
+                  - vllm.entrypoints.openai.api_server
+                  - --model
+                  - /cache/568a486051fd302c338d84946c4f3d48
+                  - --enable-lora
+                  - --disable-frontend-multiprocessing
+                  - --gpu-memory-utilization
+                  - "0.99"
+                  - --max-model-len
+                  - "2048"
+                  - --quantization
+                  - ascend
+                  - --served-model-name
+                  - ds-r1-qwen-7b-pd
+                  - --tensor-parallel-size
+                  - "16"
+                  - --trust-remote-code
+                env:
+                  - name: HF_HUB_OFFLINE
+                    value: "1"
+                  - name: HCCL_IF_IP
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: status.podIP
+                image: vllm-prefill:latest
+                imagePullPolicy: IfNotPresent
+                livenessProbe:
+                  failureThreshold: 3
+                  httpGet:
+                    path: /health
+                    port: 8000
+                  initialDelaySeconds: 90
+                  periodSeconds: 5
+                name: vllm
+                ports:
+                  - containerPort: 8000
+                readinessProbe:
+                  failureThreshold: 3
+                  httpGet:
+                    path: /health
+                    port: 8000
+                  initialDelaySeconds: 5
+                  periodSeconds: 5
+                resources:
+                  limits:
+                    cpu: "16"
+                    huawei.com/ascend-1980: "1"
+                    memory: 1Gi
+                  requests:
+                    cpu: "16"
+                    huawei.com/ascend-1980: "1"
+                    memory: 1Gi
+                volumeMounts:
+                  - mountPath: /cache
+                    name: ds-r1-qwen-7b-pd-weights
+            initContainers:
+              - args:
+                  - --source
+                  - s3://aios_models/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
+                  - --output-dir
+                  - /cache/568a486051fd302c338d84946c4f3d48
+                env:
+                  - name: ENDPOINT
+                    value: https://obs.test.com
+                envFrom:
+                  - secretRef:
+                      name: downloader-secrets
+                image: matrixinfer/downloader:latest
+                name: ds-r1-qwen-7b-pd-model-downloader
+                resources: {}
+                volumeMounts:
+                  - mountPath: /cache
+                    name: ds-r1-qwen-7b-pd-weights
+            volumes:
+              - hostPath:
+                  path: /cache
+                  type: DirectoryOrCreate
+                name: ds-r1-qwen-7b-pd-weights
+        name: prefill
+        replicas: 1
+        workerReplicas: 0
+        workerTemplate:
+          spec:
+            containers: []
+      - entryTemplate:
+          spec:
+            affinity:
+              nodeAffinity:
+                requiredDuringSchedulingIgnoredDuringExecution:
+                  nodeSelectorTerms:
+                    - matchExpressions:
+                        - key: node.kubernetes.io/npu.chip.name
+                          operator: In
+                          values:
+                            - Ascend910
+            containers:
+              - args:
+                  - --port
+                  - "8100"
+                  - --engine
+                  - vllmdisaggregated
+                  - --engine-base-url
+                  - http://localhost:8000
+                  - --engine-metrics-path
+                  - /metrics
+                envFrom:
+                - secretRef:
+                    name: downloader-secrets
+                image: matrixinfer/runtime:latest
+                name: runtime
+                ports:
+                  - containerPort: 8100
+                resources: {}
+              - command:
+                  - python
+                  - -m
+                  - vllm.entrypoints.openai.api_server
+                  - --model
+                  - /cache/568a486051fd302c338d84946c4f3d48
+                  - --enable-lora
+                  - --disable-frontend-multiprocessing
+                  - --gpu-memory-utilization
+                  - "0.95"
+                  - --max-model-len
+                  - "1024"
+                  - --quantization
+                  - ascend
+                  - --served-model-name
+                  - ds-r1-qwen-7b-pd
+                  - --tensor-parallel-size
+                  - "16"
+                  - --trust-remote-code
+                env:
+                  - name: HF_HUB_OFFLINE
+                    value: "1"
+                  - name: GLOO_SOCKET_IFNAME
+                    value: eth0
+                  - name: TP_SOCKET_IFNAME
+                    value: eth0
+                  - name: HCCL_SOCKET_IFNAME
+                    value: eth0
+                image: vllm-decode:latest
+                imagePullPolicy: IfNotPresent
+                livenessProbe:
+                  failureThreshold: 3
+                  httpGet:
+                    path: /health
+                    port: 8000
+                  initialDelaySeconds: 90
+                  periodSeconds: 5
+                name: vllm
+                ports:
+                  - containerPort: 8000
+                readinessProbe:
+                  failureThreshold: 3
+                  httpGet:
+                    path: /health
+                    port: 8000
+                  initialDelaySeconds: 5
+                  periodSeconds: 5
+                resources:
+                  limits:
+                    cpu: "16"
+                    huawei.com/ascend-1980: "1"
+                    memory: 1Gi
+                  requests:
+                    cpu: "16"
+                    huawei.com/ascend-1980: "1"
+                    memory: 1Gi
+                volumeMounts:
+                  - mountPath: /cache
+                    name: ds-r1-qwen-7b-pd-weights
+            initContainers:
+              - args:
+                  - --source
+                  - s3://aios_models/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
+                  - --output-dir
+                  - /cache/568a486051fd302c338d84946c4f3d48
+                env:
+                  - name: ENDPOINT
+                    value: https://obs.test.com
+                envFrom:
+                  - secretRef:
+                      name: downloader-secrets
+                image: matrixinfer/downloader:latest
+                name: ds-r1-qwen-7b-pd-model-downloader
+                resources: { }
+                volumeMounts:
+                  - mountPath: /cache
+                    name: ds-r1-qwen-7b-pd-weights
+            volumes:
+              - hostPath:
+                  path: /cache
+                  type: DirectoryOrCreate
+                name: ds-r1-qwen-7b-pd-weights
+        name: decode
+        replicas: 1
+        workerReplicas: 0
+        workerTemplate:
+          spec:
+            containers: []
+status:
+  availableReplicas: 0
