@@ -24,6 +24,9 @@ import (
 // AutoscalingPolicySpec defines the desired state of AutoscalingPolicy.
 type AutoscalingPolicySpec struct {
 	// TolerancePercent is the percentage of deviation tolerated before scaling actions are triggered.
+	// The current number of instances is current_replicas, and the expected number of instances inferred from monitoring metrics is target_replicas.
+	// The scaling operation will only be actually performed when |current_replicas - target_replicas| ≥ current_replicas × TolerancePercent.
+	// +optional
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=100
 	// +kubebuilder:default=10
@@ -55,8 +58,14 @@ type AutoscalingPolicyBehavior struct {
 }
 
 type AutoscalingPolicyScaleUpPolicy struct {
+	// Stable policy usually makes decisions based on the average value of metrics calculated over the past few minutes and introduces a scaling-down cool-down period/delay.
+	// This mechanism is relatively stable, as it can smooth out short-term small fluctuations and avoid overly frequent and unnecessary Pod scaling.
 	// +optional
 	StablePolicy AutoscalingPolicyStablePolicy `json:"stablePolicy"`
+	// When the load surges sharply within tens of seconds (for example, encountering a sudden traffic peak or a rush of sudden computing tasks),
+	// using the average value over a long time window to calculate the required number of replicas will cause significant lag.
+	// If the system needs to scale out quickly to cope with such peaks, the ordinary scaling logic may fail to respond in time,
+	// resulting in delayed Pod startup, slower service response time or timeouts, and may even lead to service paralysis or data backlogs (for workloads such as message queues).
 	// +optional
 	PanicPolicy AutoscalingPolicyPanicPolicy `json:"panicPolicy"`
 }
@@ -75,8 +84,11 @@ type AutoscalingPolicyStablePolicy struct {
 	// Period is the duration over which scaling is evaluated.
 	// +kubebuilder:default="15s"
 	Period *metav1.Duration `json:"period,omitempty"`
-	// SelectPolicy determines the selection strategy for scaling up (e.g., Or, And).
 	// +kubebuilder:default="Or"
+	// SelectPolicy determines the selection strategy for scaling up (e.g., Or, And).
+	// 'Or' represents the scaling operation will be performed as long as either the Percent requirement or the Instances requirement is met.
+	// 'And' represents the scaling operation will be performed as long as both the Percent requirement and the Instances requirement is met.
+	// +optional
 	SelectPolicy SelectPolicyType `json:"selectPolicy,omitempty"`
 	// StabilizationWindow is the time window to stabilize scaling up actions.
 	// +optional

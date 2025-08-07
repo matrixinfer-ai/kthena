@@ -69,8 +69,10 @@ spec:
                         type: string
                       selectPolicy:
                         default: Or
-                        description: SelectPolicy determines the selection strategy
-                          for scaling up (e.g., Or, And).
+                        description: |-
+                          SelectPolicy determines the selection strategy for scaling up (e.g., Or, And).
+                          'Or' represents the scaling operation will be performed as long as either the Percent requirement or the Instances requirement is met.
+                          'And' represents the scaling operation will be performed as long as both the Percent requirement and the Instances requirement is met.
                         enum:
                         - Or
                         - And
@@ -85,8 +87,11 @@ spec:
                       replicas).
                     properties:
                       panicPolicy:
-                        description: AutoscalingPolicyPanicPolicy defines the policy
-                          for panic scaling up.
+                        description: |-
+                          When the load surges sharply within tens of seconds (for example, encountering a sudden traffic peak or a rush of sudden computing tasks),
+                          using the average value over a long time window to calculate the required number of replicas will cause significant lag.
+                          If the system needs to scale out quickly to cope with such peaks, the ordinary scaling logic may fail to respond in time,
+                          resulting in delayed Pod startup, slower service response time or timeouts, and may even lead to service paralysis or data backlogs (for workloads such as message queues).
                         properties:
                           panicModeHold:
                             default: 60s
@@ -117,8 +122,9 @@ spec:
                         - period
                         type: object
                       stablePolicy:
-                        description: AutoscalingPolicyStablePolicy defines the policy
-                          for stable scaling up or scaling down.
+                        description: |-
+                          Stable policy usually makes decisions based on the average value of metrics calculated over the past few minutes and introduces a scaling-down cool-down period/delay.
+                          This mechanism is relatively stable, as it can smooth out short-term small fluctuations and avoid overly frequent and unnecessary Pod scaling.
                         properties:
                           instances:
                             default: 1
@@ -142,8 +148,10 @@ spec:
                             type: string
                           selectPolicy:
                             default: Or
-                            description: SelectPolicy determines the selection strategy
-                              for scaling up (e.g., Or, And).
+                            description: |-
+                              SelectPolicy determines the selection strategy for scaling up (e.g., Or, And).
+                              'Or' represents the scaling operation will be performed as long as either the Percent requirement or the Instances requirement is met.
+                              'And' represents the scaling operation will be performed as long as both the Percent requirement and the Instances requirement is met.
                             enum:
                             - Or
                             - And
@@ -181,15 +189,16 @@ spec:
                 type: array
               tolerancePercent:
                 default: 10
-                description: TolerancePercent is the percentage of deviation tolerated
-                  before scaling actions are triggered.
+                description: |-
+                  TolerancePercent is the percentage of deviation tolerated before scaling actions are triggered.
+                  The current number of instances is current_replicas, and the expected number of instances inferred from monitoring metrics is target_replicas.
+                  The scaling operation will only be actually performed when |current_replicas - target_replicas| ≥ current_replicas × TolerancePercent.
                 format: int32
                 maximum: 100
                 minimum: 0
                 type: integer
             required:
             - metrics
-            - tolerancePercent
             type: object
           status:
             description: AutoscalingPolicyStatus defines the observed state of AutoscalingPolicy.
