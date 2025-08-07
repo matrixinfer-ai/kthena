@@ -58,6 +58,138 @@ const sidebars: SidebarsConfig = {
 6. Submit a pull request with a clear description of your changes
 
 
+---
+## Documentation Generation with crd-ref-docs
+
+This document explains how to use `crd-ref-docs` to generate API reference documentation for the MatrixInfer project's Custom Resource Definitions (CRDs).
+
+### Overview
+
+The MatrixInfer project uses [crd-ref-docs](https://github.com/elastic/crd-ref-docs) to automatically generate comprehensive API reference documentation from the Go source code of our Custom Resource Definitions. This tool creates markdown documentation that includes:
+
+- Detailed field descriptions for all CRD types
+- Validation rules and constraints
+- Cross-references between related types
+- Kubernetes API compatibility information
+
+### Prerequisites
+
+- Go 1.19 or later
+- Make utility
+- Access to the MatrixInfer project repository
+
+### Quick Start
+
+To generate the API documentation, simply run:
+
+```bash
+make docs-generate
+```
+
+This command will:
+1. Download and install the `crd-ref-docs` tool (if not already present)
+2. Scan the `pkg/apis` directory for CRD definitions
+3. Generate markdown documentation in `docs/matrixinfer/docs/api/`
+
+### Configuration
+
+The documentation generation is configured via `docs/matrixinfer/crd-ref-docs-config.yaml`:
+
+```yaml
+# Minimal configuration for crd-ref-docs
+processor:
+  ignoreFields: []
+render:
+  kubernetesVersion: "1.28"
+```
+
+#### Configuration Options
+
+- **processor.ignoreFields**: List of field names to exclude from documentation
+- **render.kubernetesVersion**: Target Kubernetes version for API compatibility
+
+For advanced configuration options, refer to the [crd-ref-docs documentation](https://github.com/elastic/crd-ref-docs#configuration).
+
+#### API Groups
+
+The MatrixInfer project defines CRDs in three main API groups:
+
+- **registry.matrixinfer.ai**: Model registry and autoscaling policies
+- **networking.matrixinfer.ai**: Network routing and traffic management
+- **workload.matrixinfer.ai**: Workload management and scheduling
+
+### Customizing Documentation
+
+#### Adding Field Descriptions
+
+To improve the generated documentation, add Go comments to your struct fields:
+
+```go
+type ModelSpec struct {
+    // Name is the human-readable name of the model
+    // +kubebuilder:validation:Required
+    Name string `json:"name"`
+    
+    // Version specifies the model version to deploy
+    // +kubebuilder:validation:Pattern=^v\d+\.\d+\.\d+$
+    Version string `json:"version"`
+}
+```
+
+#### Ignoring Fields
+
+To exclude sensitive or internal fields from documentation, add them to the configuration:
+
+```yaml
+processor:
+  ignoreFields:
+    - "internalField"
+    - "secretData"
+```
+
+### Troubleshooting
+
+#### Common Issues
+
+1. **"No CRDs found"**: Ensure your CRD types are properly tagged with `+kubebuilder:object:root=true`
+
+2. **"Max recursion depth reached"**: This warning indicates circular references in your types. Consider simplifying complex nested structures.
+
+3. **Missing field descriptions**: Add Go comments above struct fields to provide documentation.
+
+#### Debugging
+
+To see detailed output during generation:
+
+```bash
+make docs-generate VERBOSE=1
+```
+
+### Integration with CI/CD
+
+To ensure documentation stays up-to-date, add the documentation generation to your CI pipeline:
+
+```yaml
+- name: Generate API Documentation
+  run: make docs-generate
+  
+- name: Check for documentation changes
+  run: git diff --exit-code docs/matrixinfer/docs/api/
+```
+
+### Manual Tool Installation
+
+If you need to install `crd-ref-docs` manually:
+
+```bash
+# Install specific version
+go install github.com/elastic/crd-ref-docs@v0.2.0
+
+# Or use the Makefile target
+make crd-ref-docs
+```
+
+---
 ## Deployment
 
 Using SSH:
