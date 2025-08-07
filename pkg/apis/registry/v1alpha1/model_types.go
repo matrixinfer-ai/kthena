@@ -205,14 +205,13 @@ type ModelStatus struct {
 type ModelStatusConditionType string
 
 const (
-	ModelStatusConditionTypeInitializing ModelStatusConditionType = "Initializing"
-	ModelStatusConditionTypeActive       ModelStatusConditionType = "Active"
-	ModelStatusConditionTypeUpdating     ModelStatusConditionType = "Updating"
-	ModelStatusConditionTypeFailed       ModelStatusConditionType = "Failed"
-	ModelNameLabelKey                                             = "registry.matrixinfer.ai/model-name"
-	BackendNameLabelKey                                           = "registry.matrixinfer.ai/backend-name"
-	ManageBy                                                      = "registry.matrixinfer.ai/managed-by"
-	RevisionLabelKey                                              = "registry.matrixinfer.ai/revision"
+	ModelStatusConditionTypeInitialized ModelStatusConditionType = "Initialized"
+	ModelStatusConditionTypeActive      ModelStatusConditionType = "Active"
+	ModelStatusConditionTypeFailed      ModelStatusConditionType = "Failed"
+	ModelNameLabelKey                                            = "registry.matrixinfer.ai/model-name"
+	BackendNameLabelKey                                          = "registry.matrixinfer.ai/backend-name"
+	ManageBy                                                     = "registry.matrixinfer.ai/managed-by"
+	RevisionLabelKey                                             = "registry.matrixinfer.ai/revision"
 )
 
 // ModelBackendStatus defines the status of a model backend.

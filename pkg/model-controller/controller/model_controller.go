@@ -56,9 +56,10 @@ import (
 )
 
 const (
-	ModelInitsReason    = "ModelInits"
+	ModelInitsReason    = "ModelCreating"
+	ModelActiveReason   = "ModelAvailable"
 	ModelUpdatingReason = "ModelUpdating"
-	ModelActiveReason   = "ModelActive"
+	ModelFailedReason   = "ModelAbnormal"
 	ConfigMapName       = "model-controller-config"
 )
 
@@ -132,10 +133,8 @@ func (mc *ModelController) processNextWorkItem(ctx context.Context) bool {
 		mc.workQueue.Forget(key)
 		return true
 	}
-
 	utilruntime.HandleError(fmt.Errorf("sync %q failed with %v", key, err))
 	mc.workQueue.AddRateLimited(key)
-
 	return true
 }
 
@@ -145,7 +144,7 @@ func (mc *ModelController) createModel(obj any) {
 		klog.Error("failed to parse Model when createModel")
 		return
 	}
-	klog.V(4).Info("Creating", "model", klog.KObj(model))
+	klog.V(4).Infof("Create model: %s", klog.KObj(model))
 	mc.enqueueModel(model)
 }
 
@@ -160,7 +159,7 @@ func (mc *ModelController) enqueueModel(model *registryv1alpha1.Model) {
 func (mc *ModelController) updateModel(old any, new any) {
 	newModel, ok := new.(*registryv1alpha1.Model)
 	if !ok {
-		klog.Error("failed to parse new Model type when updateModel")
+		klog.Error("failed to parse new Model when updateModel")
 		return
 	}
 	oldModel, ok := old.(*registryv1alpha1.Model)
@@ -195,7 +194,7 @@ func (mc *ModelController) deleteModel(obj any) {
 		klog.Error("failed to parse Model when deleteModel")
 		return
 	}
-	klog.Infof("Delete model: %s", model.Name)
+	klog.V(4).Infof("Delete model: %s", klog.KObj(model))
 }
 
 // reconcile is part of the main kubernetes reconciliation loop which aims to
@@ -213,39 +212,47 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 	klog.InfoS("Start to process model", "namespace", namespace, "model name", model.Name, "model status", model.Status)
 	if len(model.Status.Conditions) == 0 {
 		if err := mc.createModelInfer(ctx, model); err != nil {
+			mc.setModelFailedCondition(ctx, model, err)
 			return err
 		}
 		if err := mc.createModelServer(ctx, model); err != nil {
+			mc.setModelFailedCondition(ctx, model, err)
 			return err
 		}
 		if err := mc.createModelRoute(ctx, model); err != nil {
+			mc.setModelFailedCondition(ctx, model, err)
 			return err
 		}
 		if err := mc.createAutoscalingPolicyAndBinding(ctx, model); err != nil {
+			mc.setModelFailedCondition(ctx, model, err)
 			return err
 		}
-		meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeInitializing),
-			metav1.ConditionTrue, ModelInitsReason, "Model is initializing"))
+		meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeInitialized),
+			metav1.ConditionTrue, ModelInitsReason, "Model initialized"))
 		if err := mc.updateModelStatus(ctx, model); err != nil {
 			klog.Errorf("update model status failed: %v", err)
 			return err
 		}
 	}
 	if model.Generation != model.Status.ObservedGeneration {
-		klog.Info("model generation is not equal to observed generation, update model infer")
+		klog.Info("model generation is not equal to observed generation, update model infer, model server and model route")
 		if err := mc.setModelUpdateCondition(ctx, model); err != nil {
 			return err
 		}
 		if err := mc.updateModelInfer(ctx, model); err != nil {
+			mc.setModelFailedCondition(ctx, model, err)
 			return err
 		}
 		if err := mc.updateModelServer(ctx, model); err != nil {
+			mc.setModelFailedCondition(ctx, model, err)
 			return err
 		}
 		if err := mc.updateModelRoute(ctx, model); err != nil {
+			mc.setModelFailedCondition(ctx, model, err)
 			return err
 		}
 		if err := mc.updateAutoscalingPolicyAndBinding(ctx, model); err != nil {
+			mc.setModelFailedCondition(ctx, model, err)
 			return err
 		}
 	}
@@ -666,7 +673,7 @@ func (mc *ModelController) isModelInferActive(model *registryv1alpha1.Model) (bo
 	for _, modelInfer := range modelInfers {
 		if !meta.IsStatusConditionPresentAndEqual(modelInfer.Status.Conditions, string(workload.ModelInferAvailable), metav1.ConditionTrue) {
 			// requeue until all Model Infers are active
-			klog.InfoS("model infer is not available", "model infer", modelInfer.Name, "namespace", modelInfer.Namespace)
+			klog.InfoS("model infer is not available", "model infer", klog.KObj(modelInfer))
 			return false, nil
 		}
 	}
@@ -676,11 +683,7 @@ func (mc *ModelController) isModelInferActive(model *registryv1alpha1.Model) (bo
 // setModelActiveCondition sets model conditions when all Model Infers are active.
 func (mc *ModelController) setModelActiveCondition(ctx context.Context, model *registryv1alpha1.Model) error {
 	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeActive),
-		metav1.ConditionTrue, ModelActiveReason, "Model is active"))
-	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeInitializing),
-		metav1.ConditionFalse, ModelActiveReason, "Model is active, so initializing is false"))
-	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeUpdating),
-		metav1.ConditionFalse, ModelActiveReason, "Model not updating"))
+		metav1.ConditionTrue, ModelActiveReason, "Model is ready"))
 	if err := mc.updateModelStatus(ctx, model); err != nil {
 		klog.Errorf("update model status failed: %v", err)
 		return err
@@ -845,8 +848,6 @@ func (mc *ModelController) updateModelInfer(ctx context.Context, model *registry
 func (mc *ModelController) setModelUpdateCondition(ctx context.Context, model *registryv1alpha1.Model) error {
 	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeActive),
 		metav1.ConditionFalse, ModelUpdatingReason, "Model is updating, not ready yet"))
-	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeUpdating),
-		metav1.ConditionTrue, ModelUpdatingReason, "Model is updating"))
 	if err := mc.updateModelStatus(ctx, model); err != nil {
 		klog.Errorf("update model status failed: %v", err)
 		return err
@@ -854,27 +855,37 @@ func (mc *ModelController) setModelUpdateCondition(ctx context.Context, model *r
 	return nil
 }
 
+// setModelFailedCondition sets model condition to failed
+func (mc *ModelController) setModelFailedCondition(ctx context.Context, model *registryv1alpha1.Model, err error) {
+	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeFailed),
+		metav1.ConditionTrue, ModelFailedReason, err.Error()))
+	if err := mc.updateModelStatus(ctx, model); err != nil {
+		klog.Errorf("update model status failed: %v", err)
+	}
+}
+
 func (mc *ModelController) loadConfigFromConfigMap() {
 	namespace, err := utils.GetInClusterNameSpace()
-	// when not running in cluster, namespace is default
-	if err != nil {
-		klog.Error(err)
-		namespace = "default"
+	// When run locally, namespace will be empty, default value of downloader image and runtime image will be used.
+	// So we don't need to read ConfigMap in this case.
+	if len(namespace) == 0 {
+		klog.Warning(err)
+		return
 	}
 	cm, err := mc.kubeClient.CoreV1().ConfigMaps(namespace).Get(context.Background(), ConfigMapName, metav1.GetOptions{})
 	if err != nil {
 		klog.Warningf("ConfigMap does not exist. Error: %v", err)
 		return
 	}
-	if modelInferDownloaderImage, ok := cm.Data["model_infer_downloader_image"]; !ok {
-		klog.Errorf("failed to load modelInferDownloaderImage: %v", err)
-	} else {
+	if modelInferDownloaderImage, ok := cm.Data["model_infer_downloader_image"]; ok {
 		config.Config.SetModelInferDownloaderImage(modelInferDownloaderImage)
-	}
-	if modelInferRuntimeImage, ok := cm.Data["model_infer_runtime_image"]; !ok {
-		klog.Errorf("failed to load model_infer_runtime_image: %v", err)
 	} else {
+		klog.Warning("Failed to load model infer Downloader Image. Use Default Value.")
+	}
+	if modelInferRuntimeImage, ok := cm.Data["model_infer_runtime_image"]; ok {
 		config.Config.SetModelInferRuntimeImage(modelInferRuntimeImage)
+	} else {
+		klog.Warning("Failed to load model infer Runtime Image. Use Default Value.")
 	}
 }
 

@@ -17,8 +17,10 @@ limitations under the License.
 package config
 
 const (
+	// DefaultModelInferDownloaderImage is the default image used for downloading models.
 	DefaultModelInferDownloaderImage = "matrixinfer/downloader:latest"
-	DefaultModelInferRuntimeImage    = "matrixinfer/runtime:latest"
+	// DefaultModelInferRuntimeImage is the default image used for running model inference.
+	DefaultModelInferRuntimeImage = "matrixinfer/runtime:latest"
 )
 
 type ParseConfig struct {
