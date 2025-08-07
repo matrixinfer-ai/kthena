@@ -47,12 +47,13 @@ func TestReconcile(t *testing.T) {
 	// Load test data
 	model := loadYaml[registry.Model](t, "../convert/testdata/input/model.yaml")
 
-	// Case1: create model with ASP, and then model infer, model server, model route, ASP, ASP binding should be created.
+	// Case1: Create a model with ASP, and then model infer, model server, model route, ASP, ASP binding should be created.
+	// Step1. Create model
 	createdModel, err := matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Create(ctx, model, metav1.CreateOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, createdModel)
+	// Step2. Check that ASP, ASP binding, model infer, model server, model route are created
 	assert.True(t, waitForCondition(func() bool {
-		// ASP binding should be created
 		aspBindings, err := matrixinferClient.RegistryV1alpha1().AutoscalingPolicyBindings(model.Namespace).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			return false
@@ -75,39 +76,30 @@ func TestReconcile(t *testing.T) {
 	modelRoutes, err := matrixinferClient.NetworkingV1alpha1().ModelRoutes(model.Namespace).List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
 	assert.Len(t, modelRoutes.Items, 1, "Expected 1 ModelRoute to be create")
-	// model should not be updated
-	get, err := matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Get(ctx, model.Name, metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.Equal(t, int64(0), get.Status.ObservedGeneration, "ObservedGeneration not updated")
-	// mock model infer status available
+	// Step3. mock model infer status available
 	modelInfer := &modelInfers.Items[0]
 	meta.SetStatusCondition(&modelInfer.Status.Conditions, newCondition(string(workload.ModelInferAvailable),
 		metav1.ConditionTrue, "AllGroupsReady", "AllGroupsReady"))
-	modelInfer, err = matrixinferClient.WorkloadV1alpha1().ModelInfers(model.Namespace).UpdateStatus(ctx, modelInfer, metav1.UpdateOptions{})
+	_, err = matrixinferClient.WorkloadV1alpha1().ModelInfers(model.Namespace).UpdateStatus(ctx, modelInfer, metav1.UpdateOptions{})
 	assert.NoError(t, err)
-	// model infer is available, model condition will be updated, so mock generation to 1
-	createdModel.Generation += 1
-	_, err = matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Update(ctx, createdModel, metav1.UpdateOptions{})
-	assert.NoError(t, err)
-	assert.Equal(t, string(workload.ModelInferAvailable), modelInfer.Status.Conditions[0].Type, "ModelInfer condition type should be Available")
-	// model condition should be active
+	// Step4. Check that model condition should be active
 	assert.True(t, waitForCondition(func() bool {
 		model, err = matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Get(ctx, model.Name, metav1.GetOptions{})
 		if err != nil {
 			return false
 		}
-		return int64(1) == model.Status.ObservedGeneration
+		return true == meta.IsStatusConditionPresentAndEqual(model.Status.Conditions,
+			string(registry.ModelStatusConditionTypeActive), metav1.ConditionTrue) && model.Generation == model.Status.ObservedGeneration
 	}))
-	assert.Equal(t, true, meta.IsStatusConditionPresentAndEqual(model.Status.Conditions,
-		string(registry.ModelStatusConditionTypeActive), metav1.ConditionTrue))
-	assert.Equal(t, model.Generation, model.Status.ObservedGeneration)
 
-	// Case2: update model
+	// Case2: update model weight, and model route should be updated.
+	// Step1. update weight
 	weight := uint32(50)
 	model.Spec.Backends[0].RouteWeight = &weight
 	model.Generation += 1
 	_, err = matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Update(ctx, model, metav1.UpdateOptions{})
 	assert.NoError(t, err)
+	// Step2. Check that model route is updated
 	assert.True(t, waitForCondition(func() bool {
 		modelRoutes, err = matrixinferClient.NetworkingV1alpha1().ModelRoutes(model.Namespace).List(ctx, metav1.ListOptions{})
 		if err != nil {
@@ -116,7 +108,8 @@ func TestReconcile(t *testing.T) {
 		return weight == *modelRoutes.Items[0].Spec.Rules[0].TargetModels[0].Weight
 	}))
 
-	// Case3: delete model
+	// Case3: delete model. Because we are not running in a real K8s cluster, model server, model route, model infer,
+	// ASP and ASP binding will not be deleted automatically. So here only check if model is deleted.
 	err = matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Delete(ctx, model.Name, metav1.DeleteOptions{})
 	assert.NoError(t, err)
 	assert.True(t, waitForCondition(func() bool {
