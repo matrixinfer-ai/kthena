@@ -29,7 +29,6 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	icUtils "matrixinfer.ai/matrixinfer/pkg/infer-controller/utils"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/convert"
@@ -79,7 +78,7 @@ type ModelController struct {
 	autoscalingPoliciesInformer       cache.SharedIndexInformer
 	autoscalingPolicyBindingsLister   registryLister.AutoscalingPolicyBindingLister
 	autoscalingPolicyBindingsInformer cache.SharedIndexInformer
-	podsLister          			  listerv1.PodLister
+	podsLister                        listerv1.PodLister
 	podsInformer                      cache.SharedIndexInformer
 	kubeInformerFactory               informers.SharedInformerFactory
 	workQueue                         workqueue.TypedRateLimitingInterface[any]
@@ -313,7 +312,7 @@ func (mc *ModelController) handleLoraAdapterUpdate(ctx context.Context, oldModel
 		}
 
 		// Handle LoRA adapter changes
-		if err := mc.updateLoraAdapters(ctx, newModel, &newBackend, &oldBackend, modelInfer); err != nil {
+		if err := mc.updateLoraAdapters(ctx, &newBackend, &oldBackend, modelInfer); err != nil {
 			klog.Errorf("Failed to update LoRA adapters for backend %s: %v", newBackend.Name, err)
 			return err
 		}
@@ -328,7 +327,7 @@ func (mc *ModelController) isModelInferReady(modelInfer *workload.ModelInfer) bo
 }
 
 // updateLoraAdapters updates LoRA adapters for a specific backend
-func (mc *ModelController) updateLoraAdapters(ctx context.Context, model *registryv1alpha1.Model, newBackend, oldBackend *registryv1alpha1.ModelBackend, modelInfer *workload.ModelInfer) error {
+func (mc *ModelController) updateLoraAdapters(ctx context.Context, newBackend, oldBackend *registryv1alpha1.ModelBackend, modelInfer *workload.ModelInfer) error {
 	// Get runtime service URL
 	runtimeURL, err := mc.getModelInferRuntimeURL(modelInfer, newBackend)
 	if err != nil {
@@ -375,7 +374,7 @@ func (mc *ModelController) updateLoraAdapters(ctx context.Context, model *regist
 // getModelInferRuntimeURL constructs the runtime service URL for a ModelInfer using pod IP
 func (mc *ModelController) getModelInferRuntimeURL(modelInfer *workload.ModelInfer, backend *registryv1alpha1.ModelBackend) (string, error) {
 	// Get port from backend environment variables with default fallback to 8100
-	port := utils.GetEnvPortOrDefault(backend, "RUNTIME_PORT", 8100)
+	port := convert.GetEnvPortOrDefault(backend, "RUNTIME_PORT", 8100)
 
 	// Get the first available pod IP for this ModelInfer
 	podIP, err := mc.getModelInferPodIP(modelInfer)
@@ -415,7 +414,7 @@ func (mc *ModelController) getModelInferPodIP(modelInfer *workload.ModelInfer) (
 // loadLoraAdapter calls the load_lora_adapter API
 func (mc *ModelController) loadLoraAdapter(ctx context.Context, runtimeURL string, adapter registryv1alpha1.LoraAdapter, backend *registryv1alpha1.ModelBackend) error {
 	url := fmt.Sprintf("%s/v1/load_lora_adapter", runtimeURL)
-	outputDir := utils.GetCachePath(backend.CacheURI) + utils.GetMountPath(adapter.ArtifactURL)
+	outputDir := convert.GetCachePath(backend.CacheURI) + convert.GetMountPath(adapter.ArtifactURL)
 
 	requestBody := map[string]interface{}{
 		"lora_name":      adapter.Name,
@@ -513,19 +512,6 @@ func (mc *ModelController) unloadLoraAdapter(ctx context.Context, runtimeURL str
 	}
 
 	klog.Infof("Successfully unloaded LoRA adapter %s", adapterName)
-	return nil
-}
-
-// setModelServerFailedCondition sets model server conditions when creating model server failed.
-func (mc *ModelController) setModelServerFailedCondition(ctx context.Context, model *registryv1alpha1.Model) error {
-	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeFailed),
-		metav1.ConditionTrue, CreateModelServerFailedReason, "Creating model server failed"))
-	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeActive),
-		metav1.ConditionFalse, CreateModelServerFailedReason, "Model is not active due to failed create model server"))
-	if err := mc.updateModelStatus(ctx, model); err != nil {
-		klog.Errorf("update model status failed: %v", err)
-		return err
-	}
 	return nil
 }
 
@@ -638,8 +624,8 @@ func NewModelController(kubeClient kubernetes.Interface, client clientset.Interf
 		autoscalingPolicyBindingsLister:   autoscalingPolicyBindingsInformer.Lister(),
 		autoscalingPolicyBindingsInformer: autoscalingPolicyBindingsInformer.Informer(),
 		podsLister:                        podsLister,
-		podsInformer:        			   podsInformer,
-		kubeInformerFactory: 			   kubeInformerFactory,
+		podsInformer:                      podsInformer,
+		kubeInformerFactory:               kubeInformerFactory,
 
 		workQueue: workqueue.NewTypedRateLimitingQueueWithConfig(workqueue.DefaultTypedControllerRateLimiter[any](),
 			workqueue.TypedRateLimitingQueueConfig[any]{}),

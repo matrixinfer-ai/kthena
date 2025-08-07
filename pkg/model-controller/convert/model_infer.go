@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	networking "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
