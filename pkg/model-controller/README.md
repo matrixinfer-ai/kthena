@@ -33,11 +33,11 @@ will be `test-model`, otherwise the name will be `test-model-backend1` and `test
 
 `Model` CR has several conditions that indicate the status of the model. These conditions are:
 
-| ConditionType | Explain                                                                     |
-|---------------|-----------------------------------------------------------------------------|
-| `Initialized` | Model CR has passed webhook check, just wait for starting                   |
-| `Active`      | Model is ready for use                                                      |
-| `Failed`      | Model runs failed due to some reasons, we can get more details from message |
+| ConditionType | Description                                                          |
+|---------------|----------------------------------------------------------------------|
+| `Initialized` | The Model CR has been validated and is waiting to be processed.      |
+| `Active`      | The Model is ready for inference.                                    |
+| `Failed`      | The Model failed to become active. See the message for more details. |
 
 ### How Model Controller works
 
