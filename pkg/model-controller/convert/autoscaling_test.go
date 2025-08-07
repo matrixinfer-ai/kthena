@@ -43,9 +43,7 @@ func TestBuildScalingPolicyBinding(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			for _, backend := range tt.input.Spec.Backends {
 				got := BuildScalingPolicyBinding(tt.input, &backend, utils.GetBackendResourceName(tt.input.Name, backend.Name))
-				actualYAML, _ := yaml.Marshal(got)
-				expectedYAML, _ := yaml.Marshal(tt.expected)
-				assert.Equal(t, string(expectedYAML), string(actualYAML))
+				assert.Equal(t, tt.expected, got)
 			}
 		})
 	}
@@ -66,9 +64,7 @@ func TestBuildOptimizePolicyBinding(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := BuildOptimizePolicyBinding(tt.input, utils.GetBackendResourceName(tt.input.Name, ""))
-			actualYAML, _ := yaml.Marshal(got)
-			expectedYAML, _ := yaml.Marshal(tt.expected)
-			assert.Equal(t, string(expectedYAML), string(actualYAML))
+			assert.Equal(t, tt.expected, got)
 		})
 	}
 }
@@ -103,9 +99,7 @@ func TestBuildAutoscalingPolicy(t *testing.T) {
 						continue
 					}
 					got := BuildAutoscalingPolicy(backend.AutoscalingPolicy, tt.input, backend.Name)
-					actualYAML, _ := yaml.Marshal(got)
-					expectedYAML, _ := yaml.Marshal(tt.expected)
-					assert.Equal(t, string(expectedYAML), string(actualYAML))
+					assert.Equal(t, tt.expected, got)
 				}
 			}
 		})

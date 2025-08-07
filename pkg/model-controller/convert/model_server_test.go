@@ -22,7 +22,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	networking "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
-	"sigs.k8s.io/yaml"
 )
 
 func TestBuildModelServer(t *testing.T) {
@@ -52,9 +51,7 @@ func TestBuildModelServer(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
-			actualYAML, _ := yaml.Marshal(got)
-			expectedYAML, _ := yaml.Marshal(tt.expected)
-			assert.Equal(t, string(expectedYAML), string(actualYAML))
+			assert.Equal(t, tt.expected, got)
 		})
 	}
 }
