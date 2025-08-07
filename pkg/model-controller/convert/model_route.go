@@ -17,13 +17,12 @@ limitations under the License.
 package convert
 
 import (
-	"fmt"
 	"slices"
-	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	networking "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
+	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
 )
 
 func BuildModelRoute(model *registry.Model) *networking.ModelRoute {
@@ -31,12 +30,12 @@ func BuildModelRoute(model *registry.Model) *networking.ModelRoute {
 	var targetModels []*networking.TargetModel
 	// Use map to deduplicate lora adapters
 	loraMap := make(map[string]struct{})
-	for idx, backend := range model.Spec.Backends {
+	for _, backend := range model.Spec.Backends {
 		for _, lora := range backend.LoraAdapters {
 			loraMap[lora.Name] = struct{}{}
 		}
 		targetModels = append(targetModels, &networking.TargetModel{
-			ModelServerName: fmt.Sprintf("%s-%d-%s-server", model.Name, idx, strings.ToLower(string(backend.Type))),
+			ModelServerName: utils.GetBackendResourceName(model.Name, backend.Name),
 			Weight:          backend.RouteWeight,
 		})
 	}

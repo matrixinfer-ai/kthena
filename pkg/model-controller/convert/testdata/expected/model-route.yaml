@@ -15,4 +15,4 @@ spec:
   rules:
     - name: "default"
       targetModels:
-        - modelServerName: "test-model-0-vllm-server"
+        - modelServerName: "test-model-backend1"

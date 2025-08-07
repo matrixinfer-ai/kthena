@@ -132,7 +132,7 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 	}
 	data := map[string]interface{}{
 		"MODEL_INFER_TEMPLATE_METADATA": &metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%d-%s-instance", model.Name, idx, strings.ToLower(string(backend.Type))),
+			Name:      utils.GetBackendResourceName(model.Name, backend.Name),
 			Namespace: model.Namespace,
 			Labels: map[string]string{
 				ModelInferOwnerKey: string(model.UID),

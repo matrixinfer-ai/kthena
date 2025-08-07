@@ -17,8 +17,6 @@ limitations under the License.
 package convert
 
 import (
-	"fmt"
-	"strings"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,7 +31,7 @@ import (
 // Each model backend will create one model server.
 func BuildModelServer(model *registry.Model) ([]*networking.ModelServer, error) {
 	var modelServers []*networking.ModelServer
-	for idx, backend := range model.Spec.Backends {
+	for _, backend := range model.Spec.Backends {
 		var inferenceEngine networking.InferenceEngine
 		switch backend.Type {
 		case registry.ModelBackendTypeVLLM, registry.ModelBackendTypeVLLMDisaggregated:
@@ -67,7 +65,7 @@ func BuildModelServer(model *registry.Model) ([]*networking.ModelServer, error) 
 				APIVersion: networking.GroupVersion.String(),
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      fmt.Sprintf("%s-%d-%s-server", model.Name, idx, strings.ToLower(string(backend.Type))),
+				Name:      utils.GetBackendResourceName(model.Name, backend.Name),
 				Namespace: model.Namespace,
 				OwnerReferences: []metav1.OwnerReference{
 					utils.NewModelOwnerRef(model),

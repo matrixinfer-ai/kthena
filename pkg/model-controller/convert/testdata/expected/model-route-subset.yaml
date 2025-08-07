@@ -19,7 +19,7 @@ spec:
           users:
             exact: "john"
       targetModels:
-        - modelServerName: "multi-backend-model-0-vllm-server"
+        - modelServerName: "multi-backend-model-backend1"
           weight: 40
-        - modelServerName: "multi-backend-model-1-vllm-server"
+        - modelServerName: "multi-backend-model-backend2"
           weight: 60

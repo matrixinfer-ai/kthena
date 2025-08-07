@@ -13,10 +13,10 @@ There may be multiple `backends` in `Model` CR, each `backend` stands for a mode
 
 ### The rules of generated resource name
 
-- The name of the `Model Infer` is in the format of `<model-name>-<index>-<backend-type>-instance`.
+- The name of the `Model Infer` is in the format of `<model-name>-<backend-name>`.
 - The name of the
   `Model Server` is in the format of
-  `<model-name>-<index>-<backend-type>-server`.
+  `<model-name>-<backend-name>`.
 - The `Model Route` name is in the format of `<model-name>`.
 - The `AutoscalingPolicy` name is in the format of `<model-name>` if in the model level or `<model-name>-<backend-name>`
   if in the backend level.
@@ -24,8 +24,8 @@ There may be multiple `backends` in `Model` CR, each `backend` stands for a mode
 
 For example, create a `Model` named `test-model` with two backends, one is `backend1` and the other is `backend2`, both
 backend types are `vLLM`, then
-the name of the generated `Model Infer` will be `test-model-0-vllm-instance` and `test-model-1-vllm-instance`, the
-name of the generated `Model Server` will be `test-model-0-vllm-server` and `test-model-1-vllm-server`, and the
+the name of the generated `Model Infer` will be `test-model-backend1` and `test-model-backend2`, the
+name of the generated `Model Server` will be `test-model-backend1` and `test-model-backend2`, and the
 name of the generated `Model Route` will be `test-model`. If `AutoscalingPolicy` is defined in the model level, the name
 will be `test-model`, otherwise the name will be `test-model-backend1` and `test-model-backend2`.
 
@@ -50,7 +50,8 @@ the controller performs the following steps:
    `AutoscalingPolicyBinding`in the Kubernetes.
 3. Set the conditions of `Model` CR.
     - After creating the related resources, the `Initialized` condition is set to `true`.
-    - The controller then monitors the status of the `ModelInfer` resources. Once all `ModelInfer` resources are `Available`, the `Active` condition on the `Model` is set to `true`.
+    - The controller then monitors the status of the `ModelInfer` resources. Once all `ModelInfer` resources are
+      `Available`, the `Active` condition on the `Model` is set to `true`.
     - If any error occurs during the process, set the `Failed` condition to true and provide an error message.
 
 The `OwnerReference` is set to the `Model` CR for all the created resources, so that when the `Model` CR is deleted, all

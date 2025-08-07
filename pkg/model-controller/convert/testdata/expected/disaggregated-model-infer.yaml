@@ -3,7 +3,7 @@ kind: modelinfer
 metadata:
   labels:
     model.uid: randomUID
-  name: ds-r1-qwen-7b-pd-0-vllmdisaggregated-instance
+  name: ds-r1-qwen-7b-pd-ds-r1-qwen-7b-pd
   namespace: demo
   ownerReferences:
     - apiVersion: registry.matrixinfer.ai/v1alpha1
