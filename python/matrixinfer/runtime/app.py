@@ -15,10 +15,12 @@
 import logging
 import argparse
 import os
+import json
 from fastapi import FastAPI, APIRouter, Request, HTTPException
 from fastapi.responses import Response
 import httpx
 from starlette.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
 from contextlib import asynccontextmanager
 
 import uvicorn
@@ -240,9 +242,12 @@ async def load_lora_adapter(request: Request, background_tasks: BackgroundTasks)
                 status_code=202
             )
         else:
-            # Run synchronously
+            # Run synchronously but in a thread pool to avoid blocking the event loop
             logger.info(f"Downloading LoRA adapter from {source} to {output_dir}")
-            download_model(source, output_dir, config, max_workers)
+            
+            # Run the blocking download_model function in FastAPI's optimized thread pool
+            await run_in_threadpool(download_model, source, output_dir, config, max_workers)
+            
             logger.info(f"LoRA adapter download completed: {source} -> {output_dir}")
 
             # Load the adapter
@@ -256,7 +261,13 @@ async def load_lora_adapter(request: Request, background_tasks: BackgroundTasks)
                 error_detail = f"HTTP {response.status_code}: {response.text}"
                 logger.error(f"Engine request failed: {error_detail}")
                 raise HTTPException(status_code=response.status_code, detail=error_detail)
-            return JSONResponse(content=response.text, status_code=response.status_code)
+            
+            try:
+                response_content = response.json()
+            except (json.JSONDecodeError, ValueError) as e:
+                response_content = {"message": response.text}
+            
+            return JSONResponse(content=response_content, status_code=response.status_code)
 
     except HTTPException:
         raise
@@ -274,7 +285,13 @@ async def unload_lora_adapter(request: Request) -> JSONResponse:
             error_detail = f"HTTP {response.status_code}: {response.text}"
             logger.error(f"Engine request failed: {error_detail}")
             raise HTTPException(status_code=response.status_code, detail=error_detail)
-        return JSONResponse(content=response.text, status_code=response.status_code)
+        
+        try:
+            response_content = response.json()
+        except (json.JSONDecodeError, ValueError) as e:
+            response_content = {"message": response.text}
+        
+        return JSONResponse(content=response_content, status_code=response.status_code)
     except HTTPException:
         raise
     except Exception as e:
@@ -331,8 +348,10 @@ async def download_model_endpoint(request: Request, background_tasks: Background
                 status_code=202
             )
         else:
-            # Run download synchronously
-            download_task()
+            # Run download synchronously but in FastAPI's optimized thread pool to avoid blocking the event loop
+            await run_in_threadpool(download_model, source, output_dir, config, max_workers)
+            logger.info(f"Model download completed successfully: {source} -> {output_dir}")
+            
             return JSONResponse(
                 content={
                     "status": "completed",

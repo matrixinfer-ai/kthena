@@ -22,38 +22,37 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"k8s.io/apimachinery/pkg/labels"
-	listerv1 "k8s.io/client-go/listers/core/v1"
 	"net/http"
 	"reflect"
 	"strings"
 	"time"
 
-	"k8s.io/apimachinery/pkg/selection"
-	icUtils "matrixinfer.ai/matrixinfer/pkg/infer-controller/utils"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/convert"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
-
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	workloadLister "matrixinfer.ai/matrixinfer/client-go/listers/workload/v1alpha1"
-
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	listerv1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
 	informersv1alpha1 "matrixinfer.ai/matrixinfer/client-go/informers/externalversions"
 	registryLister "matrixinfer.ai/matrixinfer/client-go/listers/registry/v1alpha1"
+	workloadLister "matrixinfer.ai/matrixinfer/client-go/listers/workload/v1alpha1"
 	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
+	icUtils "matrixinfer.ai/matrixinfer/pkg/infer-controller/utils"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/config"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"matrixinfer.ai/matrixinfer/pkg/model-controller/convert"
+	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
 )
 
 const (
@@ -68,6 +67,8 @@ type ModelController struct {
 	kubeClient kubernetes.Interface
 	// client for custom resource
 	client clientset.Interface
+	// httpClient for HTTP requests to LoRA adapter APIs
+	httpClient *http.Client
 
 	syncHandler                       func(ctx context.Context, miKey string) error
 	modelsLister                      registryLister.ModelLister
@@ -173,9 +174,14 @@ func (mc *ModelController) updateModel(old any, new any) {
 		// Check for LoRA adapter updates before normal reconciliation
 		if mc.hasOnlyLoraAdaptersChanged(oldModel, newModel) {
 			// Handle LoRA adapter update without triggering full reconciliation
-			ctx := context.Background()
+			// Create a context with timeout for the whole LoRA adapter update operation
+			// The timeout should be sufficient to cover all adapter updates across all replicas
+			ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
+			defer cancel()
+
 			if err := mc.handleLoraAdapterUpdate(ctx, oldModel, newModel); err != nil {
-				klog.Errorf("Failed to handle LoRA adapter update: %v", err)
+				klog.Errorf("Failed to handle LoRA adapter update: %v, falling back to full reconciliation", err)
+				mc.enqueueModel(newModel)
 			}
 			return
 		}
@@ -326,15 +332,26 @@ func (mc *ModelController) isModelInferReady(modelInfer *workload.ModelInfer) bo
 	return modelInfer.Status.AvailableReplicas > 0
 }
 
-// updateLoraAdapters updates LoRA adapters for a specific backend
+// LoraUpdateResult tracks the result of LoRA adapter updates across multiple replicas
+type LoraUpdateResult struct {
+	TotalReplicas   int
+	SuccessReplicas int
+	FailedReplicas  int
+	PartialFailures []string // URLs that failed
+	Errors          []error  // Corresponding errors
+}
+
+// updateLoraAdapters updates LoRA adapters for a specific backend across all replicas
 func (mc *ModelController) updateLoraAdapters(ctx context.Context, newBackend, oldBackend *registryv1alpha1.ModelBackend, modelInfer *workload.ModelInfer) error {
-	// Get runtime service URL
-	runtimeURL, err := mc.getModelInferRuntimeURL(modelInfer, newBackend)
+	// Get runtime service URLs for all replicas
+	runtimeURLs, err := mc.getModelInferRuntimeURLs(modelInfer, newBackend)
 	if err != nil {
-		return fmt.Errorf("failed to get runtime URL for ModelInfer %s: %v", modelInfer.Name, err)
+		return fmt.Errorf("failed to get runtime URLs for ModelInfer %s: %v", modelInfer.Name, err)
 	}
 
-	// Unload old adapters that are not in the new list
+	klog.Infof("Updating LoRA adapters for ModelInfer %s across %d replicas", modelInfer.Name, len(runtimeURLs))
+
+	// Prepare adapter maps for comparison
 	oldAdapterMap := make(map[string]registryv1alpha1.LoraAdapter)
 	for _, adapter := range oldBackend.LoraAdapters {
 		oldAdapterMap[adapter.Name] = adapter
@@ -345,48 +362,155 @@ func (mc *ModelController) updateLoraAdapters(ctx context.Context, newBackend, o
 		newAdapterMap[adapter.Name] = adapter
 	}
 
-	// Unload adapters that are no longer needed
+	// Track overall results
+	var overallResult LoraUpdateResult
+	overallResult.TotalReplicas = len(runtimeURLs)
+
+	// Phase 1: Unload adapters that are no longer needed
+	adaptersToUnload := make([]string, 0)
 	for adapterName := range oldAdapterMap {
 		if _, exists := newAdapterMap[adapterName]; !exists {
-			if err := mc.unloadLoraAdapter(ctx, runtimeURL, adapterName); err != nil {
-				klog.Errorf("Failed to unload LoRA adapter %s: %v", adapterName, err)
-				// Continue with other adapters even if one fails
+			adaptersToUnload = append(adaptersToUnload, adapterName)
+		}
+	}
+
+	if len(adaptersToUnload) > 0 {
+		klog.Infof("Unloading %d LoRA adapters: %v", len(adaptersToUnload), adaptersToUnload)
+		unloadResult := mc.unloadLoraAdaptersFromAllReplicas(ctx, runtimeURLs, adaptersToUnload)
+		if unloadResult.FailedReplicas > 0 {
+			klog.Warningf("Failed to unload LoRA adapters from %d/%d replicas", unloadResult.FailedReplicas, unloadResult.TotalReplicas)
+			// Log errors but continue with loading new adapters
+			for i, failedURL := range unloadResult.PartialFailures {
+				klog.Errorf("Failed to unload from %s: %v", failedURL, unloadResult.Errors[i])
 			}
 		}
 	}
 
-	// Load new or updated adapters
+	// Phase 2: Load new or updated adapters
+	adaptersToLoad := make([]registryv1alpha1.LoraAdapter, 0)
 	for _, adapter := range newBackend.LoraAdapters {
 		oldAdapter, existed := oldAdapterMap[adapter.Name]
-
 		// Load adapter if it's new or if the artifact URL changed
 		if !existed || oldAdapter.ArtifactURL != adapter.ArtifactURL {
-			if err := mc.loadLoraAdapter(ctx, runtimeURL, adapter, newBackend); err != nil {
-				klog.Errorf("Failed to load LoRA adapter %s: %v", adapter.Name, err)
-				return err
+			adaptersToLoad = append(adaptersToLoad, adapter)
+		}
+	}
+
+	if len(adaptersToLoad) > 0 {
+		klog.Infof("Loading %d LoRA adapters", len(adaptersToLoad))
+		loadResult := mc.loadLoraAdaptersToAllReplicas(ctx, runtimeURLs, adaptersToLoad, newBackend)
+		overallResult = loadResult
+
+		// Check if we have critical failures
+		if loadResult.FailedReplicas > 0 {
+			// Log warnings for partial failures
+			klog.Warningf("Partial failure: LoRA adapter loading failed on %d/%d replicas",
+				loadResult.FailedReplicas, loadResult.TotalReplicas)
+			for i, failedURL := range loadResult.PartialFailures {
+				klog.Errorf("Failed to load to %s: %v", failedURL, loadResult.Errors[i])
 			}
 		}
 	}
 
+	klog.Infof("LoRA adapter update completed for ModelInfer %s: %d/%d replicas successful",
+		modelInfer.Name, overallResult.SuccessReplicas, overallResult.TotalReplicas)
 	return nil
 }
 
-// getModelInferRuntimeURL constructs the runtime service URL for a ModelInfer using pod IP
-func (mc *ModelController) getModelInferRuntimeURL(modelInfer *workload.ModelInfer, backend *registryv1alpha1.ModelBackend) (string, error) {
+// unloadLoraAdaptersFromAllReplicas unloads LoRA adapters from all replicas
+func (mc *ModelController) unloadLoraAdaptersFromAllReplicas(ctx context.Context, runtimeURLs []string, adapterNames []string) LoraUpdateResult {
+	result := LoraUpdateResult{
+		TotalReplicas:   len(runtimeURLs),
+		PartialFailures: make([]string, 0),
+		Errors:          make([]error, 0),
+	}
+
+	for _, runtimeURL := range runtimeURLs {
+		replicaSuccess := true
+		for _, adapterName := range adapterNames {
+			if err := mc.unloadLoraAdapter(ctx, runtimeURL, adapterName); err != nil {
+				klog.Errorf("Failed to unload LoRA adapter %s from %s: %v", adapterName, runtimeURL, err)
+				if replicaSuccess {
+					// Only record the replica as failed once
+					result.PartialFailures = append(result.PartialFailures, runtimeURL)
+					result.Errors = append(result.Errors, fmt.Errorf("failed to unload adapter %s: %v", adapterName, err))
+					replicaSuccess = false
+				}
+			}
+		}
+
+		if replicaSuccess {
+			result.SuccessReplicas++
+		} else {
+			result.FailedReplicas++
+		}
+	}
+
+	return result
+}
+
+// loadLoraAdaptersToAllReplicas loads LoRA adapters to all replicas
+func (mc *ModelController) loadLoraAdaptersToAllReplicas(ctx context.Context, runtimeURLs []string, adapters []registryv1alpha1.LoraAdapter, backend *registryv1alpha1.ModelBackend) LoraUpdateResult {
+	result := LoraUpdateResult{
+		TotalReplicas:   len(runtimeURLs),
+		PartialFailures: make([]string, 0),
+		Errors:          make([]error, 0),
+	}
+
+	for _, runtimeURL := range runtimeURLs {
+		replicaSuccess := true
+		for _, adapter := range adapters {
+			if err := mc.loadLoraAdapter(ctx, runtimeURL, adapter, backend); err != nil {
+				klog.Errorf("Failed to load LoRA adapter %s to %s: %v", adapter.Name, runtimeURL, err)
+				if replicaSuccess {
+					// Only record the replica as failed once
+					result.PartialFailures = append(result.PartialFailures, runtimeURL)
+					result.Errors = append(result.Errors, fmt.Errorf("failed to load adapter %s: %v", adapter.Name, err))
+					replicaSuccess = false
+				}
+			}
+		}
+
+		if replicaSuccess {
+			result.SuccessReplicas++
+		} else {
+			result.FailedReplicas++
+		}
+	}
+
+	return result
+}
+
+// getModelInferRuntimeURLs constructs the runtime service URLs for all ModelInfer pods
+func (mc *ModelController) getModelInferRuntimeURLs(modelInfer *workload.ModelInfer, backend *registryv1alpha1.ModelBackend) ([]string, error) {
 	// Get port from backend environment variables with default fallback to 8100
 	port := convert.GetEnvPortOrDefault(backend, "RUNTIME_PORT", 8100)
 
-	// Get the first available pod IP for this ModelInfer
-	podIP, err := mc.getModelInferPodIP(modelInfer)
+	// Get all available pod IPs for this ModelInfer
+	podIPs, err := mc.getModelInferPodIPs(modelInfer)
 	if err != nil {
-		return "", fmt.Errorf("failed to get pod IP for ModelInfer %s: %v", modelInfer.Name, err)
+		return nil, fmt.Errorf("failed to get pod IPs for ModelInfer %s: %v", modelInfer.Name, err)
 	}
 
-	return fmt.Sprintf("http://%s:%d", podIP, port), nil
+	var runtimeURLs []string
+	for _, podIP := range podIPs {
+		runtimeURLs = append(runtimeURLs, fmt.Sprintf("http://%s:%d", podIP, port))
+	}
+
+	return runtimeURLs, nil
 }
 
-// getModelInferPodIP gets the IP of the first available pod for a ModelInfer
-func (mc *ModelController) getModelInferPodIP(modelInfer *workload.ModelInfer) (string, error) {
+// getModelInferRuntimeURL constructs the runtime service URL for a ModelInfer using pod IP (backward compatibility)
+func (mc *ModelController) getModelInferRuntimeURL(modelInfer *workload.ModelInfer, backend *registryv1alpha1.ModelBackend) (string, error) {
+	runtimeURLs, err := mc.getModelInferRuntimeURLs(modelInfer, backend)
+	if err != nil {
+		return "", err
+	}
+	return runtimeURLs[0], nil
+}
+
+// getModelInferPodIPs gets the IPs of all available pods for a ModelInfer
+func (mc *ModelController) getModelInferPodIPs(modelInfer *workload.ModelInfer) ([]string, error) {
 	// Use PodLister to get pods with the ModelInfer label
 	labelSelector := labels.SelectorFromSet(labels.Set{
 		workload.ModelInferNameLabelKey: modelInfer.Name,
@@ -394,21 +518,35 @@ func (mc *ModelController) getModelInferPodIP(modelInfer *workload.ModelInfer) (
 
 	podList, err := mc.podsLister.Pods(modelInfer.Namespace).List(labelSelector)
 	if err != nil {
-		return "", fmt.Errorf("failed to list pods: %v", err)
+		return nil, fmt.Errorf("failed to list pods: %v", err)
 	}
 
 	if len(podList) == 0 {
-		return "", fmt.Errorf("no pods found for ModelInfer %s", modelInfer.Name)
+		return nil, fmt.Errorf("no pods found for ModelInfer %s", modelInfer.Name)
 	}
 
-	// Find the first running pod with an IP
+	// Collect all running pod IPs
+	var podIPs []string
 	for _, pod := range podList {
 		if pod.Status.Phase == corev1.PodRunning && pod.Status.PodIP != "" {
-			return pod.Status.PodIP, nil
+			podIPs = append(podIPs, pod.Status.PodIP)
 		}
 	}
 
-	return "", fmt.Errorf("no running pods with IP found for ModelInfer %s", modelInfer.Name)
+	if len(podIPs) == 0 {
+		return nil, fmt.Errorf("no running pods with IP found for ModelInfer %s", modelInfer.Name)
+	}
+
+	return podIPs, nil
+}
+
+// getModelInferPodIP gets the IP of the first available pod for a ModelInfer (backward compatibility)
+func (mc *ModelController) getModelInferPodIP(modelInfer *workload.ModelInfer) (string, error) {
+	podIPs, err := mc.getModelInferPodIPs(modelInfer)
+	if err != nil {
+		return "", err
+	}
+	return podIPs[0], nil
 }
 
 // loadLoraAdapter calls the load_lora_adapter API
@@ -428,11 +566,6 @@ func (mc *ModelController) loadLoraAdapter(ctx context.Context, runtimeURL strin
 		return fmt.Errorf("failed to marshal request body: %v", err)
 	}
 
-	// Create HTTP request with timeout
-	client := &http.Client{
-		Timeout: 5 * time.Minute, // 5 minute timeout for LoRA adapter loading
-	}
-
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return fmt.Errorf("failed to create HTTP request: %v", err)
@@ -442,12 +575,15 @@ func (mc *ModelController) loadLoraAdapter(ctx context.Context, runtimeURL strin
 
 	klog.Infof("Loading LoRA adapter %s from %s", adapter.Name, adapter.ArtifactURL)
 
-	// Send request
-	resp, err := client.Do(req)
+	resp, err := mc.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to send HTTP request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			klog.Errorf("Failed to close response body: %v", closeErr)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
 		// Read response body to get detailed error message
@@ -479,10 +615,6 @@ func (mc *ModelController) unloadLoraAdapter(ctx context.Context, runtimeURL str
 		return fmt.Errorf("failed to marshal request body: %v", err)
 	}
 
-	client := &http.Client{
-		Timeout: 30 * time.Second, // 30 second timeout for unloading
-	}
-
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return fmt.Errorf("failed to create HTTP request: %v", err)
@@ -492,11 +624,15 @@ func (mc *ModelController) unloadLoraAdapter(ctx context.Context, runtimeURL str
 
 	klog.Infof("Unloading LoRA adapter %s", adapterName)
 
-	resp, err := client.Do(req)
+	resp, err := mc.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to send HTTP request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			klog.Errorf("Failed to close response body: %v", closeErr)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		// Read response body to get detailed error message
@@ -612,9 +748,21 @@ func NewModelController(kubeClient kubernetes.Interface, client clientset.Interf
 	podsInformer := kubeInformerFactory.Core().V1().Pods().Informer()
 	podsLister := kubeInformerFactory.Core().V1().Pods().Lister()
 
+	// Create a shared HTTP client for LoRA adapter API calls
+	// This client will be reused across all HTTP requests, enabling connection pooling
+	httpClient := &http.Client{
+		Timeout: 5 * time.Minute, // Default timeout for LoRA adapter operations
+		Transport: &http.Transport{
+			MaxIdleConns:        100,              // Maximum number of idle connections
+			MaxIdleConnsPerHost: 10,               // Maximum idle connections per host
+			IdleConnTimeout:     90 * time.Second, // How long an idle connection is kept
+		},
+	}
+
 	mc := &ModelController{
 		kubeClient:                        kubeClient,
 		client:                            client,
+		httpClient:                        httpClient,
 		modelsLister:                      modelInformer.Lister(),
 		modelsInformer:                    modelInformer.Informer(),
 		modelInfersLister:                 modelInferInformer.Lister(),
