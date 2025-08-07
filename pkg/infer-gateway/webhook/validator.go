@@ -32,7 +32,6 @@ import (
 
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
 	networkingv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
 const timeout = 30 * time.Second
@@ -64,8 +63,8 @@ func NewInferGatewayValidator(kubeClient kubernetes.Interface, modelInferClient 
 
 func (v *InferGatewayValidator) Run(tlsCertFile, tlsPrivateKey string, stopCh <-chan struct{}) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/validate-networking-matrixinfer-ai-v1alpha1-modelroute", v.HandleModelRoute)
-	mux.HandleFunc("/validate-networking-matrixinfer-ai-v1alpha1-modelserver", v.HandleModelServer)
+	mux.HandleFunc("/validate-modelroute", v.HandleModelRoute)
+	mux.HandleFunc("/validate-modelserver", v.HandleModelServer)
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		if _, err := w.Write([]byte("ok")); err != nil {
@@ -90,7 +89,7 @@ func (v *InferGatewayValidator) Run(tlsCertFile, tlsPrivateKey string, stopCh <-
 // HandleModelRoute handles admission requests for ModelRoute resources
 func (v *InferGatewayValidator) HandleModelRoute(w http.ResponseWriter, r *http.Request) {
 	// Parse the admission request
-	admissionReview, modelRoute, err := utils.ParseModelRouteFromRequest(r)
+	admissionReview, modelRoute, err := ParseModelRouteFromRequest(r)
 	if err != nil {
 		klog.Errorf("Failed to parse admission request: %v", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -116,7 +115,7 @@ func (v *InferGatewayValidator) HandleModelRoute(w http.ResponseWriter, r *http.
 	admissionReview.Response = &admissionResponse
 
 	// Send the response
-	if err := utils.SendAdmissionResponse(w, admissionReview); err != nil {
+	if err := SendAdmissionResponse(w, admissionReview); err != nil {
 		klog.Errorf("Failed to send admission response: %v", err)
 		http.Error(w, fmt.Sprintf("could not send response: %v", err), http.StatusInternalServerError)
 		return
@@ -126,7 +125,7 @@ func (v *InferGatewayValidator) HandleModelRoute(w http.ResponseWriter, r *http.
 // HandleModelServer handles admission requests for ModelServer resources
 func (v *InferGatewayValidator) HandleModelServer(w http.ResponseWriter, r *http.Request) {
 	// Parse the admission request
-	admissionReview, modelServer, err := utils.ParseModelServerFromRequest(r)
+	admissionReview, modelServer, err := ParseModelServerFromRequest(r)
 	if err != nil {
 		klog.Errorf("Failed to parse admission request: %v", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -152,7 +151,7 @@ func (v *InferGatewayValidator) HandleModelServer(w http.ResponseWriter, r *http
 	admissionReview.Response = &admissionResponse
 
 	// Send the response
-	if err := utils.SendAdmissionResponse(w, admissionReview); err != nil {
+	if err := SendAdmissionResponse(w, admissionReview); err != nil {
 		klog.Errorf("Failed to send admission response: %v", err)
 		http.Error(w, fmt.Sprintf("could not send response: %v", err), http.StatusInternalServerError)
 		return
@@ -185,16 +184,7 @@ func (v *InferGatewayValidator) validateModelRoute(modelRoute *networkingv1alpha
 }
 
 // validateModelServer validates the ModelServer resource
-func (v *InferGatewayValidator) validateModelServer(modelServer *networkingv1alpha1.ModelServer) (bool, string) {
-	var allErrs field.ErrorList
-
-	if len(allErrs) > 0 {
-		var messages []string
-		for _, err := range allErrs {
-			messages = append(messages, fmt.Sprintf("  - %s", err.Error()))
-		}
-		return false, fmt.Sprintf("validation failed:%s", strings.Join(messages, ""))
-	}
+func (v *InferGatewayValidator) validateModelServer(*networkingv1alpha1.ModelServer) (bool, string) {
 	return true, ""
 }
 

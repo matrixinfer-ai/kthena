@@ -18,7 +18,7 @@ webhooks:
       service:
         name: {{ include "matrixinfer.name" . }}-webhook
         namespace: {{ .Release.Namespace }}
-        path: "/validate-networking-matrixinfer-ai-v1alpha1-modelroute"
+        path: "/validate-modelroute"
         port: 443
       caBundle: ""
     rules:
@@ -36,7 +36,7 @@ webhooks:
       service:
         name: {{ include "matrixinfer.name" . }}-webhook
         namespace: {{ .Release.Namespace }}
-        path: "/validate-networking-matrixinfer-ai-v1alpha1-modelserver"
+        path: "/validate-modelserver"
         port: 443
       caBundle: ""
     rules:

@@ -10,11 +10,11 @@ inferGateway:
     secretName: "infer-gateway-tls"
   image:
     # repository is the container image repository for the infer-gateway.
-    repository: ghcr.io/yaozengzeng/infer-gateway
+    repository: ghcr.io/matrixinfer-ai/infer-gateway
     # tag is the container image tag for the infer-gateway.
     tag: latest
     # pullPolicy is the image pull policy for the infer-gateway.
-    pullPolicy: Always
+    pullPolicy: IfNotPresent
   # resource defines the resource limits and requests for the infer-gateway.
   resource:
     limits:
@@ -30,11 +30,11 @@ webhook:
   replicas: 1
   image:
     # repository is the container image repository for the gateway-webhook.
-    repository: ghcr.io/yaozengzeng/infer-gateway-webhook
+    repository: ghcr.io/matrixinfer-ai/infer-gateway-webhook
     # tag is the container image tag for the gateway-webhook.
     tag: latest
     # pullPolicy is the image pull policy for the gateway-webhook.
-    pullPolicy: Always
+    pullPolicy: IfNotPresent
     # args are the command line arguments for the gateway-webhook.
     args: [ "--port=8443"]
   # resource defines the resource limits and requests for the gateway-webhook.
