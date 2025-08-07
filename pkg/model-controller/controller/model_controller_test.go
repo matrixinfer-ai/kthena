@@ -121,6 +121,55 @@ func TestReconcile(t *testing.T) {
 	}))
 }
 
+func TestReconcile_ReturnsError(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	// Create fake clients for Kubernetes and MatrixInfer
+	kubeClient := fake.NewClientset()
+	matrixinferClient := matrixinferfake.NewSimpleClientset()
+	controller := NewModelController(kubeClient, matrixinferClient)
+	assert.NotNil(t, &controller)
+	// start informers
+	go controller.modelsInformer.RunWithContext(ctx)
+	go controller.modelInfersInformer.RunWithContext(ctx)
+	go controller.autoscalingPoliciesInformer.RunWithContext(ctx)
+	go controller.autoscalingPolicyBindingsInformer.RunWithContext(ctx)
+	// Case1: Invalid namespaceAndName
+	t.Run("InvalidNameSpaceAndName", func(t *testing.T) {
+		err := controller.reconcile(ctx, "//")
+		assert.Errorf(t, err, "invalid resource key: //")
+	})
+
+	// Case2: Create Model infer failed
+	t.Run("CreateModelInferFailed", func(t *testing.T) {
+		model := &registry.Model{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "not-supported-model",
+				Namespace: "default",
+			},
+			Spec: registry.ModelSpec{
+				Backends: []registry.ModelBackend{
+					{
+						Name: "not-supported-backend-type",
+						Type: registry.ModelBackendTypeMindIEDisaggregated,
+					},
+				},
+			},
+		}
+		createdModel, err := matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Create(ctx, model, metav1.CreateOptions{})
+		assert.NoError(t, err)
+		assert.NotNil(t, createdModel)
+		assert.True(t, waitForCondition(func() bool {
+			err = controller.reconcile(ctx, model.Namespace+"/"+model.Name)
+			return err.Error() == "not support model backend type: MindIEDisaggregated"
+		}))
+		get, err := matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Get(ctx, model.Name, metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Equal(t, true, meta.IsStatusConditionPresentAndEqual(get.Status.Conditions,
+			string(registry.ModelStatusConditionTypeFailed), metav1.ConditionTrue))
+	})
+}
+
 func TestCreateModel(t *testing.T) {
 	kubeClient := fake.NewClientset()
 	matrixinferClient := matrixinferfake.NewClientset()
