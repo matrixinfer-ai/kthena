@@ -49,8 +49,8 @@ the controller performs the following steps:
 2. Use the result of step 1 to create or update the `Model Infer`, `Model Server`, `Model Route` , `AutoscalingPolicy`,
    `AutoscalingPolicyBinding`in the Kubernetes.
 3. Set the conditions of `Model` CR.
-    - If the `Model Infer`, `Model Server`, `Model Route`, `AutoscalingPolicy`, `AutoscalingPolicyBinding` are created
-      successfully, set the `Active` condition to true.
+    - After creating the related resources, the `Initialized` condition is set to `true`.
+    - The controller then monitors the status of the `ModelInfer` resources. Once all `ModelInfer` resources are `Available`, the `Active` condition on the `Model` is set to `true`.
     - If any error occurs during the process, set the `Failed` condition to true and provide an error message.
 
 The `OwnerReference` is set to the `Model` CR for all the created resources, so that when the `Model` CR is deleted, all
