@@ -1,7 +1,7 @@
 apiVersion: networking.matrixinfer.ai/v1alpha1
 kind: ModelRoute
 metadata:
-  name: test-model-route
+  name: test-model
   namespace: default
   ownerReferences:
     - apiVersion: registry.matrixinfer.ai/v1alpha1
