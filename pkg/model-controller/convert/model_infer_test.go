@@ -50,8 +50,8 @@ func TestGetMountPath(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getMountPath(tt.input); got != tt.expected {
-				t.Errorf("getMountPath() = %v, want %v", got, tt.expected)
+			if got := GetMountPath(tt.input); got != tt.expected {
+				t.Errorf("GetMountPath() = %v, want %v", got, tt.expected)
 			}
 		})
 	}
@@ -86,8 +86,8 @@ func TestGetCachePath(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getCachePath(tt.input); got != tt.expected {
-				t.Errorf("getCachePath() = %v, want %v", got, tt.expected)
+			if got := GetCachePath(tt.input); got != tt.expected {
+				t.Errorf("GetCachePath() = %v, want %v", got, tt.expected)
 			}
 		})
 	}

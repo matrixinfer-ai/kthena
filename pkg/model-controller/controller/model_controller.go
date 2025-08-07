@@ -173,12 +173,7 @@ func (mc *ModelController) updateModel(old any, new any) {
 		// Check for LoRA adapter updates before normal reconciliation
 		if mc.hasOnlyLoraAdaptersChanged(oldModel, newModel) {
 			// Handle LoRA adapter update without triggering full reconciliation
-			// Create a context with timeout for the whole LoRA adapter update operation
-			// The timeout should be sufficient to cover all adapter updates across all replicas
-			ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
-			defer cancel()
-
-			if err := mc.handleLoraAdapterUpdate(ctx, oldModel, newModel); err != nil {
+			if err := mc.handleLoraAdapterUpdate(oldModel, newModel); err != nil {
 				klog.Errorf("Failed to handle LoRA adapter update: %v, falling back to full reconciliation", err)
 				mc.enqueueModel(newModel)
 			}
@@ -300,8 +295,13 @@ func (mc *ModelController) hasOnlyLoraAdaptersChanged(oldModel, newModel *regist
 }
 
 // handleLoraAdapterUpdate handles LoRA adapter updates for VLLM backends
-func (mc *ModelController) handleLoraAdapterUpdate(ctx context.Context, oldModel, newModel *registryv1alpha1.Model) error {
+func (mc *ModelController) handleLoraAdapterUpdate(oldModel, newModel *registryv1alpha1.Model) error {
 	klog.Info("Detected LoRA adapter changes, attempting runtime update")
+
+	// Create a context with timeout for the whole LoRA adapter update operation
+	// The timeout should be sufficient to cover all adapter updates across all replicas
+	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
+	defer cancel()
 
 	for i, newBackend := range newModel.Spec.Backends {
 		if newBackend.Type != registryv1alpha1.ModelBackendTypeVLLM {

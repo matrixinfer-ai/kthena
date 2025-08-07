@@ -63,7 +63,7 @@ spec:
                   - chmod u+x /vllm-workspace/vllm/examples/online_serving/multi-node-serving.sh
                     && /vllm-workspace/vllm/examples/online_serving/multi-node-serving.sh
                     leader --ray_cluster_size=2 --num-gpus=1 && python -m vllm.entrypoints.openai.api_server
-                    --model /tmp/test/13a7c4d58031cdc502ca1bb4a592f2b9 --block-size 128
+                    --model /tmp/test/13a7c4d58031cdc502ca1bb4a592f2b9 --enable-lora --block-size 128
                     --gpu-memory-utilization 0.9 --max-model-len 32768 --served-model-name deepseek-v3
                     --tensor-parallel-size 2 --trust-remote-code --distributed_executor_backend ray
                   - --enable-lora
