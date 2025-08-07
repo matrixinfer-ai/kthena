@@ -132,6 +132,7 @@ func TestUpdateModel(t *testing.T) {
 	kubeClient := fake.NewClientset()
 	matrixinferClient := matrixinferfake.NewClientset()
 	controller := NewModelController(kubeClient, matrixinferClient)
+	assert.NotNil(t, &controller)
 	model := loadYaml[registry.Model](t, "../convert/testdata/input/model.yaml")
 	// invalid old
 	controller.updateModel("invalid", model)
@@ -150,8 +151,9 @@ func TestDeleteModel(t *testing.T) {
 
 func TestTriggerModel(t *testing.T) {
 	kubeClient := fake.NewClientset()
-	matrixinferClient := matrixinferfake.NewSimpleClientset()
+	matrixinferClient := matrixinferfake.NewClientset()
 	controller := NewModelController(kubeClient, matrixinferClient)
+	assert.NotNil(t, &controller)
 	modelInfer := loadYaml[workload.ModelInfer](t, "../convert/testdata/expected/model-infer.yaml")
 	// invalid new
 	controller.triggerModel(modelInfer, "invalid")
