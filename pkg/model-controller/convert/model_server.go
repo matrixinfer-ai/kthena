@@ -80,7 +80,7 @@ func BuildModelServer(model *registry.Model) ([]*networking.ModelServer, error) 
 				InferenceEngine: inferenceEngine,
 				WorkloadSelector: &networking.WorkloadSelector{
 					MatchLabels: map[string]string{
-						"model.uid": string(model.UID),
+						utils.OwnerUIDKey: string(model.UID),
 					},
 					PDGroup: pdGroup,
 				},

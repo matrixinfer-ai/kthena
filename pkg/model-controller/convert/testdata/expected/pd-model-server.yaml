@@ -21,7 +21,7 @@ spec:
   inferenceEngine: "vLLM"
   workloadSelector:
     matchLabels:
-      model.uid: "randomUID"
+      registry.matrixinfer.ai/model-uid: randomUID
     pdGroup:
       groupKey: "modelinfer.matrixinfer.ai/group-name"
       prefillLabels:
