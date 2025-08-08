@@ -2,7 +2,11 @@ apiVersion: workload.matrixinfer.ai/v1alpha1
 kind: modelinfer
 metadata:
   labels:
-    model.uid: randomUID
+    registry.matrixinfer.ai/backend-name: backend1
+    registry.matrixinfer.ai/managed-by: registry.matrixinfer.ai
+    registry.matrixinfer.ai/model-name: test-model
+    registry.matrixinfer.ai/model-uid: randomUID
+    registry.matrixinfer.ai/revision: 69978bb886
   name: test-model-backend1
   namespace: default
   ownerReferences:
@@ -26,7 +30,11 @@ spec:
       - entryTemplate:
           metadata:
             labels:
-              model.uid: randomUID
+              registry.matrixinfer.ai/backend-name: backend1
+              registry.matrixinfer.ai/managed-by: registry.matrixinfer.ai
+              registry.matrixinfer.ai/model-name: test-model
+              registry.matrixinfer.ai/model-uid: randomUID
+              registry.matrixinfer.ai/revision: 69978bb886
           spec:
             containers:
               - args:

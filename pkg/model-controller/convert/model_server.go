@@ -26,6 +26,7 @@ import (
 	networking "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
+	icUtils "matrixinfer.ai/matrixinfer/pkg/infer-controller/utils"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
 )
 
@@ -69,6 +70,7 @@ func BuildModelServer(model *registry.Model) ([]*networking.ModelServer, error) 
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      fmt.Sprintf("%s-%d-%s-server", model.Name, idx, strings.ToLower(string(backend.Type))),
 				Namespace: model.Namespace,
+				Labels:    utils.GetModelControllerLabels(model, backend.Name, icUtils.Revision(model.Spec)),
 				OwnerReferences: []metav1.OwnerReference{
 					utils.NewModelOwnerRef(model),
 				},
