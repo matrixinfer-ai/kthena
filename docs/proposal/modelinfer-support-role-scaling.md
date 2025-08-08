@@ -38,7 +38,7 @@ type InferGroup struct {
     runningPods map[string]struct{} // Map of pod names in this infer group
     Revision    string
     Status      InferGroupStatus
-    roles       map[string]map[string]*Role // roleSpecName -> roleInstanceName -> *Role, like prefill -> prefill0 -> *Role
+    roles       map[string]map[string]*Role // roleName -> roleID -> *Role, like prefill -> prefill-0 -> *Role
 }
 
 type Role struct {
