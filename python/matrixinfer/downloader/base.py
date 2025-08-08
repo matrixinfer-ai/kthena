@@ -86,7 +86,7 @@ def get_downloader(source: str, config: dict, max_workers: int = 8) -> ModelDown
             from matrixinfer.downloader.pvc import PVCDownloader
 
             return PVCDownloader(source_path=source)
-        elif source.startswith("hf://"):
+        else:
             from matrixinfer.downloader.huggingface import HuggingFaceDownloader
 
             return HuggingFaceDownloader(
@@ -96,8 +96,7 @@ def get_downloader(source: str, config: dict, max_workers: int = 8) -> ModelDown
                 hf_revision=config.get("hf_revision"),
                 max_workers=max_workers,
             )
-        else:
-            raise ValueError("Invalid source format: {}".format(source))
+
     except ImportError as e:
         logger.error(f"Failed to initialize downloader: {e}")
         raise RuntimeError(f"Failed to initialize downloader: {e}")

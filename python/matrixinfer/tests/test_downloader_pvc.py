@@ -38,25 +38,27 @@ class TestDownloadModel(unittest.TestCase):
         download_model(self.source, self.output_dir, self.config)
 
         mock_get_downloader.assert_called_once_with(self.source, self.config, 8)
-        self.mock_downloader.download_model.assert_called_once_with(
-            self.output_dir
-        )
+        self.mock_downloader.download_model.assert_called_once_with(self.output_dir)
 
     @patch("matrixinfer.downloader.downloader.get_downloader")
     def test_download_model_pvc_custom_workers(self, mock_get_downloader):
         mock_get_downloader.return_value = self.mock_downloader
 
         custom_max_workers = 16
-        download_model(self.source, self.output_dir, self.config, max_workers=custom_max_workers)
-
-        mock_get_downloader.assert_called_once_with(self.source, self.config, custom_max_workers)
-        self.mock_downloader.download_model.assert_called_once_with(
-            self.output_dir
+        download_model(
+            self.source, self.output_dir, self.config, max_workers=custom_max_workers
         )
+
+        mock_get_downloader.assert_called_once_with(
+            self.source, self.config, custom_max_workers
+        )
+        self.mock_downloader.download_model.assert_called_once_with(self.output_dir)
 
     @patch("matrixinfer.downloader.downloader.get_downloader")
     def test_download_model_file_error(self, mock_get_downloader):
-        self.mock_downloader.download_model.side_effect = FileNotFoundError("PVC path does not exist")
+        self.mock_downloader.download_model.side_effect = FileNotFoundError(
+            "PVC path does not exist"
+        )
         mock_get_downloader.return_value = self.mock_downloader
 
         with self.assertRaises(FileNotFoundError) as context:
@@ -68,7 +70,8 @@ class TestDownloadModel(unittest.TestCase):
     @patch("matrixinfer.downloader.downloader.get_downloader")
     def test_download_model_permission_error(self, mock_get_downloader):
         self.mock_downloader.download_model.side_effect = PermissionError(
-            "Insufficient permissions to write to output directory")
+            "Insufficient permissions to write to output directory"
+        )
         mock_get_downloader.return_value = self.mock_downloader
 
         with self.assertRaises(PermissionError) as context:
@@ -95,7 +98,7 @@ class TestDownloadModel(unittest.TestCase):
     def test_parse_pvc_path(self):
         test_cases = [
             ("pvc://models", "/models"),
-            ("pvc://data/models", "/data/models")
+            ("pvc://data/models", "/data/models"),
         ]
 
         for source, expected in test_cases:
@@ -113,13 +116,19 @@ class TestDownloadModel(unittest.TestCase):
     @patch("pathlib.Path.exists")
     @patch("pathlib.Path.is_dir")
     @patch("pathlib.Path.mkdir")
-    def test_copy_from_pvc_success(self, _, mock_is_dir, mock_exists, mock_os_exists, mock_popen):
+    def test_copy_from_pvc_success(
+        self, _, mock_is_dir, mock_exists, mock_os_exists, mock_popen
+    ):
         mock_is_dir.return_value = True
         mock_exists.return_value = True
         mock_os_exists.return_value = True
 
         mock_process = MagicMock()
-        mock_process.stdout.readline.side_effect = ["Sending file1.txt", "Sending file2.txt", ""]
+        mock_process.stdout.readline.side_effect = [
+            "Sending file1.txt",
+            "Sending file2.txt",
+            "",
+        ]
         mock_process.wait.return_value = 0
         mock_popen.return_value = mock_process
 
@@ -136,7 +145,9 @@ class TestDownloadModel(unittest.TestCase):
     @patch("pathlib.Path.exists")
     @patch("pathlib.Path.is_dir")
     @patch("pathlib.Path.mkdir")
-    def test_copy_from_pvc_failure(self, _, mock_is_dir, mock_exists, mock_os_exists, mock_popen):
+    def test_copy_from_pvc_failure(
+        self, _, mock_is_dir, mock_exists, mock_os_exists, mock_popen
+    ):
         mock_is_dir.return_value = True
         mock_exists.return_value = True
         mock_os_exists.return_value = True

@@ -40,14 +40,18 @@ def test_build_operators_dict_with_valid_engine():
 
     engine_name = "sgLANG"
     metric_standard2 = MetricStandard(engine_name)
-    assert metric_standard1.metric_operators_dict == metric_standard2.metric_operators_dict
+    assert (
+        metric_standard1.metric_operators_dict == metric_standard2.metric_operators_dict
+    )
 
 
 def test_build_operators_dict_with_invalid_engine():
     invalid_engine_name = "invalid_engine"
 
-    with pytest.raises(UnsupportedEngineError,
-                       match=f"Unsupported engine: {invalid_engine_name}. Supported engine: vllm, sglang"):
+    with pytest.raises(
+        UnsupportedEngineError,
+        match=f"Unsupported engine: {invalid_engine_name}. Supported engine: vllm, sglang",
+    ):
         MetricStandard(invalid_engine_name)
 
 
@@ -64,10 +68,10 @@ def test_metric_adapter_initialization_with_valid_input():
 
 
 def test_metric_adapter_initialization_with_invalid_metric_text():
-    invalid_metric_text = '''
+    invalid_metric_text = """
     # HELP invalid_metric Invalid metric format
     INVALID_TYPE invalid_metric 1
-    '''
+    """
     standard = MetricStandard("sglang")
 
     with pytest.raises(ValueError):

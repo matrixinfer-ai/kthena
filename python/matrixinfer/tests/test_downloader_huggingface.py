@@ -37,25 +37,30 @@ class TestDownloadModel(unittest.TestCase):
         download_model(self.source, self.output_dir, self.credentials)
 
         mock_get_downloader.assert_called_once_with(self.source, self.credentials, 8)
-        self.mock_downloader.download_model.assert_called_once_with(
-            self.output_dir
-        )
+        self.mock_downloader.download_model.assert_called_once_with(self.output_dir)
 
     @patch("matrixinfer.downloader.downloader.get_downloader")
     def test_download_model_huggingface_custom_workers(self, mock_get_downloader):
         mock_get_downloader.return_value = self.mock_downloader
 
         custom_max_workers = 16
-        download_model(self.source, self.output_dir, self.credentials, max_workers=custom_max_workers)
-
-        mock_get_downloader.assert_called_once_with(self.source, self.credentials, custom_max_workers)
-        self.mock_downloader.download_model.assert_called_once_with(
-            self.output_dir
+        download_model(
+            self.source,
+            self.output_dir,
+            self.credentials,
+            max_workers=custom_max_workers,
         )
+
+        mock_get_downloader.assert_called_once_with(
+            self.source, self.credentials, custom_max_workers
+        )
+        self.mock_downloader.download_model.assert_called_once_with(self.output_dir)
 
     @patch("matrixinfer.downloader.downloader.get_downloader")
     def test_download_model_invalid_credentials(self, mock_get_downloader):
-        self.mock_downloader.download_model.side_effect = ValueError("Invalid authentication token")
+        self.mock_downloader.download_model.side_effect = ValueError(
+            "Invalid authentication token"
+        )
         mock_get_downloader.return_value = self.mock_downloader
 
         with self.assertRaises(ValueError) as context:
@@ -66,19 +71,24 @@ class TestDownloadModel(unittest.TestCase):
 
     @patch("matrixinfer.downloader.downloader.get_downloader")
     def test_download_model_network_error(self, mock_get_downloader):
-        self.mock_downloader.download_model.side_effect = ConnectionError("Failed to establish connection to server")
+        self.mock_downloader.download_model.side_effect = ConnectionError(
+            "Failed to establish connection to server"
+        )
         mock_get_downloader.return_value = self.mock_downloader
 
         with self.assertRaises(ConnectionError) as context:
             download_model(self.source, self.output_dir, self.credentials)
 
-        self.assertIn("Failed to establish connection to server", str(context.exception))
+        self.assertIn(
+            "Failed to establish connection to server", str(context.exception)
+        )
         mock_get_downloader.assert_called_once_with(self.source, self.credentials, 8)
 
     @patch("matrixinfer.downloader.downloader.get_downloader")
     def test_download_model_permission_error(self, mock_get_downloader):
         self.mock_downloader.download_model.side_effect = PermissionError(
-            "Insufficient permissions to write to output directory")
+            "Insufficient permissions to write to output directory"
+        )
         mock_get_downloader.return_value = self.mock_downloader
 
         with self.assertRaises(PermissionError) as context:
@@ -88,16 +98,32 @@ class TestDownloadModel(unittest.TestCase):
 
     def test_get_downloader_huggingface_default_workers(self):
         downloader = get_downloader(self.source, self.credentials)
-        self.assertIsInstance(downloader, HuggingFaceDownloader, "Should return HuggingFaceDownloader instance")
+        self.assertIsInstance(
+            downloader,
+            HuggingFaceDownloader,
+            "Should return HuggingFaceDownloader instance",
+        )
         if isinstance(downloader, HuggingFaceDownloader):
-            self.assertEqual(downloader.max_workers, 8, "max_workers should default to 8")
+            self.assertEqual(
+                downloader.max_workers, 8, "max_workers should default to 8"
+            )
 
     def test_get_downloader_huggingface_custom_workers(self):
         custom_max_workers = 16
-        downloader = get_downloader(self.source, self.credentials, max_workers=custom_max_workers)
-        self.assertIsInstance(downloader, HuggingFaceDownloader, "Should return HuggingFaceDownloader instance")
+        downloader = get_downloader(
+            self.source, self.credentials, max_workers=custom_max_workers
+        )
+        self.assertIsInstance(
+            downloader,
+            HuggingFaceDownloader,
+            "Should return HuggingFaceDownloader instance",
+        )
         if isinstance(downloader, HuggingFaceDownloader):
-            self.assertEqual(downloader.max_workers, custom_max_workers, f"max_workers should be {custom_max_workers}")
+            self.assertEqual(
+                downloader.max_workers,
+                custom_max_workers,
+                f"max_workers should be {custom_max_workers}",
+            )
 
 
 if __name__ == "__main__":
