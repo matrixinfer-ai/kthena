@@ -20,6 +20,8 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/dump"
 	"k8s.io/apimachinery/pkg/util/rand"
+
+	workloadv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 )
 
 // Revision calculates the revision of an object using FNV hashing.
@@ -35,4 +37,13 @@ func Revision(obj interface{}) string {
 func DeepHashObject(hasher hash.Hash, objectToWrite interface{}) {
 	hasher.Reset()
 	fmt.Fprintf(hasher, "%v", dump.ForHash(objectToWrite))
+}
+
+// RemoveRoleReplicasForRevision remove role.replicas when calculating modelInfer revision hash
+func RemoveRoleReplicasForRevision(mi *workloadv1alpha1.ModelInfer) *workloadv1alpha1.ModelInfer {
+	Copy := mi.DeepCopy()
+	for i := range Copy.Spec.Template.Roles {
+		Copy.Spec.Template.Roles[i].Replicas = nil
+	}
+	return Copy
 }
