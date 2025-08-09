@@ -733,11 +733,11 @@ func (c *ModelInferController) manageRoleReplicas(ctx context.Context, mi *workl
 				return
 			}
 		}
-		c.DeleteRole(mi, groupName, targetRole.Name, role.Name)
+		c.DeleteRole(ctx, mi, groupName, targetRole.Name, role.Name)
 	}
 }
 
-func (c *ModelInferController) DeleteRole(mi *workloadv1alpha1.ModelInfer, groupName, roleName, roleID string) {
+func (c *ModelInferController) DeleteRole(ctx context.Context, mi *workloadv1alpha1.ModelInfer, groupName, roleName, roleID string) {
 	selector := labels.SelectorFromSet(map[string]string{
 		workloadv1alpha1.GroupNameLabelKey: groupName,
 		workloadv1alpha1.RoleLabelKey:      roleName,
@@ -755,7 +755,7 @@ func (c *ModelInferController) DeleteRole(mi *workloadv1alpha1.ModelInfer, group
 	}
 	// Delete all pods in role
 	err = c.kubeClientSet.CoreV1().Pods(mi.Namespace).DeleteCollection(
-		context.TODO(),
+		ctx,
 		metav1.DeleteOptions{},
 		metav1.ListOptions{
 			LabelSelector: selector.String(),
@@ -763,7 +763,6 @@ func (c *ModelInferController) DeleteRole(mi *workloadv1alpha1.ModelInfer, group
 	)
 	if err != nil {
 		klog.Errorf("failed to delete pods of role %s/%s: %v", groupName, roleID, err)
-		return
 	}
 	// There is no DeleteCollection operation in the service of client-go. We need to list and delete them one by one.
 	services, err := c.servicesLister.Services(mi.Namespace).List(selector)
@@ -776,10 +775,8 @@ func (c *ModelInferController) DeleteRole(mi *workloadv1alpha1.ModelInfer, group
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				klog.V(4).Infof("service %s/%s has been deleted", mi.Namespace, svc.Name)
-			} else {
-				klog.Errorf("failed to delete service %s/%s: %v", mi.Namespace, svc.Name, err)
-				return
 			}
+			klog.Errorf("failed to delete service %s/%s: %v", mi.Namespace, svc.Name, err)
 		}
 	}
 }
@@ -923,7 +920,7 @@ func (c *ModelInferController) handleDeletedPod(mi *workloadv1alpha1.ModelInfer,
 				return fmt.Errorf("failed to set inferGroup %s status: %v", inferGroupName, err)
 			}
 		}
-		c.DeleteRole(mi, inferGroupName, utils.PodRoleName(pod), utils.PodRoleID(pod))
+		c.DeleteRole(context.Background(), mi, inferGroupName, utils.PodRoleName(pod), utils.PodRoleID(pod))
 	}
 	return nil
 }
@@ -996,20 +993,7 @@ func (c *ModelInferController) isInferGroupDeleted(mi *workloadv1alpha1.ModelInf
 	selector := labels.SelectorFromSet(map[string]string{
 		workloadv1alpha1.GroupNameLabelKey: inferGroupName,
 	})
-	pods, err := c.podsLister.Pods(mi.GetNamespace()).List(selector)
-	if err != nil {
-		klog.Errorf("failed to get pod, err: %v", err)
-		return false
-	}
-	services, err := c.servicesLister.Services(mi.Namespace).List(selector)
-	if err != nil {
-		klog.Errorf("failed to get service, err:%v", err)
-		return false
-	}
-	if len(pods) == 0 && len(services) == 0 {
-		return true
-	}
-	return false
+	return c.areResourcesDeleted(mi.GetNamespace(), selector)
 }
 
 func (c *ModelInferController) isRoleDeleted(mi *workloadv1alpha1.ModelInfer, inferGroupName, roleName, roleID string) bool {
@@ -1019,18 +1003,19 @@ func (c *ModelInferController) isRoleDeleted(mi *workloadv1alpha1.ModelInfer, in
 		workloadv1alpha1.RoleLabelKey:      roleName,
 		workloadv1alpha1.RoleIDKey:         roleID,
 	})
-	pods, err := c.podsLister.Pods(mi.GetNamespace()).List(selector)
+	return c.areResourcesDeleted(mi.GetNamespace(), selector)
+}
+
+func (c *ModelInferController) areResourcesDeleted(namespace string, selector labels.Selector) bool {
+	pods, err := c.podsLister.Pods(namespace).List(selector)
 	if err != nil {
 		klog.Errorf("failed to get pod, err: %v", err)
 		return false
 	}
-	services, err := c.servicesLister.Services(mi.Namespace).List(selector)
+	services, err := c.servicesLister.Services(namespace).List(selector)
 	if err != nil {
 		klog.Errorf("failed to get service, err:%v", err)
 		return false
 	}
-	if len(pods) == 0 && len(services) == 0 {
-		return true
-	}
-	return false
+	return len(pods) == 0 && len(services) == 0
 }
