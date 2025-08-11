@@ -58,7 +58,7 @@ func BuildScalingPolicyBindingSpec(backend *registry.ModelBackend, name string) 
 			MinReplicas: backend.MinReplicas,
 			MaxReplicas: backend.MaxReplicas,
 		},
-		PolicyRef: &corev1.LocalObjectReference{
+		PolicyRef: corev1.LocalObjectReference{
 			Name: name,
 		},
 	}
@@ -111,7 +111,7 @@ func BuildOptimizePolicyBindingSpec(model *registry.Model, name string) *registr
 			Params:                   params,
 			CostExpansionRatePercent: model.Spec.CostExpansionRatePercent,
 		},
-		PolicyRef: &corev1.LocalObjectReference{
+		PolicyRef: corev1.LocalObjectReference{
 			Name: name,
 		},
 	}

@@ -32,7 +32,7 @@ import (
 // WebhookServer contains the server configuration
 type WebhookServer struct {
 	kubeClient        kubernetes.Interface
-	matrixinferClient clientset.Interface
+	matrixInferClient clientset.Interface
 	server            *http.Server
 	tlsCertFile       string
 	tlsPrivateKey     string
@@ -51,7 +51,7 @@ func NewWebhookServer(
 ) *WebhookServer {
 	return &WebhookServer{
 		kubeClient:        kubeClient,
-		matrixinferClient: matrixinferClient,
+		matrixInferClient: matrixinferClient,
 		tlsCertFile:       tlsCertFile,
 		tlsPrivateKey:     tlsPrivateKey,
 		port:              port,
@@ -62,8 +62,8 @@ func NewWebhookServer(
 // Start starts the webhook server
 func (ws *WebhookServer) Start(stopCh <-chan struct{}) error {
 	// Create handlers
-	modelValidator := handlers.NewModelValidator(ws.kubeClient, ws.matrixinferClient)
-	modelMutator := handlers.NewModelMutator(ws.kubeClient, ws.matrixinferClient)
+	modelValidator := handlers.NewModelValidator(ws.kubeClient, ws.matrixInferClient)
+	modelMutator := handlers.NewModelMutator(ws.kubeClient, ws.matrixInferClient)
 
 	// Create mux and register handlers
 	mux := http.NewServeMux()

@@ -49,7 +49,7 @@ func NewModelValidator(kubeClient kubernetes.Interface, matrixinferClient client
 // Handle handles admission requests for Model resources
 func (v *ModelValidator) Handle(w http.ResponseWriter, r *http.Request) {
 	// Parse the admission request
-	admissionReview, model, err := parseAdmissionRequest(r)
+	admissionReview, model, err := parseAdmissionRequest[registryv1alpha1.Model](r)
 	if err != nil {
 		klog.Errorf("Failed to parse admission request: %v", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)

@@ -25,8 +25,7 @@ import (
 // +kubebuilder:validation:XValidation:rule="has(self.optimizerConfiguration) != has(self.scalingConfiguration)",message="Either optimizerConfiguration or scalingConfiguration must be set, but not both."
 type AutoscalingPolicyBindingSpec struct {
 	// PolicyRef references the autoscaling policy to be optimized scaling base on multiple targets.
-	// +optional
-	PolicyRef *corev1.LocalObjectReference `json:"policyRef,omitempty"`
+	PolicyRef corev1.LocalObjectReference `json:"policyRef"`
 
 	// It dynamically schedules replicas across different Model Infer groups based on overall computing power requirements - referred to as "optimize" behavior in the code.
 	//
@@ -50,12 +49,14 @@ type MetricEndpoint struct {
 	// +optional
 	// +kubebuilder:default="/metrics"
 	Uri string `json:"uri,omitempty"`
+	// The port of pods exposing metric endpoints
 	// +optional
 	// +kubebuilder:default=8100
 	Port int32 `json:"port,omitempty"`
 }
 
 type ScalingConfiguration struct {
+	// The scaling instance configuration
 	Target Target `json:"target,omitempty"`
 	// MinReplicas is the minimum number of replicas for the backend.
 	// +kubebuilder:validation:Minimum=0
@@ -68,17 +69,18 @@ type ScalingConfiguration struct {
 }
 
 type OptimizerConfiguration struct {
-	Params []OptimizerParam `json:"params,omitempty"`
+	// Parameters of multiple Model Infer Groups to be optimized.
+	// +kubebuilder:validation:MinItems=1
+	Params []OptimizerParam `json:"params"`
 	// CostExpansionRatePercent is the percentage rate at which the cost expands.
 	// +kubebuilder:validation:Minimum=0
-	// +kubebuilder:validation:Maximum=100
+	// +kubebuilder:default=200
 	// +optional
 	CostExpansionRatePercent *int32 `json:"costExpansionRatePercent,omitempty"`
 }
 
 type Target struct {
 	// TargetRef references the target object.
-	// +optional
 	TargetRef corev1.ObjectReference `json:"targetRef"`
 	// AdditionalMatchLabels is the additional labels to match the target object.
 	// +optional
@@ -89,6 +91,7 @@ type Target struct {
 }
 
 type OptimizerParam struct {
+	// The scaling instance configuration
 	Target Target `json:"target,omitempty"`
 	// Cost is the cost associated with running this backend.
 	// +kubebuilder:validation:Minimum=0
