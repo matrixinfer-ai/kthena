@@ -1,7 +1,7 @@
 apiVersion: networking.matrixinfer.ai/v1alpha1
 kind: ModelRoute
 metadata:
-  name: multi-backend-model-route
+  name: multi-backend-model
   namespace: dev
   ownerReferences:
     - apiVersion: registry.matrixinfer.ai/v1alpha1

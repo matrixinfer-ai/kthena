@@ -22,14 +22,16 @@ spec:
               - name: runtime
                 image: ${MODEL_INFER_RUNTIME_IMAGE}
                 ports:
-                  - containerPort: 8100
+                  - containerPort: ${MODEL_INFER_RUNTIME_PORT}
                 args:
                   - --port
                   - ${MODEL_INFER_RUNTIME_PORT}
-                  - --url
-                  - ${MODEL_INFER_RUNTIME_URL}
                   - --engine
                   - ${MODEL_INFER_RUNTIME_ENGINE}
+                  - --engine-base-url
+                  - ${MODEL_INFER_RUNTIME_URL}
+                  - --engine-metrics-path
+                  - ${MODEL_INFER_RUNTIME_METRICS_PATH}
               - name: vllm
                 image: ${ENGINE_PREFILL_IMAGE}
                 ports:
@@ -82,14 +84,17 @@ spec:
               - name: runtime
                 image: ${MODEL_INFER_RUNTIME_IMAGE}
                 ports:
-                  - containerPort: 8100
+                  - containerPort: ${MODEL_INFER_RUNTIME_PORT}
+                envFrom: ${MODEL_DOWNLOAD_ENVFROM}
                 args:
                   - --port
                   - ${MODEL_INFER_RUNTIME_PORT}
-                  - --url
-                  - ${MODEL_INFER_RUNTIME_URL}
                   - --engine
                   - ${MODEL_INFER_RUNTIME_ENGINE}
+                  - --engine-base-url
+                  - ${MODEL_INFER_RUNTIME_URL}
+                  - --engine-metrics-path
+                  - ${MODEL_INFER_RUNTIME_METRICS_PATH}
               - name: vllm
                 image: ${ENGINE_DECODE_IMAGE}
                 ports:
