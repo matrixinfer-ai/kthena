@@ -126,7 +126,7 @@ _Appears in:_
 | `schedulerName` _string_ | SchedulerName defines the name of the scheduler used by ModelInfer |  |  |
 | `template` _[InferGroup](#infergroup)_ | Template defines the template for InferGroup |  |  |
 | `rolloutStrategy` _[RolloutStrategy](#rolloutstrategy)_ | RolloutStrategy defines the strategy that will be applied to update replicas |  |  |
-| `recoveryPolicy` _[RecoveryPolicy](#recoverypolicy)_ | RecoveryPolicy defines the recovery policy for the inferGroup | InferGroupRestart | Enum: [InferGroupRestart None] <br /> |
+| `recoveryPolicy` _[RecoveryPolicy](#recoverypolicy)_ | RecoveryPolicy defines the recovery policy for the failed Pod to be rebuilt | RoleRecreate | Enum: [InferGroupRecreate RoleRecreate None] <br /> |
 | `topologySpreadConstraints` _[TopologySpreadConstraint](#topologyspreadconstraint) array_ |  |  |  |
 
 
@@ -215,7 +215,8 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `InferGroupRestart` | InferGroupRestart will recreate all the pods in the InferGroup if<br />1. Any individual pod in the group is recreated; 2. Any containers/init-containers<br />in a pod is restarted. This is to ensure all pods/containers in the group will be<br />started in the same time.<br /> |
+| `InferGroupRecreate` | InferGroupRecreate will recreate all the pods in the InferGroup if<br />1. Any individual pod in the group is recreated; 2. Any containers/init-containers<br />in a pod is restarted. This is to ensure all pods/containers in the group will be<br />started in the same time.<br /> |
+| `RoleRecreate` | RoleRecreate will recreate all pods in one Role if<br />1. Any individual pod in the group is recreated; 2. Any containers/init-containers<br />in a pod is restarted.<br /> |
 | `None` | NoneRestartPolicy will follow the same behavior as the default pod or deployment.<br /> |
 
 

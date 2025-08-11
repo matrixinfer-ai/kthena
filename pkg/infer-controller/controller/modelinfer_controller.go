@@ -262,11 +262,6 @@ func (c *ModelInferController) deletePod(obj interface{}) {
 		return
 	}
 
-	c.store.DeleteRunningPodFromInferGroup(types.NamespacedName{
-		Namespace: mi.Namespace,
-		Name:      mi.Name,
-	}, inferGroupName, pod.Name)
-
 	roleName, roleID := utils.PodRoleName(pod), utils.PodRoleID(pod)
 	// check inferGroup status
 	if c.store.GetInferGroupStatus(utils.GetNamespaceName(mi), inferGroupName) == datastore.InferGroupDeleting {
@@ -279,6 +274,12 @@ func (c *ModelInferController) deletePod(obj interface{}) {
 		}
 		return
 	}
+
+	c.store.DeleteRunningPodFromInferGroup(types.NamespacedName{
+		Namespace: mi.Namespace,
+		Name:      mi.Name,
+	}, inferGroupName, pod.Name)
+
 	// check role status
 	if c.store.GetRoleStatus(utils.GetNamespaceName(mi), inferGroupName, roleName, roleID) == datastore.RoleDeleting {
 		// role is already in the deletion process, only checking whether the deletion is completed
@@ -356,7 +357,7 @@ func (c *ModelInferController) syncModelInfer(ctx context.Context, key string) e
 	copy := utils.RemoveRoleReplicasForRevision(mi)
 	revision := utils.Revision(copy.Spec.Template.Roles)
 
-	err = c.manageReplicas(ctx, mi, revision)
+	err = c.manageInferGroupReplicas(ctx, mi, revision)
 	if err != nil {
 		return fmt.Errorf("cannot manage inferGroup replicas: %v", err)
 	}
@@ -366,7 +367,7 @@ func (c *ModelInferController) syncModelInfer(ctx context.Context, key string) e
 		return fmt.Errorf("cannot manage role replicas: %v", err)
 	}
 
-	err = c.manageRollingUpdate(mi, revision)
+	err = c.manageInferGroupRollingUpdate(mi, revision)
 	if err != nil {
 		return fmt.Errorf("cannot manage inferGroup rollingUpdate: %v", err)
 	}
@@ -489,7 +490,7 @@ func (c *ModelInferController) UpdateModelInferStatus(mi *workloadv1alpha1.Model
 	return nil
 }
 
-func (c *ModelInferController) manageReplicas(ctx context.Context, mi *workloadv1alpha1.ModelInfer, newRevision string) error {
+func (c *ModelInferController) manageInferGroupReplicas(ctx context.Context, mi *workloadv1alpha1.ModelInfer, newRevision string) error {
 	inferGroupList, err := c.store.GetInferGroupByModelInfer(utils.GetNamespaceName(mi))
 	if err != nil && !errors.Is(err, datastore.ErrInferGroupNotFound) {
 		return fmt.Errorf("cannot get inferGroup of modelInfer: %s from map: %v", mi.GetName(), err)
@@ -781,7 +782,7 @@ func (c *ModelInferController) DeleteRole(ctx context.Context, mi *workloadv1alp
 	}
 }
 
-func (c *ModelInferController) manageRollingUpdate(mi *workloadv1alpha1.ModelInfer, revision string) error {
+func (c *ModelInferController) manageInferGroupRollingUpdate(mi *workloadv1alpha1.ModelInfer, revision string) error {
 	// we compute the minimum ordinal of the target sequence for a destructive update based on the strategy.
 	updateMin := 0
 	if mi.Spec.RolloutStrategy != nil && mi.Spec.RolloutStrategy.RollingUpdateConfiguration != nil && mi.Spec.RolloutStrategy.RollingUpdateConfiguration.Partition != nil {
@@ -909,10 +910,10 @@ func (c *ModelInferController) handlePodAfterGraceTime(mi *workloadv1alpha1.Mode
 func (c *ModelInferController) handleDeletedPod(mi *workloadv1alpha1.ModelInfer, inferGroupName string, pod *corev1.Pod) error {
 	// pod is deleted due to failure or other reasons and needs to be rebuilt according to the RecoveryPolicy
 	switch mi.Spec.RecoveryPolicy {
-	case workloadv1alpha1.InferGroupRestart:
+	case workloadv1alpha1.InferGroupRecreate:
 		// Rebuild the entire inferGroup directly
 		c.DeleteInferGroup(mi, inferGroupName)
-	case workloadv1alpha1.RoleRestart:
+	case workloadv1alpha1.RoleRecreate:
 		if c.store.GetInferGroupStatus(utils.GetNamespaceName(mi), inferGroupName) == datastore.InferGroupRunning {
 			// If the inferGroup status is running when the pod fails, we need to set it to creating
 			err := c.store.UpdateInferGroupStatus(utils.GetNamespaceName(mi), inferGroupName, datastore.InferGroupCreating)
@@ -989,30 +990,45 @@ func (c *ModelInferController) shouldSkipPodHandling(mi *workloadv1alpha1.ModelI
 }
 
 func (c *ModelInferController) isInferGroupDeleted(mi *workloadv1alpha1.ModelInfer, inferGroupName string) bool {
+	status := c.store.GetInferGroupStatus(utils.GetNamespaceName(mi), inferGroupName)
+	if status != datastore.InferGroupDeleting {
+		// It will be determined whether all resource have been deleted only when the group status is deleting.
+		return false
+	}
 	// check whether the inferGroup deletion has been completed
 	selector := labels.SelectorFromSet(map[string]string{
 		workloadv1alpha1.GroupNameLabelKey: inferGroupName,
 	})
-	return c.areResourcesDeleted(mi.GetNamespace(), selector)
+	pods, err := c.podsLister.Pods(mi.GetNamespace()).List(selector)
+	if err != nil {
+		klog.Errorf("failed to get pod, err: %v", err)
+		return false
+	}
+	services, err := c.servicesLister.Services(mi.GetNamespace()).List(selector)
+	if err != nil {
+		klog.Errorf("failed to get service, err:%v", err)
+		return false
+	}
+	return len(pods) == 0 && len(services) == 0
 }
 
 func (c *ModelInferController) isRoleDeleted(mi *workloadv1alpha1.ModelInfer, inferGroupName, roleName, roleID string) bool {
+	if c.store.GetRoleStatus(utils.GetNamespaceName(mi), inferGroupName, roleName, roleID) != datastore.RoleDeleting {
+		// It will be determined whether all resource have been deleted only when the role status is deleting.
+		return false
+	}
 	// check whether the role deletion has been completed
 	selector := labels.SelectorFromSet(map[string]string{
 		workloadv1alpha1.GroupNameLabelKey: inferGroupName,
 		workloadv1alpha1.RoleLabelKey:      roleName,
 		workloadv1alpha1.RoleIDKey:         roleID,
 	})
-	return c.areResourcesDeleted(mi.GetNamespace(), selector)
-}
-
-func (c *ModelInferController) areResourcesDeleted(namespace string, selector labels.Selector) bool {
-	pods, err := c.podsLister.Pods(namespace).List(selector)
+	pods, err := c.podsLister.Pods(mi.GetNamespace()).List(selector)
 	if err != nil {
 		klog.Errorf("failed to get pod, err: %v", err)
 		return false
 	}
-	services, err := c.servicesLister.Services(namespace).List(selector)
+	services, err := c.servicesLister.Services(mi.GetNamespace()).List(selector)
 	if err != nil {
 		klog.Errorf("failed to get service, err:%v", err)
 		return false

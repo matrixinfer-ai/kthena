@@ -210,7 +210,7 @@ func TestCheckInferGroupReady(t *testing.T) {
 
 func TestIsInferGroupDeleted(t *testing.T) {
 	ns := "default"
-	groupName := "test-group"
+	groupName := "test-mi-0"
 	otherGroupName := "other-group"
 
 	kubeClient := kubefake.NewSimpleClientset()
@@ -218,9 +218,11 @@ func TestIsInferGroupDeleted(t *testing.T) {
 	podInformer := kubeInformerFactory.Core().V1().Pods()
 	serviceInformer := kubeInformerFactory.Core().V1().Services()
 
+	store := datastore.New()
 	controller := &ModelInferController{
 		podsLister:     podInformer.Lister(),
 		servicesLister: serviceInformer.Lister(),
+		store:          store,
 	}
 
 	stop := make(chan struct{})
@@ -236,55 +238,68 @@ func TestIsInferGroupDeleted(t *testing.T) {
 	}
 
 	cases := []struct {
-		name     string
-		pods     []resourceSpec
-		services []resourceSpec
-		want     bool
+		name             string
+		pods             []resourceSpec
+		services         []resourceSpec
+		inferGroupStatus datastore.InferGroupStatus
+		want             bool
 	}{
 		{
-			name:     "no pods and services - role be deleted",
-			pods:     nil,
-			services: nil,
-			want:     true,
+			name:             "inferGroup status is not Deleting - should return false",
+			pods:             nil,
+			services:         nil,
+			inferGroupStatus: datastore.InferGroupCreating,
+			want:             false,
 		},
 		{
-			name: "only target group pods exist - role not be deleted",
+			name:             "inferGroup status is Deleting - no resources - should return true",
+			pods:             nil,
+			services:         nil,
+			inferGroupStatus: datastore.InferGroupDeleting,
+			want:             true,
+		},
+		{
+			name: "inferGroup status is Deleting - target group pods exist - should return false",
 			pods: []resourceSpec{
 				{name: "pod-1", labels: map[string]string{workloadv1alpha1.GroupNameLabelKey: groupName}},
 			},
-			services: nil,
-			want:     false,
+			services:         nil,
+			inferGroupStatus: datastore.InferGroupDeleting,
+			want:             false,
 		},
 		{
-			name: "only target group services exist - role not be deleted",
+			name: "inferGroup status is Deleting - target group services exist - should return false",
 			pods: nil,
 			services: []resourceSpec{
 				{name: "svc-1", labels: map[string]string{workloadv1alpha1.GroupNameLabelKey: groupName}},
 			},
-			want: false,
+			inferGroupStatus: datastore.InferGroupDeleting,
+			want:             false,
 		},
 		{
-			name: "both target group pods and services exist - role not be deleted",
+			name: "inferGroup status is Deleting - both target group resources exist - should return false",
 			pods: []resourceSpec{
 				{name: "pod-1", labels: map[string]string{workloadv1alpha1.GroupNameLabelKey: groupName}},
 			},
 			services: []resourceSpec{
 				{name: "svc-1", labels: map[string]string{workloadv1alpha1.GroupNameLabelKey: groupName}},
 			},
-			want: false,
+			inferGroupStatus: datastore.InferGroupDeleting,
+			want:             false,
 		},
 		{
-			name: "only other group resources exist - role be deleted",
+			name: "inferGroup status is Deleting - only other group resources exist - should return true",
 			pods: []resourceSpec{
 				{name: "pod-1", labels: map[string]string{workloadv1alpha1.GroupNameLabelKey: otherGroupName}},
 			},
 			services: []resourceSpec{
 				{name: "svc-1", labels: map[string]string{workloadv1alpha1.GroupNameLabelKey: otherGroupName}},
 			},
-			want: true,
+			inferGroupStatus: datastore.InferGroupDeleting,
+			want:             true,
 		},
 		{
-			name: "mixed group resources - target group exists - role not be deleted",
+			name: "inferGroup status is Deleting - mixed group resources - target group exists - should return false",
 			pods: []resourceSpec{
 				{name: "pod-1", labels: map[string]string{workloadv1alpha1.GroupNameLabelKey: groupName}},
 				{name: "pod-2", labels: map[string]string{workloadv1alpha1.GroupNameLabelKey: otherGroupName}},
@@ -292,10 +307,11 @@ func TestIsInferGroupDeleted(t *testing.T) {
 			services: []resourceSpec{
 				{name: "svc-1", labels: map[string]string{workloadv1alpha1.GroupNameLabelKey: otherGroupName}},
 			},
-			want: false,
+			inferGroupStatus: datastore.InferGroupDeleting,
+			want:             false,
 		},
 		{
-			name: "multiple target group resources - role not be deleted",
+			name: "inferGroup status is Deleting - multiple target group resources - should return false",
 			pods: []resourceSpec{
 				{name: "pod-1", labels: map[string]string{workloadv1alpha1.GroupNameLabelKey: groupName}},
 				{name: "pod-2", labels: map[string]string{workloadv1alpha1.GroupNameLabelKey: groupName}},
@@ -304,7 +320,8 @@ func TestIsInferGroupDeleted(t *testing.T) {
 				{name: "svc-1", labels: map[string]string{workloadv1alpha1.GroupNameLabelKey: groupName}},
 				{name: "svc-2", labels: map[string]string{workloadv1alpha1.GroupNameLabelKey: groupName}},
 			},
-			want: false,
+			inferGroupStatus: datastore.InferGroupDeleting,
+			want:             false,
 		},
 	}
 
@@ -322,6 +339,10 @@ func TestIsInferGroupDeleted(t *testing.T) {
 				err := serviceIndexer.Delete(obj)
 				assert.NoError(t, err)
 			}
+
+			store.AddInferGroup(utils.GetNamespaceName(mi), 0, "test-revision")
+			err := store.UpdateInferGroupStatus(utils.GetNamespaceName(mi), groupName, tc.inferGroupStatus)
+			assert.NoError(t, err)
 
 			// Add test pods
 			for _, p := range tc.pods {
@@ -360,13 +381,15 @@ func TestIsInferGroupDeleted(t *testing.T) {
 			// Test the function
 			got := controller.isInferGroupDeleted(mi, groupName)
 			assert.Equal(t, tc.want, got, "isInferGroupDeleted result should match expected")
+
+			store.DeleteInferGroup(utils.GetNamespaceName(mi), groupName)
 		})
 	}
 }
 
 func TestIsRoleDeleted(t *testing.T) {
 	ns := "default"
-	groupName := "test-group"
+	groupName := "test-mi-0"
 	roleName := "prefill"
 	roleID := "prefill-0"
 
@@ -379,9 +402,11 @@ func TestIsRoleDeleted(t *testing.T) {
 	podInformer := kubeInformerFactory.Core().V1().Pods()
 	serviceInformer := kubeInformerFactory.Core().V1().Services()
 
+	store := datastore.New()
 	controller := &ModelInferController{
 		podsLister:     podInformer.Lister(),
 		servicesLister: serviceInformer.Lister(),
+		store:          store,
 	}
 
 	stop := make(chan struct{})
@@ -397,19 +422,28 @@ func TestIsRoleDeleted(t *testing.T) {
 	}
 
 	cases := []struct {
-		name     string
-		pods     []resourceSpec
-		services []resourceSpec
-		want     bool
+		name       string
+		pods       []resourceSpec
+		services   []resourceSpec
+		roleStatus datastore.RoleStatus
+		want       bool
 	}{
 		{
-			name:     "no pods and services - role be deleted",
-			pods:     nil,
-			services: nil,
-			want:     true,
+			name:       "role status is not Deleting - should return false",
+			pods:       nil,
+			services:   nil,
+			roleStatus: datastore.RoleCreating,
+			want:       false,
 		},
 		{
-			name: "only target role pods exist - role not be deleted",
+			name:       "role status is Deleting - no resources - should return true",
+			pods:       nil,
+			services:   nil,
+			roleStatus: datastore.RoleDeleting,
+			want:       true,
+		},
+		{
+			name: "role status is Deleting - target role pods exist - should return false",
 			pods: []resourceSpec{
 				{name: "pod-1", labels: map[string]string{
 					workloadv1alpha1.GroupNameLabelKey: groupName,
@@ -417,11 +451,12 @@ func TestIsRoleDeleted(t *testing.T) {
 					workloadv1alpha1.RoleIDKey:         roleID,
 				}},
 			},
-			services: nil,
-			want:     false,
+			services:   nil,
+			roleStatus: datastore.RoleDeleting,
+			want:       false,
 		},
 		{
-			name: "only target role services exist - role not be deleted",
+			name: "role status is Deleting - target role services exist - should return false",
 			pods: nil,
 			services: []resourceSpec{
 				{name: "svc-1", labels: map[string]string{
@@ -430,10 +465,11 @@ func TestIsRoleDeleted(t *testing.T) {
 					workloadv1alpha1.RoleIDKey:         roleID,
 				}},
 			},
-			want: false,
+			roleStatus: datastore.RoleDeleting,
+			want:       false,
 		},
 		{
-			name: "both target role pods and services exist - role not be deleted",
+			name: "role status is Deleting - both target role resources exist - should return false",
 			pods: []resourceSpec{
 				{name: "pod-1", labels: map[string]string{
 					workloadv1alpha1.GroupNameLabelKey: groupName,
@@ -448,10 +484,11 @@ func TestIsRoleDeleted(t *testing.T) {
 					workloadv1alpha1.RoleIDKey:         roleID,
 				}},
 			},
-			want: false,
+			roleStatus: datastore.RoleDeleting,
+			want:       false,
 		},
 		{
-			name: "only other group resources exist - role be deleted",
+			name: "role status is Deleting - only other group resources exist - should return true",
 			pods: []resourceSpec{
 				{name: "pod-1", labels: map[string]string{
 					workloadv1alpha1.GroupNameLabelKey: otherGroupName,
@@ -466,10 +503,11 @@ func TestIsRoleDeleted(t *testing.T) {
 					workloadv1alpha1.RoleIDKey:         roleID,
 				}},
 			},
-			want: true,
+			roleStatus: datastore.RoleDeleting,
+			want:       true,
 		},
 		{
-			name: "only other role resources exist - role be deleted",
+			name: "role status is Deleting - only other role resources exist - should return true",
 			pods: []resourceSpec{
 				{name: "pod-1", labels: map[string]string{
 					workloadv1alpha1.GroupNameLabelKey: groupName,
@@ -484,10 +522,11 @@ func TestIsRoleDeleted(t *testing.T) {
 					workloadv1alpha1.RoleIDKey:         otherRoleID,
 				}},
 			},
-			want: true,
+			roleStatus: datastore.RoleDeleting,
+			want:       true,
 		},
 		{
-			name: "same group and roleName but different roleID - role be deleted",
+			name: "role status is Deleting - same group and roleName but different roleID - should return true",
 			pods: []resourceSpec{
 				{name: "pod-1", labels: map[string]string{
 					workloadv1alpha1.GroupNameLabelKey: groupName,
@@ -495,11 +534,12 @@ func TestIsRoleDeleted(t *testing.T) {
 					workloadv1alpha1.RoleIDKey:         "prefill-1", // different roleID
 				}},
 			},
-			services: nil,
-			want:     true,
+			services:   nil,
+			roleStatus: datastore.RoleDeleting,
+			want:       true,
 		},
 		{
-			name: "mixed resources - target role exists - role not be deleted",
+			name: "role status is Deleting - mixed resources - target role exists - should return false",
 			pods: []resourceSpec{
 				{name: "pod-1", labels: map[string]string{
 					workloadv1alpha1.GroupNameLabelKey: groupName,
@@ -519,10 +559,11 @@ func TestIsRoleDeleted(t *testing.T) {
 					workloadv1alpha1.RoleIDKey:         roleID,
 				}},
 			},
-			want: false,
+			roleStatus: datastore.RoleDeleting,
+			want:       false,
 		},
 		{
-			name: "multiple target role resources - role not be deleted",
+			name: "role status is Deleting - multiple target role resources - should return false",
 			pods: []resourceSpec{
 				{name: "pod-1", labels: map[string]string{
 					workloadv1alpha1.GroupNameLabelKey: groupName,
@@ -547,22 +588,24 @@ func TestIsRoleDeleted(t *testing.T) {
 					workloadv1alpha1.RoleIDKey:         roleID,
 				}},
 			},
-			want: false,
+			roleStatus: datastore.RoleDeleting,
+			want:       false,
 		},
 		{
-			name: "incomplete label matching - missing RoleNameKey - role be deleted",
+			name: "role status is Deleting - incomplete label matching - missing RoleIDKey - should return true",
 			pods: []resourceSpec{
 				{name: "pod-1", labels: map[string]string{
 					workloadv1alpha1.GroupNameLabelKey: groupName,
 					workloadv1alpha1.RoleLabelKey:      roleName,
-					// missing RoleNameKey
+					// missing RoleIDKey
 				}},
 			},
-			services: nil,
-			want:     true,
+			services:   nil,
+			roleStatus: datastore.RoleDeleting,
+			want:       true,
 		},
 		{
-			name: "incomplete label matching - missing RoleLabelKey - role be deleted",
+			name: "role status is Deleting - incomplete label matching - missing RoleLabelKey - should return true",
 			pods: []resourceSpec{
 				{name: "pod-1", labels: map[string]string{
 					workloadv1alpha1.GroupNameLabelKey: groupName,
@@ -570,8 +613,9 @@ func TestIsRoleDeleted(t *testing.T) {
 					workloadv1alpha1.RoleIDKey: roleID,
 				}},
 			},
-			services: nil,
-			want:     true,
+			services:   nil,
+			roleStatus: datastore.RoleDeleting,
+			want:       true,
 		},
 	}
 
@@ -589,6 +633,10 @@ func TestIsRoleDeleted(t *testing.T) {
 				err := serviceIndexer.Delete(obj)
 				assert.NoError(t, err)
 			}
+
+			store.AddRole(utils.GetNamespaceName(mi), groupName, roleName, roleID, "test-revision")
+			err := store.UpdateRoleStatus(utils.GetNamespaceName(mi), groupName, roleName, roleID, tc.roleStatus)
+			assert.NoError(t, err)
 
 			// Add test pods
 			for _, p := range tc.pods {
@@ -627,6 +675,8 @@ func TestIsRoleDeleted(t *testing.T) {
 			// Test the function
 			got := controller.isRoleDeleted(mi, groupName, roleName, roleID)
 			assert.Equal(t, tc.want, got, "isRoleDeleted result should match expected")
+
+			store.DeleteInferGroup(utils.GetNamespaceName(mi), groupName)
 		})
 	}
 }
