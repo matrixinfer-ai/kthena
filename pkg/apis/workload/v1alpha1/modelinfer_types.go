@@ -65,8 +65,8 @@ type ModelInferSpec struct {
 	RolloutStrategy *RolloutStrategy `json:"rolloutStrategy,omitempty"`
 
 	// RecoveryPolicy defines the recovery policy for the inferGroup
-	// +kubebuilder:default=InferGroupRestart
-	// +kubebuilder:validation:Enum={InferGroupRestart,None}
+	// +kubebuilder:default=RoleRestart
+	// +kubebuilder:validation:Enum={InferGroupRestart,RoleRestart,None}
 	// +optional
 	RecoveryPolicy            RecoveryPolicy             `json:"recoveryPolicy,omitempty"`
 	TopologySpreadConstraints []TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`

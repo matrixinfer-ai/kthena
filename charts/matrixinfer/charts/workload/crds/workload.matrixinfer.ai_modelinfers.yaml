@@ -41,10 +41,11 @@ spec:
               resource.
             properties:
               recoveryPolicy:
-                default: InferGroupRestart
+                default: RoleRestart
                 description: RecoveryPolicy defines the recovery policy for the inferGroup
                 enum:
                 - InferGroupRestart
+                - RoleRestart
                 - None
                 type: string
               replicas:
