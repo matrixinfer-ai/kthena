@@ -15,6 +15,7 @@ import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
 const sidebars: SidebarsConfig = {
   // MatrixInfer documentation sidebar
   tutorialSidebar: [
+    "intro",
     {
       type: 'category',
       label: 'Getting Started',
