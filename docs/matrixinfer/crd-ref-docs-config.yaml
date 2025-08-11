@@ -1,0 +1,5 @@
+# Minimal configuration for crd-ref-docs
+processor:
+  ignoreFields: []
+render:
+  kubernetesVersion: "1.33"
