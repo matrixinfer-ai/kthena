@@ -121,6 +121,5 @@ kubectl get svc -n matrixinfer-system
 ### Getting Help
 
 If you encounter issues:
-- Check the [troubleshooting guide](../troubleshooting)
 - Review logs: `kubectl logs -n matrixinfer-system -l app=matrixinfer`
 - Open an issue on [GitHub](https://github.com/matrixinfer-ai/matrixinfer/issues)
