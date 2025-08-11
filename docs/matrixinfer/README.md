@@ -83,7 +83,7 @@ The MatrixInfer project uses [crd-ref-docs](https://github.com/elastic/crd-ref-d
 To generate the API documentation, simply run:
 
 ```bash
-make docs-generate
+make gen-docs
 ```
 
 This command will:
@@ -162,7 +162,7 @@ processor:
 To see detailed output during generation:
 
 ```bash
-make docs-generate VERBOSE=1
+make gen-docs VERBOSE=1
 ```
 
 ### Integration with CI/CD
@@ -171,7 +171,7 @@ To ensure documentation stays up-to-date, add the documentation generation to yo
 
 ```yaml
 - name: Generate API Documentation
-  run: make docs-generate
+  run: make gen-docs
   
 - name: Check for documentation changes
   run: git diff --exit-code docs/matrixinfer/docs/api/

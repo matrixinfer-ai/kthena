@@ -53,7 +53,7 @@ gen-crd: controller-gen
 	$(CONTROLLER_GEN) crd paths="./pkg/apis/registry/..." output:crd:artifacts:config=charts/matrixinfer/charts/registry/crds
 
 .PHONY: gen-docs
-docs-generate: crd-ref-docs ## Generate CRD reference documentation
+gen-docs: crd-ref-docs ## Generate CRD reference documentation
 	mkdir -p docs/matrixinfer/docs/api
 	$(CRD_REF_DOCS) \
 		--source-path=./pkg/apis \
@@ -63,7 +63,7 @@ docs-generate: crd-ref-docs ## Generate CRD reference documentation
 		--output-mode=group
 
 .PHONY: generate
-generate: controller-gen gen-crd ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+generate: controller-gen gen-crd gen-docs ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 	go mod tidy
 	./hack/update-codegen.sh
