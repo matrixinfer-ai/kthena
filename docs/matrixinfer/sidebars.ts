@@ -82,9 +82,9 @@ const sidebars: SidebarsConfig = {
           type: 'category',
           label: 'CRD Reference',
           items: [
-            'reference/crd/networking.matrixinfer.ai',
-            'reference/crd/registry.matrixinfer.ai',
-            'reference/crd/workload.matrixinfer.ai',
+            { type: 'doc', id: 'reference/crd/networking.matrixinfer.ai', label: 'Networking' },
+            { type: 'doc', id: 'reference/crd/registry.matrixinfer.ai', label: 'Registry' },
+            { type: 'doc', id: 'reference/crd/workload.matrixinfer.ai', label: 'Workload' },
           ],
         },
       ],
