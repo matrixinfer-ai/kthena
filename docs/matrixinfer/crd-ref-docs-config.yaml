@@ -2,4 +2,4 @@
 processor:
   ignoreFields: []
 render:
-  kubernetesVersion: "1.28"
+  kubernetesVersion: "1.33"

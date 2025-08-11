@@ -100,7 +100,7 @@ The documentation generation is configured via `docs/matrixinfer/crd-ref-docs-co
 processor:
   ignoreFields: []
 render:
-  kubernetesVersion: "1.28"
+  kubernetesVersion: "1.33"
 ```
 
 #### Configuration Options
