@@ -115,6 +115,11 @@ type Store interface {
 
 	// GetPodInfo returns the pod info for a given pod name (for testing)
 	GetPodInfo(podName types.NamespacedName) *PodInfo
+	// GetTokenCount returns the token count for a user and model
+	GetTokenCount(userId, modelName string) (float64, error)
+	RequestWaitingQueuePush(*Request) error
+	RequestWaitingQueuePop(modelName string) *Request
+	GetRequestWaitingQueueModel() []string
 }
 
 type PodInfo struct {
@@ -164,17 +169,22 @@ type store struct {
 
 	// initialSynced is used to indicate whether all the resources has been processed and storred into this store.
 	initialSynced *atomic.Bool
+	//
+	requestWaitingQueue sync.Map // map[string]*RequestPriorityQueue
+	tokenTracker        TokenTracker
 }
 
 func New() Store {
 	return &store{
-		modelServer:   sync.Map{},
-		pods:          sync.Map{},
-		routeInfo:     make(map[string]*modelRouteInfo),
-		routes:        make(map[string]*aiv1alpha1.ModelRoute),
-		loraRoutes:    make(map[string]*aiv1alpha1.ModelRoute),
-		callbacks:     make(map[string][]CallbackFunc),
-		initialSynced: &atomic.Bool{},
+		modelServer:         sync.Map{},
+		pods:                sync.Map{},
+		routeInfo:           make(map[string]*modelRouteInfo),
+		routes:              make(map[string]*aiv1alpha1.ModelRoute),
+		loraRoutes:          make(map[string]*aiv1alpha1.ModelRoute),
+		callbacks:           make(map[string][]CallbackFunc),
+		initialSynced:       &atomic.Bool{},
+		requestWaitingQueue: sync.Map{},
+		tokenTracker:        NewInMemorySlidingWindowTokenTracker(),
 	}
 }
 
@@ -195,6 +205,56 @@ func (s *store) Run(ctx context.Context) {
 			time.Sleep(uppdateInterval)
 		}
 	}
+}
+func (s *store) GetTokenCount(userID, model string) (float64, error) {
+	return s.tokenTracker.GetTokenCount(userID, model)
+}
+
+type ModelRequest map[string]interface{}
+
+func (s *store) RequestWaitingQueuePush(queueReq *Request) error {
+	modelRequest := queueReq.Payload.(ModelRequest)
+	modelName := modelRequest["model"].(string)
+	var queue *RequestPriorityQueue
+	val, loaded := s.requestWaitingQueue.Load(modelName)
+	if loaded {
+		queue, _ = val.(*RequestPriorityQueue)
+	} else {
+		newQueue := NewRequestPriorityQueue()
+		val, loaded = s.requestWaitingQueue.LoadOrStore(modelName, newQueue)
+		if loaded {
+			queue, _ = val.(*RequestPriorityQueue)
+		} else {
+			queue = newQueue
+		}
+	}
+	err := queue.PushRequest(queueReq)
+	if err != nil {
+		klog.Errorf("failed to push request to waiting queue: %v", err)
+		return err
+	}
+	return nil
+}
+func (s *store) RequestWaitingQueuePop(modelName string) *Request {
+	val, _ := s.requestWaitingQueue.Load(modelName)
+	queue, _ := val.(*RequestPriorityQueue)
+	req, err := queue.PopRequest()
+	if err != nil {
+		return nil
+	}
+	return req
+}
+func (s *store) GetRequestWaitingQueueModel() []string {
+	var modelNames []string
+	s.requestWaitingQueue.Range(func(modelName, queueVal interface{}) bool {
+		modelNameStr, _ := modelName.(string)
+		queue, _ := queueVal.(*RequestPriorityQueue)
+		if queue.Len() > 0 {
+			modelNames = append(modelNames, modelNameStr)
+		}
+		return true
+	})
+	return modelNames
 }
 
 func (s *store) HasSynced() bool {

@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -94,71 +95,156 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 			return
 		}
 		if err := r.loadRateLimiter.RateLimit(modelName, prompt); err != nil {
-			var errorMsg string
-			switch err.(type) {
-			case *ratelimit.InputRateLimitExceededError:
-				errorMsg = "input token rate limit exceeded"
-			case *ratelimit.OutputRateLimitExceededError:
-				errorMsg = "output token rate limit exceeded"
-			default:
-				errorMsg = "token usage exceeds rate limit"
-			}
-			c.AbortWithStatusJSON(http.StatusTooManyRequests, errorMsg)
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, "token usage exceeds rate limit")
 			return
 		}
-
-		// step 3: Find pods and model server details
-		modelServerName, isLora, err := r.store.MatchModelServer(modelName, c.Request)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusNotFound, fmt.Sprintf("can't find corresponding model server: %v", err))
+		userIdVal, ok := modelRequest["userId"]
+		if !ok {
+			c.AbortWithStatusJSON(http.StatusBadRequest, "missing userId in request body")
 			return
 		}
-		klog.V(4).Infof("modelServer is %v, is_lora: %v", modelServerName, isLora)
-
-		pods, modelServer, err := r.getPodsAndServer(modelServerName)
-		if err != nil || len(pods) == 0 {
-			klog.Errorf("failed to get pods and model server: %v, %v", modelServerName, err)
-			c.AbortWithStatusJSON(http.StatusNotFound, fmt.Sprintf("can't find model server: %v", modelServerName))
+		userId, ok := userIdVal.(string)
+		if !ok {
+			c.AbortWithStatusJSON(http.StatusBadRequest, "userId is not a string")
 			return
 		}
-		model := modelServer.Spec.Model
-		// step 4: Overwrite model.
-		if model != nil && !isLora {
-			modelRequest["model"] = *model
-		}
-
-		var pdGroup *v1alpha1.PDGroup
-		if modelServer.Spec.WorkloadSelector != nil {
-			pdGroup = modelServer.Spec.WorkloadSelector.PDGroup
-		}
-
-		ctx := &framework.Context{
-			Model:           modelName,
-			Prompt:          prompt,
-			ModelServerName: modelServerName,
-			PDGroup:         pdGroup,
-		}
-
-		// step 5: call scheduler.Schedule. Get top n decode pods and perfill pods
-		err = r.scheduler.Schedule(ctx, pods)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, fmt.Sprintf("can't schedule to target pod: %v", err))
-			return
-		}
-
-		// step 6: Generate request ID at the beginning
-		req := c.Request
 		requestID := uuid.New().String()
-		if req.Header.Get("x-request-id") == "" {
-			// Add x-request-id header to prefill request
-			req.Header.Set("x-request-id", requestID)
+		userTokens, _ := r.store.GetTokenCount(userId, modelName)
+		requestTime := time.Now()
+		notifyChan := make(chan struct{})
+		//
+		queueReq := &datastore.Request{
+			UserID:      userId,
+			ReqID:       requestID,
+			Payload:     modelRequest,
+			Priority:    userTokens,
+			RequestTime: requestTime,
+			NotifyChan:  notifyChan,
 		}
-
-		// step 7: proxy to pods
-		if err := r.proxyModelEndpoint(c, req, ctx, modelRequest, modelServer.Spec.WorkloadPort.Port); err != nil {
-			klog.Errorf("request failed: %v", err)
+		if err := r.store.RequestWaitingQueuePush(queueReq); err != nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, fmt.Sprintf("failed to enqueue request: %v", err))
 			return
 		}
+		select {
+		case <-notifyChan:
+			// Received notification: request has been dequeued, execute subsequent logic (e.g., scheduling, proxying)
+			klog.Infof("Request %s has been dequeued, starting processing", requestID)
+			r.processAfterDequeue(c, queueReq) // Execute post-dequeue logic
+		case <-time.After(60 * time.Second):
+			// Timeout protection: avoid permanent blocking
+			c.AbortWithStatusJSON(http.StatusGatewayTimeout, "Request processing timed out")
+			return
+		}
+	}
+}
+
+// Starts the queue processor and controls dequeue rate (e.g., maximum 5 requests processed per second)
+func (r *Router) StartQueueProcessor(rate int, stopChan <-chan struct{}) {
+	if rate <= 0 {
+		klog.Errorf("Invalid rate: %d, must be > 0", rate)
+		return
+	}
+	interval := time.Second / time.Duration(rate)
+
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer func() {
+			ticker.Stop()
+			klog.Info("Queue processor has stopped")
+		}()
+		var modelNames []string // model names for round-robin
+		currentIndex := 0       // current index for round-robin
+		for {
+			select {
+			case <-stopChan:
+				// Received stop signal, terminate goroutine
+				return
+			case <-ticker.C:
+				modelNames = r.store.GetRequestWaitingQueueModel()
+				if len(modelNames) == 0 {
+					klog.V(4).Infof("No non-empty queues, waiting (interval %v)", interval)
+					continue
+				}
+				modelName := modelNames[currentIndex]
+				currentIndex = (currentIndex + 1) % len(modelNames)
+				// When timer triggers, retrieve one request from the queue (dequeue according to rate limit)
+				req := r.store.RequestWaitingQueuePop(modelName)
+				if req == nil {
+					// Queue is empty, wait for next timer trigger
+					klog.V(4).Infof("Queue is empty, waiting for next dequeue opportunity (interval %v)", interval)
+					continue
+				}
+
+				// Process dequeue logic: notify blocked goroutine
+				klog.Infof("Request %s has been dequeued (rate limit: one request every %v)", req.ReqID, interval)
+				select {
+				case <-req.NotifyChan:
+					// already closed, do nothing
+				default:
+					close(req.NotifyChan)
+				}
+			}
+		}
+	}()
+}
+
+// router/router.go
+func (r *Router) processAfterDequeue(c *gin.Context, queueReq *datastore.Request) {
+	// Extract original request data from queue request
+	modelRequest := queueReq.Payload.(ModelRequest)
+	modelName := modelRequest["model"].(string)
+	userId := queueReq.UserID
+	// step 3: Find pods and model server details
+	modelServerName, isLora, err := r.store.MatchModelServer(modelName, c.Request)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusNotFound, fmt.Sprintf("can't find corresponding model server: %v", err))
+		return
+	}
+	klog.V(4).Infof("modelServer is %v, is_lora: %v", modelServerName, isLora)
+	pods, modelServer, err := r.getPodsAndServer(modelServerName)
+	if err != nil || len(pods) == 0 {
+		klog.Errorf("failed to get pods and model server: %v, %v (user: %s)", modelServerName, err, userId)
+		c.AbortWithStatusJSON(http.StatusNotFound, fmt.Sprintf("can't find model server: %v", modelServerName))
+		return
+	}
+
+	model := modelServer.Spec.Model
+	if model != nil && !isLora {
+		modelRequest["model"] = *model
+	}
+
+	var pdGroup *v1alpha1.PDGroup
+	if modelServer.Spec.WorkloadSelector != nil {
+		pdGroup = modelServer.Spec.WorkloadSelector.PDGroup
+	}
+	prompt, err := utils.GetPrompt(modelRequest)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusNotFound, "prompt not found")
+		return
+	}
+	ctx := &framework.Context{
+		Model:           modelName,
+		Prompt:          prompt,
+		ModelServerName: modelServerName,
+		PDGroup:         pdGroup,
+	}
+
+	err = r.scheduler.Schedule(ctx, pods)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, fmt.Sprintf("can't schedule to target pod: %v", err))
+		return
+	}
+
+	req := c.Request
+	requestID := queueReq.ReqID
+	if req.Header.Get("x-request-id") == "" {
+		req.Header.Set("x-request-id", requestID)
+	}
+
+	if err := r.proxyModelEndpoint(c, req, ctx, modelRequest, modelServer.Spec.WorkloadPort.Port); err != nil {
+		klog.Errorf("request failed (user: %s, reqID: %s): %v", userId, requestID, err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, "request processing failed")
+		return
 	}
 }
 
