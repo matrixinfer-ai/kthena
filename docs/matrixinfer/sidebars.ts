@@ -15,27 +15,69 @@ import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
 const sidebars: SidebarsConfig = {
   // MatrixInfer documentation sidebar
   tutorialSidebar: [
-    'intro',
     {
       type: 'category',
       label: 'Getting Started',
       items: [
+        'getting-started/quickstart',
         'getting-started/installation',
-        'getting-started/quick-start',
+        'getting-started/helm-install',
+        'getting-started/kubectl-install',
       ],
     },
     {
       type: 'category',
       label: 'Architecture',
       items: [
-        'architecture/overview',
+        'architecture/matrixinfer-architecture',
+        'architecture/infer-controller',
+        'architecture/infer-gateway',
+        'architecture/autoscaler',
+        'architecture/model-controller',
       ],
     },
     {
       type: 'category',
-      label: 'API Reference',
+      label: 'General',
       items: [
-        'api/overview',
+        'general/prometheus',
+        'general/certmanager',
+        'general/ratelimit',
+        'general/faq',
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Features',
+      items: [
+        'features/gateway-routing',
+        'features/pd-separate',
+        'features/multi-node-inference',
+        'features/autoscaler',
+        'features/runtime',
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Development',
+      items: [
+        'development/release',
+        'development/ci',
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Timeline',
+      items: [
+        'timeline/roadmap',
+        'timeline/releases',
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Reference',
+      items: [
+        'reference/crd-reference',
       ],
     },
   ],
