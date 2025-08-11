@@ -334,13 +334,6 @@ func TestModelServerController_PodLifecycle(t *testing.T) {
 			context.Background(), pod, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
-		// Clear queue before test
-		for controller.workqueue.Len() > 0 {
-			item, _ := controller.workqueue.Get()
-			controller.workqueue.Done(item)
-			controller.workqueue.Forget(item)
-		}
-
 		sync := waitForObjectInCache(t, 2*time.Second, func() bool {
 			pods, _ := store.GetPodsByModelServer(utils.GetNamespaceName(ms))
 			return len(pods) > 0 && pods[0].Pod.Name == "test-pod-ready"
@@ -374,12 +367,6 @@ func TestModelServerController_PodLifecycle(t *testing.T) {
 			context.Background(), pod, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
-		// Clear queue before test
-		for controller.workqueue.Len() > 0 {
-			item, _ := controller.workqueue.Get()
-			controller.workqueue.Done(item)
-			controller.workqueue.Forget(item)
-		}
 		sync := waitForObjectInCache(t, 2*time.Second, func() bool {
 			pods, _ := controller.podLister.Pods("default").Get("test-pod-not-ready")
 			return pods != nil && pods.Name == "test-pod-not-ready"
