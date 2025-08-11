@@ -45,9 +45,10 @@ func newModelServer(ms *aiv1alpha1.ModelServer) *modelServer {
 }
 
 func (m *modelServer) getPods() []types.NamespacedName {
-	podNames := make([]types.NamespacedName, 0, m.pods.Len())
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
+	podNames := make([]types.NamespacedName, 0, m.pods.Len())
+
 	for podName := range m.pods {
 		podNames = append(podNames, podName)
 	}
