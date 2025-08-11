@@ -52,6 +52,16 @@ gen-crd: controller-gen
 	$(CONTROLLER_GEN) crd paths="./pkg/apis/workload/..." output:crd:artifacts:config=charts/matrixinfer/charts/workload/crds
 	$(CONTROLLER_GEN) crd paths="./pkg/apis/registry/..." output:crd:artifacts:config=charts/matrixinfer/charts/registry/crds
 
+.PHONY: gen-docs
+docs-generate: crd-ref-docs ## Generate CRD reference documentation
+	mkdir -p docs/matrixinfer/docs/api
+	$(CRD_REF_DOCS) \
+		--source-path=./pkg/apis \
+		--config=docs/matrixinfer/crd-ref-docs-config.yaml \
+		--output-path=docs/matrixinfer/docs/crd \
+		--renderer=markdown \
+		--output-mode=group
+
 .PHONY: generate
 generate: controller-gen gen-crd ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
@@ -196,16 +206,6 @@ build-installer: generate kustomize ## Generate a consolidated YAML with CRDs an
 	mkdir -p dist
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default > dist/install.yaml
-
-.PHONY: docs-generate
-docs-generate: crd-ref-docs ## Generate CRD reference documentation
-	mkdir -p docs/matrixinfer/docs/api
-	$(CRD_REF_DOCS) \
-		--source-path=./pkg/apis \
-		--config=docs/matrixinfer/crd-ref-docs-config.yaml \
-		--output-path=docs/matrixinfer/docs/crd \
-		--renderer=markdown \
-		--output-mode=group
 
 ##@ Deployment
 
