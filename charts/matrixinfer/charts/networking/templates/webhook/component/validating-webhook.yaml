@@ -1,0 +1,48 @@
+{{- if .Values.webhook.enabled }}
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: {{ include "matrixinfer.name" . }}-infer-gateway-validating-webhook
+  labels:
+    app.kubernetes.io/component: webhook
+    {{- include "matrixinfer.labels" . | nindent 4 }}
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "matrixinfer.name" . }}-webhook-cert
+webhooks:
+  - name: validate-networking-matrixinfer-ai-v1alpha1-modelroute.matrixinfer.ai
+    admissionReviewVersions: [ "v1" ]
+    sideEffects: None
+    failurePolicy: Fail
+    timeoutSeconds: 30
+    clientConfig:
+      service:
+        name: {{ include "matrixinfer.name" . }}-webhook
+        namespace: {{ .Release.Namespace }}
+        path: "/validate-modelroute"
+        port: 443
+      caBundle: ""
+    rules:
+      - apiGroups: [ "networking.matrixinfer.ai" ]
+        apiVersions: [ "v1alpha1" ]
+        resources: [ "modelroutes" ]
+        operations: [ "CREATE", "UPDATE" ]
+        scope: "Namespaced"
+  - name: validate-networking-matrixinfer-ai-v1alpha1-modelserver.matrixinfer.ai
+    admissionReviewVersions: [ "v1" ]
+    sideEffects: None
+    failurePolicy: Fail
+    timeoutSeconds: 30
+    clientConfig:
+      service:
+        name: {{ include "matrixinfer.name" . }}-webhook
+        namespace: {{ .Release.Namespace }}
+        path: "/validate-modelserver"
+        port: 443
+      caBundle: ""
+    rules:
+      - apiGroups: [ "networking.matrixinfer.ai" ]
+        apiVersions: [ "v1alpha1" ]
+        resources: [ "modelservers" ]
+        operations: [ "CREATE", "UPDATE" ]
+        scope: "Namespaced"
+{{- end }}

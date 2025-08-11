@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
+
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 	"sigs.k8s.io/yaml"
 )
@@ -69,7 +70,6 @@ func GetPrompt(body map[string]interface{}) (string, error) {
 			if !ok {
 				continue
 			}
-
 			contentStr, ok := content.(string)
 			if !ok {
 				continue
