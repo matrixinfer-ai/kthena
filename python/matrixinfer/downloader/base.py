@@ -49,7 +49,9 @@ class ModelDownloader(ABC):
             try:
                 if self.lock_manager.try_acquire():
                     try:
-                        logger.info(f"Acquired lock successfully. Starting download to {output_dir}")
+                        logger.info(
+                            f"Acquired lock successfully. Starting download to {output_dir}"
+                        )
                         self.download(output_dir)
                         break
                     except Exception as e:
@@ -58,7 +60,9 @@ class ModelDownloader(ABC):
                     finally:
                         self.lock_manager.release()
                 else:
-                    logger.info("Failed to acquire lock. Waiting for the lock to be released.")
+                    logger.info(
+                        "Failed to acquire lock. Waiting for the lock to be released."
+                    )
                     self.stop_event.wait(timeout=5)
             except Exception as e:
                 logger.error(f"Unexpected error in download_model: {e}")
@@ -71,6 +75,7 @@ def get_downloader(source: str, config: dict, max_workers: int = 8) -> ModelDown
     try:
         if source.startswith("s3://") or source.startswith("obs://"):
             from matrixinfer.downloader.s3 import S3Downloader
+
             return S3Downloader(
                 model_uri=source,
                 access_key=config.get("access_key"),
@@ -79,16 +84,19 @@ def get_downloader(source: str, config: dict, max_workers: int = 8) -> ModelDown
             )
         elif source.startswith("pvc://"):
             from matrixinfer.downloader.pvc import PVCDownloader
+
             return PVCDownloader(source_path=source)
         else:
             from matrixinfer.downloader.huggingface import HuggingFaceDownloader
+
             return HuggingFaceDownloader(
-                model_uri=source,
+                model_uri=source.removeprefix("hf://"),
                 hf_token=config.get("hf_token"),
                 hf_endpoint=config.get("hf_endpoint"),
                 hf_revision=config.get("hf_revision"),
-                max_workers=max_workers
+                max_workers=max_workers,
             )
+
     except ImportError as e:
         logger.error(f"Failed to initialize downloader: {e}")
         raise RuntimeError(f"Failed to initialize downloader: {e}")
