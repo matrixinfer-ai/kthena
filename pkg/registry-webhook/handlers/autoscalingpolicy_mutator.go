@@ -72,10 +72,9 @@ func (m *AutoscalingPolicyMutator) Handle(w http.ResponseWriter, r *http.Request
 	mutatedPolicy := policy.DeepCopy()
 
 	// Apply mutations
-	m.mutateAutoscalingPolicy(mutatedPolicy)
+	patch := mutateAutoscalingPolicy(mutatedPolicy)
 
-	// Create the patch
-	patch, err := createPolicyPatch(&policy, mutatedPolicy)
+	patchBytes, err := createPolicyPatch(patch)
 	if err != nil {
 		klog.Errorf("Failed to create patch: %v", err)
 		http.Error(w, fmt.Sprintf("could not create patch: %v", err), http.StatusInternalServerError)
@@ -87,7 +86,7 @@ func (m *AutoscalingPolicyMutator) Handle(w http.ResponseWriter, r *http.Request
 	admissionResponse := admissionv1.AdmissionResponse{
 		Allowed:   true,
 		UID:       admissionReview.Request.UID,
-		Patch:     patch,
+		Patch:     patchBytes,
 		PatchType: &patchType,
 	}
 
@@ -103,7 +102,8 @@ func (m *AutoscalingPolicyMutator) Handle(w http.ResponseWriter, r *http.Request
 }
 
 // mutateAutoscalingPolicy applies mutations to the AutoscalingPolicy resource
-func (m *AutoscalingPolicyMutator) mutateAutoscalingPolicy(policy *registryv1.AutoscalingPolicy) {
+func mutateAutoscalingPolicy(policy *registryv1.AutoscalingPolicy) []jsonpatch.Operation {
+	// Define default values
 	DefaultScaleDown := registryv1.AutoscalingPolicyStablePolicy{
 		Instances:           pointer.Int32(0),
 		Percent:             pointer.Int32(100),
@@ -129,87 +129,47 @@ func (m *AutoscalingPolicyMutator) mutateAutoscalingPolicy(policy *registryv1.Au
 		StablePolicy: DefaultScaleUpStablePolicy,
 		PanicPolicy:  DefaultScaleUpPanicPolicy,
 	}
+	var patch []jsonpatch.JsonPatchOperation
 
-	DefaultBehavior := registryv1.AutoscalingPolicyBehavior{
-		ScaleUp:   DefaultScaleUp,
-		ScaleDown: DefaultScaleDown,
-	}
-
+	// Only set default behavior if behavior doesn't exist
 	if policy.Spec.Behavior == (registryv1.AutoscalingPolicyBehavior{}) {
-		policy.Spec.Behavior = DefaultBehavior
-	} else {
-		if policy.Spec.Behavior.ScaleDown == (registryv1.AutoscalingPolicyStablePolicy{}) {
-			policy.Spec.Behavior.ScaleDown = DefaultScaleDown
-		} else {
-			if policy.Spec.Behavior.ScaleDown.Instances == nil {
-				policy.Spec.Behavior.ScaleDown.Instances = DefaultScaleDown.Instances
-			}
-			if policy.Spec.Behavior.ScaleDown.Percent == nil {
-				policy.Spec.Behavior.ScaleDown.Percent = DefaultScaleDown.Percent
-			}
-			if policy.Spec.Behavior.ScaleDown.Period == nil {
-				policy.Spec.Behavior.ScaleDown.Period = DefaultScaleDown.Period
-			}
-			if policy.Spec.Behavior.ScaleDown.SelectPolicy == "" {
-				policy.Spec.Behavior.ScaleDown.SelectPolicy = DefaultScaleDown.SelectPolicy
-			}
-			if policy.Spec.Behavior.ScaleDown.StabilizationWindow == nil {
-				policy.Spec.Behavior.ScaleDown.StabilizationWindow = DefaultScaleDown.StabilizationWindow
-			}
+		DefaultBehavior := registryv1.AutoscalingPolicyBehavior{
+			ScaleUp:   DefaultScaleUp,
+			ScaleDown: DefaultScaleDown,
 		}
-
-		if policy.Spec.Behavior.ScaleUp.StablePolicy == (registryv1.AutoscalingPolicyStablePolicy{}) {
-			policy.Spec.Behavior.ScaleUp.StablePolicy = DefaultScaleUpStablePolicy
-		} else {
-			if policy.Spec.Behavior.ScaleUp.StablePolicy.Instances == nil {
-				policy.Spec.Behavior.ScaleUp.StablePolicy.Instances = DefaultScaleUpStablePolicy.Instances
-			}
-			if policy.Spec.Behavior.ScaleUp.StablePolicy.Percent == nil {
-				policy.Spec.Behavior.ScaleUp.StablePolicy.Percent = DefaultScaleUpStablePolicy.Percent
-			}
-			if policy.Spec.Behavior.ScaleUp.StablePolicy.Period == nil {
-				policy.Spec.Behavior.ScaleUp.StablePolicy.Period = DefaultScaleUpStablePolicy.Period
-			}
-			if policy.Spec.Behavior.ScaleUp.StablePolicy.SelectPolicy == "" {
-				policy.Spec.Behavior.ScaleUp.StablePolicy.SelectPolicy = DefaultScaleUpStablePolicy.SelectPolicy
-			}
-			if policy.Spec.Behavior.ScaleUp.StablePolicy.StabilizationWindow == nil {
-				policy.Spec.Behavior.ScaleUp.StablePolicy.StabilizationWindow = DefaultScaleUpStablePolicy.StabilizationWindow
-			}
-		}
-
-		if policy.Spec.Behavior.ScaleUp.PanicPolicy == (registryv1.AutoscalingPolicyPanicPolicy{}) {
-			policy.Spec.Behavior.ScaleUp.PanicPolicy = DefaultScaleUpPanicPolicy
-		} else {
-			if policy.Spec.Behavior.ScaleUp.PanicPolicy.Percent == nil {
-				policy.Spec.Behavior.ScaleUp.PanicPolicy.Percent = pointer.Int32(1000)
-			}
-			if policy.Spec.Behavior.ScaleUp.PanicPolicy.PanicThresholdPercent == nil {
-				policy.Spec.Behavior.ScaleUp.PanicPolicy.PanicThresholdPercent = DefaultScaleUpPanicPolicy.PanicThresholdPercent
-			}
-			if policy.Spec.Behavior.ScaleUp.PanicPolicy.PanicModeHold == nil {
-				policy.Spec.Behavior.ScaleUp.PanicPolicy.PanicModeHold = &metav1.Duration{Duration: time.Minute}
-			}
-		}
+		patch = append(patch, jsonpatch.NewOperation("add", "/spec/behavior", DefaultBehavior))
+		return patch
 	}
+
+	// Only set default scaleDown if it doesn't exist
+	if policy.Spec.Behavior.ScaleDown == (registryv1.AutoscalingPolicyStablePolicy{}) {
+		patch = append(patch, jsonpatch.NewOperation("add", "/spec/behavior/scaleDown", DefaultScaleDown))
+	} else if policy.Spec.Behavior.ScaleDown.StabilizationWindow == nil {
+		patch = append(patch, jsonpatch.NewOperation("add", "/spec/behavior/scaleDown/stabilizationWindow", "5m"))
+	}
+
+	if policy.Spec.Behavior.ScaleUp == (registryv1.AutoscalingPolicyScaleUpPolicy{}) {
+		patch = append(patch, jsonpatch.NewOperation("add", "/spec/behavior/scaleUp", DefaultScaleUp))
+		return patch
+	}
+
+	// Only set default scaleUp/stablePolicy if it doesn't exist
+	if policy.Spec.Behavior.ScaleUp.StablePolicy == (registryv1.AutoscalingPolicyStablePolicy{}) {
+		patch = append(patch, jsonpatch.NewOperation("add", "/spec/behavior/scaleUp/stablePolicy", DefaultScaleUpStablePolicy))
+	} else if policy.Spec.Behavior.ScaleUp.StablePolicy.StabilizationWindow == nil {
+		patch = append(patch, jsonpatch.NewOperation("add", "/spec/behavior/scaleUp/stablePolicy/stabilizationWindow", "0s"))
+	}
+
+	// Only set default scaleUp/panicPolicy if it doesn't exist
+	if policy.Spec.Behavior.ScaleUp.PanicPolicy == (registryv1.AutoscalingPolicyPanicPolicy{}) {
+		patch = append(patch, jsonpatch.NewOperation("add", "/spec/behavior/scaleUp/panicPolicy", DefaultScaleUpPanicPolicy))
+	}
+	return patch
 }
 
 // createPolicyPatch creates a JSON patch between the original and mutated policy
-func createPolicyPatch(original, mutated *registryv1.AutoscalingPolicy) ([]byte, error) {
-	originalJSON, err := json.Marshal(original)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal original: %v", err)
-	}
-
-	mutatedJSON, err := json.Marshal(mutated)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal mutated: %v", err)
-	}
-
-	patch, err := jsonpatch.CreatePatch(originalJSON, mutatedJSON)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create patch: %v", err)
-	}
+// It handles missing parent paths by creating them step by step
+func createPolicyPatch(patch []jsonpatch.Operation) ([]byte, error) {
 
 	patchBytes, err := json.Marshal(patch)
 	if err != nil {

@@ -19,6 +19,8 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"math"
 	"net/http"
 	"strings"
 
@@ -27,7 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
-	"math"
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
 	registryv1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
@@ -48,25 +49,51 @@ func NewAutoscalingPolicyValidator(kubeClient kubernetes.Interface, matrixinferC
 
 // Handle handles admission requests for AutoscalingPolicy resources
 func (v *AutoscalingPolicyValidator) Handle(w http.ResponseWriter, r *http.Request) {
+	klog.V(4).Info("Handling AutoscalingPolicy validation request")
+
 	// Parse the admission request
+	var body []byte
+	if r.Body != nil {
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			klog.Errorf("Failed to read request body: %v", err)
+			http.Error(w, "failed to read request body", http.StatusBadRequest)
+			return
+		}
+		body = data
+	}
+
+	// Verify the content type is accurate
+	contentType := r.Header.Get("Content-Type")
+	if contentType != "application/json" {
+		klog.Errorf("Invalid Content-Type: %s", contentType)
+		http.Error(w, "invalid Content-Type, expected application/json", http.StatusBadRequest)
+		return
+	}
+
+	// Parse the AdmissionReview request
 	var admissionReview admissionv1.AdmissionReview
-	if err := json.NewDecoder(r.Body).Decode(&admissionReview); err != nil {
+	if err := json.Unmarshal(body, &admissionReview); err != nil {
 		klog.Errorf("Failed to decode admission review: %v", err)
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
+
 	if admissionReview.Request == nil {
+		klog.Error("Admission review request is nil")
 		http.Error(w, "invalid admission review request", http.StatusBadRequest)
 		return
 	}
 
-	// Deserialize the object
+	// Deserialize the AutoscalingPolicy object
 	var policy registryv1.AutoscalingPolicy
 	if err := json.Unmarshal(admissionReview.Request.Object.Raw, &policy); err != nil {
-		klog.Errorf("Failed to unmarshal object: %v", err)
-		http.Error(w, fmt.Sprintf("could not unmarshal object: %v", err), http.StatusBadRequest)
+		klog.Errorf("Failed to unmarshal AutoscalingPolicy: %v", err)
+		http.Error(w, fmt.Sprintf("could not unmarshal AutoscalingPolicy: %v", err), http.StatusBadRequest)
 		return
 	}
+
+	klog.V(4).Infof("Validating AutoscalingPolicy: %s/%s", policy.Namespace, policy.Name)
 
 	// Validate the AutoscalingPolicy
 	allowed, reason := v.validateAutoscalingPolicy(&policy)
@@ -81,15 +108,26 @@ func (v *AutoscalingPolicyValidator) Handle(w http.ResponseWriter, r *http.Reque
 		admissionResponse.Result = &metav1.Status{
 			Message: reason,
 		}
+		klog.V(2).Infof("AutoscalingPolicy validation failed: %s", reason)
+	} else {
+		klog.V(4).Info("AutoscalingPolicy validation passed")
 	}
 
 	// Create the admission review response
 	admissionReview.Response = &admissionResponse
 
 	// Send the response
-	if err := json.NewEncoder(w).Encode(admissionReview); err != nil {
-		klog.Errorf("Failed to encode admission review: %v", err)
+	resp, err := json.Marshal(admissionReview)
+	if err != nil {
+		klog.Errorf("Failed to encode admission review response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	klog.V(4).Infof("Sending response: %s", string(resp))
+	w.Header().Set("Content-Type", "application/json")
+	if _, err := w.Write(resp); err != nil {
+		klog.Errorf("Failed to write response: %v", err)
 		return
 	}
 }
@@ -98,114 +136,14 @@ func (v *AutoscalingPolicyValidator) Handle(w http.ResponseWriter, r *http.Reque
 func (v *AutoscalingPolicyValidator) validateAutoscalingPolicy(policy *registryv1.AutoscalingPolicy) (bool, string) {
 	var allErrs field.ErrorList
 
-	metricNames := make(map[string]bool)
-	for _, metric := range policy.Spec.Metrics {
-		if metric.TargetValue.AsFloat64Slow() <= 0 || math.IsInf(metric.TargetValue.AsFloat64Slow(), 0) {
-			allErrs = append(allErrs, field.Invalid(
-				field.NewPath("spec").Child("metrics"),
-				metric.TargetValue,
-				"metric target value must be greater than 0 and not equal to infinity",
-			))
-		}
-		if metricNames[metric.MetricName] {
-			allErrs = append(allErrs, field.Invalid(
-				field.NewPath("spec").Child("metrics"),
-				metric.MetricName,
-				fmt.Sprintf("duplicate metric name %s is not allowed", metric.MetricName),
-			))
-		}
-		metricNames[metric.MetricName] = true
-	}
+	// Validate metrics
+	allErrs = append(allErrs, v.validateMetrics(policy)...)
 
-	stablePolicy := policy.Spec.Behavior.ScaleDown
-	if stablePolicy.Period.Seconds() < 0 || stablePolicy.Period.Minutes() > 30 {
-		allErrs = append(allErrs, field.Invalid(
-			field.NewPath("spec").Child("behavior").Child("scaleDown").Child("period"),
-			stablePolicy.Period,
-			"stable policy period must be between 0 and 30 minutes",
-		))
-	}
-	if stablePolicy.StabilizationWindow.Seconds() < 0 || stablePolicy.StabilizationWindow.Minutes() > 30 {
-		allErrs = append(allErrs, field.Invalid(
-			field.NewPath("spec").Child("behavior").Child("scaleDown").Child("stabilizationWindow"),
-			stablePolicy.StabilizationWindow,
-			"stable policy stabilization window must be between 0 and 30 minutes",
-		))
-	}
-	if *stablePolicy.Instances < 0 {
-		allErrs = append(allErrs, field.Invalid(
-			field.NewPath("spec").Child("behavior").Child("scaleDown").Child("instances"),
-			*stablePolicy.Instances,
-			"stable policy instances must be greater than or equal to 0",
-		))
-	}
-	if *stablePolicy.Percent < 0 || *stablePolicy.Percent > 100 {
-		allErrs = append(allErrs, field.Invalid(
-			field.NewPath("spec").Child("behavior").Child("scaleDown").Child("percent"),
-			*stablePolicy.Percent,
-			"stable policy percent must be between 0 and 100",
-		))
-	}
+	// Validate scale down behavior
+	allErrs = append(allErrs, v.validateScaleDownBehavior(policy)...)
 
-	stablePolicy = policy.Spec.Behavior.ScaleUp.StablePolicy
-	if stablePolicy.Period.Seconds() < 0 || stablePolicy.Period.Minutes() > 30 {
-		allErrs = append(allErrs, field.Invalid(
-			field.NewPath("spec").Child("behavior").Child("scaleUp").Child("stablePolicy").Child("period"),
-			stablePolicy.Period,
-			"stable policy period must be between 0 and 30 minutes",
-		))
-	}
-	if stablePolicy.StabilizationWindow.Seconds() < 0 || stablePolicy.StabilizationWindow.Minutes() > 30 {
-		allErrs = append(allErrs, field.Invalid(
-			field.NewPath("spec").Child("behavior").Child("scaleUp").Child("stablePolicy").Child("stabilizationWindow"),
-			stablePolicy.StabilizationWindow,
-			"stable policy stabilization window must be between 0 and 30 minutes",
-		))
-	}
-	if *stablePolicy.Instances < 0 {
-		allErrs = append(allErrs, field.Invalid(
-			field.NewPath("spec").Child("behavior").Child("scaleUp").Child("stablePolicy").Child("instances"),
-			*stablePolicy.Instances,
-			"stable policy instances must be greater than or equal to 0",
-		))
-	}
-	if *stablePolicy.Percent < 0 || *stablePolicy.Percent > 1000 {
-		allErrs = append(allErrs, field.Invalid(
-			field.NewPath("spec").Child("behavior").Child("scaleUp").Child("stablePolicy").Child("percent"),
-			*stablePolicy.Percent,
-			"stable policy percent must be between 0 and 1000",
-		))
-	}
-
-	panicPolicy := policy.Spec.Behavior.ScaleUp.PanicPolicy
-	if panicPolicy.Period.Seconds() < 0 || panicPolicy.Period.Minutes() > 30 {
-		allErrs = append(allErrs, field.Invalid(
-			field.NewPath("spec").Child("behavior").Child("scaleUp").Child("panicPolicy").Child("period"),
-			panicPolicy.Period,
-			"panic policy period must be between 0 and 30 minutes",
-		))
-	}
-	if panicPolicy.PanicModeHold.Seconds() < 0 || panicPolicy.PanicModeHold.Minutes() > 30 {
-		allErrs = append(allErrs, field.Invalid(
-			field.NewPath("spec").Child("behavior").Child("scaleUp").Child("panicPolicy").Child("panicModeHold"),
-			panicPolicy.PanicModeHold,
-			"panic policy panic mode hold must be between 0 and 30 minutes",
-		))
-	}
-	if *panicPolicy.Percent < 0 || *panicPolicy.Percent > 1000 {
-		allErrs = append(allErrs, field.Invalid(
-			field.NewPath("spec").Child("behavior").Child("scaleUp").Child("panicPolicy").Child("percent"),
-			*panicPolicy.Percent,
-			"panic policy percent must be between 0 and 1000",
-		))
-	}
-	if *panicPolicy.PanicThresholdPercent < 0 || *panicPolicy.PanicThresholdPercent > 1000 {
-		allErrs = append(allErrs, field.Invalid(
-			field.NewPath("spec").Child("behavior").Child("scaleUp").Child("panicPolicy").Child("panicThresholdPercent"),
-			*panicPolicy.PanicThresholdPercent,
-			"panic policy panic threshold percent must be between 0 and 1000",
-		))
-	}
+	// Validate scale up behavior
+	allErrs = append(allErrs, v.validateScaleUpBehavior(policy)...)
 
 	if len(allErrs) > 0 {
 		var messages []string
@@ -215,4 +153,132 @@ func (v *AutoscalingPolicyValidator) validateAutoscalingPolicy(policy *registryv
 		return false, fmt.Sprintf("validation failed:\n%s", strings.Join(messages, "\n"))
 	}
 	return true, ""
+}
+
+// validateMetrics validates the metrics configuration
+func (v *AutoscalingPolicyValidator) validateMetrics(policy *registryv1.AutoscalingPolicy) field.ErrorList {
+	var allErrs field.ErrorList
+	metricNames := make(map[string]bool)
+
+	for i, metric := range policy.Spec.Metrics {
+		metricPath := field.NewPath("spec").Child("metrics").Index(i)
+
+		// Validate target value
+		if metric.TargetValue.AsFloat64Slow() <= 0 || math.IsInf(metric.TargetValue.AsFloat64Slow(), 0) {
+			allErrs = append(allErrs, field.Invalid(
+				metricPath.Child("targetValue"),
+				metric.TargetValue,
+				"metric target value must be greater than 0 and not equal to infinity",
+			))
+		}
+
+		// Validate metric name uniqueness
+		if metricNames[metric.MetricName] {
+			allErrs = append(allErrs, field.Invalid(
+				metricPath.Child("metricName"),
+				metric.MetricName,
+				fmt.Sprintf("duplicate metric name %s is not allowed", metric.MetricName),
+			))
+		}
+		metricNames[metric.MetricName] = true
+	}
+
+	return allErrs
+}
+
+// validateScaleDownBehavior validates the scale down behavior configuration
+func (v *AutoscalingPolicyValidator) validateScaleDownBehavior(policy *registryv1.AutoscalingPolicy) field.ErrorList {
+	var allErrs field.ErrorList
+	scaleDownPath := field.NewPath("spec").Child("behavior").Child("scaleDown")
+	stablePolicy := policy.Spec.Behavior.ScaleDown
+
+	// Validate period
+	if stablePolicy.Period.Seconds() < 0 || stablePolicy.Period.Minutes() > 30 {
+		allErrs = append(allErrs, field.Invalid(
+			scaleDownPath.Child("period"),
+			stablePolicy.Period,
+			"stable policy period must be between 0 and 30 minutes",
+		))
+	}
+
+	// Validate stabilization window
+	if stablePolicy.StabilizationWindow != nil &&
+		(stablePolicy.StabilizationWindow.Seconds() < 0 || stablePolicy.StabilizationWindow.Minutes() > 30) {
+		allErrs = append(allErrs, field.Invalid(
+			scaleDownPath.Child("stabilizationWindow"),
+			stablePolicy.StabilizationWindow,
+			"stable policy stabilization window must be between 0 and 30 minutes",
+		))
+	}
+
+	return allErrs
+}
+
+// validateScaleUpBehavior validates the scale up behavior configuration
+func (v *AutoscalingPolicyValidator) validateScaleUpBehavior(policy *registryv1.AutoscalingPolicy) field.ErrorList {
+	var allErrs field.ErrorList
+	scaleUpPath := field.NewPath("spec").Child("behavior").Child("scaleUp")
+
+	// Validate stable policy
+	allErrs = append(allErrs, v.validateStablePolicy(policy, scaleUpPath)...)
+
+	// Validate panic policy
+	allErrs = append(allErrs, v.validatePanicPolicy(policy, scaleUpPath)...)
+
+	return allErrs
+}
+
+// validateStablePolicy validates the stable policy configuration for scale up
+func (v *AutoscalingPolicyValidator) validateStablePolicy(policy *registryv1.AutoscalingPolicy, scaleUpPath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+	stablePolicyPath := scaleUpPath.Child("stablePolicy")
+	stablePolicy := policy.Spec.Behavior.ScaleUp.StablePolicy
+
+	// Validate period
+	if stablePolicy.Period.Seconds() < 0 || stablePolicy.Period.Minutes() > 30 {
+		allErrs = append(allErrs, field.Invalid(
+			stablePolicyPath.Child("period"),
+			stablePolicy.Period,
+			"stable policy period must be between 0 and 30 minutes",
+		))
+	}
+
+	// Validate stabilization window
+	if stablePolicy.StabilizationWindow != nil &&
+		(stablePolicy.StabilizationWindow.Seconds() < 0 || stablePolicy.StabilizationWindow.Minutes() > 30) {
+		allErrs = append(allErrs, field.Invalid(
+			stablePolicyPath.Child("stabilizationWindow"),
+			stablePolicy.StabilizationWindow,
+			"stable policy stabilization window must be between 0 and 30 minutes",
+		))
+	}
+
+	return allErrs
+}
+
+// validatePanicPolicy validates the panic policy configuration for scale up
+func (v *AutoscalingPolicyValidator) validatePanicPolicy(policy *registryv1.AutoscalingPolicy, scaleUpPath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+	panicPolicyPath := scaleUpPath.Child("panicPolicy")
+	panicPolicy := policy.Spec.Behavior.ScaleUp.PanicPolicy
+
+	// Validate period
+	if panicPolicy.Period.Seconds() < 0 || panicPolicy.Period.Minutes() > 30 {
+		allErrs = append(allErrs, field.Invalid(
+			panicPolicyPath.Child("period"),
+			panicPolicy.Period,
+			"panic policy period must be between 0 and 30 minutes",
+		))
+	}
+
+	// Validate panic mode hold
+	if panicPolicy.PanicModeHold.Seconds() < 0 || panicPolicy.PanicModeHold.Minutes() > 30 {
+		allErrs = append(allErrs, field.Invalid(
+			panicPolicyPath.Child("panicModeHold"),
+			panicPolicy.PanicModeHold,
+			"panic policy panic mode hold must be between 0 and 30 minutes",
+		))
+	}
+
+	return allErrs
 }
