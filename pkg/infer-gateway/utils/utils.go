@@ -111,6 +111,9 @@ func LoadSchedulerConfig(configMapPath string) (map[string]int, []string, map[st
 		return nil, nil, nil, fmt.Errorf("failed to Unmarshal Plugins: %v", err)
 	}
 
+	// Check for random plugin conflicts and remove random plugin if needed
+	scorePluginMap = handleRandomPluginConflicts(scorePluginMap)
+
 	pluginsArgMap, err := unmarshalPluginsConfig(&kubeSchedulerConfiguration)
 	if err != nil {
 		klog.Errorf("failed to Unmarshal PluginsConfig: %v", err)
@@ -118,6 +121,41 @@ func LoadSchedulerConfig(configMapPath string) (map[string]int, []string, map[st
 	}
 
 	return scorePluginMap, filterPlugins, pluginsArgMap, nil
+}
+
+// handleRandomPluginConflicts checks if random plugin is configured with other score plugins
+// and removes the random plugin while logging a warning if conflicts are detected
+func handleRandomPluginConflicts(scorePluginMap map[string]int) map[string]int {
+	const randomPluginName = "random"
+
+	// Check if random plugin exists and if there are other plugins
+	hasRandomPlugin := false
+	hasOtherScorePlugins := false
+
+	for pluginName := range scorePluginMap {
+		if pluginName == randomPluginName {
+			hasRandomPlugin = true
+		} else {
+			hasOtherScorePlugins = true
+		}
+	}
+
+	// If both random and other score plugins are configured, remove random plugin and warn
+	if hasRandomPlugin && hasOtherScorePlugins {
+		klog.Warningf("Random plugin is configured along with other score plugins. Random plugin will be removed as it should be used independently. " +
+			"Mixing random scores with meaningful scores defeats the purpose of intelligent scheduling.")
+
+		// Create a new map without the random plugin
+		result := make(map[string]int)
+		for pluginName, weight := range scorePluginMap {
+			if pluginName != randomPluginName {
+				result[pluginName] = weight
+			}
+		}
+		return result
+	}
+
+	return scorePluginMap
 }
 
 func unmarshalPlugins(schedulerConfig *conf.SchedulerConfiguration) (map[string]int, []string, error) {
