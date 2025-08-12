@@ -39,10 +39,12 @@ spec:
               - args:
                   - --port
                   - "8100"
-                  - --url
-                  - http://localhost:8000/metrics
                   - --engine
                   - vllmdisaggregated
+                  - --engine-base-url
+                  - http://localhost:8000
+                  - --engine-metrics-path
+                  - /metrics
                 image: matrixinfer/runtime:latest
                 name: runtime
                 ports:
@@ -54,6 +56,7 @@ spec:
                   - vllm.entrypoints.openai.api_server
                   - --model
                   - /cache/568a486051fd302c338d84946c4f3d48
+                  - --enable-lora
                   - --disable-frontend-multiprocessing
                   - --gpu-memory-utilization
                   - "0.99"
@@ -148,10 +151,15 @@ spec:
               - args:
                   - --port
                   - "8100"
-                  - --url
-                  - http://localhost:8000/metrics
                   - --engine
                   - vllmdisaggregated
+                  - --engine-base-url
+                  - http://localhost:8000
+                  - --engine-metrics-path
+                  - /metrics
+                envFrom:
+                - secretRef:
+                    name: downloader-secrets
                 image: matrixinfer/runtime:latest
                 name: runtime
                 ports:
@@ -163,6 +171,7 @@ spec:
                   - vllm.entrypoints.openai.api_server
                   - --model
                   - /cache/568a486051fd302c338d84946c4f3d48
+                  - --enable-lora
                   - --disable-frontend-multiprocessing
                   - --gpu-memory-utilization
                   - "0.95"

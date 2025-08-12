@@ -28,7 +28,7 @@ class TestLockManager(unittest.TestCase):
         self.lock_manager = LockManager(self.lock_path)
 
     def tearDown(self):
-        if hasattr(self, 'lock_manager') and self.lock_manager.is_locked:
+        if hasattr(self, "lock_manager") and self.lock_manager.is_locked:
             self.lock_manager.release()
         cleanup_temp_dir(self.temp_dir)
 
@@ -68,7 +68,10 @@ class TestLockManager(unittest.TestCase):
         lock_manager2 = LockManager(self.lock_path)
 
         self._acquire_lock(lock_manager1)
-        self.assertFalse(lock_manager2.try_acquire(), "Second lock manager should fail to acquire the lock")
+        self.assertFalse(
+            lock_manager2.try_acquire(),
+            "Second lock manager should fail to acquire the lock",
+        )
         lock_manager1.release()
 
     def test_context_manager_failure(self):
@@ -79,31 +82,52 @@ class TestLockManager(unittest.TestCase):
         self.lock_manager.release()
 
     def test_is_locked_property(self):
-        self.assertFalse(self.lock_manager.is_locked, "is_locked should be False initially")
+        self.assertFalse(
+            self.lock_manager.is_locked, "is_locked should be False initially"
+        )
         self._acquire_lock()
-        self.assertTrue(self.lock_manager.is_locked, "is_locked should be True after acquisition")
+        self.assertTrue(
+            self.lock_manager.is_locked, "is_locked should be True after acquisition"
+        )
         self.lock_manager.release()
-        self.assertFalse(self.lock_manager.is_locked, "is_locked should be False after release")
+        self.assertFalse(
+            self.lock_manager.is_locked, "is_locked should be False after release"
+        )
 
     def test_renew_thread_starts_automatically(self):
-        with patch.object(self.lock_manager, '_start_renew_thread') as mock_start_thread:
+        with patch.object(
+            self.lock_manager, "_start_renew_thread"
+        ) as mock_start_thread:
             self.lock_manager.try_acquire()
             mock_start_thread.assert_called_once()
             self.lock_manager.release()
 
     def test_renew_thread_stops_on_release(self):
         self._acquire_lock()
-        self.assertIsNotNone(self.lock_manager._renew_thread, "Renew thread should be created")
-        self.assertTrue(self.lock_manager._renew_thread.is_alive(), "Renew thread should be running")
+        self.assertIsNotNone(
+            self.lock_manager._renew_thread, "Renew thread should be created"
+        )
+        self.assertTrue(
+            self.lock_manager._renew_thread.is_alive(), "Renew thread should be running"
+        )
 
         self.lock_manager.release()
-        self.assertFalse(self.lock_manager._renew_thread.is_alive() if self.lock_manager._renew_thread else True,
-                         "Renew thread should be stopped")
+        self.assertFalse(
+            (
+                self.lock_manager._renew_thread.is_alive()
+                if self.lock_manager._renew_thread
+                else True
+            ),
+            "Renew thread should be stopped",
+        )
 
     @patch("matrixinfer.downloader.lock.logger.error")
     def test_lock_manager_acquire_exception_handling(self, mock_logger_error):
         with patch("os.makedirs", side_effect=OSError("Mocked error")):
-            self.assertFalse(self.lock_manager.try_acquire(), "Acquire should fail due to mocked OSError")
+            self.assertFalse(
+                self.lock_manager.try_acquire(),
+                "Acquire should fail due to mocked OSError",
+            )
             mock_logger_error.assert_called_with("Error acquiring lock: Mocked error")
 
     @patch("matrixinfer.downloader.lock.logger.error")
@@ -121,15 +145,22 @@ class TestLockManager(unittest.TestCase):
 
     def test_lock_manager_stop_renew(self):
         self._acquire_lock()
-        self.assertTrue(self.lock_manager._renew_thread.is_alive(), "Renew thread should be running")
+        self.assertTrue(
+            self.lock_manager._renew_thread.is_alive(), "Renew thread should be running"
+        )
         self.lock_manager.stop_renew()
         max_wait = 0.2
         start_time = time.time()
         while time.time() - start_time < max_wait and (
-                self.lock_manager._renew_thread and self.lock_manager._renew_thread.is_alive()):
+            self.lock_manager._renew_thread
+            and self.lock_manager._renew_thread.is_alive()
+        ):
             time.sleep(0.02)
-        self.assertTrue(not self.lock_manager._renew_thread or not self.lock_manager._renew_thread.is_alive(),
-                        "Renew thread should be stopped or None")
+        self.assertTrue(
+            not self.lock_manager._renew_thread
+            or not self.lock_manager._renew_thread.is_alive(),
+            "Renew thread should be stopped or None",
+        )
         self.lock_manager.release()
 
     def test_multiple_locks_management(self):
@@ -146,7 +177,9 @@ class TestLockManager(unittest.TestCase):
             manager.release()
 
         for path in lock_paths:
-            self.assertFalse(os.path.exists(path), "Lock file should be removed after release")
+            self.assertFalse(
+                os.path.exists(path), "Lock file should be removed after release"
+            )
 
 
 if __name__ == "__main__":

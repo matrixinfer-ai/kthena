@@ -22,6 +22,8 @@ networking:
       dnsName: "your-domain.com"
       # The name of the secret to store the certificate and key.
       secretName: "infer-gateway-tls"
+  webhook:
+    enabled: true
 
 global:
   certManager:

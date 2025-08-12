@@ -212,6 +212,284 @@ func TestTriggerModel(t *testing.T) {
 	assert.Equal(t, 0, controller.workQueue.Len())
 }
 
+func TestHasOnlyLoraAdaptersChanged(t *testing.T) {
+	kubeClient := fake.NewClientset()
+	matrixinferClient := matrixinferfake.NewClientset()
+	controller := NewModelController(kubeClient, matrixinferClient)
+
+	tests := []struct {
+		name     string
+		oldModel *registry.Model
+		newModel *registry.Model
+		expected bool
+	}{
+		{
+			name: "No changes at all",
+			oldModel: &registry.Model{
+				Spec: registry.ModelSpec{
+					Backends: []registry.ModelBackend{
+						{
+							Name:     "backend1",
+							Type:     registry.ModelBackendTypeVLLM,
+							ModelURI: "model-uri",
+							LoraAdapters: []registry.LoraAdapter{
+								{Name: "adapter1", ArtifactURL: "uri1"},
+							},
+						},
+					},
+				},
+			},
+			newModel: &registry.Model{
+				Spec: registry.ModelSpec{
+					Backends: []registry.ModelBackend{
+						{
+							Name:     "backend1",
+							Type:     registry.ModelBackendTypeVLLM,
+							ModelURI: "model-uri",
+							LoraAdapters: []registry.LoraAdapter{
+								{Name: "adapter1", ArtifactURL: "uri1"},
+							},
+						},
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "Only LoRA adapters changed - added new adapter",
+			oldModel: &registry.Model{
+				Spec: registry.ModelSpec{
+					Backends: []registry.ModelBackend{
+						{
+							Name:     "backend1",
+							Type:     registry.ModelBackendTypeVLLM,
+							ModelURI: "model-uri",
+							LoraAdapters: []registry.LoraAdapter{
+								{Name: "adapter1", ArtifactURL: "uri1"},
+								{Name: "adapter3", ArtifactURL: "uri3"},
+							},
+						},
+					},
+				},
+			},
+			newModel: &registry.Model{
+				Spec: registry.ModelSpec{
+					Backends: []registry.ModelBackend{
+						{
+							Name:     "backend1",
+							Type:     registry.ModelBackendTypeVLLM,
+							ModelURI: "model-uri",
+							LoraAdapters: []registry.LoraAdapter{
+								{Name: "adapter1", ArtifactURL: "uri1"},
+								{Name: "adapter2", ArtifactURL: "uri2"},
+							},
+						},
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "Only LoRA adapters changed - modified adapter",
+			oldModel: &registry.Model{
+				Spec: registry.ModelSpec{
+					Backends: []registry.ModelBackend{
+						{
+							Name:     "backend1",
+							Type:     registry.ModelBackendTypeVLLM,
+							ModelURI: "model-uri",
+							LoraAdapters: []registry.LoraAdapter{
+								{Name: "adapter1", ArtifactURL: "uri1"},
+							},
+						},
+					},
+				},
+			},
+			newModel: &registry.Model{
+				Spec: registry.ModelSpec{
+					Backends: []registry.ModelBackend{
+						{
+							Name:     "backend1",
+							Type:     registry.ModelBackendTypeVLLM,
+							ModelURI: "model-uri",
+							LoraAdapters: []registry.LoraAdapter{
+								{Name: "adapter1", ArtifactURL: "uri1-modified"},
+							},
+						},
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "Backend name changed",
+			oldModel: &registry.Model{
+				Spec: registry.ModelSpec{
+					Backends: []registry.ModelBackend{
+						{
+							Name:     "backend1",
+							Type:     registry.ModelBackendTypeVLLM,
+							ModelURI: "model-uri",
+							LoraAdapters: []registry.LoraAdapter{
+								{Name: "adapter1", ArtifactURL: "uri1"},
+							},
+						},
+					},
+				},
+			},
+			newModel: &registry.Model{
+				Spec: registry.ModelSpec{
+					Backends: []registry.ModelBackend{
+						{
+							Name:     "backend2",
+							Type:     registry.ModelBackendTypeVLLM,
+							ModelURI: "model-uri",
+							LoraAdapters: []registry.LoraAdapter{
+								{Name: "adapter1", ArtifactURL: "uri1"},
+							},
+						},
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "Model URI changed",
+			oldModel: &registry.Model{
+				Spec: registry.ModelSpec{
+					Backends: []registry.ModelBackend{
+						{
+							Name:     "backend1",
+							Type:     registry.ModelBackendTypeVLLM,
+							ModelURI: "model-uri",
+							LoraAdapters: []registry.LoraAdapter{
+								{Name: "adapter1", ArtifactURL: "uri1"},
+							},
+						},
+					},
+				},
+			},
+			newModel: &registry.Model{
+				Spec: registry.ModelSpec{
+					Backends: []registry.ModelBackend{
+						{
+							Name:     "backend1",
+							Type:     registry.ModelBackendTypeVLLM,
+							ModelURI: "model-uri-changed",
+							LoraAdapters: []registry.LoraAdapter{
+								{Name: "adapter1", ArtifactURL: "uri1"},
+								{Name: "adapter2", ArtifactURL: "uri2"},
+							},
+						},
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "Number of backends changed",
+			oldModel: &registry.Model{
+				Spec: registry.ModelSpec{
+					Backends: []registry.ModelBackend{
+						{
+							Name:     "backend1",
+							Type:     registry.ModelBackendTypeVLLM,
+							ModelURI: "model-uri",
+							LoraAdapters: []registry.LoraAdapter{
+								{Name: "adapter1", ArtifactURL: "uri1"},
+							},
+						},
+					},
+				},
+			},
+			newModel: &registry.Model{
+				Spec: registry.ModelSpec{
+					Backends: []registry.ModelBackend{
+						{
+							Name:     "backend1",
+							Type:     registry.ModelBackendTypeVLLM,
+							ModelURI: "model-uri",
+							LoraAdapters: []registry.LoraAdapter{
+								{Name: "adapter1", ArtifactURL: "uri1"},
+							},
+						},
+						{
+							Name:     "backend2",
+							Type:     registry.ModelBackendTypeVLLM,
+							ModelURI: "model-uri2",
+						},
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "VLLM backend with LoRA adapters changed and other backend unchanged",
+			oldModel: &registry.Model{
+				Spec: registry.ModelSpec{
+					Backends: []registry.ModelBackend{
+						{
+							Name:     "vllm-backend",
+							Type:     registry.ModelBackendTypeVLLM,
+							ModelURI: "model-uri",
+							LoraAdapters: []registry.LoraAdapter{
+								{Name: "adapter1", ArtifactURL: "uri1"},
+							},
+						},
+						{
+							Name:     "sglang-backend",
+							Type:     registry.ModelBackendTypeSGLang,
+							ModelURI: "model-uri2",
+						},
+					},
+				},
+			},
+			newModel: &registry.Model{
+				Spec: registry.ModelSpec{
+					Backends: []registry.ModelBackend{
+						{
+							Name:     "vllm-backend",
+							Type:     registry.ModelBackendTypeVLLM,
+							ModelURI: "model-uri",
+							LoraAdapters: []registry.LoraAdapter{
+								{Name: "adapter1", ArtifactURL: "uri1"},
+								{Name: "adapter2", ArtifactURL: "uri2"},
+							},
+						},
+						{
+							Name:     "sglang-backend",
+							Type:     registry.ModelBackendTypeSGLang,
+							ModelURI: "model-uri2",
+						},
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "Empty backends",
+			oldModel: &registry.Model{
+				Spec: registry.ModelSpec{
+					Backends: []registry.ModelBackend{},
+				},
+			},
+			newModel: &registry.Model{
+				Spec: registry.ModelSpec{
+					Backends: []registry.ModelBackend{},
+				},
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := controller.hasOnlyLoraAdaptersChanged(tt.oldModel, tt.newModel)
+			assert.Equal(t, tt.expected, result, "Test case: %s", tt.name)
+		})
+	}
+}
+
 // loadYaml transfer yaml data into a struct of type T.
 // Used for test.
 func loadYaml[T any](t *testing.T, path string) *T {

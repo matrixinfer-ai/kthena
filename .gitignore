@@ -30,3 +30,7 @@ bin
 
 # vscode settings
 .vscode
+
+# Python cache
+**/__pycache__/
+*.py[cod]

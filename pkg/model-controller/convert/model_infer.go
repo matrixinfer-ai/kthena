@@ -23,6 +23,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"k8s.io/utils/ptr"
@@ -87,7 +88,7 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 	if err != nil {
 		return nil, err
 	}
-	modelDownloadPath := getCachePath(backend.CacheURI) + getMountPath(backend.ModelURI)
+	modelDownloadPath := GetCachePath(backend.CacheURI) + GetMountPath(backend.ModelURI)
 
 	// Build an initial container list including model downloader container
 	initContainers := []corev1.Container{
@@ -102,7 +103,7 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 			EnvFrom: backend.EnvFrom,
 			VolumeMounts: []corev1.VolumeMount{{
 				Name:      cacheVolume.Name,
-				MountPath: getCachePath(backend.CacheURI),
+				MountPath: GetCachePath(backend.CacheURI),
 			}},
 		},
 	}
@@ -146,26 +147,28 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 		},
 		"VOLUME_MOUNTS": []corev1.VolumeMount{{
 			Name:      cacheVolume.Name,
-			MountPath: getCachePath(backend.CacheURI),
+			MountPath: GetCachePath(backend.CacheURI),
 		}},
 		"VOLUMES": []*corev1.Volume{
 			cacheVolume,
 		},
-		"MODEL_NAME":                 model.Name,
-		"BACKEND_REPLICAS":           backend.MinReplicas, // todo: backend replicas
-		"INIT_CONTAINERS":            initContainers,
-		"ENGINE_PREFILL_COMMAND":     preFillCommand,
-		"ENGINE_DECODE_COMMAND":      decodeCommand,
-		"MODEL_INFER_RUNTIME_IMAGE":  config.Config.GetModelInferRuntimeImage(),
-		"MODEL_INFER_RUNTIME_PORT":   getEnvValueOrDefault(backend, "RUNTIME_PORT", "8100"),
-		"MODEL_INFER_RUNTIME_URL":    getEnvValueOrDefault(backend, "RUNTIME_URL", "http://localhost:8000/metrics"),
-		"MODEL_INFER_RUNTIME_ENGINE": strings.ToLower(string(backend.Type)),
-		"PREFILL_REPLICAS":           workersMap[registry.ModelWorkerTypePrefill].Replicas,
-		"DECODE_REPLICAS":            workersMap[registry.ModelWorkerTypeDecode].Replicas,
-		"ENGINE_DECODE_RESOURCES":    workersMap[registry.ModelWorkerTypeDecode].Resources,
-		"ENGINE_DECODE_IMAGE":        workersMap[registry.ModelWorkerTypeDecode].Image,
-		"ENGINE_PREFILL_RESOURCES":   workersMap[registry.ModelWorkerTypePrefill].Resources,
-		"ENGINE_PREFILL_IMAGE":       workersMap[registry.ModelWorkerTypePrefill].Image,
+		"MODEL_NAME":                       model.Name,
+		"BACKEND_REPLICAS":                 backend.MinReplicas, // todo: backend replicas
+		"INIT_CONTAINERS":                  initContainers,
+		"MODEL_DOWNLOAD_ENVFROM":           backend.EnvFrom,
+		"ENGINE_PREFILL_COMMAND":           preFillCommand,
+		"ENGINE_DECODE_COMMAND":            decodeCommand,
+		"MODEL_INFER_RUNTIME_IMAGE":        config.Config.GetModelInferRuntimeImage(),
+		"MODEL_INFER_RUNTIME_PORT":         GetEnvPortOrDefault(backend, "RUNTIME_PORT", 8100),
+		"MODEL_INFER_RUNTIME_URL":          getEnvValueOrDefault(backend, "RUNTIME_URL", "http://localhost:8000"),
+		"MODEL_INFER_RUNTIME_METRICS_PATH": getEnvValueOrDefault(backend, "RUNTIME_METRICS_PATH", "/metrics"),
+		"MODEL_INFER_RUNTIME_ENGINE":       strings.ToLower(string(backend.Type)),
+		"PREFILL_REPLICAS":                 workersMap[registry.ModelWorkerTypePrefill].Replicas,
+		"DECODE_REPLICAS":                  workersMap[registry.ModelWorkerTypeDecode].Replicas,
+		"ENGINE_DECODE_RESOURCES":          workersMap[registry.ModelWorkerTypeDecode].Resources,
+		"ENGINE_DECODE_IMAGE":              workersMap[registry.ModelWorkerTypeDecode].Image,
+		"ENGINE_PREFILL_RESOURCES":         workersMap[registry.ModelWorkerTypePrefill].Resources,
+		"ENGINE_PREFILL_IMAGE":             workersMap[registry.ModelWorkerTypePrefill].Image,
 	}
 	return loadModelInferTemplate(VllmDisaggregatedTemplatePath, &data)
 }
@@ -181,7 +184,7 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 	if err != nil {
 		return nil, err
 	}
-	modelDownloadPath := getCachePath(backend.CacheURI) + getMountPath(backend.ModelURI)
+	modelDownloadPath := GetCachePath(backend.CacheURI) + GetMountPath(backend.ModelURI)
 	// only one worker in such circumstance so get the first worker's config as commands
 	commands, err := buildCommands(&backend.Workers[0].Config, modelDownloadPath, workersMap)
 	if err != nil {
@@ -201,7 +204,7 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 			EnvFrom: backend.EnvFrom,
 			VolumeMounts: []corev1.VolumeMount{{
 				Name:      cacheVolume.Name,
-				MountPath: getCachePath(backend.CacheURI),
+				MountPath: GetCachePath(backend.CacheURI),
 			}},
 		},
 	}
@@ -232,8 +235,8 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 		"BACKEND_NAME":     strings.ToLower(backend.Name),
 		"BACKEND_REPLICAS": backend.MinReplicas, // todo: backend replicas
 		"BACKEND_TYPE":     strings.ToLower(string(backend.Type)),
-		"ENGINE_ENV":       getEnvVarOrDefault(backend, "ENDPOINT", ""),
-		"WORKER_ENV":       getEnvVarOrDefault(backend, "ENDPOINT", ""),
+		"ENGINE_ENV":       backend.Env,
+		"WORKER_ENV":       backend.Env,
 		"SERVER_REPLICAS":  workersMap[registry.ModelWorkerTypeServer].Replicas,
 		"SERVER_ENTRY_TEMPLATE_METADATA": &metav1.ObjectMeta{
 			Labels: utils.GetModelControllerLabels(model, backend.Name, icUtils.Revision(backend)),
@@ -244,17 +247,19 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 		},
 		"VOLUME_MOUNTS": []corev1.VolumeMount{{
 			Name:      cacheVolume.Name,
-			MountPath: getCachePath(backend.CacheURI),
+			MountPath: GetCachePath(backend.CacheURI),
 		}},
-		"INIT_CONTAINERS":            initContainers,
-		"MODEL_INFER_RUNTIME_IMAGE":  config.Config.GetModelInferRuntimeImage(),
-		"MODEL_INFER_RUNTIME_PORT":   getEnvValueOrDefault(backend, "RUNTIME_PORT", "8100"),
-		"MODEL_INFER_RUNTIME_URL":    getEnvValueOrDefault(backend, "RUNTIME_URL", "http://localhost:8000/metrics"),
-		"MODEL_INFER_RUNTIME_ENGINE": strings.ToLower(string(backend.Type)),
-		"ENGINE_SERVER_RESOURCES":    workersMap[registry.ModelWorkerTypeServer].Resources,
-		"ENGINE_SERVER_IMAGE":        workersMap[registry.ModelWorkerTypeServer].Image,
-		"ENGINE_SERVER_COMMAND":      commands,
-		"WORKER_REPLICAS":            workersMap[registry.ModelWorkerTypeServer].Pods - 1,
+		"INIT_CONTAINERS":                  initContainers,
+		"MODEL_DOWNLOAD_ENVFROM":           backend.EnvFrom,
+		"MODEL_INFER_RUNTIME_IMAGE":        config.Config.GetModelInferRuntimeImage(),
+		"MODEL_INFER_RUNTIME_PORT":         GetEnvPortOrDefault(backend, "RUNTIME_PORT", 8100),
+		"MODEL_INFER_RUNTIME_URL":          getEnvValueOrDefault(backend, "RUNTIME_URL", "http://localhost:8000"),
+		"MODEL_INFER_RUNTIME_METRICS_PATH": getEnvValueOrDefault(backend, "RUNTIME_METRICS_PATH", "/metrics"),
+		"MODEL_INFER_RUNTIME_ENGINE":       strings.ToLower(string(backend.Type)),
+		"ENGINE_SERVER_RESOURCES":          workersMap[registry.ModelWorkerTypeServer].Resources,
+		"ENGINE_SERVER_IMAGE":              workersMap[registry.ModelWorkerTypeServer].Image,
+		"ENGINE_SERVER_COMMAND":            commands,
+		"WORKER_REPLICAS":                  workersMap[registry.ModelWorkerTypeServer].Pods - 1,
 	}
 	return loadModelInferTemplate(VllmTemplatePath, &data)
 }
@@ -271,7 +276,7 @@ func mapWorkers(workers []registry.ModelWorker) map[registry.ModelWorkerType]*re
 // buildCommands constructs the command list for the backend.
 func buildCommands(config *apiextensionsv1.JSON, modelDownloadPath string,
 	workersMap map[registry.ModelWorkerType]*registry.ModelWorker) ([]string, error) {
-	commands := []string{"python", "-m", "vllm.entrypoints.openai.api_server", "--model", modelDownloadPath}
+	commands := []string{"python", "-m", "vllm.entrypoints.openai.api_server", "--model", modelDownloadPath, "--enable-lora"}
 	args, err := utils.ParseArgs(config)
 	commands = append(commands, args...)
 	if workersMap[registry.ModelWorkerTypeServer] != nil && workersMap[registry.ModelWorkerTypeServer].Pods > 1 {
@@ -281,8 +286,8 @@ func buildCommands(config *apiextensionsv1.JSON, modelDownloadPath string,
 	return commands, err
 }
 
-// getMountPath returns the mount path for the given ModelBackend in the format "/<backend.Name>".
-func getMountPath(modelURI string) string {
+// GetMountPath returns the mount path for the given ModelBackend in the format "/<backend.Name>".
+func GetMountPath(modelURI string) string {
 	h := md5.New()
 	h.Write([]byte(modelURI))
 	hashBytes := h.Sum(nil)
@@ -305,7 +310,7 @@ func buildCacheVolume(backend *registry.ModelBackend) (*corev1.Volume, error) {
 			Name: volumeName,
 			VolumeSource: corev1.VolumeSource{
 				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-					ClaimName: getCachePath(backend.CacheURI),
+					ClaimName: GetCachePath(backend.CacheURI),
 				},
 			},
 		}, nil
@@ -314,7 +319,7 @@ func buildCacheVolume(backend *registry.ModelBackend) (*corev1.Volume, error) {
 			Name: volumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: getCachePath(backend.CacheURI),
+					Path: GetCachePath(backend.CacheURI),
 					Type: ptr.To(corev1.HostPathDirectoryOrCreate),
 				},
 			},
@@ -323,7 +328,7 @@ func buildCacheVolume(backend *registry.ModelBackend) (*corev1.Volume, error) {
 	return nil, fmt.Errorf("not support prefix in CacheURI: %s", backend.CacheURI)
 }
 
-func getCachePath(path string) string {
+func GetCachePath(path string) string {
 	if path == "" || !strings.Contains(path, URIPrefixSeparator) {
 		return ""
 	}
@@ -351,6 +356,18 @@ func getEnvValueOrDefault(backend *registry.ModelBackend, name string, defaultVa
 	for _, env := range backend.Env {
 		if env.Name == name {
 			return env.Value
+		}
+	}
+	return defaultValue
+}
+
+// GetEnvPortOrDefault gets int32 port value of specific env, if env does not exist, return default value
+func GetEnvPortOrDefault(backend *registry.ModelBackend, name string, defaultValue int32) int32 {
+	for _, env := range backend.Env {
+		if env.Name == name {
+			if port, err := strconv.ParseInt(env.Value, 10, 32); err == nil {
+				return int32(port)
+			}
 		}
 	}
 	return defaultValue
@@ -395,11 +412,11 @@ func buildDownloaderContainer(name, image, source, outputDir string, backend *re
 			"--source", source,
 			"--output-dir", outputDir,
 		},
-		Env:     getEnvVarOrDefault(backend, "ENDPOINT", ""),
+		Env:     backend.Env,
 		EnvFrom: backend.EnvFrom,
 		VolumeMounts: []corev1.VolumeMount{{
 			Name:      cacheVolumeName,
-			MountPath: getCachePath(backend.CacheURI),
+			MountPath: GetCachePath(backend.CacheURI),
 		}},
 	}
 }
@@ -413,7 +430,7 @@ func buildLoraComponents(model *registry.Model, backend *registry.ModelBackend, 
 	for i, adapter := range backend.LoraAdapters {
 		// Create LoRA downloader container
 		containerName := fmt.Sprintf("%s-lora-downloader-%d", model.Name, i)
-		outputDir := getCachePath(backend.CacheURI) + getMountPath(adapter.ArtifactURL)
+		outputDir := GetCachePath(backend.CacheURI) + GetMountPath(adapter.ArtifactURL)
 
 		// Build LoRA module string
 		loraModule := fmt.Sprintf("%s=%s", adapter.Name, outputDir)
