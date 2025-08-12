@@ -79,8 +79,10 @@ func BuildModelServer(model *registry.Model) ([]*networking.ModelServer, error) 
 				Model:           &servedModelName,
 				InferenceEngine: inferenceEngine,
 				WorkloadSelector: &networking.WorkloadSelector{
-					MatchLabels: utils.GetModelControllerLabels(model, backend.Name, icUtils.Revision(model.Spec)),
-					PDGroup:     pdGroup,
+					MatchLabels: map[string]string{
+						utils.OwnerUIDKey: string(model.UID),
+					},
+					PDGroup: pdGroup,
 				},
 				WorkloadPort: networking.WorkloadPort{
 					Port: 8000, // todo: get port from config

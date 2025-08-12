@@ -21,11 +21,7 @@ spec:
   inferenceEngine: "vLLM"
   workloadSelector:
     matchLabels:
-      registry.matrixinfer.ai/backend-name: backend1
-      registry.matrixinfer.ai/managed-by: registry.matrixinfer.ai
-      registry.matrixinfer.ai/model-name: test-model
       registry.matrixinfer.ai/model-uid: randomUID
-      registry.matrixinfer.ai/revision: 6bb65f6764
   workloadPort:
     port: 8000
   trafficPolicy:
