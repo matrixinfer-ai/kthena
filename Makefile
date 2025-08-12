@@ -213,12 +213,6 @@ docker-buildx: ## Build and push docker image for cross-platform support
 		-f docker/Dockerfile.infergateway.webhook \
 		--push .
 
-.PHONY: build-installer
-build-installer: generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
-	mkdir -p dist
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default > dist/install.yaml
-
 ##@ Deployment
 
 ifndef ignore-not-found
