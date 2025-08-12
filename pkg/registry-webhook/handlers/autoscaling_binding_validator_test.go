@@ -111,5 +111,4 @@ func TestValidateAutoscalingBinding_OptimizeAndScalingConfigBothNotExist(t *test
 			assert.Equal(t, tt.expected, lines)
 		})
 	}
-
 }
