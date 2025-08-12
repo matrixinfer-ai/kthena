@@ -19,6 +19,7 @@ package convert
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 	icUtils "matrixinfer.ai/matrixinfer/pkg/infer-controller/utils"
@@ -89,6 +90,10 @@ func BuildScalingPolicyBinding(model *registry.Model, backend *registry.ModelBac
 
 func BuildOptimizePolicyBindingSpec(model *registry.Model, name string) *registry.AutoscalingPolicyBindingSpec {
 	params := make([]registry.OptimizerParam, 0, len(model.Spec.Backends))
+	if model.Spec.CostExpansionRatePercent == nil {
+		klog.Error("Model", model.Name, "Spec.CostExpansionRatePercent can not be nil when set optimize autoscaling policy")
+		return nil
+	}
 	for _, backend := range model.Spec.Backends {
 		targetName := utils.GetBackendResourceName(model.Name, backend.Name)
 		params = append(params, registry.OptimizerParam{
@@ -109,7 +114,7 @@ func BuildOptimizePolicyBindingSpec(model *registry.Model, name string) *registr
 	return &registry.AutoscalingPolicyBindingSpec{
 		OptimizerConfiguration: &registry.OptimizerConfiguration{
 			Params:                   params,
-			CostExpansionRatePercent: model.Spec.CostExpansionRatePercent,
+			CostExpansionRatePercent: *model.Spec.CostExpansionRatePercent,
 		},
 		PolicyRef: corev1.LocalObjectReference{
 			Name: name,
