@@ -128,31 +128,18 @@ func LoadSchedulerConfig(configMapPath string) (map[string]int, []string, map[st
 func handleRandomPluginConflicts(scorePluginMap map[string]int) map[string]int {
 	const randomPluginName = "random"
 
-	// Check if random plugin exists and if there are other plugins
-	hasRandomPlugin := false
-	hasOtherScorePlugins := false
+	// Check if random plugin exists using direct map lookup
+	_, hasRandomPlugin := scorePluginMap[randomPluginName]
 
-	for pluginName := range scorePluginMap {
-		if pluginName == randomPluginName {
-			hasRandomPlugin = true
-		} else {
-			hasOtherScorePlugins = true
-		}
-	}
+	// Check if there are other plugins besides random
+	hasOtherScorePlugins := len(scorePluginMap) > 1 && hasRandomPlugin
 
 	// If both random and other score plugins are configured, remove random plugin and warn
 	if hasRandomPlugin && hasOtherScorePlugins {
 		klog.Warningf("Random plugin is configured along with other score plugins. Random plugin will be removed as it should be used independently. " +
 			"Mixing random scores with meaningful scores defeats the purpose of intelligent scheduling.")
 
-		// Create a new map without the random plugin
-		result := make(map[string]int)
-		for pluginName, weight := range scorePluginMap {
-			if pluginName != randomPluginName {
-				result[pluginName] = weight
-			}
-		}
-		return result
+		delete(scorePluginMap, randomPluginName)
 	}
 
 	return scorePluginMap
