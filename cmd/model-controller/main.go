@@ -59,7 +59,7 @@ func main() {
 
 	pflag.StringVar(&kubeconfig, "kubeconfig", "", "kubeconfig file path")
 	pflag.StringVar(&master, "master", "", "master URL")
-	pflag.IntVar(&workers, "workers", 5, "number of workers to run")
+	pflag.IntVar(&workers, "workers", 5, "number of workers to run. Default is 5")
 	pflag.BoolVar(&enableLeaderElection, "leader-elect", false, "Enable leader election for controller. "+
 		"Enabling this will ensure there is only one active model controller. Default is false.")
 	pflag.Parse()
