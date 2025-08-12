@@ -35,7 +35,7 @@ func TestValidateAutoscalingBinding_OptimizeAndScalingConfigBothNotExist(t *test
 		expected []string
 	}{
 		{
-			name: "optimizier and scaling config both set to nil",
+			name: "optimizer and scaling config both set to nil",
 			input: &registryv1alpha1.AutoscalingPolicyBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "dummy-model",
@@ -52,7 +52,7 @@ func TestValidateAutoscalingBinding_OptimizeAndScalingConfigBothNotExist(t *test
 			expected: []string{"  - spec.ScalingConfiguration: Required value: spec.ScalingConfiguration should be set if spec.OptimizerConfiguration does not exist"},
 		},
 		{
-			name: "optimizier and scaling config both are not nil",
+			name: "optimizer and scaling config both are not nil",
 			input: &registryv1alpha1.AutoscalingPolicyBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "dummy-model",
@@ -87,7 +87,7 @@ func TestValidateAutoscalingBinding_OptimizeAndScalingConfigBothNotExist(t *test
 					},
 				},
 			},
-			expected: []string{"  - spec.OptimizerConfiguration.ScalingConfiguration: Forbidden: both spec.OptimizerConfiguration and spec.ScalingConfiguration can not be set at the same time"},
+			expected: []string{"  - spec.ScalingConfiguration: Forbidden: both spec.OptimizerConfiguration and spec.ScalingConfiguration can not be set at the same time"},
 		},
 	}
 

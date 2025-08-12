@@ -17,7 +17,6 @@ limitations under the License.
 package handlers
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -84,13 +83,11 @@ func (v *ModelValidator) Handle(w http.ResponseWriter, r *http.Request) {
 
 // validateModel validates the Model resource
 func (v *ModelValidator) validateModel(model *registryv1alpha1.Model) (bool, string) {
-	ctx := context.Background()
 	var allErrs field.ErrorList
 
 	allErrs = append(allErrs, validateScaleToZeroGracePeriod(model)...)
 	allErrs = append(allErrs, validateBackendReplicaBounds(model)...)
 	allErrs = append(allErrs, validateWorkerImages(model)...)
-	allErrs = append(allErrs, v.validateAutoscalingPolicyRefs(ctx, model)...)
 	allErrs = append(allErrs, validateAutoScalingPolicyScope(model)...)
 	allErrs = append(allErrs, validateBackendWorkerTypes(model)...)
 
@@ -258,27 +255,6 @@ func validateImageField(image string) error {
 	}
 
 	return nil
-}
-
-func (v *ModelValidator) validateAutoscalingPolicyRefs(ctx context.Context, model *registryv1alpha1.Model) field.ErrorList {
-	var allErrs field.ErrorList
-
-	// Model-level ref
-	if model.Spec.AutoscalingPolicy != nil {
-		// For now, we'll skip the actual client lookup since we need to adapt the client interface
-		// In a real implementation, you would check if the AutoscalingPolicy exists
-		klog.V(4).Infof("Skipping optimize autoscaling policy validation of model %s in namespace %s", model.Name, model.Namespace)
-	}
-
-	// Backend-level refs
-	for _, backend := range model.Spec.Backends {
-		if backend.AutoscalingPolicy != nil {
-			// For now, we'll skip the actual client lookup since we need to adapt the client interface
-			// In a real implementation, you would check if the AutoscalingPolicy exists
-			klog.V(4).Infof("Skipping scaling autoscaling policy validation of model %s for backend %s in namespace %s", model.Name, backend.Name, model.Namespace)
-		}
-	}
-	return allErrs
 }
 
 // validateAutoScalingPolicyScope validates the autoscaling field usage rules for Model.

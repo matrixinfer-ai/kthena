@@ -87,10 +87,10 @@ func (v *AutoscalingBindingValidator) validateAutoscalingBinding(asp_binding *re
 func validateOptimizeAndScalingPolicyExistence(ctx context.Context, asp_binding *registryv1alpha1.AutoscalingPolicyBinding) field.ErrorList {
 	var allErrs field.ErrorList
 	if asp_binding.Spec.OptimizerConfiguration == nil && asp_binding.Spec.ScalingConfiguration == nil {
-		allErrs = append(allErrs, field.Required(field.NewPath("spec", "ScalingConfiguration"), "spec.ScalingConfiguration should be set if spec.OptimizerConfiguration does not exist"))
+		allErrs = append(allErrs, field.Required(field.NewPath("spec").Child("ScalingConfiguration"), "spec.ScalingConfiguration should be set if spec.OptimizerConfiguration does not exist"))
 	}
 	if asp_binding.Spec.OptimizerConfiguration != nil && asp_binding.Spec.ScalingConfiguration != nil {
-		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec", "OptimizerConfiguration", "ScalingConfiguration"), "both spec.OptimizerConfiguration and spec.ScalingConfiguration can not be set at the same time"))
+		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("ScalingConfiguration"), "both spec.OptimizerConfiguration and spec.ScalingConfiguration can not be set at the same time"))
 	}
 	return allErrs
 }

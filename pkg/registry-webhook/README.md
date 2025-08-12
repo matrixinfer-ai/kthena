@@ -4,45 +4,51 @@ The registry webhook is a Kubernetes admission controller that provides validati
 
 ## Validation Rules
 
+### Model Resource Validation
 The validation webhook enforces the following rules for Model resources:
 
-### Backend Worker Type Validation
+#### Backend Worker Type Validation
 
 1. **vLLM, SGLang, MindIE backends**: Must have exactly one worker of type `server`
 2. **vLLMDisaggregated backends**: All workers must be of type `prefill` or `decode`
 3. **MindIEDisaggregated backends**: All workers must be of type `prefill`, `decode`, `controller`, or `coordinator` (not `server`)
 
-### Backend Replica Bounds Validation
+#### Backend Replica Bounds Validation
 
 - `minReplicas` cannot be greater than `maxReplicas` for any backend
 - The sum of `maxReplicas` across all backends cannot exceed 1,000,000
 
-### Scale-to-Zero Grace Period Validation
+#### Scale-to-Zero Grace Period Validation
 
 - `scaleToZeroGracePeriod` cannot exceed 1800 seconds (30 minutes)
 - `scaleToZeroGracePeriod` cannot be negative
 
-### Worker Image Validation
+#### Worker Image Validation
 
 - Container image references cannot be empty or contain only whitespace
 - Container image references cannot contain spaces
 - Basic format validation is performed on image strings
 
-### Autoscaling Policy Reference Validation
+#### Autoscaling Policy Validation
 
 - Validates that referenced AutoscalingPolicy resources exist (currently skipped in implementation)
 - Ensures proper scoping of autoscaling policies between model-level and backend-level configurations
 
-### Autoscaling Policy Scope Validation
+#### Autoscaling Policy Scope Validation
 
 - Enforces mutual exclusivity between model-level and backend-level autoscaling policy references
 - Ensures consistent autoscaling configuration across the model specification
+
+### Autoscaling Policy Binding Resource Validation
+
+#### ScalingConfig and OptimizerConfig Validation
+- Among ScalingConfig and OptimizerConfig, exactly one of them must be configured, and it is not allowed to configure neither or both.
 
 ## Default Values (Mutator Webhook)
 
 The mutating webhook applies the following default values when certain conditions are met:
 
-### When `AutoscalingPolicyRef` is set at the model level:
+### When `AutoscalingPolicy` is set at the model level:
 
 1. **ScaleToZeroGracePeriod**: Defaults to `30 seconds` for all backends that don't have this value explicitly set
 2. **CostExpansionRatePercent**: Defaults to `200` if not explicitly set
@@ -53,7 +59,9 @@ These defaults are only applied when the model has an autoscaling policy referen
 
 ### Endpoints
 
-- **Validation**: `/validate-registry-matrixinfer-ai-v1alpha1-model`
+- **Validation**:
+    - `/validate-registry-matrixinfer-ai-v1alpha1-model`
+    - `/validate-registry-matrixinfer-ai-v1alpha1-autoscalingpolicybinding`
 - **Mutation**: `/mutate-registry-matrixinfer-ai-v1alpha1-model`
 - **Health Check**: `/healthz`
 

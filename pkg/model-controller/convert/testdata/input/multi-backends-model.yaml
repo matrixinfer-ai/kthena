@@ -13,6 +13,7 @@ spec:
     metrics:
       - metricName: "matrixinfer:num_requests_waiting"
         targetValue: 10
+  costExpansionRatePercent: 200
   backends:
     - name: backend1
       type: vLLM

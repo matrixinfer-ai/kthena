@@ -5,7 +5,7 @@ metadata:
     registry.matrixinfer.ai/backend-name: ""
     registry.matrixinfer.ai/managed-by: registry.matrixinfer.ai
     registry.matrixinfer.ai/model-name: multi-backend-model
-    registry.matrixinfer.ai/revision: bf4d97788
+    registry.matrixinfer.ai/revision: 7bbd8dc485
     registry.matrixinfer.ai/model-uid: randomUID
   name: multi-backend-model
   namespace: dev
@@ -20,6 +20,7 @@ spec:
   policyRef:
     name: multi-backend-model
   optimizerConfiguration:
+    costExpansionRatePercent: 200
     params:
       - maxReplicas: 2
         minReplicas: 0
