@@ -58,7 +58,7 @@ gen-docs: crd-ref-docs ## Generate CRD reference documentation
 	$(CRD_REF_DOCS) \
 		--source-path=./pkg/apis \
 		--config=docs/matrixinfer/crd-ref-docs-config.yaml \
-		--output-path=docs/matrixinfer/docs/crd \
+		--output-path=docs/matrixinfer/docs/reference/crd \
 		--renderer=markdown \
 		--output-mode=group
 
