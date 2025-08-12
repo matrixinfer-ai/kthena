@@ -50,6 +50,7 @@ func TestRegisterDefaultPlugins(t *testing.T) {
 		plugins.KVCachePluginName,
 		plugins.LeastLatencyPluginName,
 		plugins.LeastRequestPluginName,
+		plugins.RandomPluginName,
 		plugins.PrefixCachePluginName,
 	}
 

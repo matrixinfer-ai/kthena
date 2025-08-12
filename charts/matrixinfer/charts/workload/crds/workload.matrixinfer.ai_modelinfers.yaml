@@ -41,10 +41,12 @@ spec:
               resource.
             properties:
               recoveryPolicy:
-                default: InferGroupRestart
-                description: RecoveryPolicy defines the recovery policy for the inferGroup
+                default: RoleRecreate
+                description: RecoveryPolicy defines the recovery policy for the failed
+                  Pod to be rebuilt
                 enum:
-                - InferGroupRestart
+                - InferGroupRecreate
+                - RoleRecreate
                 - None
                 type: string
               replicas:

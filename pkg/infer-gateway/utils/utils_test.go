@@ -55,3 +55,81 @@ func TestLoadSchedulerConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestHandleRandomPluginConflicts(t *testing.T) {
+	tests := []struct {
+		name            string
+		scorePluginMap  map[string]int
+		expectedPlugins map[string]int
+		expectConflict  bool
+	}{
+		{
+			name: "random plugin with other score plugins - should remove random",
+			scorePluginMap: map[string]int{
+				"random":        10,
+				"least-latency": 20,
+				"kv-cache":      30,
+			},
+			expectedPlugins: map[string]int{
+				"least-latency": 20,
+				"kv-cache":      30,
+			},
+			expectConflict: true,
+		},
+		{
+			name: "only random plugin - should keep random",
+			scorePluginMap: map[string]int{
+				"random": 10,
+			},
+			expectedPlugins: map[string]int{
+				"random": 10,
+			},
+			expectConflict: false,
+		},
+		{
+			name: "no random plugin - should keep all",
+			scorePluginMap: map[string]int{
+				"least-latency": 20,
+				"kv-cache":      30,
+			},
+			expectedPlugins: map[string]int{
+				"least-latency": 20,
+				"kv-cache":      30,
+			},
+			expectConflict: false,
+		},
+		{
+			name:            "empty plugin map - should remain empty",
+			scorePluginMap:  map[string]int{},
+			expectedPlugins: map[string]int{},
+			expectConflict:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := handleRandomPluginConflicts(tt.scorePluginMap)
+
+			// Check the number of plugins
+			if len(result) != len(tt.expectedPlugins) {
+				t.Errorf("Expected %d plugins, got %d", len(tt.expectedPlugins), len(result))
+			}
+
+			// Check each expected plugin exists with correct weight
+			for expectedName, expectedWeight := range tt.expectedPlugins {
+				if actualWeight, exists := result[expectedName]; !exists {
+					t.Errorf("Expected plugin %s to exist", expectedName)
+				} else if actualWeight != expectedWeight {
+					t.Errorf("Expected weight %d for plugin %s, got %d", expectedWeight, expectedName, actualWeight)
+				}
+			}
+
+			// Verify random plugin is removed when there's a conflict
+			if tt.expectConflict {
+				if _, exists := result["random"]; exists {
+					t.Errorf("Random plugin should be removed when configured with other score plugins")
+				}
+			}
+		})
+	}
+}

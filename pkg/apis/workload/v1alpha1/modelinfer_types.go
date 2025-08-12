@@ -28,6 +28,8 @@ const (
 	GroupNameLabelKey = "modelinfer.matrixinfer.ai/group-name"
 	// RoleLabelKey is the pod label key for the role.
 	RoleLabelKey = "modelinfer.matrixinfer.ai/role"
+	// RoleIDKey is the pod label key for the role serial number.
+	RoleIDKey = "modelinfer.matrixinfer.ai/role-id"
 	// EntryLabelKey is the entry pod label key.
 	EntryLabelKey = "modelinfer.matrixinfer.ai/entry"
 
@@ -62,9 +64,9 @@ type ModelInferSpec struct {
 	// +optional
 	RolloutStrategy *RolloutStrategy `json:"rolloutStrategy,omitempty"`
 
-	// RecoveryPolicy defines the recovery policy for the inferGroup
-	// +kubebuilder:default=InferGroupRestart
-	// +kubebuilder:validation:Enum={InferGroupRestart,None}
+	// RecoveryPolicy defines the recovery policy for the failed Pod to be rebuilt
+	// +kubebuilder:default=RoleRecreate
+	// +kubebuilder:validation:Enum={InferGroupRecreate,RoleRecreate,None}
 	// +optional
 	RecoveryPolicy            RecoveryPolicy             `json:"recoveryPolicy,omitempty"`
 	TopologySpreadConstraints []TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
@@ -73,11 +75,16 @@ type ModelInferSpec struct {
 type RecoveryPolicy string
 
 const (
-	// InferGroupRestart will recreate all the pods in the InferGroup if
+	// InferGroupRecreate will recreate all the pods in the InferGroup if
 	// 1. Any individual pod in the group is recreated; 2. Any containers/init-containers
 	// in a pod is restarted. This is to ensure all pods/containers in the group will be
 	// started in the same time.
-	InferGroupRestart RecoveryPolicy = "InferGroupRestart"
+	InferGroupRecreate RecoveryPolicy = "InferGroupRecreate"
+
+	// RoleRecreate will recreate all pods in one Role if
+	// 1. Any individual pod in the group is recreated; 2. Any containers/init-containers
+	// in a pod is restarted.
+	RoleRecreate RecoveryPolicy = "RoleRecreate"
 
 	// NoneRestartPolicy will follow the same behavior as the default pod or deployment.
 	NoneRestartPolicy RecoveryPolicy = "None"
