@@ -76,7 +76,7 @@ type OptimizerConfiguration struct {
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:default=200
 	// +optional
-	CostExpansionRatePercent *int32 `json:"costExpansionRatePercent,omitempty"`
+	CostExpansionRatePercent int32 `json:"costExpansionRatePercent,omitempty"`
 }
 
 type Target struct {

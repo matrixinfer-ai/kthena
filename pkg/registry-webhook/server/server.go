@@ -61,14 +61,19 @@ func NewWebhookServer(
 
 // Start starts the webhook server
 func (ws *WebhookServer) Start(stopCh <-chan struct{}) error {
-	// Create handlers
+	mux := http.NewServeMux()
+	// Create model handlers
 	modelValidator := handlers.NewModelValidator(ws.kubeClient, ws.matrixInferClient)
 	modelMutator := handlers.NewModelMutator(ws.kubeClient, ws.matrixInferClient)
 
 	// Create mux and register handlers
-	mux := http.NewServeMux()
 	mux.HandleFunc("/validate-registry-matrixinfer-ai-v1alpha1-model", modelValidator.Handle)
 	mux.HandleFunc("/mutate-registry-matrixinfer-ai-v1alpha1-model", modelMutator.Handle)
+
+	// Create autoscalingBinding handlers
+	autoscalingBindingValidator := handlers.NewAutoscalingBindingValidator(ws.kubeClient, ws.matrixInferClient)
+	mux.HandleFunc("/validate-registry-matrixinfer-ai-v1alpha1-autoscalingpolicybinding", autoscalingBindingValidator.Handle)
+
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		if _, err := w.Write([]byte("ok")); err != nil {
