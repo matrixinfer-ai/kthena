@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	admissionv1 "k8s.io/api/admission/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes"
@@ -71,7 +72,8 @@ func (v *AutoscalingBindingValidator) validateAutoscalingBinding(asp_binding *re
 	ctx := context.Background()
 	var allErrs field.ErrorList
 
-	allErrs = append(allErrs, validateOptimizeAndScalingPolicyExistence(ctx, asp_binding)...)
+	allErrs = append(allErrs, validateOptimizeAndScalingPolicyExistence(asp_binding)...)
+	allErrs = append(allErrs, v.validateAutoscalingPolicyExistence(ctx, asp_binding)...)
 
 	if len(allErrs) > 0 {
 		// Convert field errors to a formatted multi-line error message
@@ -84,7 +86,21 @@ func (v *AutoscalingBindingValidator) validateAutoscalingBinding(asp_binding *re
 	return true, ""
 }
 
-func validateOptimizeAndScalingPolicyExistence(ctx context.Context, asp_binding *registryv1alpha1.AutoscalingPolicyBinding) field.ErrorList {
+func (v *AutoscalingBindingValidator) validateAutoscalingPolicyExistence(ctx context.Context, asp_binding *registryv1alpha1.AutoscalingPolicyBinding) field.ErrorList {
+	var allErrs field.ErrorList
+
+	if _, err := v.client.RegistryV1alpha1().AutoscalingPolicies(asp_binding.Namespace).Get(ctx, asp_binding.Spec.PolicyRef.Name, metav1.GetOptions{}); err != nil {
+		if apierrors.IsNotFound(err) {
+			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("PolicyRef"), asp_binding.Spec.PolicyRef.Name, fmt.Sprintf("autoscaling policy resource %s does not exist", asp_binding.Spec.PolicyRef.Name)))
+		} else {
+			allErrs = append(allErrs, field.InternalError(field.NewPath("spec").Child("PolicyRef"), err))
+		}
+	}
+
+	return allErrs
+}
+
+func validateOptimizeAndScalingPolicyExistence(asp_binding *registryv1alpha1.AutoscalingPolicyBinding) field.ErrorList {
 	var allErrs field.ErrorList
 	if asp_binding.Spec.OptimizerConfiguration == nil && asp_binding.Spec.ScalingConfiguration == nil {
 		allErrs = append(allErrs, field.Required(field.NewPath("spec").Child("ScalingConfiguration"), "spec.ScalingConfiguration should be set if spec.OptimizerConfiguration does not exist"))
