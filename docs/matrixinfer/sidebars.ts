@@ -20,7 +20,7 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'Getting Started',
       items: [
-        'getting-started/quickstart',
+        'getting-started/quick-start',
         'getting-started/installation',
         'getting-started/helm-install',
         'getting-started/kubectl-install',
