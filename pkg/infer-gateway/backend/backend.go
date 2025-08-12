@@ -48,7 +48,7 @@ func GetPodMetrics(engine string, pod *corev1.Pod, previousHistogram map[string]
 
 	allMetrics, err := provider.GetPodMetrics(pod)
 	if err != nil {
-		klog.Errorf("failed to get metrics of pod: %s/%s: %v", pod.GetNamespace(), pod.GetName(), err)
+		// klog.Errorf("failed to get metrics of pod: %s/%s: %v", pod.GetNamespace(), pod.GetName(), err)
 		return nil, nil
 	}
 

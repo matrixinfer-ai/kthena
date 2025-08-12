@@ -111,6 +111,7 @@ func JWTAuthMiddleware(gwRouter *router.Router) gin.HandlerFunc {
 
 		modelRequest, err := router.ParseModelRequest(c)
 		if err != nil {
+			klog.Errorf("failed to parse model request: %v", err)
 			return
 		}
 		modelName := modelRequest["model"].(string)
@@ -124,10 +125,10 @@ func JWTAuthMiddleware(gwRouter *router.Router) gin.HandlerFunc {
 		// Get modelServer
 		modelServer, err := gwRouter.GetModelServer(modelName, c.Request)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, fmt.Sprintf("model %s is failed: %v", modelName, err))
+			c.AbortWithStatusJSON(http.StatusUnauthorized, fmt.Sprintf("failed to get model %s: %v", modelName, err))
 			return
 		}
-
+		klog.Infof("modelServer: %v", modelServer)
 		if len(modelServer.Spec.JWTRules) > 0 {
 			// Calling Middleware
 			gwRouter.Authenticate(modelServer.Spec.JWTRules)(c)

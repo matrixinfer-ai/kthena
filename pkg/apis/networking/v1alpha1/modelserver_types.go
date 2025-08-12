@@ -172,12 +172,36 @@ type JWTRule struct {
 	Jwks string `json:"jwks,omitempty"`
 
 	// FromHeader specifies the header to extract the JWT from.
+	// if JWT is expected to be found in `x-jwt-assertion` header, and have `Bearer` prefix:
+	//
+	// ```yaml
+	//
+	//  fromHeader:
+	//    name: x-jwt-assertion
+	//    prefix: "Bearer "
+	//
+	// ```
+	//
 	// +optional
-	FromHeader []JWTHeader `json:"fromHeader,omitempty"`
+	FromHeader JWTHeader `json:"fromHeader,omitempty"`
 
-	// FromParams specifies the query body parameter to extract the JWT from.
+	// FromParam specifies the query body parameter to extract the JWT from.
+	// parameter `my_token` (e.g `/path?my_token=<JWT>`), the config is:
+	//
+	// ```yaml
+	//
+	//  fromParam: "my_token"
+	//
+	// ```
 	// +optional
-	FromParams []string `json:"fromParams,omitempty"`
+	FromParam string `json:"fromParam,omitempty"`
+
+	// JwksExpiredTime is the expired time that JWKs to be fetched.
+	// Defaults to 30 minutes.
+	// When the validation time exceeds expiredTime, if the validation of the JWT fails, the jwks will be updated and then validated again
+	// +optional
+	// +kubebuilder:default="30m"
+	JwksExpiredTime *metav1.Duration `json:"jwkExpiredTime,omitempty"`
 }
 
 type JWTHeader struct {

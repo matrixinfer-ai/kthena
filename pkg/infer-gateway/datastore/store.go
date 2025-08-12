@@ -27,7 +27,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/lestrrat-go/jwx/jwk"
 	dto "github.com/prometheus/client_model/go"
 	"istio.io/istio/pkg/util/sets"
 	corev1 "k8s.io/api/core/v1"
@@ -125,8 +124,10 @@ type Store interface {
 	// GetRequestWaitingQueueStats returns per-model queue lengths
 	GetRequestWaitingQueueStats() []QueueStat
 
-	// GetAndUpdateJWKS gets the JWKS for a given jwksURI
-	GetAndUpdateJWKS(jwksURI string) (*jwk.Set, error)
+	// jwks cache methods
+	GetJwks(jwksURI string) *Jwks
+	FetchJwks(rule aiv1alpha1.JWTRule) error
+	DeleteJwks(ms *aiv1alpha1.ModelServer)
 }
 
 // QueueStat holds per-model queue metrics to aid scheduling decisions
@@ -287,10 +288,20 @@ func (s *store) AddOrUpdateModelServer(ms *aiv1alpha1.ModelServer, pods sets.Set
 	var modelServerObj *modelServer
 	if value, ok := s.modelServer.Load(name); !ok {
 		modelServerObj = newModelServer(ms)
+		if len(ms.Spec.JWTRules) != 0 {
+			for _, rule := range ms.Spec.JWTRules {
+				if rule.JwksURI != "" {
+					s.FetchJwks(rule)
+				}
+			}
+
+		}
 	} else {
 		modelServerObj = value.(*modelServer)
+		s.updateJwks(modelServerObj.modelServer, ms)
 		modelServerObj.modelServer = ms
 	}
+
 	if len(pods) != 0 {
 		// donot operate s.pods here, which are done within pod handler
 		modelServerObj.pods = pods
@@ -305,6 +316,10 @@ func (s *store) DeleteModelServer(ms types.NamespacedName) error {
 		return nil
 	}
 	modelServerObj := value.(*modelServer)
+	// delete jwks if modelserver has jwtRules
+	if len(modelServerObj.modelServer.Spec.JWTRules) != 0 {
+		s.DeleteJwks(modelServerObj.modelServer)
+	}
 	podNames := modelServerObj.getPods()
 	// then delete the model server from all pod info
 	for _, podName := range podNames {
@@ -683,7 +698,7 @@ func (s *store) updatePodModels(podInfo *PodInfo) {
 
 	models, err := backend.GetPodModels(podInfo.engine, podInfo.Pod)
 	if err != nil {
-		klog.Errorf("failed to get models of pod %s/%s", podInfo.Pod.GetNamespace(), podInfo.Pod.GetName())
+		// klog.Errorf("failed to get models of pod %s/%s", podInfo.Pod.GetNamespace(), podInfo.Pod.GetName())
 	}
 
 	podInfo.UpdateModels(models)
@@ -881,63 +896,4 @@ func (p *PodInfo) GetModelServersList() []types.NamespacedName {
 		return nil
 	}
 	return p.modelServer.UnsortedList()
-}
-
-func (s *store) GetAndUpdateJWKS(jwksURI string) (*jwk.Set, error) {
-	if cached, ok := s.jwksCache.Load(jwksURI); ok {
-		if keySet, ok := cached.(*jwk.Set); ok {
-			return keySet, nil
-		}
-	}
-
-	keySet, err := jwk.Fetch(context.Background(), jwksURI)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch JWKS from %s: %w", jwksURI, err)
-	}
-
-	s.jwksCache.Store(jwksURI, &keySet)
-	return &keySet, nil
-}
-
-func (s *store) deleteJwks(ms *aiv1alpha1.ModelServer) {
-	if len(ms.Spec.JWTRules) == 0 {
-		return
-	}
-
-	for _, rule := range ms.Spec.JWTRules {
-		if rule.JwksURI != "" {
-			s.jwksCache.Delete(rule.JwksURI)
-		}
-	}
-}
-
-func (s *store) updateJwks(oldMs, newMs *aiv1alpha1.ModelServer) {
-	if oldMs == nil {
-		if len(newMs.Spec.JWTRules) == 0 {
-			return
-		}
-
-		for _, rule := range newMs.Spec.JWTRules {
-			if rule.JwksURI != "" {
-				go s.GetAndUpdateJWKS(rule.JwksURI)
-			}
-		}
-		return
-	}
-
-	if len(oldMs.Spec.JWTRules) != 0 {
-		for _, oldRule := range oldMs.Spec.JWTRules {
-			if oldRule.JwksURI != "" {
-				s.jwksCache.Delete(oldRule.JwksURI)
-			}
-		}
-	}
-
-	if len(newMs.Spec.JWTRules) != 0 {
-		for _, newRule := range newMs.Spec.JWTRules {
-			if newRule.JwksURI != "" {
-				go s.GetAndUpdateJWKS(newRule.JwksURI)
-			}
-		}
-	}
 }

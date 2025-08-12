@@ -57,30 +57,49 @@ spec:
                         type: string
                       type: array
                     fromHeader:
-                      description: FromHeader specifies the header to extract the
-                        JWT from.
-                      items:
-                        properties:
-                          name:
-                            description: The Http Header name to extract the JWT from.
-                            minLength: 1
-                            type: string
-                          prefix:
-                            description: |-
-                              The prefix that should be stripped before decoding the token.
-                              For example, if the header is "Authorization: Bearer <token>" and the prefix is "Bearer ", the token will be decoded from the "Authorization" header.
-                              If the header doesn't have this exact prefix, it is considered invalid.
-                            type: string
-                        type: object
-                      type: array
-                    fromParams:
-                      description: FromParams specifies the query body parameter to
-                        extract the JWT from.
-                      items:
-                        type: string
-                      type: array
+                      description: |-
+                        FromHeader specifies the header to extract the JWT from.
+                        if JWT is expected to be found in `x-jwt-assertion` header, and have `Bearer` prefix:
+
+                        ```yaml
+
+                         fromHeader:
+                           name: x-jwt-assertion
+                           prefix: "Bearer "
+
+                        ```
+                      properties:
+                        name:
+                          description: The Http Header name to extract the JWT from.
+                          minLength: 1
+                          type: string
+                        prefix:
+                          description: |-
+                            The prefix that should be stripped before decoding the token.
+                            For example, if the header is "Authorization: Bearer <token>" and the prefix is "Bearer ", the token will be decoded from the "Authorization" header.
+                            If the header doesn't have this exact prefix, it is considered invalid.
+                          type: string
+                      type: object
+                    fromParam:
+                      description: |-
+                        FromParam specifies the query body parameter to extract the JWT from.
+                        parameter `my_token` (e.g `/path?my_token=<JWT>`), the config is:
+
+                        ```yaml
+
+                         fromParam: "my_token"
+
+                        ```
+                      type: string
                     issuer:
                       description: Identifies the issuer that issued the JWT.
+                      type: string
+                    jwkExpiredTime:
+                      default: 30m
+                      description: |-
+                        JwksExpiredTime is the expired time that JWKs to be fetched.
+                        Defaults to 30 minutes.
+                        When the validation time exceeds expiredTime, if the validation of the JWT fails, the jwks will be updated and then validated again
                       type: string
                     jwks:
                       description: |-

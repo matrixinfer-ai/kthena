@@ -48,15 +48,11 @@ func (in *JWTRule) DeepCopyInto(out *JWTRule) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
-	if in.FromHeader != nil {
-		in, out := &in.FromHeader, &out.FromHeader
-		*out = make([]JWTHeader, len(*in))
-		copy(*out, *in)
-	}
-	if in.FromParams != nil {
-		in, out := &in.FromParams, &out.FromParams
-		*out = make([]string, len(*in))
-		copy(*out, *in)
+	out.FromHeader = in.FromHeader
+	if in.JwksExpiredTime != nil {
+		in, out := &in.JwksExpiredTime, &out.JwksExpiredTime
+		*out = new(v1.Duration)
+		**out = **in
 	}
 }
 

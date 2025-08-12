@@ -18,15 +18,20 @@ limitations under the License.
 
 package v1alpha1
 
+import (
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
 // JWTRuleApplyConfiguration represents a declarative configuration of the JWTRule type for use
 // with apply.
 type JWTRuleApplyConfiguration struct {
-	Issuer     *string                       `json:"issuer,omitempty"`
-	Audiences  []string                      `json:"audience,omitempty"`
-	JwksURI    *string                       `json:"jwksURI,omitempty"`
-	Jwks       *string                       `json:"jwks,omitempty"`
-	FromHeader []JWTHeaderApplyConfiguration `json:"fromHeader,omitempty"`
-	FromParams []string                      `json:"fromParams,omitempty"`
+	Issuer          *string                      `json:"issuer,omitempty"`
+	Audiences       []string                     `json:"audience,omitempty"`
+	JwksURI         *string                      `json:"jwksURI,omitempty"`
+	Jwks            *string                      `json:"jwks,omitempty"`
+	FromHeader      *JWTHeaderApplyConfiguration `json:"fromHeader,omitempty"`
+	FromParam       *string                      `json:"fromParam,omitempty"`
+	JwksExpiredTime *v1.Duration                 `json:"jwkExpiredTime,omitempty"`
 }
 
 // JWTRuleApplyConfiguration constructs a declarative configuration of the JWTRule type for use with
@@ -69,25 +74,26 @@ func (b *JWTRuleApplyConfiguration) WithJwks(value string) *JWTRuleApplyConfigur
 	return b
 }
 
-// WithFromHeader adds the given value to the FromHeader field in the declarative configuration
-// and returns the receiver, so that objects can be build by chaining "With" function invocations.
-// If called multiple times, values provided by each call will be appended to the FromHeader field.
-func (b *JWTRuleApplyConfiguration) WithFromHeader(values ...*JWTHeaderApplyConfiguration) *JWTRuleApplyConfiguration {
-	for i := range values {
-		if values[i] == nil {
-			panic("nil value passed to WithFromHeader")
-		}
-		b.FromHeader = append(b.FromHeader, *values[i])
-	}
+// WithFromHeader sets the FromHeader field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the FromHeader field is set to the value of the last call.
+func (b *JWTRuleApplyConfiguration) WithFromHeader(value *JWTHeaderApplyConfiguration) *JWTRuleApplyConfiguration {
+	b.FromHeader = value
 	return b
 }
 
-// WithFromParams adds the given value to the FromParams field in the declarative configuration
-// and returns the receiver, so that objects can be build by chaining "With" function invocations.
-// If called multiple times, values provided by each call will be appended to the FromParams field.
-func (b *JWTRuleApplyConfiguration) WithFromParams(values ...string) *JWTRuleApplyConfiguration {
-	for i := range values {
-		b.FromParams = append(b.FromParams, values[i])
-	}
+// WithFromParam sets the FromParam field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the FromParam field is set to the value of the last call.
+func (b *JWTRuleApplyConfiguration) WithFromParam(value string) *JWTRuleApplyConfiguration {
+	b.FromParam = &value
+	return b
+}
+
+// WithJwksExpiredTime sets the JwksExpiredTime field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the JwksExpiredTime field is set to the value of the last call.
+func (b *JWTRuleApplyConfiguration) WithJwksExpiredTime(value v1.Duration) *JWTRuleApplyConfiguration {
+	b.JwksExpiredTime = &value
 	return b
 }

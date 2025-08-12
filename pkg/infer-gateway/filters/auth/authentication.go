@@ -24,34 +24,33 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/lestrrat-go/jwx/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwt"
+	"k8s.io/klog/v2"
 
 	networkingv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 )
 
 func extractTokenFromHeader(req *http.Request, rule networkingv1alpha1.JWTRule) (string, error) {
-	for _, header := range rule.FromHeader {
-		value := req.Header.Get(header.Name)
-		if value != "" {
-			if header.Prefix != "" {
-				if strings.HasPrefix(value, header.Prefix) {
-					return strings.TrimPrefix(value, header.Prefix), nil
-				}
-			} else {
-				return value, nil
+	header := rule.FromHeader
+	value := req.Header.Get(header.Name)
+	if value != "" {
+		if header.Prefix != "" {
+			if strings.HasPrefix(value, header.Prefix) {
+				return strings.TrimPrefix(value, header.Prefix), nil
 			}
+		} else {
+			return value, nil
 		}
 	}
 	return "", fmt.Errorf("jwt not found in headers")
 }
 
 func extractTokenFromParam(req *http.Request, rule networkingv1alpha1.JWTRule) (string, error) {
-	for _, param := range rule.FromParams {
-		if value := req.URL.Query().Get(param); value != "" {
-			return value, nil
-		}
+	param := rule.FromParam
+	if value := req.URL.Query().Get(param); value != "" {
+		return value, nil
 	}
 	return "", fmt.Errorf("jwt not found in params")
 }
@@ -105,33 +104,33 @@ func (j *JWTValidator) filterRulesByRequest(req *http.Request, rules []networkin
 
 // hasPotentialInHeader checks if the JWT rule has potential in the request header
 func (j *JWTValidator) hasPotentialInHeader(req *http.Request, rule networkingv1alpha1.JWTRule) bool {
-	for _, header := range rule.FromHeader {
-		if req.Header.Get(header.Name) != "" {
-			return true
-		}
+	header := rule.FromHeader
+	if req.Header.Get(header.Name) != "" {
+		return true
 	}
 	return false
 }
 
 // hasPotentialInParams checks if the JWT rule has potential in the request parameters
 func (j *JWTValidator) hasPotentialInParams(req *http.Request, rule networkingv1alpha1.JWTRule) bool {
-	for _, param := range rule.FromParams {
-		if req.URL.Query().Get(param) != "" {
-			return true
-		}
+	param := rule.FromParam
+	if req.URL.Query().Get(param) != "" {
+		return true
 	}
 	return false
 }
 
 // validateWithRule validates the request with the given JWT rule
 func (j *JWTValidator) validateWithRule(req *http.Request, rule networkingv1alpha1.JWTRule) (jwt.Token, error) {
-	if len(rule.FromHeader) > 0 {
+	emptyHeader := networkingv1alpha1.JWTHeader{}
+	if rule.FromHeader != emptyHeader {
 		if tokenStr, err := extractTokenFromHeader(req, rule); err == nil {
+			klog.Infof("tokenStr: %s", tokenStr)
 			return j.parseAndValidateToken(tokenStr, rule)
 		}
 	}
 
-	if len(rule.FromParams) > 0 {
+	if rule.FromParam != "" {
 		if tokenStr, err := extractTokenFromParam(req, rule); err == nil {
 			return j.parseAndValidateToken(tokenStr, rule)
 		}
@@ -142,14 +141,28 @@ func (j *JWTValidator) validateWithRule(req *http.Request, rule networkingv1alph
 
 // parseAndValidateToken validates the token
 func (j *JWTValidator) parseAndValidateToken(tokenStr string, rule networkingv1alpha1.JWTRule) (jwt.Token, error) {
-	// 获取验证密钥
 	key, err := j.getVerificationKey(rule)
 	if err != nil {
 		return nil, err
 	}
 
-	token, err := jwt.Parse([]byte(tokenStr), jwt.WithKeySet(*key))
+	var token jwt.Token
+	token, err = jwt.Parse([]byte(tokenStr), jwt.WithKeySet(key.Jwks))
 	if err != nil {
+		fmt.Printf("failed to parse jwt: %v", err)
+		// first failed. Check if need to refetch the jwks.
+		if rule.JwksURI != "" && time.Since(key.LastFreshTime) > key.ExpiredTime {
+			newKey, err := j.refreshJwks(rule)
+			if err != nil {
+				return nil, fmt.Errorf("failed to refresh jwks: %w", err)
+			}
+
+			// After completing the refresh of the jwks, do the jwt Parse again.
+			token, err = jwt.Parse([]byte(tokenStr), jwt.WithKeySet(newKey.Jwks))
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse jwt: %w", err)
+			}
+		}
 		return nil, fmt.Errorf("failed to parse jwt: %w", err)
 	}
 
@@ -168,12 +181,26 @@ func (j *JWTValidator) parseAndValidateToken(tokenStr string, rule networkingv1a
 	return token, nil
 }
 
+func (j *JWTValidator) refreshJwks(rule networkingv1alpha1.JWTRule) (*datastore.Jwks, error) {
+	// Rework fetch jwks
+	if err := j.cache.FetchJwks(rule); err != nil {
+		return nil, err
+	}
+
+	key, err := j.getVerificationKey(rule)
+	if err != nil {
+		return nil, err
+	}
+
+	return key, nil
+}
+
 // getVerificationKey gets the verification key for the given JWTRule
-func (j *JWTValidator) getVerificationKey(rule networkingv1alpha1.JWTRule) (*jwk.Set, error) {
+func (j *JWTValidator) getVerificationKey(rule networkingv1alpha1.JWTRule) (*datastore.Jwks, error) {
 	if rule.JwksURI != "" {
-		key, err := j.getJWKSKey(rule.JwksURI)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get key from JWKS: %w", err)
+		key := j.cache.GetJwks(rule.JwksURI)
+		if key.Jwks == nil {
+			return nil, fmt.Errorf("failed to get key from JWKS")
 		}
 		return key, nil
 	} else if rule.Jwks != "" {
@@ -181,15 +208,22 @@ func (j *JWTValidator) getVerificationKey(rule networkingv1alpha1.JWTRule) (*jwk
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse JWKS: %w", err)
 		}
-		return key, nil
+		// Since jwks is used instead of jwksURI, there is no refreshing.
+		newjwks := datastore.Jwks{
+			Jwks:          *key,
+			ExpiredTime:   rule.JwksExpiredTime.Duration,
+			LastFreshTime: time.Now(),
+		}
+		return &newjwks, nil
 	}
 
 	return nil, fmt.Errorf("no key source specified")
 }
 
 func (j *JWTValidator) validateIssuer(token jwt.Token, rule networkingv1alpha1.JWTRule) error {
+	var iss string
 	if rule.Issuer != "" {
-		if iss, ok := token.Get("iss"); !ok || iss != rule.Issuer {
+		if err := token.Get("iss", &iss); err != nil || iss != rule.Issuer {
 			return fmt.Errorf("invalid issuer: expected %s, got %v", rule.Issuer, iss)
 		}
 	}
@@ -198,29 +232,31 @@ func (j *JWTValidator) validateIssuer(token jwt.Token, rule networkingv1alpha1.J
 
 func (j *JWTValidator) validateAudiences(token jwt.Token, rule networkingv1alpha1.JWTRule) error {
 	if len(rule.Audiences) > 0 {
-		aud, ok := token.Get("aud")
-		if !ok {
+		var aud interface{}
+		err := token.Get("aud", &aud)
+		if err != nil {
 			return fmt.Errorf("audience claim missing")
 		}
 
 		// validate audience
 		audMatched := false
+		fmt.Printf("aud type is %T", aud)
 		switch audVal := aud.(type) {
 		case string:
 			for _, expectedAud := range rule.Audiences {
+				fmt.Printf("audVal: %v, expectedAud: %v", audVal, expectedAud)
 				if audVal == expectedAud {
 					audMatched = true
 					break
 				}
 			}
-		case []interface{}:
+		case []string:
+			fmt.Printf("audVal: %v", audVal)
 			for _, audItem := range audVal {
-				if audStr, ok := audItem.(string); ok {
-					for _, expectedAud := range rule.Audiences {
-						if audStr == expectedAud {
-							audMatched = true
-							break
-						}
+				for _, expectedAud := range rule.Audiences {
+					if audItem == expectedAud {
+						audMatched = true
+						break
 					}
 				}
 			}
@@ -240,9 +276,9 @@ func (j *JWTValidator) validateAudiences(token jwt.Token, rule networkingv1alpha
 // As same for iat.
 func (j *JWTValidator) validateTimeClaims(token jwt.Token) error {
 	now := time.Now()
-
+	var exp, nbf, iat interface{}
 	// Validate Token expiration(exp)
-	if exp, ok := token.Get("exp"); ok {
+	if err := token.Get("exp", &exp); err == nil {
 		if err := j.validateExpiration(exp, now); err != nil {
 			return err
 		}
@@ -251,14 +287,14 @@ func (j *JWTValidator) validateTimeClaims(token jwt.Token) error {
 	}
 
 	// validate Token not before (nbf)
-	if nbf, ok := token.Get("nbf"); ok {
+	if err := token.Get("nbf", &nbf); err == nil {
 		if err := j.validateNotBefore(nbf, now); err != nil {
 			return err
 		}
 	}
 
 	// validate Token issued at (iat)
-	if iat, ok := token.Get("iat"); ok {
+	if err := token.Get("iat", &iat); err == nil {
 		if err := j.validateIssuedAt(iat, now); err != nil {
 			return err
 		}
@@ -345,15 +381,6 @@ func (j *JWTValidator) validateIssuedAt(iat interface{}, now time.Time) error {
 		return fmt.Errorf("unsupported iat type: %T", iatVal)
 	}
 	return nil
-}
-
-// getJWKSKey get the jwks key from cache
-func (j *JWTValidator) getJWKSKey(jwksURI string) (*jwk.Set, error) {
-	keySet, err := j.cache.GetAndUpdateJWKS(jwksURI)
-	if err != nil {
-		return nil, err
-	}
-	return keySet, nil
 }
 
 // parseJWKS parse the jwks string

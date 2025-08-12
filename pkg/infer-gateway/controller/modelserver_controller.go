@@ -209,7 +209,7 @@ func (c *ModelServerController) syncModelServerHandler(key string) error {
 	}
 
 	_ = c.store.AddOrUpdateModelServer(ms, pods)
-
+	klog.Info("jwks is %v", c.store.GetJwks(ms.Spec.JWTRules[0].JwksURI))
 	return nil
 }
 
