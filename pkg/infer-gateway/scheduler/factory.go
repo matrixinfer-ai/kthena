@@ -74,6 +74,9 @@ func registerDefaultPlugins(registry *PluginRegistry) {
 	registry.registerScorePlugin(plugins.LeastRequestPluginName, func(args runtime.RawExtension) framework.ScorePlugin {
 		return plugins.NewLeastRequest(args)
 	})
+	registry.registerScorePlugin(plugins.RandomPluginName, func(args runtime.RawExtension) framework.ScorePlugin {
+		return plugins.NewRandom(args)
+	})
 	// PrefixCache requires two parameters and is instantiated during use
 	registry.registerScorePlugin(plugins.PrefixCachePluginName, func(args runtime.RawExtension) framework.ScorePlugin {
 		return &plugins.PrefixCache{}

@@ -6,6 +6,7 @@ metadata:
     registry.matrixinfer.ai/managed-by: registry.matrixinfer.ai
     registry.matrixinfer.ai/model-name: multi-backend-model
     registry.matrixinfer.ai/revision: 6b6dcc55dc
+    registry.matrixinfer.ai/model-uid: randomUID
   name: multi-backend-model
   namespace: dev
   ownerReferences:

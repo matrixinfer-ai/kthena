@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
+
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 	"sigs.k8s.io/yaml"
 )
@@ -69,7 +70,6 @@ func GetPrompt(body map[string]interface{}) (string, error) {
 			if !ok {
 				continue
 			}
-
 			contentStr, ok := content.(string)
 			if !ok {
 				continue
@@ -111,6 +111,9 @@ func LoadSchedulerConfig(configMapPath string) (map[string]int, []string, map[st
 		return nil, nil, nil, fmt.Errorf("failed to Unmarshal Plugins: %v", err)
 	}
 
+	// Check for random plugin conflicts and remove random plugin if needed
+	scorePluginMap = handleRandomPluginConflicts(scorePluginMap)
+
 	pluginsArgMap, err := unmarshalPluginsConfig(&kubeSchedulerConfiguration)
 	if err != nil {
 		klog.Errorf("failed to Unmarshal PluginsConfig: %v", err)
@@ -118,6 +121,28 @@ func LoadSchedulerConfig(configMapPath string) (map[string]int, []string, map[st
 	}
 
 	return scorePluginMap, filterPlugins, pluginsArgMap, nil
+}
+
+// handleRandomPluginConflicts checks if random plugin is configured with other score plugins
+// and removes the random plugin while logging a warning if conflicts are detected
+func handleRandomPluginConflicts(scorePluginMap map[string]int) map[string]int {
+	const randomPluginName = "random"
+
+	// Check if random plugin exists using direct map lookup
+	_, hasRandomPlugin := scorePluginMap[randomPluginName]
+
+	// Check if there are other plugins besides random
+	hasOtherScorePlugins := len(scorePluginMap) > 1 && hasRandomPlugin
+
+	// If both random and other score plugins are configured, remove random plugin and warn
+	if hasRandomPlugin && hasOtherScorePlugins {
+		klog.Warningf("Random plugin is configured along with other score plugins. Random plugin will be removed as it should be used independently. " +
+			"Mixing random scores with meaningful scores defeats the purpose of intelligent scheduling.")
+
+		delete(scorePluginMap, randomPluginName)
+	}
+
+	return scorePluginMap
 }
 
 func unmarshalPlugins(schedulerConfig *conf.SchedulerConfiguration) (map[string]int, []string, error) {

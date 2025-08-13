@@ -27,6 +27,7 @@ import (
 
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -76,21 +77,25 @@ func GenerateInferGroupName(miName string, idx int) string {
 	return miName + "-" + strconv.Itoa(idx)
 }
 
-func generateEntryPodName(groupName, roleName string, roleIndex int) string {
-	// entry-pod number starts from 0
-	// For example, EntryPodName is vllm-sample-0-prefill-1-0, represents the entry-pod in the second replica of the prefill role
-	return groupName + "-" + roleName + "-" + strconv.Itoa(roleIndex) + "-" + "0"
+func GenerateRoleID(roleName string, idx int) string {
+	return roleName + "-" + strconv.Itoa(idx)
 }
 
-func generateWorkerPodName(groupName, roleName string, roleIndex, podIndex int) string {
+func generateEntryPodName(groupName, roleName string) string {
+	// entry-pod number starts from 0
+	// For example, EntryPodName is vllm-sample-0-prefill-1-0, represents the entry-pod in the second replica of the prefill role
+	return groupName + "-" + roleName + "-" + "0"
+}
+
+func generateWorkerPodName(groupName, roleName string, podIndex int) string {
 	// worker-pod number starts from 1
 	// For example, WorkerPodName is vllm-sample-0-prefill-1-1, represents the first worker-pod in the second replica of the prefill role
-	return groupName + "-" + roleName + "-" + strconv.Itoa(roleIndex) + "-" + strconv.Itoa(podIndex)
+	return groupName + "-" + roleName + "-" + strconv.Itoa(podIndex)
 }
 
 func GenerateEntryPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, groupName string, roleIndex int, revision string) *corev1.Pod {
-	entryPodName := generateEntryPodName(groupName, role.Name, roleIndex)
-	entryPod := createBasePod(role, mi, entryPodName, groupName, revision)
+	entryPodName := generateEntryPodName(groupName, GenerateRoleID(role.Name, roleIndex))
+	entryPod := createBasePod(role, mi, entryPodName, groupName, revision, roleIndex)
 	entryPod.ObjectMeta.Labels[workloadv1alpha1.EntryLabelKey] = Entry
 	addPodLabelAndAnnotation(entryPod, role.EntryTemplate.Metadata)
 	entryPod.Spec = role.EntryTemplate.Spec
@@ -103,8 +108,8 @@ func GenerateEntryPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfe
 }
 
 func GenerateWorkerPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, entryPod *corev1.Pod, groupName string, roleIndex, podIndex int, revision string) *corev1.Pod {
-	workerPodName := generateWorkerPodName(groupName, role.Name, roleIndex, podIndex)
-	workerPod := createBasePod(role, mi, workerPodName, groupName, revision)
+	workerPodName := generateWorkerPodName(groupName, GenerateRoleID(role.Name, roleIndex), podIndex)
+	workerPod := createBasePod(role, mi, workerPodName, groupName, revision, roleIndex)
 	addPodLabelAndAnnotation(workerPod, role.WorkerTemplate.Metadata)
 	workerPod.Spec = role.WorkerTemplate.Spec
 	// Build environment variables into each container of all pod
@@ -113,7 +118,7 @@ func GenerateWorkerPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInf
 	return workerPod
 }
 
-func createBasePod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, name, groupName, revision string) *corev1.Pod {
+func createBasePod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, name, groupName, revision string, roleIndex int) *corev1.Pod {
 	return &corev1.Pod{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Pod",
@@ -126,6 +131,7 @@ func createBasePod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, 
 				workloadv1alpha1.ModelInferNameLabelKey: mi.Name,
 				workloadv1alpha1.GroupNameLabelKey:      groupName,
 				workloadv1alpha1.RoleLabelKey:           role.Name,
+				workloadv1alpha1.RoleIDKey:              GenerateRoleID(role.Name, roleIndex),
 				workloadv1alpha1.RevisionLabelKey:       revision,
 			},
 			OwnerReferences: []metav1.OwnerReference{
@@ -217,7 +223,7 @@ func newModelInferOwnerRef(mi *workloadv1alpha1.ModelInfer) metav1.OwnerReferenc
 	}
 }
 
-func CreateHeadlessService(ctx context.Context, k8sClient kubernetes.Interface, mi *workloadv1alpha1.ModelInfer, serviceName string, serviceSelector map[string]string, groupName string) error {
+func CreateHeadlessService(ctx context.Context, k8sClient kubernetes.Interface, mi *workloadv1alpha1.ModelInfer, serviceName string, serviceSelector map[string]string, groupName, roleLabel string, roleIndex int) error {
 	headlessService := corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      serviceName,
@@ -227,6 +233,8 @@ func CreateHeadlessService(ctx context.Context, k8sClient kubernetes.Interface, 
 			},
 			Labels: map[string]string{
 				workloadv1alpha1.GroupNameLabelKey: groupName,
+				workloadv1alpha1.RoleLabelKey:      roleLabel,
+				workloadv1alpha1.RoleIDKey:         GenerateRoleID(roleLabel, roleIndex),
 			},
 		},
 		Spec: corev1.ServiceSpec{
@@ -238,8 +246,11 @@ func CreateHeadlessService(ctx context.Context, k8sClient kubernetes.Interface, 
 	// create the service in the cluster
 	klog.V(4).Infof("Creating headless service %s", headlessService.Name)
 	_, err := k8sClient.CoreV1().Services(mi.Namespace).Create(ctx, &headlessService, metav1.CreateOptions{})
+
 	if err != nil {
-		return fmt.Errorf("create headless service failed: %v", err)
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("create headless service failed: %v", err)
+		}
 	}
 	return nil
 }
@@ -273,6 +284,16 @@ func CheckPodRevision(pod *corev1.Pod, revision string) bool {
 // PodRevision returns the revision label of the pod.
 func PodRevision(pod *corev1.Pod) string {
 	return pod.Labels[workloadv1alpha1.RevisionLabelKey]
+}
+
+// PodRoleName returns the role name of the pod.
+func PodRoleName(pod *corev1.Pod) string {
+	return pod.Labels[workloadv1alpha1.RoleLabelKey]
+}
+
+// PodRoleID returns the role id of the pod.
+func PodRoleID(pod *corev1.Pod) string {
+	return pod.Labels[workloadv1alpha1.RoleIDKey]
 }
 
 func isPodReady(pod *corev1.Pod) bool {

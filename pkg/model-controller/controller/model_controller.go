@@ -731,7 +731,6 @@ func (mc *ModelController) updateModelStatus(ctx context.Context, model *registr
 	for _, infer := range modelInfers {
 		backendStatus = append(backendStatus, registryv1alpha1.ModelBackendStatus{
 			Name:     infer.Name,
-			Hash:     "", // todo: get hash
 			Replicas: infer.Status.Replicas,
 		})
 	}
@@ -777,7 +776,7 @@ func (mc *ModelController) cleanupOutdatedLoraUpdateCache(model *registryv1alpha
 }
 
 func NewModelController(kubeClient kubernetes.Interface, client clientset.Interface) *ModelController {
-	selector, err := labels.NewRequirement(registryv1alpha1.ManageBy, selection.Equals, []string{registryv1alpha1.GroupName})
+	selector, err := labels.NewRequirement(utils.ManageBy, selection.Equals, []string{registryv1alpha1.GroupName})
 	if err != nil {
 		klog.Errorf("cannot create label selector, err: %v", err)
 		return nil
@@ -858,7 +857,7 @@ func NewModelController(kubeClient kubernetes.Interface, client clientset.Interf
 // listModelInferByLabel list all model infer which label key is "owner" and label value is model uid
 func (mc *ModelController) listModelInferByLabel(model *registryv1alpha1.Model) ([]*workload.ModelInfer, error) {
 	if modelInfers, err := mc.modelInfersLister.ModelInfers(model.Namespace).List(labels.SelectorFromSet(map[string]string{
-		convert.ModelInferOwnerKey: string(model.UID),
+		utils.OwnerUIDKey: string(model.UID),
 	})); err != nil {
 		return nil, err
 	} else {
@@ -886,6 +885,7 @@ func (mc *ModelController) updateModelInfer(ctx context.Context, model *registry
 			return err
 		}
 		if equality.Semantic.DeepEqual(oldModelInfer.Spec, modelInfer.Spec) {
+			klog.Infof("Model Infer %s of model %s does not need to update", modelInfer.Name, model.Name)
 			continue
 		}
 		modelInfer.ResourceVersion = oldModelInfer.ResourceVersion
@@ -1002,6 +1002,7 @@ func (mc *ModelController) updateModelServer(ctx context.Context, model *registr
 			return err
 		}
 		if equality.Semantic.DeepEqual(oldModelServer.Spec, modelServer.Spec) {
+			klog.Infof("Model Server %s of model %s does not need to update", modelServer.Name, model.Name)
 			continue
 		}
 		modelServer.ResourceVersion = oldModelServer.ResourceVersion
@@ -1167,6 +1168,7 @@ func (mc *ModelController) updateModelRoute(ctx context.Context, model *registry
 		return err
 	}
 	if equality.Semantic.DeepEqual(oldModelRoute.Spec, modelRoute.Spec) {
+		klog.Infof("Model Route %s of model %s does not need to update", modelRoute.Name, model.Name)
 		return nil
 	}
 	modelRoute.ResourceVersion = oldModelRoute.ResourceVersion

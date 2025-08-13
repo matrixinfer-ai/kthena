@@ -6,6 +6,7 @@ metadata:
     registry.matrixinfer.ai/managed-by: registry.matrixinfer.ai
     registry.matrixinfer.ai/model-name: test-model
     registry.matrixinfer.ai/revision: 56cf487b87
+    registry.matrixinfer.ai/model-uid: randomUID
   name: test-model-backend1
   namespace: default
   ownerReferences:

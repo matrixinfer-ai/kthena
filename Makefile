@@ -52,8 +52,18 @@ gen-crd: controller-gen
 	$(CONTROLLER_GEN) crd paths="./pkg/apis/workload/..." output:crd:artifacts:config=charts/matrixinfer/charts/workload/crds
 	$(CONTROLLER_GEN) crd paths="./pkg/apis/registry/..." output:crd:artifacts:config=charts/matrixinfer/charts/registry/crds
 
+.PHONY: gen-docs
+gen-docs: crd-ref-docs ## Generate CRD reference documentation
+	mkdir -p docs/matrixinfer/docs/api
+	$(CRD_REF_DOCS) \
+		--source-path=./pkg/apis \
+		--config=docs/matrixinfer/crd-ref-docs-config.yaml \
+		--output-path=docs/matrixinfer/docs/crd \
+		--renderer=markdown \
+		--output-mode=group
+
 .PHONY: generate
-generate: controller-gen gen-crd ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+generate: controller-gen gen-crd gen-docs ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 	go mod tidy
 	./hack/update-codegen.sh
@@ -109,6 +119,7 @@ build: generate fmt vet
 	go build -o bin/autoscaler cmd/autoscaler/main.go
 	go build -o bin/registry-webhook cmd/registry-webhook/main.go
 	go build -o bin/infer-webhook cmd/modelinfer-webhook/main.go
+	go build -o bin/infer-gateway-webhook cmd/infer-gateway-webhook/main.go
 
 IMG_MODELINFER ?= ${HUB}/infer-controller:${TAG}
 IMG_MODELCONTROLLER ?= ${HUB}/model-controller:${TAG}
@@ -116,6 +127,7 @@ IMG_AUTOSCALER ?= ${HUB}/autoscaler:${TAG}
 IMG_GATEWAY ?= ${HUB}/infer-gateway:${TAG}
 IMG_REGISTRY_WEBHOOK ?= ${HUB}/registry-webhook:${TAG}
 IMG_MODELINFER_WEBHOOK ?= ${HUB}/modelinfer-webhook:${TAG}
+IMG_INFER_GATEWAY_WEBHOOK ?= ${HUB}/infer-gateway-webhook:${TAG}
 
 .PHONY: docker-build-gateway
 docker-build-gateway: generate
@@ -141,14 +153,19 @@ docker-build-registry-webhook: generate
 docker-build-modelinfer-webhook: generate
 	$(CONTAINER_TOOL) build -t ${IMG_MODELINFER_WEBHOOK} -f docker/Dockerfile.modelinfer.webhook .
 
+.PHONY: docker-build-infer-gateway-webhook
+docker-build-infer-gateway-webhook: generate
+	$(CONTAINER_TOOL) build -t ${IMG_INFER_GATEWAY_WEBHOOK} -f docker/Dockerfile.infergateway.webhook .
+
 .PHONY: docker-push
-docker-push: docker-build-gateway docker-build-modelinfer docker-build-modelcontroller docker-build-registry-webhook docker-build-modelinfer-webhook docker-build-autoscaler ## Push all images to the registry.
+docker-push: docker-build-gateway docker-build-modelinfer docker-build-modelcontroller docker-build-registry-webhook docker-build-modelinfer-webhook docker-build-autoscaler docker-build-infer-gateway-webhook ## Push all images to the registry.
 	$(CONTAINER_TOOL) push ${IMG_GATEWAY}
 	$(CONTAINER_TOOL) push ${IMG_MODELINFER}
 	$(CONTAINER_TOOL) push ${IMG_MODELCONTROLLER}
 	$(CONTAINER_TOOL) push ${IMG_AUTOSCALER}
 	$(CONTAINER_TOOL) push ${IMG_REGISTRY_WEBHOOK}
 	$(CONTAINER_TOOL) push ${IMG_MODELINFER_WEBHOOK}
+	$(CONTAINER_TOOL) push ${IMG_INFER_GATEWAY_WEBHOOK}
 
 # PLATFORMS defines the target platforms for the images be built to provide support to multiple
 # architectures.
@@ -190,6 +207,11 @@ docker-buildx: ## Build and push docker image for cross-platform support
 		-t ${IMG_MODELINFER_WEBHOOK} \
 		-f Dockerfile.modelinfer.webhook \
 		--push .
+	$(CONTAINER_TOOL) buildx build \
+		--platform ${PLATFORMS} \
+		-t ${IMG_INFER_GATEWAY_WEBHOOK} \
+		-f docker/Dockerfile.infergateway.webhook \
+		--push .
 
 .PHONY: build-installer
 build-installer: generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
@@ -216,12 +238,14 @@ KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
+CRD_REF_DOCS ?= $(LOCALBIN)/crd-ref-docs
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.5.0
 CONTROLLER_TOOLS_VERSION ?= v0.17.2
 ENVTEST_VERSION ?= release-0.19
 GOLANGCI_LINT_VERSION ?= v1.64.8
+CRD_REF_DOCS_VERSION ?= v0.2.0
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
@@ -242,6 +266,11 @@ $(GOLANGCI_LINT): $(LOCALBIN)
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
 $(CONTROLLER_GEN): $(LOCALBIN)
 	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen,$(CONTROLLER_TOOLS_VERSION))
+
+.PHONY: crd-ref-docs
+crd-ref-docs: $(CRD_REF_DOCS) ## Download crd-ref-docs locally if necessary.
+$(CRD_REF_DOCS): $(LOCALBIN)
+	$(call go-install-tool,$(CRD_REF_DOCS),github.com/elastic/crd-ref-docs,$(CRD_REF_DOCS_VERSION))
 
 .PHONY: add-copyright
 add-copyright:

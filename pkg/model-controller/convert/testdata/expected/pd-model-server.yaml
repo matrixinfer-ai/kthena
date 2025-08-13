@@ -3,6 +3,12 @@ kind: ModelServer
 metadata:
   name: ds-r1-qwen-7b-pd-ds-r1-qwen-7b-pd
   namespace: demo
+  labels:
+    registry.matrixinfer.ai/backend-name: ds-r1-qwen-7b-pd
+    registry.matrixinfer.ai/managed-by: registry.matrixinfer.ai
+    registry.matrixinfer.ai/model-name: ds-r1-qwen-7b-pd
+    registry.matrixinfer.ai/model-uid: randomUID
+    registry.matrixinfer.ai/revision: 77d6846dcd
   ownerReferences:
     - apiVersion: registry.matrixinfer.ai/v1alpha1
       blockOwnerDeletion: true
@@ -15,7 +21,7 @@ spec:
   inferenceEngine: "vLLM"
   workloadSelector:
     matchLabels:
-      model.uid: "randomUID"
+      registry.matrixinfer.ai/model-uid: randomUID
     pdGroup:
       groupKey: "modelinfer.matrixinfer.ai/group-name"
       prefillLabels:

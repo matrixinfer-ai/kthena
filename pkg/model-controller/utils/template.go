@@ -27,6 +27,14 @@ import (
 	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
 
+const (
+	ModelNameLabelKey   = "registry.matrixinfer.ai/model-name"
+	BackendNameLabelKey = "registry.matrixinfer.ai/backend-name"
+	ManageBy            = "registry.matrixinfer.ai/managed-by"
+	RevisionLabelKey    = "registry.matrixinfer.ai/revision"
+	OwnerUIDKey         = "registry.matrixinfer.ai/model-uid"
+)
+
 func ReplaceEmbeddedPlaceholders(s string, values *map[string]interface{}) (string, error) {
 	var result strings.Builder
 	pos := 0
@@ -177,11 +185,12 @@ func GetBackendResourceName(modelName string, backendName string) string {
 	return fmt.Sprintf("%s-%s", modelName, backendName)
 }
 
-func GetModelControllerLabels(modelName string, backendName string, revision string) map[string]string {
+func GetModelControllerLabels(model *registry.Model, backendName string, revision string) map[string]string {
 	return map[string]string{
-		registry.ModelNameLabelKey:   modelName,
-		registry.BackendNameLabelKey: backendName,
-		registry.ManageBy:            registry.GroupName,
-		registry.RevisionLabelKey:    revision,
+		ModelNameLabelKey:   model.Name,
+		BackendNameLabelKey: backendName,
+		ManageBy:            registry.GroupName,
+		RevisionLabelKey:    revision,
+		OwnerUIDKey:         string(model.UID),
 	}
 }

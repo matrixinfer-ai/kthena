@@ -27,6 +27,7 @@ import (
 	"strings"
 
 	"k8s.io/utils/ptr"
+	icUtils "matrixinfer.ai/matrixinfer/pkg/infer-controller/utils"
 
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -39,7 +40,6 @@ import (
 )
 
 const (
-	ModelInferOwnerKey             = "model.uid"
 	CacheURIPrefixPVC              = "pvc://"
 	CacheURIPrefixHostPath         = "hostpath://"
 	URIPrefixSeparator             = "://"
@@ -135,9 +135,7 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 		"MODEL_INFER_TEMPLATE_METADATA": &metav1.ObjectMeta{
 			Name:      utils.GetBackendResourceName(model.Name, backend.Name),
 			Namespace: model.Namespace,
-			Labels: map[string]string{
-				ModelInferOwnerKey: string(model.UID),
-			},
+			Labels:    utils.GetModelControllerLabels(model, backend.Name, icUtils.Revision(backend)),
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion: registry.GroupVersion.String(),
@@ -222,9 +220,7 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 		"MODEL_INFER_TEMPLATE_METADATA": &metav1.ObjectMeta{
 			Name:      utils.GetBackendResourceName(model.Name, backend.Name),
 			Namespace: model.Namespace,
-			Labels: map[string]string{
-				ModelInferOwnerKey: string(model.UID),
-			},
+			Labels:    utils.GetModelControllerLabels(model, backend.Name, icUtils.Revision(backend)),
 			// model owns model infer. ModelInfer will be deleted when the model is deleted
 			OwnerReferences: []metav1.OwnerReference{
 				{
@@ -243,9 +239,7 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 		"WORKER_ENV":       backend.Env,
 		"SERVER_REPLICAS":  workersMap[registry.ModelWorkerTypeServer].Replicas,
 		"SERVER_ENTRY_TEMPLATE_METADATA": &metav1.ObjectMeta{
-			Labels: map[string]string{
-				ModelInferOwnerKey: string(model.UID),
-			},
+			Labels: utils.GetModelControllerLabels(model, backend.Name, icUtils.Revision(backend)),
 		},
 		"SERVER_WORKER_TEMPLATE_METADATA": nil,
 		"VOLUMES": []*corev1.Volume{

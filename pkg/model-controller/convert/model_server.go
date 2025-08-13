@@ -24,6 +24,7 @@ import (
 	networking "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
+	icUtils "matrixinfer.ai/matrixinfer/pkg/infer-controller/utils"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
 )
 
@@ -67,6 +68,7 @@ func BuildModelServer(model *registry.Model) ([]*networking.ModelServer, error) 
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      utils.GetBackendResourceName(model.Name, backend.Name),
 				Namespace: model.Namespace,
+				Labels:    utils.GetModelControllerLabels(model, backend.Name, icUtils.Revision(model.Spec)),
 				OwnerReferences: []metav1.OwnerReference{
 					utils.NewModelOwnerRef(model),
 				},
@@ -76,7 +78,7 @@ func BuildModelServer(model *registry.Model) ([]*networking.ModelServer, error) 
 				InferenceEngine: inferenceEngine,
 				WorkloadSelector: &networking.WorkloadSelector{
 					MatchLabels: map[string]string{
-						"model.uid": string(model.UID),
+						utils.OwnerUIDKey: string(model.UID),
 					},
 					PDGroup: pdGroup,
 				},

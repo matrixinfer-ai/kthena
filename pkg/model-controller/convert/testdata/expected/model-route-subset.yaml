@@ -3,6 +3,12 @@ kind: ModelRoute
 metadata:
   name: multi-backend-model
   namespace: dev
+  labels:
+    registry.matrixinfer.ai/backend-name: ""
+    registry.matrixinfer.ai/managed-by: registry.matrixinfer.ai
+    registry.matrixinfer.ai/model-name: multi-backend-model
+    registry.matrixinfer.ai/model-uid: randomUID
+    registry.matrixinfer.ai/revision: 57b86db464
   ownerReferences:
     - apiVersion: registry.matrixinfer.ai/v1alpha1
       kind: Model
