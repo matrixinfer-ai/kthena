@@ -143,6 +143,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
+| `observedGeneration` _integer_ | observedGeneration is the most recent generation observed for ModelInfer. It corresponds to the<br />ModelInfer's generation, which is updated on mutation by the API Server. |  |  |
 | `replicas` _integer_ | Replicas track the total number of InferGroup that have been created (updated or not, ready or not) |  |  |
 | `currentReplicas` _integer_ | CurrentReplicas is the number of InferGroup created by the ModelInfer controller from the ModelInfer version |  |  |
 | `updatedReplicas` _integer_ | UpdatedReplicas track the number of InferGroup that have been updated (ready or not). |  |  |

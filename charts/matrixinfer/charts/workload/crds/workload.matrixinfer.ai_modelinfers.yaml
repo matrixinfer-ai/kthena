@@ -16840,6 +16840,12 @@ spec:
                   the ModelInfer controller from the ModelInfer version
                 format: int32
                 type: integer
+              observedGeneration:
+                description: |-
+                  observedGeneration is the most recent generation observed for ModelInfer. It corresponds to the
+                  ModelInfer's generation, which is updated on mutation by the API Server.
+                format: int64
+                type: integer
               replicas:
                 description: Replicas track the total number of InferGroup that have
                   been created (updated or not, ready or not)
