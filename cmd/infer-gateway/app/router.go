@@ -18,7 +18,6 @@ package app
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -30,10 +29,13 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/router"
 )
 
-const gracefulShutdownTimeout = 15 * time.Second
+const (
+	gracefulShutdownTimeout = 15 * time.Second
+	gatewayConfigFile       = "/etc/config/schedulerConfiguration.yaml"
+)
 
 func NewRouter(store datastore.Store) *router.Router {
-	return router.NewRouter(store)
+	return router.NewRouter(store, gatewayConfigFile)
 }
 
 // Starts router
@@ -103,38 +105,16 @@ func (s *Server) startRouter(ctx context.Context, router *router.Router) {
 
 func JWTAuthMiddleware(gwRouter *router.Router) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Authentication for "/v1/" only
+		// Auth for "/v1/" only
 		if !strings.HasPrefix(c.Request.URL.Path, "/v1/") {
 			c.Next()
 			return
 		}
 
-		modelRequest, err := router.ParseModelRequest(c)
-		if err != nil {
-			klog.Errorf("failed to parse model request: %v", err)
+		// Calling Middleware
+		gwRouter.Auth()(c)
+		if c.IsAborted() {
 			return
-		}
-		modelName := modelRequest["model"].(string)
-		if modelName == "" {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-				"error": "model name is required",
-			})
-			return
-		}
-
-		// Get modelServer
-		modelServer, err := gwRouter.GetModelServer(modelName, c.Request)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, fmt.Sprintf("failed to get model %s: %v", modelName, err))
-			return
-		}
-		klog.Infof("modelServer: %v", modelServer)
-		if len(modelServer.Spec.JWTRules) > 0 {
-			// Calling Middleware
-			gwRouter.Authenticate(modelServer.Spec.JWTRules)(c)
-			if c.IsAborted() {
-				return
-			}
 		}
 
 		c.Next()

@@ -20,8 +20,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/json"
-	"net/http"
-	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
@@ -30,181 +29,11 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jws"
 	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/stretchr/testify/assert"
+	"sigs.k8s.io/yaml"
 
-	networkingv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 )
-
-func TestExtractTokenFromHeader(t *testing.T) {
-	tests := []struct {
-		name          string
-		headers       map[string]string
-		jwtRule       networkingv1alpha1.JWTRule
-		expectedToken string
-		expectError   bool
-	}{
-		{
-			name: "Token found without prefix",
-			headers: map[string]string{
-				"Authorization": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
-			},
-			jwtRule: networkingv1alpha1.JWTRule{
-				FromHeader: networkingv1alpha1.JWTHeader{
-					Name: "Authorization",
-				},
-			},
-			expectedToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
-			expectError:   false,
-		},
-		{
-			name: "Token found with prefix",
-			headers: map[string]string{
-				"Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
-			},
-			jwtRule: networkingv1alpha1.JWTRule{
-				FromHeader: networkingv1alpha1.JWTHeader{
-					Name:   "Authorization",
-					Prefix: "Bearer ",
-				},
-			},
-			expectedToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
-			expectError:   false,
-		},
-		{
-			name: "Token not found - missing header",
-			headers: map[string]string{
-				"X-Custom": "value",
-			},
-			jwtRule: networkingv1alpha1.JWTRule{
-				FromHeader: networkingv1alpha1.JWTHeader{
-					Name: "Authorization",
-				},
-			},
-			expectedToken: "",
-			expectError:   true,
-		},
-		{
-			name: "Token not found - wrong prefix",
-			headers: map[string]string{
-				"Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
-			},
-			jwtRule: networkingv1alpha1.JWTRule{
-				FromHeader: networkingv1alpha1.JWTHeader{
-					Name:   "Authorization",
-					Prefix: "Token ",
-				},
-			},
-			expectedToken: "",
-			expectError:   true,
-		},
-		{
-			name: "Empty header value",
-			headers: map[string]string{
-				"Authorization": "",
-			},
-			jwtRule: networkingv1alpha1.JWTRule{
-				FromHeader: networkingv1alpha1.JWTHeader{
-					Name: "Authorization",
-				},
-			},
-			expectedToken: "",
-			expectError:   true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/", nil)
-			for key, value := range tt.headers {
-				req.Header.Set(key, value)
-			}
-			token, err := extractTokenFromHeader(req, tt.jwtRule)
-			if tt.expectError {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.expectedToken, token)
-			}
-		})
-	}
-}
-
-func TestExtractTokenFromParam(t *testing.T) {
-	tests := []struct {
-		name          string
-		url           string
-		jwtRule       networkingv1alpha1.JWTRule
-		expectedToken string
-		expectError   bool
-	}{
-		{
-			name: "Token found in query parameter",
-			url:  "/test?access_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
-			jwtRule: networkingv1alpha1.JWTRule{
-				FromParam: "access_token",
-			},
-			expectedToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
-			expectError:   false,
-		},
-		{
-			name: "Token found in different parameter name",
-			url:  "/test?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
-			jwtRule: networkingv1alpha1.JWTRule{
-				FromParam: "jwt",
-			},
-			expectedToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
-			expectError:   false,
-		},
-		{
-			name: "Token not found - missing parameter",
-			url:  "/test?other_param=value",
-			jwtRule: networkingv1alpha1.JWTRule{
-				FromParam: "access_token",
-			},
-			expectedToken: "",
-			expectError:   true,
-		},
-		{
-			name: "Token not found - empty parameter value",
-			url:  "/test?access_token=",
-			jwtRule: networkingv1alpha1.JWTRule{
-				FromParam: "access_token",
-			},
-			expectedToken: "",
-			expectError:   true,
-		},
-		{
-			name: "Multiple parameters with correct one present",
-			url:  "/test?other=value&access_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&another=test",
-			jwtRule: networkingv1alpha1.JWTRule{
-				FromParam: "access_token",
-			},
-			expectedToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
-			expectError:   false,
-		},
-		{
-			name: "Parameter not present in URL with query string",
-			url:  "/test?param1=value1&param2=value2",
-			jwtRule: networkingv1alpha1.JWTRule{
-				FromParam: "access_token",
-			},
-			expectedToken: "",
-			expectError:   true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, tt.url, nil)
-			token, err := extractTokenFromParam(req, tt.jwtRule)
-			if tt.expectError {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.expectedToken, token)
-			}
-		})
-	}
-}
 
 func TestJWTValidatorParseJWKS(t *testing.T) {
 	validJWKS := `{
@@ -276,82 +105,111 @@ func TestJWTValidatorParseJWKS(t *testing.T) {
 			} else {
 				assert.NoError(t, err, "Expected no error")
 				assert.NotNil(t, keySet, "Expected non-nil keySet")
-
-				// validate return type
-				_, ok := (*keySet).(jwk.Set)
-				assert.True(t, ok, "Expected result to be of type *jwk.Set")
 			}
 		})
 	}
 }
 
 func TestJWTValidatorValidateIssuer(t *testing.T) {
-	tokenWithIssuer, err := jwt.NewBuilder().
+	tokenWithValidIssuer, err := jwt.NewBuilder().
 		Issuer("valid-issuer").
 		Build()
-	assert.NoError(t, err, "Failed to build token with issuer")
+	assert.NoError(t, err, "Failed to build token with valid issuer")
+
+	tokenWithInvalidIssuer, err := jwt.NewBuilder().
+		Issuer("invalid-issuer").
+		Build()
+	assert.NoError(t, err, "Failed to build token with invalid issuer")
 
 	tokenWithoutIssuer, err := jwt.NewBuilder().
 		Subject("test-subject").
 		Build()
 	assert.NoError(t, err, "Failed to build token without issuer")
 
-	ruleWithIssuer := networkingv1alpha1.JWTRule{
-		Issuer: "valid-issuer",
-	}
-
-	ruleWithDifferentIssuer := networkingv1alpha1.JWTRule{
-		Issuer: "different-issuer",
-	}
-
-	ruleWithoutIssuer := networkingv1alpha1.JWTRule{
-		Issuer: "",
-	}
+	tokenWithEmptyIssuer, err := jwt.NewBuilder().
+		Issuer("").
+		Build()
+	assert.NoError(t, err, "Failed to build token with empty issuer")
 
 	tests := []struct {
-		name        string
-		token       jwt.Token
-		rule        networkingv1alpha1.JWTRule
-		expectError bool
-		errorMsg    string
+		name           string
+		token          jwt.Token
+		expectedIssuer string
+		auth           conf.AuthenticationConfig
+		expectError    bool
+		errorMsg       string
 	}{
 		{
-			name:        "Valid issuer match",
-			token:       tokenWithIssuer,
-			rule:        ruleWithIssuer,
+			name:           "Valid issuer match",
+			token:          tokenWithValidIssuer,
+			expectedIssuer: "valid-issuer",
+			auth: conf.AuthenticationConfig{
+				Issuer:  "valid-issuer",
+				JwksUri: "https://raw.githubusercontent.com/istio/istio/release-1.27/security/tools/jwt/samples/jwks.json",
+			},
 			expectError: false,
 		},
 		{
-			name:        "Invalid issuer - mismatch",
-			token:       tokenWithIssuer,
-			rule:        ruleWithDifferentIssuer,
+			name:           "Invalid issuer - mismatch",
+			token:          tokenWithInvalidIssuer,
+			expectedIssuer: "valid-issuer",
+			auth: conf.AuthenticationConfig{
+				Issuer:  "valid-issuer",
+				JwksUri: "https://raw.githubusercontent.com/istio/istio/release-1.27/security/tools/jwt/samples/jwks.json",
+			},
 			expectError: true,
-			errorMsg:    "invalid issuer: expected different-issuer, got valid-issuer",
+			errorMsg:    "invalid issuer: expected valid-issuer, got invalid-issuer",
 		},
 		{
-			name:        "Invalid issuer - missing in token",
-			token:       tokenWithoutIssuer,
-			rule:        ruleWithIssuer,
+			name:           "Invalid issuer - missing in token",
+			token:          tokenWithoutIssuer,
+			expectedIssuer: "valid-issuer",
+			auth: conf.AuthenticationConfig{
+				Issuer:  "valid-issuer",
+				JwksUri: "https://raw.githubusercontent.com/istio/istio/release-1.27/security/tools/jwt/samples/jwks.json",
+			},
 			expectError: true,
 			errorMsg:    "invalid issuer: expected valid-issuer, got ",
 		},
 		{
-			name:        "No issuer validation required",
-			token:       tokenWithIssuer,
-			rule:        ruleWithoutIssuer,
-			expectError: false,
+			name:           "Invalid issuer - empty in token",
+			token:          tokenWithEmptyIssuer,
+			expectedIssuer: "valid-issuer",
+			auth: conf.AuthenticationConfig{
+				Issuer:  "valid-issuer",
+				JwksUri: "https://raw.githubusercontent.com/istio/istio/release-1.27/security/tools/jwt/samples/jwks.json",
+			},
+			expectError: true,
+			errorMsg:    "invalid issuer: expected valid-issuer, got ",
 		},
 		{
-			name:        "No issuer validation required and missing in token",
-			token:       tokenWithoutIssuer,
-			rule:        ruleWithoutIssuer,
-			expectError: false,
+			name:           "Empty expected issuer with valid token issuer",
+			token:          tokenWithValidIssuer,
+			expectedIssuer: "",
+			auth: conf.AuthenticationConfig{
+				Issuer:  "",
+				JwksUri: "https://raw.githubusercontent.com/istio/istio/release-1.27/security/tools/jwt/samples/jwks.json",
+			},
+			expectError: true,
+			errorMsg:    "invalid issuer: expected , got valid-issuer",
 		},
 	}
-	jwtValidator := &JWTValidator{}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := jwtValidator.validateIssuer(tt.token, tt.rule)
+			store := datastore.New()
+			jwtValidator := &JWTValidator{
+				cache: store,
+			}
+			gatewayConf := &conf.GatewayConfiguration{
+				Auth: tt.auth,
+			}
+			wrtieAuthConfigToFile(t, "auth_config.yaml", gatewayConf)
+			defer os.Remove("auth_config.yaml")
+
+			jwtValidator.cache.FlushJwks("auth_config.yaml")
+			err := jwtValidator.validateIssuer(tt.token)
+
 			if tt.expectError {
 				assert.Error(t, err, "Expected an error")
 				if tt.errorMsg != "" {
@@ -385,89 +243,178 @@ func TestJWTValidatorValidateAudiences(t *testing.T) {
 		Build()
 	assert.NoError(t, err, "Failed to build token without audience")
 
-	ruleWithSingleAudience := networkingv1alpha1.JWTRule{
-		Audiences: []string{"valid-audience"},
-	}
-
-	ruleWithMultipleAudiences := networkingv1alpha1.JWTRule{
-		Audiences: []string{"audience1", "audience2"},
-	}
-
-	ruleWithNonMatchingAudience := networkingv1alpha1.JWTRule{
-		Audiences: []string{"different-audience"},
-	}
-
-	ruleWithoutAudiences := networkingv1alpha1.JWTRule{
-		Audiences: []string{},
-	}
+	tokenWithEmptyAudience, err := jwt.NewBuilder().
+		Audience([]string{""}).
+		Build()
+	assert.NoError(t, err, "Failed to build token with empty audience")
 
 	tests := []struct {
-		name        string
-		token       jwt.Token
-		rule        networkingv1alpha1.JWTRule
-		expectError bool
-		errorMsg    string
+		name              string
+		token             jwt.Token
+		expectedAudiences []string
+		auth              conf.AuthenticationConfig
+		expectError       bool
+		errorMsg          string
 	}{
 		{
-			name:        "Valid single audience match",
-			token:       tokenWithSingleAudience,
-			rule:        ruleWithSingleAudience,
+			name:              "Valid single audience match",
+			token:             tokenWithSingleAudience,
+			expectedAudiences: []string{"valid-audience"},
+			auth: conf.AuthenticationConfig{
+				JwksUri:   "https://raw.githubusercontent.com/istio/istio/release-1.27/security/tools/jwt/samples/jwks.json",
+				Audiences: []string{"valid-audience"},
+			},
 			expectError: false,
 		},
 		{
-			name:        "Valid single audience match (string type)",
-			token:       tokenWithSingleAudienceAsInterface,
-			rule:        ruleWithSingleAudience,
+			name:              "Valid single audience match (string type)",
+			token:             tokenWithSingleAudienceAsInterface,
+			expectedAudiences: []string{"valid-audience"},
+			auth: conf.AuthenticationConfig{
+				JwksUri:   "https://raw.githubusercontent.com/istio/istio/release-1.27/security/tools/jwt/samples/jwks.json",
+				Audiences: []string{"valid-audience"},
+			},
 			expectError: false,
 		},
 		{
-			name:        "Valid multiple audiences match (first)",
-			token:       tokenWithMultipleAudiences,
-			rule:        ruleWithMultipleAudiences,
+			name:              "Valid multiple audiences match (first)",
+			token:             tokenWithMultipleAudiences,
+			expectedAudiences: []string{"audience1", "audience2"},
+			auth: conf.AuthenticationConfig{
+				JwksUri:   "https://raw.githubusercontent.com/istio/istio/release-1.27/security/tools/jwt/samples/jwks.json",
+				Audiences: []string{"audience1", "audience2"},
+			},
 			expectError: false,
 		},
 		{
-			name:        "Valid multiple audiences match (second)",
-			token:       tokenWithMultipleAudiences,
-			rule:        networkingv1alpha1.JWTRule{Audiences: []string{"audience3"}},
+			name:              "Valid multiple audiences match (second)",
+			token:             tokenWithMultipleAudiences,
+			expectedAudiences: []string{"audience3"},
+			auth: conf.AuthenticationConfig{
+				JwksUri:   "https://raw.githubusercontent.com/istio/istio/release-1.27/security/tools/jwt/samples/jwks.json",
+				Audiences: []string{"audience3"},
+			},
 			expectError: false,
 		},
 		{
-			name:        "Invalid audience - no match",
-			token:       tokenWithSingleAudience,
-			rule:        ruleWithNonMatchingAudience,
+			name:              "Invalid audience - no match",
+			token:             tokenWithSingleAudience,
+			expectedAudiences: []string{"different-audience"},
+			auth: conf.AuthenticationConfig{
+				JwksUri:   "https://raw.githubusercontent.com/istio/istio/release-1.27/security/tools/jwt/samples/jwks.json",
+				Audiences: []string{"different-audience"},
+			},
 			expectError: true,
 			errorMsg:    "audience mismatch: expected one of [different-audience], got [valid-audience]",
 		},
 		{
-			name:        "Invalid audience - missing in token",
-			token:       tokenWithoutAudience,
-			rule:        ruleWithSingleAudience,
+			name:              "Invalid audience - missing in token",
+			token:             tokenWithoutAudience,
+			expectedAudiences: []string{"valid-audience"},
+			auth: conf.AuthenticationConfig{
+				JwksUri:   "https://raw.githubusercontent.com/istio/istio/release-1.27/security/tools/jwt/samples/jwks.json",
+				Audiences: []string{"valid-audience"},
+			},
 			expectError: true,
 			errorMsg:    "audience claim missing",
 		},
 		{
-			name:        "No audience validation required",
-			token:       tokenWithSingleAudience,
-			rule:        ruleWithoutAudiences,
+			name:              "Empty expected audiences",
+			token:             tokenWithSingleAudience,
+			expectedAudiences: []string{},
+			auth: conf.AuthenticationConfig{
+				JwksUri:   "https://raw.githubusercontent.com/istio/istio/release-1.27/security/tools/jwt/samples/jwks.json",
+				Audiences: []string{},
+			},
+			expectError: true,
+			errorMsg:    "audience mismatch: expected one of [], got [valid-audience]",
+		},
+		{
+			name:              "Empty audience in token",
+			token:             tokenWithEmptyAudience,
+			expectedAudiences: []string{""},
+			auth: conf.AuthenticationConfig{
+				JwksUri:   "https://raw.githubusercontent.com/istio/istio/release-1.27/security/tools/jwt/samples/jwks.json",
+				Audiences: []string{""},
+			},
 			expectError: false,
 		},
 		{
-			name:        "No audience validation required and missing in token",
-			token:       tokenWithoutAudience,
-			rule:        ruleWithoutAudiences,
+			name:              "Multiple expected audiences with match",
+			token:             tokenWithSingleAudience,
+			expectedAudiences: []string{"other-audience", "valid-audience", "another-audience"},
+			auth: conf.AuthenticationConfig{
+				JwksUri:   "https://raw.githubusercontent.com/istio/istio/release-1.27/security/tools/jwt/samples/jwks.json",
+				Audiences: []string{"other-audience", "valid-audience", "another-audience"},
+			},
 			expectError: false,
 		},
+		{
+			name:              "Token with empty audience array",
+			token:             tokenWithEmptyAudience,
+			expectedAudiences: []string{"expected-audience"},
+			auth: conf.AuthenticationConfig{
+				JwksUri:   "https://raw.githubusercontent.com/istio/istio/release-1.27/security/tools/jwt/samples/jwks.json",
+				Audiences: []string{"expected-audience"},
+			},
+			expectError: true,
+			errorMsg:    "audience mismatch: expected one of [expected-audience], got []",
+		},
+		{
+			name: "Special characters in audience",
+			token: func() jwt.Token {
+				token, _ := jwt.NewBuilder().
+					Audience([]string{"https://api.example.com", "api://internal"}).
+					Build()
+				return token
+			}(),
+			expectedAudiences: []string{"https://api.example.com"},
+			auth: conf.AuthenticationConfig{
+				JwksUri:   "https://raw.githubusercontent.com/istio/istio/release-1.27/security/tools/jwt/samples/jwks.json",
+				Audiences: []string{"https://api.example.com"},
+			},
+			expectError: false,
+		},
+		{
+			name: "Case sensitive audience comparison",
+			token: func() jwt.Token {
+				token, _ := jwt.NewBuilder().
+					Audience([]string{"Test-Audience"}).
+					Build()
+				return token
+			}(),
+			expectedAudiences: []string{"test-audience"},
+			auth: conf.AuthenticationConfig{
+				JwksUri:   "https://raw.githubusercontent.com/istio/istio/release-1.27/security/tools/jwt/samples/jwks.json",
+				Audiences: []string{"test-audience"},
+			},
+			expectError: true,
+			errorMsg:    "audience mismatch: expected one of [test-audience], got [Test-Audience]",
+		},
 	}
-	jwtValidator := &JWTValidator{}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := jwtValidator.validateAudiences(tt.token, tt.rule)
+			store := datastore.New()
+			jwtValidator := &JWTValidator{
+				cache: store,
+			}
+			gatewayConf := &conf.GatewayConfiguration{
+				Auth: tt.auth,
+			}
+			wrtieAuthConfigToFile(t, "auth_config.yaml", gatewayConf)
+			defer os.Remove("auth_config.yaml")
+
+			jwtValidator.cache.FlushJwks("auth_config.yaml")
+			err := jwtValidator.validateAudiences(tt.token)
+
 			if tt.expectError {
-				assert.Error(t, err)
+				assert.Error(t, err, "Expected an error")
+				if tt.errorMsg != "" {
+					assert.EqualError(t, err, tt.errorMsg, "Error message should match expected")
+				}
 			} else {
-				assert.NoError(t, err)
+				assert.NoError(t, err, "Expected no error")
 			}
 		})
 	}
@@ -846,8 +793,7 @@ func TestJWTValidatorValidateIssuedAt(t *testing.T) {
 	}
 }
 
-func TestJWTValidator_ParseAndValidateToken_RealIstioData(t *testing.T) {
-
+func TestJWTValidatorParseAndValidateTokenRealIstioData(t *testing.T) {
 	jwtToken := "eyJhbGciOiJSUzI1NiIsImtpZCI6IkRIRmJwb0lVcXJZOHQyenBBMnFYZkNtcjVWTzVaRXI0UnpIVV8tZW52dlEiLCJ0eXAiOiJKV1QifQ.eyJleHAiOjQ2ODU5ODk3MDAsImZvbyI6ImJhciIsImlhdCI6MTUzMjM4OTcwMCwiaXNzIjoidGVzdGluZ0BzZWN1cmUuaXN0aW8uaW8iLCJzdWIiOiJ0ZXN0aW5nQHNlY3VyZS5pc3Rpby5pbyJ9.CfNnxWP2tcnR9q0vxyxweaF3ovQYHYZl82hAUsn21bwQd9zP7c-LS9qd_vpdLG4Tn1A15NxfCjp5f7QNBUo-KC9PJqYpgGbaXhaGx7bEdFWjcwv3nZzvc7M__ZpaCERdwU7igUmJqYGBYQ51vr2njU9ZimyKkfDe3axcyiBZde7G6dabliUosJvvKOPcKIWPccCgefSj_GNfwIip3-SsFdlR7BtbVUcqR-yv-XOxJ3Uc1MI0tz3uMiiZcyPV7sNCU4KRnemRIMHVOfuvHsU60_GhGbiSFzgPTAa9WTltbnarTbxudb_YEOx12JiwYToeX0DCPb43W1tzIBxgm8NxUg"
 
 	jwks := `{
@@ -894,4 +840,11 @@ func TestJwTParse(t *testing.T) {
 
 	_, err = jwt.Parse(signed, jwt.WithKeySet(keySet))
 	assert.NoError(t, err, "Failed to parse signed token")
+}
+
+func wrtieAuthConfigToFile(t *testing.T, filePath string, config *conf.GatewayConfiguration) {
+	data, err := yaml.Marshal(config)
+	assert.NoError(t, err, "Failed to marshal gatewayConfiguration")
+	err = os.WriteFile(filePath, data, 0644)
+	assert.NoError(t, err, "Failed to write gatewayConfiguration to file")
 }

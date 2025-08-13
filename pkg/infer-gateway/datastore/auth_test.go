@@ -20,20 +20,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 )
 
 func TestStoreFetchJwksRealURL(t *testing.T) {
 	store := New()
 
-	jwtRule := aiv1alpha1.JWTRule{
-		JwksURI: "https://raw.githubusercontent.com/istio/istio/release-1.27/security/tools/jwt/samples/jwks.json",
-	}
-
-	err := store.FetchJwks(jwtRule)
-	assert.NoError(t, err)
-	cachedJwks := store.GetJwks(jwtRule.JwksURI)
-	assert.NotNil(t, cachedJwks.Jwks, "JWKS should be stored in cache")
-	assert.NotZero(t, cachedJwks.LastFreshTime, "LastFreshTime should be set")
+	store.FlushJwks("../utils/testdata/configmap-jwt.yaml")
+	cachedJwks := store.GetJwks()
+	assert.NotNil(t, cachedJwks, "JWKS should be stored in cache")
 }

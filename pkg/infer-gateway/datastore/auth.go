@@ -18,105 +18,58 @@ package datastore
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/lestrrat-go/jwx/v3/jwk"
-	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
+	"k8s.io/klog/v2"
+
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 )
 
 type Jwks struct {
 	Jwks          jwk.Set
+	Audiences     []string
+	Issuer        string
 	ExpiredTime   time.Duration
 	LastFreshTime time.Time
 }
 
-func (s *store) GetJwks(jwksURI string) *Jwks {
-	if cached, ok := s.jwksCache.Load(jwksURI); ok {
-		if keySet, ok := cached.(*Jwks); ok {
-			return keySet
-		}
-	}
-
-	return nil
-}
-
-func (s *store) FetchJwks(rule aiv1alpha1.JWTRule) error {
-	if rule.JwksURI == "" {
+func NewJwks(configMapPath string) *Jwks {
+	gatewayConfig, err := conf.ParseGatewayConfig(configMapPath)
+	if err != nil {
+		klog.Fatalf("failed to parse gateway config: %v", err)
 		return nil
 	}
-
-	keySet, err := jwk.Fetch(context.Background(), rule.JwksURI)
-	fmt.Printf("jwks is %#v", keySet)
+	if gatewayConfig == nil {
+		klog.Error("gateway config is nil")
+		return nil
+	}
+	keySet, err := jwk.Fetch(context.Background(), gatewayConfig.Auth.JwksUri)
 	if err != nil {
-		return err
+		klog.Errorf("failed to fetch JWKS from %s: %v", gatewayConfig.Auth.JwksUri, err)
+		return nil
 	}
+	return &Jwks{
+		Jwks:          keySet,
+		Audiences:     gatewayConfig.Auth.Audiences,
+		Issuer:        gatewayConfig.Auth.Issuer,
+		ExpiredTime:   time.Hour * 24 * 7, // Default to 7 days
+		LastFreshTime: time.Now(),
+	}
+}
 
-	if rule.JwksExpiredTime == nil {
-		s.jwksCache.Store(rule.JwksURI, &Jwks{
-			Jwks:          keySet,
-			ExpiredTime:   time.Hour * 24 * 7,
-			LastFreshTime: time.Now(),
-		})
+func (s *store) GetJwks() *Jwks {
+	return s.jwksCache
+}
+
+func (s *store) FlushJwks(configMapPath string) {
+	// This function is used to refresh the JWKS cache.
+	// It can be called periodically or when a specific event occurs.
+	newJwks := NewJwks(configMapPath)
+	if newJwks != nil {
+		s.jwksCache = newJwks
+		klog.V(4).Infof("JWKS cache refreshed successfully")
 	} else {
-		s.jwksCache.Store(rule.JwksURI, &Jwks{
-			Jwks:          keySet,
-			ExpiredTime:   rule.JwksExpiredTime.Duration,
-			LastFreshTime: time.Now(),
-		})
-	}
-
-	s.jwksCache.Range(func(key, value any) bool {
-		fmt.Printf("key: %s, value: %v", key, value)
-		if _, ok := value.(Jwks); ok {
-			fmt.Printf("\n=========== success ===========\n")
-			return true
-		}
-		return false
-	})
-
-	return nil
-}
-
-func (s *store) DeleteJwks(ms *aiv1alpha1.ModelServer) {
-	if len(ms.Spec.JWTRules) == 0 {
-		return
-	}
-
-	for _, rule := range ms.Spec.JWTRules {
-		if rule.JwksURI != "" {
-			s.jwksCache.Delete(rule.JwksURI)
-		}
-	}
-}
-
-func (s *store) updateJwks(oldMs, newMs *aiv1alpha1.ModelServer) {
-	if oldMs == nil {
-		if len(newMs.Spec.JWTRules) == 0 {
-			return
-		}
-
-		for _, rule := range newMs.Spec.JWTRules {
-			if rule.JwksURI != "" {
-				go s.FetchJwks(rule)
-			}
-		}
-		return
-	}
-
-	if len(oldMs.Spec.JWTRules) != 0 {
-		for _, oldRule := range oldMs.Spec.JWTRules {
-			if oldRule.JwksURI != "" {
-				s.jwksCache.Delete(oldRule.JwksURI)
-			}
-		}
-	}
-
-	if len(newMs.Spec.JWTRules) != 0 {
-		for _, newRule := range newMs.Spec.JWTRules {
-			if newRule.JwksURI != "" {
-				go s.FetchJwks(newRule)
-			}
-		}
+		klog.Error("Failed to refresh JWKS cache")
 	}
 }

@@ -125,9 +125,8 @@ type Store interface {
 	GetRequestWaitingQueueStats() []QueueStat
 
 	// jwks cache methods
-	GetJwks(jwksURI string) *Jwks
-	FetchJwks(rule aiv1alpha1.JWTRule) error
-	DeleteJwks(ms *aiv1alpha1.ModelServer)
+	GetJwks() *Jwks
+	FlushJwks(configMapPath string)
 }
 
 // QueueStat holds per-model queue metrics to aid scheduling decisions
@@ -169,7 +168,7 @@ type modelRouteInfo struct {
 }
 
 type store struct {
-	jwksCache   sync.Map // map[string]*jwk.Set
+	jwksCache   *Jwks    // map[string]*jwk.Set
 	modelServer sync.Map // map[types.NamespacedName]*modelServer
 	pods        sync.Map // map[types.NamespacedName]*PodInfo
 
@@ -191,7 +190,7 @@ type store struct {
 
 func New() Store {
 	return &store{
-		jwksCache:           sync.Map{},
+		jwksCache:           &Jwks{},
 		modelServer:         sync.Map{},
 		pods:                sync.Map{},
 		routeInfo:           make(map[string]*modelRouteInfo),
@@ -288,17 +287,8 @@ func (s *store) AddOrUpdateModelServer(ms *aiv1alpha1.ModelServer, pods sets.Set
 	var modelServerObj *modelServer
 	if value, ok := s.modelServer.Load(name); !ok {
 		modelServerObj = newModelServer(ms)
-		if len(ms.Spec.JWTRules) != 0 {
-			for _, rule := range ms.Spec.JWTRules {
-				if rule.JwksURI != "" {
-					s.FetchJwks(rule)
-				}
-			}
-
-		}
 	} else {
 		modelServerObj = value.(*modelServer)
-		s.updateJwks(modelServerObj.modelServer, ms)
 		modelServerObj.modelServer = ms
 	}
 
@@ -316,10 +306,6 @@ func (s *store) DeleteModelServer(ms types.NamespacedName) error {
 		return nil
 	}
 	modelServerObj := value.(*modelServer)
-	// delete jwks if modelserver has jwtRules
-	if len(modelServerObj.modelServer.Spec.JWTRules) != 0 {
-		s.DeleteJwks(modelServerObj.modelServer)
-	}
 	podNames := modelServerObj.getPods()
 	// then delete the model server from all pod info
 	for _, podName := range podNames {
@@ -698,7 +684,7 @@ func (s *store) updatePodModels(podInfo *PodInfo) {
 
 	models, err := backend.GetPodModels(podInfo.engine, podInfo.Pod)
 	if err != nil {
-		// klog.Errorf("failed to get models of pod %s/%s", podInfo.Pod.GetNamespace(), podInfo.Pod.GetName())
+		klog.V(4).Infof("failed to get models of pod %s/%s", podInfo.Pod.GetNamespace(), podInfo.Pod.GetName())
 	}
 
 	podInfo.UpdateModels(models)

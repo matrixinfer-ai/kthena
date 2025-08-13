@@ -59,7 +59,7 @@ type Router struct {
 	connectorFactory *connectors.Factory
 }
 
-func NewRouter(store datastore.Store) *Router {
+func NewRouter(store datastore.Store, gatewayConfigPath string) *Router {
 	loadRateLimiter := ratelimit.NewRateLimiter()
 	store.RegisterCallback("ModelRoute", func(data datastore.EventData) {
 		switch data.EventType {
@@ -77,7 +77,7 @@ func NewRouter(store datastore.Store) *Router {
 
 	return &Router{
 		store:            store,
-		scheduler:        scheduler.NewScheduler(store),
+		scheduler:        scheduler.NewScheduler(store, gatewayConfigPath),
 		authValidator:    *auth.NewJWTValidator(store),
 		loadRateLimiter:  loadRateLimiter,
 		connectorFactory: connectors.NewDefaultFactory(),
@@ -290,8 +290,8 @@ func (r *Router) GetModelServer(modelName string, req *http.Request) (*v1alpha1.
 	return modelServer, nil
 }
 
-func (r *Router) Authenticate(jwtRules []v1alpha1.JWTRule) gin.HandlerFunc {
-	return r.authValidator.Authenticate(jwtRules)
+func (r *Router) Auth() gin.HandlerFunc {
+	return r.authValidator.Authenticate()
 }
 
 // proxyRequest proxies the request to the model server pods, returns response to downstream.
