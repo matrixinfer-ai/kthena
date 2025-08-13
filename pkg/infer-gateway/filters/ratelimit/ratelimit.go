@@ -33,6 +33,18 @@ func (e RateLimitExceededError) Error() string {
 	return "rate limit exceeded"
 }
 
+type InputRateLimitExceededError struct{}
+
+func (e InputRateLimitExceededError) Error() string {
+	return "input token rate limit exceeded"
+}
+
+type OutputRateLimitExceededError struct{}
+
+func (e OutputRateLimitExceededError) Error() string {
+	return "output token rate limit exceeded"
+}
+
 type TokenRateLimiter struct {
 	mutex sync.RWMutex
 	// ratelimiter by model
@@ -51,35 +63,48 @@ func NewRateLimiter() *TokenRateLimiter {
 
 func (r *TokenRateLimiter) RateLimit(model, prompt string) error {
 	r.mutex.RLock()
-	limiter, exists := r.inputLimiter[model]
+	inputLimiter, hasInputLimit := r.inputLimiter[model]
+	outputLimiter, hasOutputLimit := r.outputLimiter[model]
 	r.mutex.RUnlock()
-	if !exists {
-		return nil
+
+	// Check input token rate limit
+	if hasInputLimit {
+		size, err := r.tokenizer.CalculateTokenNum(prompt)
+		if err != nil {
+			return err
+		}
+		if !inputLimiter.AllowN(time.Now(), size) {
+			return &InputRateLimitExceededError{}
+		}
 	}
 
-	size, err := r.tokenizer.CalculateTokenNum(prompt)
-	if err != nil {
-		return err
+	// Check if output rate limit has any capacity left
+	// We check if there are enough tokens for a typical output (assume at least 1 token needed)
+	// This is conservative - we only block if there's no capacity at all
+	if hasOutputLimit && outputLimiter.Tokens() < 1.0 {
+		return &OutputRateLimitExceededError{}
 	}
-	if limiter.AllowN(time.Now(), size) {
-		return nil
-	}
-	return &RateLimitExceededError{}
+
+	return nil
 }
 
-// RateLimitOutputTokens checks output token rate limit for a model using token count directly
-func (r *TokenRateLimiter) RateLimitOutputTokens(model string, tokenCount int) error {
+// RecordOutputTokens records the actual output tokens consumed after response generation
+// This should be called after getting the response with completion_tokens
+func (r *TokenRateLimiter) RecordOutputTokens(model string, tokenCount int) {
+	if tokenCount <= 0 {
+		return
+	}
+
 	r.mutex.RLock()
 	limiter, exists := r.outputLimiter[model]
 	r.mutex.RUnlock()
+
 	if !exists {
-		return nil
+		return
 	}
 
-	if limiter.AllowN(time.Now(), tokenCount) {
-		return nil
-	}
-	return &RateLimitExceededError{}
+	// Consume the actual tokens that were used
+	limiter.AllowN(time.Now(), tokenCount)
 }
 
 func (r *TokenRateLimiter) AddOrUpdateLimiter(model string, ratelimit *networkingv1alpha1.RateLimit) {
