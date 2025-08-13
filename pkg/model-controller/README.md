@@ -29,6 +29,9 @@ name of the generated `Model Server` will be `test-model-backend1` and `test-mod
 name of the generated `Model Route` will be `test-model`. If `AutoscalingPolicy` is defined in the model level, the name
 will be `test-model`, otherwise the name will be `test-model-backend1` and `test-model-backend2`.
 
+### Descriptions of Model CR
+You can find descriptions of `Model` CR [here](https://github.com/matrixinfer-ai/matrixinfer/blob/main/docs/matrixinfer/docs/crd/registry.matrixinfer.ai.md)
+
 ### Conditions of Model CR
 
 `Model` CR has several conditions that indicate the status of the model. These conditions are:
