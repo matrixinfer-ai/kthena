@@ -22,7 +22,6 @@ package v1alpha1
 // with apply.
 type ModelBackendStatusApplyConfiguration struct {
 	Name     *string `json:"name,omitempty"`
-	Hash     *string `json:"hash,omitempty"`
 	Replicas *int32  `json:"replicas,omitempty"`
 }
 
@@ -37,14 +36,6 @@ func ModelBackendStatus() *ModelBackendStatusApplyConfiguration {
 // If called multiple times, the Name field is set to the value of the last call.
 func (b *ModelBackendStatusApplyConfiguration) WithName(value string) *ModelBackendStatusApplyConfiguration {
 	b.Name = &value
-	return b
-}
-
-// WithHash sets the Hash field in the declarative configuration to the given value
-// and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the Hash field is set to the value of the last call.
-func (b *ModelBackendStatusApplyConfiguration) WithHash(value string) *ModelBackendStatusApplyConfiguration {
-	b.Hash = &value
 	return b
 }
 

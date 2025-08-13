@@ -208,18 +208,12 @@ const (
 	ModelStatusConditionTypeInitialized ModelStatusConditionType = "Initialized"
 	ModelStatusConditionTypeActive      ModelStatusConditionType = "Active"
 	ModelStatusConditionTypeFailed      ModelStatusConditionType = "Failed"
-	ModelNameLabelKey                                            = "registry.matrixinfer.ai/model-name"
-	BackendNameLabelKey                                          = "registry.matrixinfer.ai/backend-name"
-	ManageBy                                                     = "registry.matrixinfer.ai/managed-by"
-	RevisionLabelKey                                             = "registry.matrixinfer.ai/revision"
 )
 
 // ModelBackendStatus defines the status of a model backend.
 type ModelBackendStatus struct {
 	// Name is the name of the backend.
 	Name string `json:"name"`
-	// Hash is a hash representing the backend configuration.
-	Hash string `json:"hash"`
 	// Replicas is the number of replicas currently running for the backend.
 	Replicas int32 `json:"replicas"`
 }

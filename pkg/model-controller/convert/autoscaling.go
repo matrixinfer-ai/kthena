@@ -33,7 +33,7 @@ func BuildAutoscalingPolicy(autoscalingConfig *registry.AutoscalingPolicySpec, m
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   utils.GetBackendResourceName(model.Name, backendName),
-			Labels: utils.GetModelControllerLabels(model.Name, backendName, icUtils.Revision(*autoscalingConfig)),
+			Labels: utils.GetModelControllerLabels(model, backendName, icUtils.Revision(*autoscalingConfig)),
 			OwnerReferences: []metav1.OwnerReference{
 				utils.NewModelOwnerRef(model),
 			},
@@ -68,7 +68,7 @@ func BuildPolicyBindingMeta(spec *registry.AutoscalingPolicyBindingSpec, model *
 	return &metav1.ObjectMeta{
 		Name:      name,
 		Namespace: model.Namespace,
-		Labels:    utils.GetModelControllerLabels(model.Name, backendName, icUtils.Revision(spec)),
+		Labels:    utils.GetModelControllerLabels(model, backendName, icUtils.Revision(spec)),
 		OwnerReferences: []metav1.OwnerReference{
 			utils.NewModelOwnerRef(model),
 		},

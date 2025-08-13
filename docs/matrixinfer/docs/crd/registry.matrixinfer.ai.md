@@ -357,7 +357,6 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `name` _string_ | Name is the name of the backend. |  |  |
-| `hash` _string_ | Hash is a hash representing the backend configuration. |  |  |
 | `replicas` _integer_ | Replicas is the number of replicas currently running for the backend. |  |  |
 
 

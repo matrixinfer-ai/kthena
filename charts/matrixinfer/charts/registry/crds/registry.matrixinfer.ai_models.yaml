@@ -1705,9 +1705,6 @@ spec:
                 items:
                   description: ModelBackendStatus defines the status of a model backend.
                   properties:
-                    hash:
-                      description: Hash is a hash representing the backend configuration.
-                      type: string
                     name:
                       description: Name is the name of the backend.
                       type: string
@@ -1717,7 +1714,6 @@ spec:
                       format: int32
                       type: integer
                   required:
-                  - hash
                   - name
                   - replicas
                   type: object
