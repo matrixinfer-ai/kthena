@@ -23,11 +23,19 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"matrixinfer.ai/matrixinfer/client-go/clientset/versioned/fake"
 	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
 
-func TestValidateAutoscalingBinding_OptimizeAndScalingConfigBothNotExist(t *testing.T) {
-	validator := &AutoscalingBindingValidator{}
+func TestValidateAutoscalingBinding(t *testing.T) {
+	fakeClient := fake.NewSimpleClientset(&registryv1alpha1.AutoscalingPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "dummy-policy",
+			Namespace: "default",
+		},
+		Spec: registryv1alpha1.AutoscalingPolicySpec{},
+	})
+	validator := NewAutoscalingBindingValidator(nil, fakeClient)
 
 	tests := []struct {
 		name     string
@@ -88,6 +96,31 @@ func TestValidateAutoscalingBinding_OptimizeAndScalingConfigBothNotExist(t *test
 				},
 			},
 			expected: []string{"  - spec.ScalingConfiguration: Forbidden: both spec.OptimizerConfiguration and spec.ScalingConfiguration can not be set at the same time"},
+		},
+		{
+			name: "different autoscaling policy name",
+			input: &registryv1alpha1.AutoscalingPolicyBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "dummy-model",
+					Namespace: "default",
+				},
+				Spec: registryv1alpha1.AutoscalingPolicyBindingSpec{
+					PolicyRef: corev1.LocalObjectReference{
+						Name: "not-exist-policy",
+					},
+					OptimizerConfiguration: nil,
+					ScalingConfiguration: &registryv1alpha1.ScalingConfiguration{
+						Target: registryv1alpha1.Target{
+							TargetRef: corev1.ObjectReference{
+								Name: "target-name",
+							},
+						},
+						MinReplicas: 1,
+						MaxReplicas: 2,
+					},
+				},
+			},
+			expected: []string{"  - spec.PolicyRef: Invalid value: \"not-exist-policy\": autoscaling policy resource not-exist-policy does not exist"},
 		},
 	}
 
