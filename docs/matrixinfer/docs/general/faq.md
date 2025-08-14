@@ -1,4 +1,4 @@
-# Frequently Asked Questions
+# FAQ
 
 This page contains answers to frequently asked questions about MatrixInfer.
 
