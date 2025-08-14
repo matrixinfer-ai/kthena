@@ -178,6 +178,11 @@ const (
 
 // ModelInferStatus defines the observed state of ModelInfer
 type ModelInferStatus struct {
+	// observedGeneration is the most recent generation observed for ModelInfer. It corresponds to the
+	// ModelInfer's generation, which is updated on mutation by the API Server.
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
 	// Replicas track the total number of InferGroup that have been created (updated or not, ready or not)
 	Replicas int32 `json:"replicas,omitempty"`
 

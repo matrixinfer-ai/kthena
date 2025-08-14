@@ -72,10 +72,10 @@ func GetInClusterNameSpace() (string, error) {
 
 // GetAutoscalingPolicyRevision returns the revision label of the pod.
 func GetAutoscalingPolicyRevision(policy *registryv1alpha1.AutoscalingPolicy) string {
-	return policy.Labels[registryv1alpha1.RevisionLabelKey]
+	return policy.Labels[RevisionLabelKey]
 }
 
 // GetAutoscalingPolicyBindingRevision returns the revision label of the pod.
 func GetAutoscalingPolicyBindingRevision(binding *registryv1alpha1.AutoscalingPolicyBinding) string {
-	return binding.Labels[registryv1alpha1.RevisionLabelKey]
+	return binding.Labels[RevisionLabelKey]
 }

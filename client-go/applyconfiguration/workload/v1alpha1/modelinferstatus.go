@@ -25,17 +25,26 @@ import (
 // ModelInferStatusApplyConfiguration represents a declarative configuration of the ModelInferStatus type for use
 // with apply.
 type ModelInferStatusApplyConfiguration struct {
-	Replicas          *int32                           `json:"replicas,omitempty"`
-	CurrentReplicas   *int32                           `json:"currentReplicas,omitempty"`
-	UpdatedReplicas   *int32                           `json:"updatedReplicas,omitempty"`
-	AvailableReplicas *int32                           `json:"availableReplicas,omitempty"`
-	Conditions        []v1.ConditionApplyConfiguration `json:"conditions,omitempty"`
+	ObservedGeneration *int64                           `json:"observedGeneration,omitempty"`
+	Replicas           *int32                           `json:"replicas,omitempty"`
+	CurrentReplicas    *int32                           `json:"currentReplicas,omitempty"`
+	UpdatedReplicas    *int32                           `json:"updatedReplicas,omitempty"`
+	AvailableReplicas  *int32                           `json:"availableReplicas,omitempty"`
+	Conditions         []v1.ConditionApplyConfiguration `json:"conditions,omitempty"`
 }
 
 // ModelInferStatusApplyConfiguration constructs a declarative configuration of the ModelInferStatus type for use with
 // apply.
 func ModelInferStatus() *ModelInferStatusApplyConfiguration {
 	return &ModelInferStatusApplyConfiguration{}
+}
+
+// WithObservedGeneration sets the ObservedGeneration field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the ObservedGeneration field is set to the value of the last call.
+func (b *ModelInferStatusApplyConfiguration) WithObservedGeneration(value int64) *ModelInferStatusApplyConfiguration {
+	b.ObservedGeneration = &value
+	return b
 }
 
 // WithReplicas sets the Replicas field in the declarative configuration to the given value

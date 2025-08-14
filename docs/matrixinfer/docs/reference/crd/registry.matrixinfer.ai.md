@@ -289,7 +289,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `uri` _string_ | The metric uri, e.g. /metrics | /metrics |  |
-| `port` _integer_ |  | 8100 |  |
+| `port` _integer_ | The port of pods exposing metric endpoints | 8100 |  |
 
 
 #### Model
@@ -357,7 +357,6 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `name` _string_ | Name is the name of the backend. |  |  |
-| `hash` _string_ | Hash is a hash representing the backend configuration. |  |  |
 | `replicas` _integer_ | Replicas is the number of replicas currently running for the backend. |  |  |
 
 
@@ -499,8 +498,8 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `params` _[OptimizerParam](#optimizerparam) array_ |  |  |  |
-| `costExpansionRatePercent` _integer_ | CostExpansionRatePercent is the percentage rate at which the cost expands. |  | Maximum: 100 <br />Minimum: 0 <br /> |
+| `params` _[OptimizerParam](#optimizerparam) array_ | Parameters of multiple Model Infer Groups to be optimized. |  | MinItems: 1 <br /> |
+| `costExpansionRatePercent` _integer_ | CostExpansionRatePercent is the percentage rate at which the cost expands. | 200 | Minimum: 0 <br /> |
 
 
 #### OptimizerParam
@@ -516,7 +515,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `target` _[Target](#target)_ |  |  |  |
+| `target` _[Target](#target)_ | The scaling instance configuration |  |  |
 | `cost` _integer_ | Cost is the cost associated with running this backend. |  | Minimum: 0 <br /> |
 | `minReplicas` _integer_ | MinReplicas is the minimum number of replicas for the backend. |  | Maximum: 1e+06 <br />Minimum: 0 <br /> |
 | `maxReplicas` _integer_ | MaxReplicas is the maximum number of replicas for the backend. |  | Maximum: 1e+06 <br />Minimum: 1 <br /> |
@@ -535,7 +534,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `target` _[Target](#target)_ |  |  |  |
+| `target` _[Target](#target)_ | The scaling instance configuration |  |  |
 | `minReplicas` _integer_ | MinReplicas is the minimum number of replicas for the backend. |  | Maximum: 1e+06 <br />Minimum: 0 <br /> |
 | `maxReplicas` _integer_ | MaxReplicas is the maximum number of replicas for the backend. |  | Maximum: 1e+06 <br />Minimum: 1 <br /> |
 

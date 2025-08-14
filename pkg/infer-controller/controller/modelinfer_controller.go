@@ -480,6 +480,11 @@ func (c *ModelInferController) UpdateModelInferStatus(mi *workloadv1alpha1.Model
 		}
 	}
 
+	if copy.Status.ObservedGeneration != mi.Generation {
+		shouldUpdate = true
+		copy.Status.ObservedGeneration = mi.Generation
+	}
+
 	if shouldUpdate {
 		_, err := c.modelInferClient.WorkloadV1alpha1().ModelInfers(copy.GetNamespace()).UpdateStatus(context.TODO(), copy, metav1.UpdateOptions{})
 		if err != nil {

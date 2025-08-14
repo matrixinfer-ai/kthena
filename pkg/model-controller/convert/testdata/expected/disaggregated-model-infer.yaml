@@ -2,8 +2,12 @@ apiVersion: workload.matrixinfer.ai/v1alpha1
 kind: modelinfer
 metadata:
   labels:
-    model.uid: randomUID
-  name: ds-r1-qwen-7b-pd-0-vllmdisaggregated-instance
+    registry.matrixinfer.ai/backend-name: ds-r1-qwen-7b-pd
+    registry.matrixinfer.ai/managed-by: registry.matrixinfer.ai
+    registry.matrixinfer.ai/model-name: ds-r1-qwen-7b-pd
+    registry.matrixinfer.ai/model-uid: randomUID
+    registry.matrixinfer.ai/revision: 994b886f8
+  name: ds-r1-qwen-7b-pd-ds-r1-qwen-7b-pd
   namespace: demo
   ownerReferences:
     - apiVersion: registry.matrixinfer.ai/v1alpha1

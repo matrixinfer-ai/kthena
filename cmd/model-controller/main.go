@@ -49,27 +49,24 @@ const (
 // main starts model controller.
 // It will run forever until an error has occurred or the context is cancelled.
 func main() {
-	// Initialize klog flags
-	klog.InitFlags(nil)
-	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
-	defer klog.Flush()
-	flag.Parse()
-	pflag.CommandLine.VisitAll(func(f *pflag.Flag) {
-		// print all flags for debugging
-		klog.Infof("Flag: %s, Value: %s", f.Name, f.Value.String())
-	})
-
 	var kubeconfig string
 	var master string
 	var workers int
 	var enableLeaderElection bool
+	// Initialize klog flags
+	klog.InitFlags(nil)
+	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 
 	pflag.StringVar(&kubeconfig, "kubeconfig", "", "kubeconfig file path")
 	pflag.StringVar(&master, "master", "", "master URL")
-	pflag.IntVar(&workers, "workers", 5, "number of workers to run")
+	pflag.IntVar(&workers, "workers", 5, "number of workers to run. Default is 5")
 	pflag.BoolVar(&enableLeaderElection, "leader-elect", false, "Enable leader election for controller. "+
 		"Enabling this will ensure there is only one active model controller. Default is false.")
 	pflag.Parse()
+	pflag.CommandLine.VisitAll(func(f *pflag.Flag) {
+		// print all flags for debugging
+		klog.Infof("Flag: %s, Value: %s", f.Name, f.Value.String())
+	})
 
 	// create clientset
 	config, err := clientcmd.BuildConfigFromFlags(master, kubeconfig)
