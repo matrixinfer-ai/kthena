@@ -165,7 +165,20 @@ func TestGetEnvValueOrDefault(t *testing.T) {
 			envName:       "TEST_ENV_VAR_NOT_EXISTS",
 			defaultValue:  []corev1.EnvVar{{Name: "TEST_ENV_VAR", Value: ""}},
 			expectedValue: []corev1.EnvVar{{Name: "TEST_ENV_VAR", Value: ""}},
-		}, {
+		},
+		{
+			name: "other slice",
+			backend: &v1alpha1.ModelBackend{
+				Env: []corev1.EnvVar{{
+					Name:  "TEST_SLICE",
+					Value: "value",
+				}},
+			},
+			envName:       "TEST_SLICE",
+			defaultValue:  []string{"hello", "world"},
+			expectedValue: []string{"hello", "world"},
+		},
+		{
 			name: "Unsupported type",
 			backend: &v1alpha1.ModelBackend{
 				Env: []corev1.EnvVar{{
@@ -198,6 +211,9 @@ func TestGetEnvValueOrDefault(t *testing.T) {
 				assert.Equal(t, tc.expectedValue, result)
 			case []corev1.EnvVar:
 				result := GetEnvValueOrDefault[[]corev1.EnvVar](tc.backend, tc.envName, defaultValue)
+				assert.Equal(t, tc.expectedValue, result)
+			case []string:
+				result := GetEnvValueOrDefault[[]string](tc.backend, tc.envName, defaultValue)
 				assert.Equal(t, tc.expectedValue, result)
 			case struct{}:
 				// Testing unsupported type

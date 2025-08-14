@@ -68,11 +68,15 @@ func GetEnvValueOrDefault[T any](backend *registry.ModelBackend, name string, de
 				} else {
 					return defaultValue
 				}
-			case reflect.TypeOf([]corev1.EnvVar{}).Kind():
-				// Create a slice containing the matched env
-				slice := []corev1.EnvVar{env}
-				reflect.ValueOf(&result).Elem().Set(reflect.ValueOf(slice))
-				return result
+			case reflect.Slice:
+				if v.Type() == reflect.TypeOf([]corev1.EnvVar{}) {
+					// Create a slice containing the matched env
+					slice := []corev1.EnvVar{env}
+					reflect.ValueOf(&result).Elem().Set(reflect.ValueOf(slice))
+					return result
+				}
+				// For unsupported slice types, return default value
+				return defaultValue
 			default:
 				// For unsupported types, return default value
 				return defaultValue
