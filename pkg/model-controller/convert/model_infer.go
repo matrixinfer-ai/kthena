@@ -23,11 +23,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"k8s.io/utils/ptr"
 	icUtils "matrixinfer.ai/matrixinfer/pkg/infer-controller/utils"
+	"matrixinfer.ai/matrixinfer/pkg/model-controller/env"
 
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -99,7 +99,9 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 				"--source", backend.ModelURI,
 				"--output-dir", modelDownloadPath,
 			},
-			Env:     getEnvVarOrDefault(backend, "ENDPOINT", ""),
+			Env: env.GetEnvValueOrDefault[[]corev1.EnvVar](backend, env.Endpoint, []corev1.EnvVar{
+				{Name: env.Endpoint, Value: ""},
+			}),
 			EnvFrom: backend.EnvFrom,
 			VolumeMounts: []corev1.VolumeMount{{
 				Name:      cacheVolume.Name,
@@ -159,9 +161,9 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 		"ENGINE_PREFILL_COMMAND":           preFillCommand,
 		"ENGINE_DECODE_COMMAND":            decodeCommand,
 		"MODEL_INFER_RUNTIME_IMAGE":        config.Config.GetModelInferRuntimeImage(),
-		"MODEL_INFER_RUNTIME_PORT":         GetEnvPortOrDefault(backend, "RUNTIME_PORT", 8100),
-		"MODEL_INFER_RUNTIME_URL":          getEnvValueOrDefault(backend, "RUNTIME_URL", "http://localhost:8000"),
-		"MODEL_INFER_RUNTIME_METRICS_PATH": getEnvValueOrDefault(backend, "RUNTIME_METRICS_PATH", "/metrics"),
+		"MODEL_INFER_RUNTIME_PORT":         env.GetEnvValueOrDefault[int32](backend, env.RuntimePort, 8100),
+		"MODEL_INFER_RUNTIME_URL":          env.GetEnvValueOrDefault[string](backend, env.RuntimeUrl, "http://localhost:8000"),
+		"MODEL_INFER_RUNTIME_METRICS_PATH": env.GetEnvValueOrDefault[string](backend, env.RuntimeMetricsPath, "/metrics"),
 		"MODEL_INFER_RUNTIME_ENGINE":       strings.ToLower(string(backend.Type)),
 		"PREFILL_REPLICAS":                 workersMap[registry.ModelWorkerTypePrefill].Replicas,
 		"DECODE_REPLICAS":                  workersMap[registry.ModelWorkerTypeDecode].Replicas,
@@ -200,7 +202,9 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 				"--source", backend.ModelURI,
 				"--output-dir", modelDownloadPath,
 			},
-			Env:     getEnvVarOrDefault(backend, "ENDPOINT", ""),
+			Env: env.GetEnvValueOrDefault[[]corev1.EnvVar](backend, env.Endpoint, []corev1.EnvVar{
+				{Name: env.Endpoint, Value: ""},
+			}),
 			EnvFrom: backend.EnvFrom,
 			VolumeMounts: []corev1.VolumeMount{{
 				Name:      cacheVolume.Name,
@@ -252,9 +256,9 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 		"INIT_CONTAINERS":                  initContainers,
 		"MODEL_DOWNLOAD_ENVFROM":           backend.EnvFrom,
 		"MODEL_INFER_RUNTIME_IMAGE":        config.Config.GetModelInferRuntimeImage(),
-		"MODEL_INFER_RUNTIME_PORT":         GetEnvPortOrDefault(backend, "RUNTIME_PORT", 8100),
-		"MODEL_INFER_RUNTIME_URL":          getEnvValueOrDefault(backend, "RUNTIME_URL", "http://localhost:8000"),
-		"MODEL_INFER_RUNTIME_METRICS_PATH": getEnvValueOrDefault(backend, "RUNTIME_METRICS_PATH", "/metrics"),
+		"MODEL_INFER_RUNTIME_PORT":         env.GetEnvValueOrDefault[int32](backend, env.RuntimePort, 8100),
+		"MODEL_INFER_RUNTIME_URL":          env.GetEnvValueOrDefault[string](backend, env.RuntimeUrl, "http://localhost:8000"),
+		"MODEL_INFER_RUNTIME_METRICS_PATH": env.GetEnvValueOrDefault[string](backend, env.RuntimeMetricsPath, "/metrics"),
 		"MODEL_INFER_RUNTIME_ENGINE":       strings.ToLower(string(backend.Type)),
 		"ENGINE_SERVER_RESOURCES":          workersMap[registry.ModelWorkerTypeServer].Resources,
 		"ENGINE_SERVER_IMAGE":              workersMap[registry.ModelWorkerTypeServer].Image,
@@ -337,40 +341,6 @@ func GetCachePath(path string) string {
 
 func getVolumeName(backendName string) string {
 	return backendName + "-weights"
-}
-
-// getEnvVarOrDefault gets EnvVar of specific env, if env does not exist, return default value
-func getEnvVarOrDefault(backend *registry.ModelBackend, name string, defaultValue string) []corev1.EnvVar {
-	for _, env := range backend.Env {
-		if env.Name == name {
-			return []corev1.EnvVar{env}
-		}
-	}
-	return []corev1.EnvVar{
-		{Name: name, Value: defaultValue},
-	}
-}
-
-// getEnvValueOrDefault gets string value of specific env, if env does not exist, return default value
-func getEnvValueOrDefault(backend *registry.ModelBackend, name string, defaultValue string) string {
-	for _, env := range backend.Env {
-		if env.Name == name {
-			return env.Value
-		}
-	}
-	return defaultValue
-}
-
-// GetEnvPortOrDefault gets int32 port value of specific env, if env does not exist, return default value
-func GetEnvPortOrDefault(backend *registry.ModelBackend, name string, defaultValue int32) int32 {
-	for _, env := range backend.Env {
-		if env.Name == name {
-			if port, err := strconv.ParseInt(env.Value, 10, 32); err == nil {
-				return int32(port)
-			}
-		}
-	}
-	return defaultValue
 }
 
 // loadModelInferTemplate loads and processes the template file.

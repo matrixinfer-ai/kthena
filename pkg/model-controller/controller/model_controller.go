@@ -42,6 +42,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
+	"matrixinfer.ai/matrixinfer/pkg/model-controller/env"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
@@ -527,7 +528,7 @@ func (mc *ModelController) loadLoraAdaptersToAllReplicas(ctx context.Context, ru
 // getModelInferRuntimeURLs constructs the runtime service URLs for all ModelInfer pods
 func (mc *ModelController) getModelInferRuntimeURLs(modelInfer *workload.ModelInfer, backend *registryv1alpha1.ModelBackend) ([]string, error) {
 	// Get port from backend environment variables with default fallback to 8100
-	port := convert.GetEnvPortOrDefault(backend, "RUNTIME_PORT", 8100)
+	port := env.GetEnvValueOrDefault[int32](backend, env.RuntimePort, 8100)
 
 	// Get all available pod IPs for this ModelInfer
 	podIPs, err := mc.getModelInferPodIPs(modelInfer)
