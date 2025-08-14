@@ -1,7 +1,7 @@
 apiVersion: networking.matrixinfer.ai/v1alpha1
 kind: ModelServer
 metadata:
-  name: ds-r1-qwen-7b-pd-0-vllmdisaggregated-server
+  name: ds-r1-qwen-7b-pd-ds-r1-qwen-7b-pd
   namespace: demo
   labels:
     registry.matrixinfer.ai/backend-name: ds-r1-qwen-7b-pd
