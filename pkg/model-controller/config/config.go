@@ -16,11 +16,19 @@ limitations under the License.
 
 package config
 
+import (
+	"encoding/json"
+	"fmt"
+)
+
 const (
 	// DefaultModelInferDownloaderImage is the default image used for downloading models.
 	DefaultModelInferDownloaderImage = "matrixinfer/downloader:latest"
 	// DefaultModelInferRuntimeImage is the default image used for running model inference.
 	DefaultModelInferRuntimeImage = "matrixinfer/runtime:latest"
+	DefaultKVEventsPublisher      = "zmq"
+	DefaultKVEventsTopic          = "kv-events"
+	DefaultKVEventsEndpoint       = "tcp://*:5557"
 )
 
 type ParseConfig struct {
@@ -50,4 +58,28 @@ func (p *ParseConfig) ModelInferRuntimeImage() string {
 
 func (p *ParseConfig) SetModelInferRuntimeImage(image string) {
 	p.modelInferRuntimeImage = image
+}
+
+type KVEventsConfig struct {
+	EnableKVCacheEvents bool   `json:"enable_kv_cache_events"`
+	Publisher           string `json:"publisher"`
+	Topic               string `json:"topic"`
+	Endpoint            string `json:"endpoint"`
+}
+
+func GetDefaultKVEventsConfig() string {
+	config := KVEventsConfig{
+		EnableKVCacheEvents: true,
+		Publisher:           DefaultKVEventsPublisher,
+		Topic:               DefaultKVEventsTopic,
+		Endpoint:            DefaultKVEventsEndpoint,
+	}
+
+	data, err := json.Marshal(config)
+	if err != nil {
+		return fmt.Sprintf(`{"enable_kv_cache_events": true, "publisher": "%s", "topic": "%s", "endpoint": "%s"}`,
+			DefaultKVEventsPublisher, DefaultKVEventsTopic, DefaultKVEventsEndpoint)
+	}
+
+	return string(data)
 }

@@ -172,3 +172,12 @@ func unmarshalPluginsConfig(schedulerConfig *conf.SchedulerConfiguration) (map[s
 
 	return pluginsArgMap, nil
 }
+
+func LoadEnv(key, defaultValue string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		klog.Warningf("environment variable %s is not set, using default value: %s", key, defaultValue)
+		return defaultValue
+	}
+	return value
+}

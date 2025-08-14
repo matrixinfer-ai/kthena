@@ -13,11 +13,11 @@ logger = logging.getLogger(__name__)
 
 
 def get_matrix_key_prefix() -> str:
-    return "matrix:kv:block:"
+    return "matrix:kv:block"
 
 
 def get_vllm_mapping_key_prefix() -> str:
-    return "vllm:kv:block:mapping"
+    return "vllm:kv:block"
 
 
 def compute_standardized_hash(token_ids: List[int]) -> int:
@@ -39,11 +39,11 @@ class VLLMKVCacheRedisManager:
 
     @staticmethod
     def _get_matrix_block_key(model_name: str, chunk_hash: int) -> str:
-        return f"{get_matrix_key_prefix()}{model_name}@{chunk_hash}"
+        return f"{get_matrix_key_prefix()}:{model_name}@{chunk_hash}"
 
     @staticmethod
-    def _get_hash_mapping_key(vllm_hash: int) -> str:
-        return f"{get_vllm_mapping_key_prefix()}@{vllm_hash}"
+    def _get_hash_mapping_key(vllm_hash: int, pod_identifier: str) -> str:
+        return f"{get_vllm_mapping_key_prefix()}:{pod_identifier}@{vllm_hash}"
 
     async def add_blocks(self, model_name: str, block_hashes: List[int],
                          pod_identifier: str, token_ids: Optional[List[int]] = None) -> bool:
@@ -90,7 +90,7 @@ class VLLMKVCacheRedisManager:
             std_hash = compute_standardized_hash(block_tokens)
             matrix_block_key = self._get_matrix_block_key(model_name, std_hash)
             self.hash_mapping[vllm_hash] = std_hash
-            mapping_key = self._get_hash_mapping_key(vllm_hash)
+            mapping_key = self._get_hash_mapping_key(vllm_hash, pod_identifier)
             pipe.set(mapping_key, str(std_hash))
             pipe.expire(mapping_key, 86400)
             pipe.hset(matrix_block_key, pod_identifier, timestamp)
@@ -111,11 +111,11 @@ class VLLMKVCacheRedisManager:
             removed_count = 0
 
             for vllm_hash in block_hashes:
-                std_hash = await self._get_std_hash(client, vllm_hash)
+                std_hash = await self._get_std_hash(client, vllm_hash, pod_identifier)
 
                 if std_hash is not None:
                     matrix_block_key = self._get_matrix_block_key(model_name, std_hash)
-                    mapping_key = self._get_hash_mapping_key(vllm_hash)
+                    mapping_key = self._get_hash_mapping_key(vllm_hash, pod_identifier)
 
                     pipe.hdel(matrix_block_key, pod_identifier)
                     pipe.delete(mapping_key)
@@ -131,15 +131,24 @@ class VLLMKVCacheRedisManager:
             logger.error(f"Error removing blocks from Redis: {e}")
             return 0
 
-    async def _get_std_hash(self, client, vllm_hash: int) -> Optional[int]:
+    async def _get_std_hash(self, client, vllm_hash: int, pod_identifier: str = None) -> Optional[int]:
         std_hash = self.hash_mapping.get(vllm_hash)
 
         if std_hash is None:
-            mapping_key = self._get_hash_mapping_key(vllm_hash)
-            std_hash_str = await client.get(mapping_key)
-            if std_hash_str:
-                std_hash = int(std_hash_str)
-                self.hash_mapping[vllm_hash] = std_hash
+            if pod_identifier:
+                mapping_key = self._get_hash_mapping_key(vllm_hash, pod_identifier)
+                std_hash_str = await client.get(mapping_key)
+                if std_hash_str:
+                    std_hash = int(std_hash_str)
+                    self.hash_mapping[vllm_hash] = std_hash
+            else:
+                pattern = f"{get_vllm_mapping_key_prefix()}:*@{vllm_hash}"
+                keys = await self.redis_client.keys(pattern)
+                if keys:
+                    std_hash_str = await client.get(keys[0])
+                    if std_hash_str:
+                        std_hash = int(std_hash_str)
+                        self.hash_mapping[vllm_hash] = std_hash
 
         return std_hash
 
@@ -178,29 +187,36 @@ class VLLMKVCacheRedisManager:
 
         try:
             pod_field = pod_identifier
-            matrix_pattern = f"{get_matrix_key_prefix()}{model_name}@*"
-            mapping_pattern = f"{get_vllm_mapping_key_prefix()}@*"
+            matrix_pattern = f"{get_matrix_key_prefix()}:{model_name}@*"
+            mapping_pattern = f"{get_vllm_mapping_key_prefix()}:{pod_identifier}@*"
 
             matrix_keys = await self.redis_client.keys(matrix_pattern)
             mapping_keys = await self.redis_client.keys(mapping_pattern)
-            keys = matrix_keys
-            if not keys:
+
+            if not matrix_keys:
+                if mapping_keys:
+                    client = await self.redis_client.get_connection()
+                    pipe = client.pipeline()
+                    for mapping_key in mapping_keys:
+                        pipe.delete(mapping_key)
+                    await pipe.execute()
+                    logger.info(f"Cleared {len(mapping_keys)} mapping keys for pod {pod_identifier}")
                 return 0
 
             client = await self.redis_client.get_connection()
             pipe = client.pipeline()
-            for key in keys:
+
+            for key in matrix_keys:
                 pipe.hdel(key, pod_field)
 
             for mapping_key in mapping_keys:
                 pipe.delete(mapping_key)
 
-            self.hash_mapping.clear()
-
             results = await pipe.execute()
-            deleted_count = sum(1 for result in results[:len(keys)] if result > 0)
+            deleted_count = sum(1 for result in results[:len(matrix_keys)] if result > 0)
 
-            logger.info(f"Cleared {deleted_count} blocks for model {model_name}, pod {pod_identifier}")
+            logger.info(
+                f"Cleared {deleted_count} matrix blocks and {len(mapping_keys)} mapping keys for model {model_name}, pod {pod_identifier}")
             return deleted_count
 
         except Exception as e:

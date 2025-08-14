@@ -82,6 +82,9 @@ func registerDefaultPlugins(registry *PluginRegistry) {
 		return &plugins.PrefixCache{}
 	})
 
+	registry.registerScorePlugin(plugins.TokenPrefixCachePluginName, func(args runtime.RawExtension) framework.ScorePlugin {
+		return plugins.NewTokenPrefixCache(args)
+	})
 	// filterPlugin
 	registry.registerFilterPlugin(plugins.LeastRequestPluginName, func(args runtime.RawExtension) framework.FilterPlugin {
 		return plugins.NewLeastRequest(args)

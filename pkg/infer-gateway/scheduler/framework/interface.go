@@ -28,8 +28,10 @@ type Context struct {
 	Model  string
 	Prompt string
 
-	Hashes []uint64
+	RequestBody map[string]interface{}
+	Hashes      []uint64
 
+	PDIndex int
 	// ModelServer information for efficient PDGroup scheduling
 	ModelServerName types.NamespacedName
 	PDGroup         *aiv1alpha1.PDGroup

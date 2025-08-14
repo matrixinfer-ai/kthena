@@ -1,6 +1,6 @@
 pluginConfig:
 - name: least-request
-  args: 
+  args:
     maxWaitingRequests: 10
 - name: least-latency
   args:
@@ -10,6 +10,10 @@ pluginConfig:
     blockSizeToHash: 64
     maxBlocksToMatch: 128
     maxHashCacheSize: 50000
+- name: token-prefix-cache
+  args:
+    blockSizeToHash: 128
+    maxBlocksToMatch: 128
 plugins:
   Filter:
     enabled:
@@ -25,4 +29,6 @@ plugins:
       - name: least-latency
         weight: 1
       - name: prefix-cache
+        weight: 1
+      - name: token-prefix-cache
         weight: 1

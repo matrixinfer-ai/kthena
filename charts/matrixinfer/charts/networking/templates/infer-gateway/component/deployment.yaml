@@ -31,6 +31,23 @@ spec:
           ports:
             - containerPort: {{ .Values.inferGateway.port }}
               name: http
+          env:
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: redis-config
+                  key: REDIS_HOST
+            - name: REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: redis-config
+                  key: REDIS_PORT
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-secret
+                  key: password
+                  optional: true
           resources: {{- toYaml .Values.inferGateway.resource | nindent 12 }}
           livenessProbe:
             httpGet:
