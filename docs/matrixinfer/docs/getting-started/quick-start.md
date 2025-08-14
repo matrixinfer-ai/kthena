@@ -221,15 +221,6 @@ spec:
     weight: 10
 ```
 
-## Next Steps
-
-Now that you have MatrixInfer running:
-
-1. **Explore the [Architecture](../architecture)** to understand how components work together
-2. **Check the [API Reference](../api)** for detailed resource specifications
-3. **Learn about [Advanced Features](../advanced)** like multi-model serving and GPU support
-4. **Set up [Monitoring](../monitoring)** for production deployments
-
 ## Troubleshooting
 
 ### Common Issues
@@ -254,5 +245,3 @@ kubectl describe svc sample-llm-server
 kubectl get hpa
 kubectl describe hpa sample-llm-infer
 ```
-
-For more help, see our [Troubleshooting Guide](../troubleshooting) or [open an issue](https://github.com/matrixinfer-ai/matrixinfer/issues).

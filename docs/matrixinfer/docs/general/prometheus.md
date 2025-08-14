@@ -1,8 +1,4 @@
----
-sidebar_position: 8
----
-
-# Monitoring
+# Prometheus Integration
 
 Comprehensive monitoring and observability setup for MatrixInfer deployments.
 
@@ -928,10 +924,3 @@ curl -s http://prometheus:9090/api/v1/label/__name__/values | jq '.data[]' | gre
 # Identify high cardinality metrics
 curl -s 'http://prometheus:9090/api/v1/query?query={__name__=~"matrixinfer.*"}' | jq '.data.result | length'
 ```
-
-## Related Documentation
-
-- [Best Practices](../best-practices/) - Production deployment guidelines
-- [Advanced Features](../advanced/) - Advanced monitoring configurations
-- [Troubleshooting](../troubleshooting.md) - Common monitoring issues
-- [Examples](../examples/) - Monitoring setup examples

@@ -2,7 +2,7 @@
 sidebar_position: 1
 ---
 
-# MatrixInfer Documentation
+# MatrixInfer
 
 Welcome to **MatrixInfer**, a Kubernetes-native AI inference platform that provides scalable and efficient model serving capabilities.
 
