@@ -47,21 +47,21 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: 'Features',
+      label: 'User Guide',
       items: [
-        'features/gateway-routing',
-        'features/pd-separate',
-        'features/multi-node-inference',
-        'features/autoscaler',
-        'features/runtime',
+        'user-guide/gateway-routing',
+        'user-guide/pd-separate',
+        'user-guide/multi-node-inference',
+        'user-guide/autoscaler',
+        'user-guide/runtime',
       ],
     },
     {
       type: 'category',
-      label: 'Development',
+      label: 'Developer Guide',
       items: [
-        'development/release',
-        'development/ci',
+        'developer-guide/release',
+        'developer-guide/ci',
       ],
     },
     {
