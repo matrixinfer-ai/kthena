@@ -50,7 +50,7 @@ const sidebars: SidebarsConfig = {
       label: 'User Guide',
       items: [
         'user-guide/gateway-routing',
-        'user-guide/pd-separate',
+        'user-guide/prefill-decode-disaggregation',
         'user-guide/multi-node-inference',
         'user-guide/autoscaler',
         'user-guide/runtime',

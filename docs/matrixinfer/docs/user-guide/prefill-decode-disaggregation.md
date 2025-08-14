@@ -1,4 +1,4 @@
-# PD Separate
+# Prefill-Decode Disaggregation
 
 This page describes the PD (Placement Driver) separation feature in MatrixInfer.
 
