@@ -190,8 +190,9 @@ spec:
                 - metrics
                 type: object
               backends:
-                description: Backends is the list of model backends associated with
-                  this model.
+                description: |-
+                  Backends is the list of model backends associated with this model. A Model CR at lease has one ModelBackend.
+                  ModelBackend is the minimum unit of inference instance. It can be vLLM, SGLang, MindIE or other types.
                 items:
                   description: ModelBackend defines the configuration for a model
                     backend.
@@ -349,11 +350,13 @@ spec:
                       type: object
                     cacheURI:
                       description: CacheURI is the URI where the model cache is stored.
+                        Support hostpath://, pvc://.
                       pattern: ^(hostpath://|pvc://).+
                       type: string
                     env:
                       description: |-
                         List of environment variables to set in the container.
+                        Support "ENDPOINT", "RUNTIME_URL"(default http://localhost:8000), "RUNTIME_PORT"(default 8100)
                         Cannot be updated.
                       items:
                         description: EnvVar represents an environment variable present
@@ -566,10 +569,12 @@ spec:
                       type: integer
                     modelURI:
                       description: ModelURI is the URI where the model is stored.
+                        Support hf://, s3://, pvc://.
                       pattern: ^(hf://|s3://|pvc://).+
                       type: string
                     name:
-                      description: Name is the name of the backend.
+                      description: Name is the name of the backend. Can't duplicate
+                        with other ModelBackend name in the same Model CR.
                       pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
                       type: string
                     routeWeight:
@@ -1536,8 +1541,9 @@ spec:
                                 type: object
                             type: object
                           config:
-                            description: Config contains worker-specific configuration
-                              in JSON format.
+                            description: |-
+                              Config contains worker-specific configuration in JSON format.
+                              You can find vLLM config here https://docs.vllm.ai/en/stable/api/vllm/config.html
                             x-kubernetes-preserve-unknown-fields: true
                           image:
                             description: Image is the container image for the worker.
@@ -1687,7 +1693,9 @@ spec:
                     type: object
                 type: object
               name:
-                description: Name is the name of the model.
+                description: |-
+                  Name is the name of the model. Model CR name is restricted by kubernetes, for example, can't contain uppercase letters.
+                  So we use this field to specify the Model name.
                 maxLength: 64
                 pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
                 type: string
