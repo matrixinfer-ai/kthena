@@ -21,6 +21,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -34,14 +35,14 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-const PrecisePrefixCachePluginName = "precise-prefix-cache"
+const KVCachePluginName = "kv-cache"
 
-type PrecisePrefixCacheArgs struct {
+type KVCacheArgs struct {
 	BlockSizeToHash  int `yaml:"blockSizeToHash,omitempty"`
 	MaxBlocksToMatch int `yaml:"maxBlocksToMatch,omitempty"`
 }
 
-type PrecisePrefixCache struct {
+type KVCache struct {
 	name             string
 	maxBlocksToMatch int
 	keyPrefix        string
@@ -50,7 +51,7 @@ type PrecisePrefixCache struct {
 	tokenizerPool    *tokenization.TokenizerPool
 }
 
-var _ framework.ScorePlugin = &PrecisePrefixCache{}
+var _ framework.ScorePlugin = &KVCache{}
 
 type TokenBlockProcessor struct {
 	blockSize int
@@ -65,11 +66,11 @@ func (b KVCacheBlock) String(prefix string) string {
 	return fmt.Sprintf("%s%s@%d", prefix, b.ModelName, b.ChunkHash)
 }
 
-func NewPrecisePrefixCache(pluginArg runtime.RawExtension) *PrecisePrefixCache {
-	var args PrecisePrefixCacheArgs
+func NewKVCache(pluginArg runtime.RawExtension) *KVCache {
+	var args KVCacheArgs
 	if len(pluginArg.Raw) > 0 {
 		if err := yaml.Unmarshal(pluginArg.Raw, &args); err != nil {
-			klog.Warningf("Failed to unmarshal PrecisePrefixCacheArgs: %v", err)
+			klog.Warningf("Failed to unmarshal KVCacheArgs: %v", err)
 		}
 	}
 
@@ -94,21 +95,27 @@ func NewPrecisePrefixCache(pluginArg runtime.RawExtension) *PrecisePrefixCache {
 	}
 	pool := tokenization.NewTokenizerPool(poolConfig)
 
-	return &PrecisePrefixCache{
-		name:             PrecisePrefixCachePluginName,
+	// Check if we're in test environment to avoid Redis connection
+	var redisClient *redis.Client
+	if os.Getenv("GO_TEST_MODE") != "true" {
+		redisClient = utils.GetRedisClient()
+	}
+
+	return &KVCache{
+		name:             KVCachePluginName,
 		maxBlocksToMatch: maxBlocksToMatch,
 		keyPrefix:        keyPrefix,
-		redisClient:      utils.GetRedisClient(),
+		redisClient:      redisClient,
 		processor:        &TokenBlockProcessor{blockSize: blockSizeToHash},
 		tokenizerPool:    pool,
 	}
 }
 
-func (t *PrecisePrefixCache) Name() string {
+func (t *KVCache) Name() string {
 	return t.name
 }
 
-func (t *PrecisePrefixCache) getTokenizerForModel(ctx *framework.Context, pods []*datastore.PodInfo) tokenization.Tokenizer {
+func (t *KVCache) getTokenizerForModel(ctx *framework.Context, pods []*datastore.PodInfo) tokenization.Tokenizer {
 	for _, podInfo := range pods {
 		pod := podInfo.Pod
 		if modelName := tokenization.GetModelNameFromPod(pod); modelName != "" {
@@ -118,7 +125,7 @@ func (t *PrecisePrefixCache) getTokenizerForModel(ctx *framework.Context, pods [
 	return t.tokenizerPool.GetTokenizer(ctx.Model, pods)
 }
 
-func (t *PrecisePrefixCache) parseChatMessages(requestBody map[string]interface{}) []tokenization.ChatMessage {
+func (t *KVCache) parseChatMessages(requestBody map[string]interface{}) []tokenization.ChatMessage {
 	if requestBody == nil {
 		return nil
 	}
@@ -159,7 +166,7 @@ func (t *PrecisePrefixCache) parseChatMessages(requestBody map[string]interface{
 	return chatMessages
 }
 
-func (t *PrecisePrefixCache) isChatRequest(requestBody map[string]interface{}) bool {
+func (t *KVCache) isChatRequest(requestBody map[string]interface{}) bool {
 	if requestBody == nil {
 		return false
 	}
@@ -167,7 +174,7 @@ func (t *PrecisePrefixCache) isChatRequest(requestBody map[string]interface{}) b
 	return hasMessages
 }
 
-func (t *PrecisePrefixCache) normalizeAndTokenizePrompt(ctx *framework.Context, pods []*datastore.PodInfo) (string, []uint32, error) {
+func (t *KVCache) normalizeAndTokenizePrompt(ctx *framework.Context, pods []*datastore.PodInfo) (string, []uint32, error) {
 	tok := t.getTokenizerForModel(ctx, pods)
 	if tok == nil {
 		return "", nil, fmt.Errorf("no tokenizer available for model %s", ctx.Model)
@@ -199,7 +206,7 @@ func (t *PrecisePrefixCache) normalizeAndTokenizePrompt(ctx *framework.Context, 
 	return ctx.Prompt, tokens32, nil
 }
 
-func (t *PrecisePrefixCache) tokenizeWithChatTemplate(
+func (t *KVCache) tokenizeWithChatTemplate(
 	extendedTok interface {
 		TokenizeWithOptions(context.Context, tokenization.TokenizeInput) (*tokenization.TokenizeResult, error)
 	},
@@ -231,7 +238,7 @@ func (t *PrecisePrefixCache) tokenizeWithChatTemplate(
 	return fallbackPrompt, tokens32, nil
 }
 
-func (t *PrecisePrefixCache) tokenizeWithCompletion(
+func (t *KVCache) tokenizeWithCompletion(
 	extendedTok interface {
 		TokenizeWithOptions(context.Context, tokenization.TokenizeInput) (*tokenization.TokenizeResult, error)
 	},
@@ -260,7 +267,7 @@ func (t *PrecisePrefixCache) tokenizeWithCompletion(
 	return prompt, tokens32, nil
 }
 
-func (t *PrecisePrefixCache) Score(ctx *framework.Context, pods []*datastore.PodInfo) map[*datastore.PodInfo]int {
+func (t *KVCache) Score(ctx *framework.Context, pods []*datastore.PodInfo) map[*datastore.PodInfo]int {
 	scoreResults := make(map[*datastore.PodInfo]int)
 
 	for _, pod := range pods {
@@ -305,7 +312,7 @@ func (t *PrecisePrefixCache) Score(ctx *framework.Context, pods []*datastore.Pod
 	return scoreResults
 }
 
-func (t *PrecisePrefixCache) queryRedisForBlocks(blockHashes []uint64, modelName string) (map[uint64][]string, error) {
+func (t *KVCache) queryRedisForBlocks(blockHashes []uint64, modelName string) (map[uint64][]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -351,11 +358,11 @@ func extractPodNameFromIdentifier(podIdentifier string) string {
 	return podIdentifier
 }
 
-func (t *PrecisePrefixCache) calculatePodScores(blockHashes []uint64, blockToPods map[uint64][]string) map[string]int {
+func (t *KVCache) calculatePodScores(blockHashes []uint64, blockToPods map[uint64][]string) map[string]int {
 	podScores := make(map[string]int)
 
 	if len(blockHashes) == 0 {
-		klog.Infof("PrecisePrefixCache: No block hashes to process")
+		klog.Infof("KVCache: No block hashes to process")
 		return podScores
 	}
 
@@ -404,7 +411,7 @@ func (t *PrecisePrefixCache) calculatePodScores(blockHashes []uint64, blockToPod
 	for podName, matchLen := range podScores {
 		score := int((float64(matchLen) / float64(totalBlocks)) * 100)
 		podScores[podName] = score
-		klog.Infof("PrecisePrefixCache Pod %s: matched %d/%d blocks, score: %d", podName, matchLen, totalBlocks, score)
+		klog.Infof("KVCache Pod %s: matched %d/%d blocks, score: %d", podName, matchLen, totalBlocks, score)
 	}
 
 	return podScores
@@ -439,7 +446,7 @@ func computeStandardizedHash(tokenIds []int) uint64 {
 	hashBytes := h.Sum(nil)
 	fullHash := binary.BigEndian.Uint64(hashBytes[:8])
 	result := fullHash & 0x7FFFFFFFFFFFFFFF
-	klog.V(4).Infof("PrecisePrefixCache: compute standardized hash - token_ids=%v, hash=%d", tokenIds, result)
+	klog.V(4).Infof("KVCache: compute standardized hash - token_ids=%v, hash=%d", tokenIds, result)
 	return result
 }
 
@@ -468,7 +475,7 @@ func (tbp *TokenBlockProcessor) computeBlockHashes(chunks [][]uint32) []uint64 {
 	return hashes
 }
 
-func (t *PrecisePrefixCache) Close() {
+func (t *KVCache) Close() {
 	if t.tokenizerPool != nil {
 		_ = t.tokenizerPool.Close()
 	}

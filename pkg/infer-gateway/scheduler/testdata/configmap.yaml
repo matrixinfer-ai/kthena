@@ -20,7 +20,7 @@ plugins:
     enabled:
       - name: least-request
         weight: 1
-      - name: kv-cache
+      - name: gpu-usage
         weight: 1
       - name: least-latency
         weight: 1

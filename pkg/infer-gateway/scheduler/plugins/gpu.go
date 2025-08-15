@@ -23,7 +23,7 @@ import (
 
 var _ framework.ScorePlugin = &GPUCacheUsage{}
 
-const KVCachePluginName = "kv-cache"
+const GPUCacheUsagePluginName = "gpu-usage"
 
 type GPUCacheUsage struct {
 	name string
@@ -31,7 +31,7 @@ type GPUCacheUsage struct {
 
 func NewGPUCacheUsage() *GPUCacheUsage {
 	return &GPUCacheUsage{
-		name: KVCachePluginName,
+		name: GPUCacheUsagePluginName,
 	}
 }
 

@@ -17,7 +17,7 @@ data:
         blockSizeToHash: 64
         maxBlocksToMatch: 128
         maxHashCacheSize: 50000
-    - name: precise-prefix-cache
+    - name: kv-cache
       args:
         blockSizeToHash: 128
         maxBlocksToMatch: 128
@@ -31,11 +31,11 @@ data:
         enabled:
           - name: least-request
             weight: 1
-          - name: kv-cache
+          - name: gpu-usage
             weight: 1
           - name: least-latency
             weight: 1
           - name: prefix-cache
             weight: 1
-          - name: precise-prefix-cache
+          - name: kv-cache
             weight: 1

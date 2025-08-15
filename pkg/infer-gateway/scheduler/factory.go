@@ -65,7 +65,7 @@ func (r *PluginRegistry) getFilterPlugin(name string) (FilterPluginBuilder, bool
 // registerDefaultPlugins registers all default plugins to the given registry
 func registerDefaultPlugins(registry *PluginRegistry) {
 	// scorePlugin
-	registry.registerScorePlugin(plugins.KVCachePluginName, func(args runtime.RawExtension) framework.ScorePlugin {
+	registry.registerScorePlugin(plugins.GPUCacheUsagePluginName, func(args runtime.RawExtension) framework.ScorePlugin {
 		return plugins.NewGPUCacheUsage()
 	})
 	registry.registerScorePlugin(plugins.LeastLatencyPluginName, func(args runtime.RawExtension) framework.ScorePlugin {
@@ -82,8 +82,8 @@ func registerDefaultPlugins(registry *PluginRegistry) {
 		return &plugins.PrefixCache{}
 	})
 
-	registry.registerScorePlugin(plugins.PrecisePrefixCachePluginName, func(args runtime.RawExtension) framework.ScorePlugin {
-		return plugins.NewPrecisePrefixCache(args)
+	registry.registerScorePlugin(plugins.KVCachePluginName, func(args runtime.RawExtension) framework.ScorePlugin {
+		return plugins.NewKVCache(args)
 	})
 	// filterPlugin
 	registry.registerFilterPlugin(plugins.LeastRequestPluginName, func(args runtime.RawExtension) framework.FilterPlugin {
