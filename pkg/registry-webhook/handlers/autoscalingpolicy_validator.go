@@ -17,9 +17,7 @@ limitations under the License.
 package handlers
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
 	"math"
 	"net/http"
 	"strings"
@@ -52,51 +50,17 @@ func (v *AutoscalingPolicyValidator) Handle(w http.ResponseWriter, r *http.Reque
 	klog.V(4).Info("Handling AutoscalingPolicy validation request")
 
 	// Parse the admission request
-	var body []byte
-	if r.Body != nil {
-		data, err := io.ReadAll(r.Body)
-		if err != nil {
-			klog.Errorf("Failed to read request body: %v", err)
-			http.Error(w, "failed to read request body", http.StatusBadRequest)
-			return
-		}
-		body = data
-	}
-
-	// Verify the content type is accurate
-	contentType := r.Header.Get("Content-Type")
-	if contentType != "application/json" {
-		klog.Errorf("Invalid Content-Type: %s", contentType)
-		http.Error(w, "invalid Content-Type, expected application/json", http.StatusBadRequest)
-		return
-	}
-
-	// Parse the AdmissionReview request
-	var admissionReview admissionv1.AdmissionReview
-	if err := json.Unmarshal(body, &admissionReview); err != nil {
-		klog.Errorf("Failed to decode admission review: %v", err)
-		http.Error(w, "invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	if admissionReview.Request == nil {
-		klog.Error("Admission review request is nil")
-		http.Error(w, "invalid admission review request", http.StatusBadRequest)
-		return
-	}
-
-	// Deserialize the AutoscalingPolicy object
-	var policy registryv1.AutoscalingPolicy
-	if err := json.Unmarshal(admissionReview.Request.Object.Raw, &policy); err != nil {
-		klog.Errorf("Failed to unmarshal AutoscalingPolicy: %v", err)
-		http.Error(w, fmt.Sprintf("could not unmarshal AutoscalingPolicy: %v", err), http.StatusBadRequest)
+	admissionReview, policy, err := parseAdmissionRequest[registryv1.AutoscalingPolicy](r)
+	if err != nil {
+		klog.Errorf("Failed to parse admission request: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	klog.V(4).Infof("Validating AutoscalingPolicy: %s/%s", policy.Namespace, policy.Name)
 
-	// Validate the AutoscalingPolicy
-	allowed, reason := v.validateAutoscalingPolicy(&policy)
+	// Validate the policy
+	allowed, reason := v.validateAutoscalingPolicy(policy)
 
 	// Create the admission response
 	admissionResponse := admissionv1.AdmissionResponse{
@@ -117,17 +81,9 @@ func (v *AutoscalingPolicyValidator) Handle(w http.ResponseWriter, r *http.Reque
 	admissionReview.Response = &admissionResponse
 
 	// Send the response
-	resp, err := json.Marshal(admissionReview)
-	if err != nil {
-		klog.Errorf("Failed to encode admission review response: %v", err)
-		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	klog.V(4).Infof("Sending response: %s", string(resp))
-	w.Header().Set("Content-Type", "application/json")
-	if _, err := w.Write(resp); err != nil {
-		klog.Errorf("Failed to write response: %v", err)
+	if err := sendAdmissionResponse(w, admissionReview); err != nil {
+		klog.Errorf("Failed to send admission response: %v", err)
+		http.Error(w, fmt.Sprintf("could not send response: %v", err), http.StatusInternalServerError)
 		return
 	}
 }
@@ -193,7 +149,7 @@ func (v *AutoscalingPolicyValidator) validateScaleDownBehavior(policy *registryv
 	stablePolicy := policy.Spec.Behavior.ScaleDown
 
 	// Validate period
-	if stablePolicy.Period.Seconds() < 0 || stablePolicy.Period.Minutes() > 30 {
+	if stablePolicy.Period != nil && (stablePolicy.Period.Seconds() < 0 || stablePolicy.Period.Minutes() > 30) {
 		allErrs = append(allErrs, field.Invalid(
 			scaleDownPath.Child("period"),
 			stablePolicy.Period,
@@ -235,7 +191,7 @@ func (v *AutoscalingPolicyValidator) validateStablePolicy(policy *registryv1.Aut
 	stablePolicy := policy.Spec.Behavior.ScaleUp.StablePolicy
 
 	// Validate period
-	if stablePolicy.Period.Seconds() < 0 || stablePolicy.Period.Minutes() > 30 {
+	if stablePolicy.Period != nil && (stablePolicy.Period.Seconds() < 0 || stablePolicy.Period.Minutes() > 30) {
 		allErrs = append(allErrs, field.Invalid(
 			stablePolicyPath.Child("period"),
 			stablePolicy.Period,
@@ -272,7 +228,7 @@ func (v *AutoscalingPolicyValidator) validatePanicPolicy(policy *registryv1.Auto
 	}
 
 	// Validate panic mode hold
-	if panicPolicy.PanicModeHold.Seconds() < 0 || panicPolicy.PanicModeHold.Minutes() > 30 {
+	if panicPolicy.PanicModeHold != nil && (panicPolicy.PanicModeHold.Seconds() < 0 || panicPolicy.PanicModeHold.Minutes() > 30) {
 		allErrs = append(allErrs, field.Invalid(
 			panicPolicyPath.Child("panicModeHold"),
 			panicPolicy.PanicModeHold,

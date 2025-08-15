@@ -27,7 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
 	registryv1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
@@ -49,32 +49,16 @@ func NewAutoscalingPolicyMutator(kubeClient kubernetes.Interface, matrixinferCli
 // Handle handles admission requests for AutoscalingPolicy resources
 func (m *AutoscalingPolicyMutator) Handle(w http.ResponseWriter, r *http.Request) {
 	// Parse the admission request
-	var admissionReview admissionv1.AdmissionReview
-	if err := json.NewDecoder(r.Body).Decode(&admissionReview); err != nil {
-		klog.Errorf("Failed to decode admission review: %v", err)
-		http.Error(w, "invalid request body", http.StatusBadRequest)
-		return
-	}
-	if admissionReview.Request == nil {
-		http.Error(w, "invalid admission review request", http.StatusBadRequest)
+	admissionReview, policy, err := parseAdmissionRequest[registryv1.AutoscalingPolicy](r)
+	if err != nil {
+		klog.Errorf("Failed to parse admission request: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// Deserialize the object
-	var policy registryv1.AutoscalingPolicy
-	if err := json.Unmarshal(admissionReview.Request.Object.Raw, &policy); err != nil {
-		klog.Errorf("Failed to unmarshal object: %v", err)
-		http.Error(w, fmt.Sprintf("could not unmarshal object: %v", err), http.StatusBadRequest)
-		return
-	}
+	patch := createPolicyBatch(policy)
 
-	// Create a copy of the policy to mutate
-	mutatedPolicy := policy.DeepCopy()
-
-	// Apply mutations
-	patch := mutateAutoscalingPolicy(mutatedPolicy)
-
-	patchBytes, err := createPolicyPatch(patch)
+	patchBytes, err := createPolicyPatchBytes(patch)
 	if err != nil {
 		klog.Errorf("Failed to create patch: %v", err)
 		http.Error(w, fmt.Sprintf("could not create patch: %v", err), http.StatusInternalServerError)
@@ -94,34 +78,33 @@ func (m *AutoscalingPolicyMutator) Handle(w http.ResponseWriter, r *http.Request
 	admissionReview.Response = &admissionResponse
 
 	// Send the response
-	if err := json.NewEncoder(w).Encode(admissionReview); err != nil {
-		klog.Errorf("Failed to encode admission review: %v", err)
-		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
+	if err := sendAdmissionResponse(w, admissionReview); err != nil {
+		klog.Errorf("Failed to send admission response: %v", err)
+		http.Error(w, fmt.Sprintf("could not send response: %v", err), http.StatusInternalServerError)
 		return
 	}
 }
 
-// mutateAutoscalingPolicy applies mutations to the AutoscalingPolicy resource
-func mutateAutoscalingPolicy(policy *registryv1.AutoscalingPolicy) []jsonpatch.Operation {
+func createPolicyBatch(policy *registryv1.AutoscalingPolicy) []jsonpatch.Operation {
 	// Define default values
 	DefaultScaleDown := registryv1.AutoscalingPolicyStablePolicy{
-		Instances:           pointer.Int32(0),
-		Percent:             pointer.Int32(100),
+		Instances:           ptr.To(int32(0)),
+		Percent:             ptr.To(int32(100)),
 		Period:              &metav1.Duration{Duration: time.Minute},
 		SelectPolicy:        registryv1.SelectPolicyOr,
 		StabilizationWindow: &metav1.Duration{Duration: time.Minute * 5},
 	}
 	DefaultScaleUpStablePolicy := registryv1.AutoscalingPolicyStablePolicy{
-		Instances:           pointer.Int32(4),
-		Percent:             pointer.Int32(100),
+		Instances:           ptr.To(int32(4)),
+		Percent:             ptr.To(int32(100)),
 		Period:              &metav1.Duration{Duration: time.Minute},
 		SelectPolicy:        registryv1.SelectPolicyOr,
 		StabilizationWindow: &metav1.Duration{Duration: 0},
 	}
 	DefaultScaleUpPanicPolicy := registryv1.AutoscalingPolicyPanicPolicy{
-		Percent:               pointer.Int32(0),
+		Percent:               ptr.To(int32(0)),
 		Period:                metav1.Duration{Duration: 0},
-		PanicThresholdPercent: pointer.Int32(200),
+		PanicThresholdPercent: ptr.To(int32(200)),
 		PanicModeHold:         &metav1.Duration{Duration: 0},
 	}
 
@@ -129,7 +112,7 @@ func mutateAutoscalingPolicy(policy *registryv1.AutoscalingPolicy) []jsonpatch.O
 		StablePolicy: DefaultScaleUpStablePolicy,
 		PanicPolicy:  DefaultScaleUpPanicPolicy,
 	}
-	var patch []jsonpatch.JsonPatchOperation
+	var patch []jsonpatch.Operation
 
 	// Only set default behavior if behavior doesn't exist
 	if policy.Spec.Behavior == (registryv1.AutoscalingPolicyBehavior{}) {
@@ -167,10 +150,7 @@ func mutateAutoscalingPolicy(policy *registryv1.AutoscalingPolicy) []jsonpatch.O
 	return patch
 }
 
-// createPolicyPatch creates a JSON patch between the original and mutated policy
-// It handles missing parent paths by creating them step by step
-func createPolicyPatch(patch []jsonpatch.Operation) ([]byte, error) {
-
+func createPolicyPatchBytes(patch []jsonpatch.Operation) ([]byte, error) {
 	patchBytes, err := json.Marshal(patch)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal patch: %v", err)

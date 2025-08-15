@@ -32,7 +32,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	registryv1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
 
@@ -59,20 +59,20 @@ func TestValidateAutoscalingPolicy_ErrorFormatting(t *testing.T) {
 			},
 			Behavior: registryv1.AutoscalingPolicyBehavior{
 				ScaleDown: registryv1.AutoscalingPolicyStablePolicy{
-					Instances:           pointer.Int32(1),
+					Instances:           ptr.To(int32(1)),
 					Period:              &metav1.Duration{Duration: -time.Minute},     // This should trigger error: negative period
 					StabilizationWindow: &metav1.Duration{Duration: time.Minute * 35}, // This should trigger error: period too long
 				},
 				ScaleUp: registryv1.AutoscalingPolicyScaleUpPolicy{
 					StablePolicy: registryv1.AutoscalingPolicyStablePolicy{
-						Instances:           pointer.Int32(2),
+						Instances:           ptr.To(int32(2)),
 						Period:              &metav1.Duration{Duration: time.Minute * 35}, // This should trigger error: period too long
 						StabilizationWindow: &metav1.Duration{Duration: -time.Second},     // This should trigger error: negative stabilization window
 					},
 					PanicPolicy: registryv1.AutoscalingPolicyPanicPolicy{
-						Percent:               pointer.Int32(50),
+						Percent:               ptr.To(int32(50)),
 						Period:                metav1.Duration{Duration: time.Minute * 35}, // This should trigger error: period too long
-						PanicThresholdPercent: pointer.Int32(99),                           // This should trigger error: threshold must be >= 100
+						PanicThresholdPercent: ptr.To(int32(99)),                           // This should trigger error: threshold must be >= 100
 						PanicModeHold:         &metav1.Duration{Duration: -time.Minute},    // This should trigger error: negative panic mode hold
 					},
 				},
@@ -133,24 +133,24 @@ func TestValidateAutoscalingPolicy_NoErrors(t *testing.T) {
 			},
 			Behavior: registryv1.AutoscalingPolicyBehavior{
 				ScaleDown: registryv1.AutoscalingPolicyStablePolicy{
-					Instances:           pointer.Int32(1),
-					Percent:             pointer.Int32(10),
+					Instances:           ptr.To(int32(1)),
+					Percent:             ptr.To(int32(10)),
 					Period:              &metav1.Duration{Duration: time.Minute},
 					SelectPolicy:        registryv1.SelectPolicyOr,
 					StabilizationWindow: &metav1.Duration{Duration: time.Minute * 5},
 				},
 				ScaleUp: registryv1.AutoscalingPolicyScaleUpPolicy{
 					StablePolicy: registryv1.AutoscalingPolicyStablePolicy{
-						Instances:           pointer.Int32(2),
-						Percent:             pointer.Int32(20),
+						Instances:           ptr.To(int32(2)),
+						Percent:             ptr.To(int32(20)),
 						Period:              &metav1.Duration{Duration: time.Minute},
 						SelectPolicy:        registryv1.SelectPolicyOr,
 						StabilizationWindow: &metav1.Duration{Duration: time.Second * 30},
 					},
 					PanicPolicy: registryv1.AutoscalingPolicyPanicPolicy{
-						Percent:               pointer.Int32(50),
+						Percent:               ptr.To(int32(50)),
 						Period:                metav1.Duration{Duration: time.Second * 10},
-						PanicThresholdPercent: pointer.Int32(200),
+						PanicThresholdPercent: ptr.To(int32(200)),
 						PanicModeHold:         &metav1.Duration{Duration: time.Minute},
 					},
 				},
@@ -184,24 +184,24 @@ func TestAutoscalingPolicyValidator_Handle_ValidPolicy(t *testing.T) {
 			},
 			Behavior: registryv1.AutoscalingPolicyBehavior{
 				ScaleDown: registryv1.AutoscalingPolicyStablePolicy{
-					Instances:           pointer.Int32(1),
-					Percent:             pointer.Int32(10),
+					Instances:           ptr.To(int32(1)),
+					Percent:             ptr.To(int32(10)),
 					Period:              &metav1.Duration{Duration: time.Minute},
 					SelectPolicy:        registryv1.SelectPolicyOr,
 					StabilizationWindow: &metav1.Duration{Duration: time.Minute * 5},
 				},
 				ScaleUp: registryv1.AutoscalingPolicyScaleUpPolicy{
 					StablePolicy: registryv1.AutoscalingPolicyStablePolicy{
-						Instances:           pointer.Int32(2),
-						Percent:             pointer.Int32(20),
+						Instances:           ptr.To(int32(2)),
+						Percent:             ptr.To(int32(20)),
 						Period:              &metav1.Duration{Duration: time.Minute},
 						SelectPolicy:        registryv1.SelectPolicyOr,
 						StabilizationWindow: &metav1.Duration{Duration: time.Second * 30},
 					},
 					PanicPolicy: registryv1.AutoscalingPolicyPanicPolicy{
-						Percent:               pointer.Int32(50),
+						Percent:               ptr.To(int32(50)),
 						Period:                metav1.Duration{Duration: time.Second * 10},
-						PanicThresholdPercent: pointer.Int32(200),
+						PanicThresholdPercent: ptr.To(int32(200)),
 						PanicModeHold:         &metav1.Duration{Duration: time.Minute},
 					},
 				},
@@ -221,6 +221,7 @@ func TestAutoscalingPolicyValidator_Handle_ValidPolicy(t *testing.T) {
 
 	body, _ := json.Marshal(admissionReview)
 	req := httptest.NewRequest("POST", "/validate", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
 	validator.Handle(w, req)
@@ -234,5 +235,7 @@ func TestAutoscalingPolicyValidator_Handle_ValidPolicy(t *testing.T) {
 
 	assert.True(t, responseReview.Response.Allowed)
 	assert.Equal(t, types.UID("test-uid"), responseReview.Response.UID)
-	assert.Empty(t, responseReview.Response.Result.Message)
+	if responseReview.Response.Result != nil {
+		assert.Empty(t, responseReview.Response.Result.Message)
+	}
 }

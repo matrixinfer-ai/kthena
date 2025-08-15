@@ -32,7 +32,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	registryv1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
 
@@ -50,12 +50,13 @@ func TestAutoscalingPolicyMutator_Handle_InvalidJSON(t *testing.T) {
 
 	// Test with invalid JSON
 	req := httptest.NewRequest("POST", "/mutate", bytes.NewBufferString("invalid json"))
+	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
 	mutator.Handle(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
-	assert.Contains(t, w.Body.String(), "invalid request body")
+	assert.Contains(t, w.Body.String(), "failed to decode body")
 }
 
 // TestAutoscalingPolicyMutator_Handle_InvalidObject tests handling of invalid object structure
@@ -74,12 +75,13 @@ func TestAutoscalingPolicyMutator_Handle_InvalidObject(t *testing.T) {
 
 	body, _ := json.Marshal(admissionReview)
 	req := httptest.NewRequest("POST", "/mutate", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
 	mutator.Handle(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
-	assert.Contains(t, w.Body.String(), "could not unmarshal object")
+	assert.Contains(t, w.Body.String(), "failed to decode object")
 }
 
 // TestAutoscalingPolicyMutator_Handle_Success tests successful mutation of a policy
@@ -116,6 +118,7 @@ func TestAutoscalingPolicyMutator_Handle_Success(t *testing.T) {
 
 	body, _ := json.Marshal(admissionReview)
 	req := httptest.NewRequest("POST", "/mutate", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
 	mutator.Handle(w, req)
@@ -149,7 +152,7 @@ func TestMutateAutoscalingPolicy_EmptyBehavior(t *testing.T) {
 		},
 	}
 
-	patch := mutateAutoscalingPolicy(policy)
+	patch := createPolicyBatch(policy)
 
 	// Should have exactly one patch operation to add the entire behavior
 	assert.Len(t, patch, 1)
@@ -161,18 +164,18 @@ func TestMutateAutoscalingPolicy_EmptyBehavior(t *testing.T) {
 	assert.True(t, ok)
 
 	// Check ScaleDown defaults
-	assert.Equal(t, pointer.Int32(0), behavior.ScaleDown.Instances)
-	assert.Equal(t, pointer.Int32(100), behavior.ScaleDown.Percent)
+	assert.Equal(t, ptr.To(int32(0)), behavior.ScaleDown.Instances)
+	assert.Equal(t, ptr.To(int32(100)), behavior.ScaleDown.Percent)
 	assert.Equal(t, time.Minute*5, behavior.ScaleDown.StabilizationWindow.Duration)
 
 	// Check ScaleUp StablePolicy defaults
-	assert.Equal(t, pointer.Int32(4), behavior.ScaleUp.StablePolicy.Instances)
-	assert.Equal(t, pointer.Int32(100), behavior.ScaleUp.StablePolicy.Percent)
+	assert.Equal(t, ptr.To(int32(4)), behavior.ScaleUp.StablePolicy.Instances)
+	assert.Equal(t, ptr.To(int32(100)), behavior.ScaleUp.StablePolicy.Percent)
 	assert.Equal(t, time.Duration(0), behavior.ScaleUp.StablePolicy.StabilizationWindow.Duration)
 
 	// Check ScaleUp PanicPolicy defaults
-	assert.Equal(t, pointer.Int32(0), behavior.ScaleUp.PanicPolicy.Percent)
-	assert.Equal(t, pointer.Int32(200), behavior.ScaleUp.PanicPolicy.PanicThresholdPercent)
+	assert.Equal(t, ptr.To(int32(0)), behavior.ScaleUp.PanicPolicy.Percent)
+	assert.Equal(t, ptr.To(int32(200)), behavior.ScaleUp.PanicPolicy.PanicThresholdPercent)
 }
 
 // TestMutateAutoscalingPolicy_NoChangesNeeded tests when no mutation is required
@@ -182,23 +185,23 @@ func TestMutateAutoscalingPolicy_NoChangesNeeded(t *testing.T) {
 		Spec: registryv1.AutoscalingPolicySpec{
 			Behavior: registryv1.AutoscalingPolicyBehavior{
 				ScaleDown: registryv1.AutoscalingPolicyStablePolicy{
-					Instances:           pointer.Int32(1),
+					Instances:           ptr.To(int32(1)),
 					StabilizationWindow: &metav1.Duration{Duration: time.Minute * 3},
 				},
 				ScaleUp: registryv1.AutoscalingPolicyScaleUpPolicy{
 					StablePolicy: registryv1.AutoscalingPolicyStablePolicy{
-						Instances:           pointer.Int32(2),
+						Instances:           ptr.To(int32(2)),
 						StabilizationWindow: &metav1.Duration{Duration: time.Second * 30},
 					},
 					PanicPolicy: registryv1.AutoscalingPolicyPanicPolicy{
-						Percent: pointer.Int32(50),
+						Percent: ptr.To(int32(50)),
 					},
 				},
 			},
 		},
 	}
 
-	patch := mutateAutoscalingPolicy(policy)
+	patch := createPolicyBatch(policy)
 
 	// Should have no patch operations
 	assert.Len(t, patch, 0)
@@ -212,7 +215,7 @@ func TestCreatePolicyPatch(t *testing.T) {
 		jsonpatch.NewOperation("add", "/spec/behavior/scaleUp/stablePolicy/stabilizationWindow", "0s"),
 	}
 
-	patchBytes, err := createPolicyPatch(operations)
+	patchBytes, err := createPolicyPatchBytes(operations)
 	require.NoError(t, err)
 
 	// Verify it's valid JSON
@@ -228,7 +231,7 @@ func TestCreatePolicyPatch_EmptyOperations(t *testing.T) {
 	// Test creating patch with no operations
 	operations := []jsonpatch.Operation{}
 
-	patchBytes, err := createPolicyPatch(operations)
+	patchBytes, err := createPolicyPatchBytes(operations)
 	require.NoError(t, err)
 
 	// Should be empty JSON array

@@ -179,10 +179,10 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `percent` _integer_ | Percent is the maximum percentage of instances to scale up. |  | Maximum: 1000 <br />Minimum: 0 <br /> |
+| `percent` _integer_ | Percent is the maximum percentage of instances to scale up. | 1000 | Maximum: 1000 <br />Minimum: 0 <br /> |
 | `period` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#duration-v1-meta)_ | Period is the duration over which scaling down is evaluated. |  |  |
-| `panicThresholdPercent` _integer_ | PanicThresholdPercent is the threshold percent to enter panic mode. |  | Maximum: 1000 <br />Minimum: 110 <br /> |
-| `panicModeHold` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#duration-v1-meta)_ | PanicModeHold is the duration to hold in panic mode before returning to normal. |  |  |
+| `panicThresholdPercent` _integer_ | PanicThresholdPercent is the threshold percent to enter panic mode. | 200 | Maximum: 1000 <br />Minimum: 110 <br /> |
+| `panicModeHold` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#duration-v1-meta)_ | PanicModeHold is the duration to hold in panic mode before returning to normal. | 60s |  |
 
 
 #### AutoscalingPolicyScaleUpPolicy
@@ -239,7 +239,7 @@ _Appears in:_
 | `instances` _integer_ | Instances is the maximum number of instances to scale. | 1 | Minimum: 0 <br /> |
 | `percent` _integer_ | Percent is the maximum percentage of instances to scaling. | 100 | Maximum: 1000 <br />Minimum: 0 <br /> |
 | `period` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#duration-v1-meta)_ | Period is the duration over which scaling is evaluated. | 15s |  |
-| `selectPolicy` _[SelectPolicyType](#selectpolicytype)_ | SelectPolicy determines the selection strategy for scaling up (e.g., Or, And). |  | Enum: [Or And] <br /> |
+| `selectPolicy` _[SelectPolicyType](#selectpolicytype)_ | SelectPolicy determines the selection strategy for scaling up (e.g., Or, And). | Or | Enum: [Or And] <br /> |
 | `stabilizationWindow` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#duration-v1-meta)_ | StabilizationWindow is the time window to stabilize scaling up actions. |  |  |
 
 

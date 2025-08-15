@@ -65,9 +65,8 @@ func (ws *WebhookServer) Start(stopCh <-chan struct{}) error {
 	// Create model handlers
 	modelValidator := handlers.NewModelValidator(ws.kubeClient, ws.matrixInferClient)
 	modelMutator := handlers.NewModelMutator(ws.kubeClient, ws.matrixInferClient)
-	autoscalingPolicyValidator := handlers.NewAutoscalingPolicyValidator(ws.kubeClient, ws.matrixinferClient)
-	autoscalingPolicyMutator := handlers.NewAutoscalingPolicyMutator(ws.kubeClient, ws.matrixinferClient)
-
+	autoscalingPolicyValidator := handlers.NewAutoscalingPolicyValidator(ws.kubeClient, ws.matrixInferClient)
+	autoscalingPolicyMutator := handlers.NewAutoscalingPolicyMutator(ws.kubeClient, ws.matrixInferClient)
 
 	// Create mux and register handlers
 	mux.HandleFunc("/validate-registry-matrixinfer-ai-v1alpha1-model", modelValidator.Handle)
