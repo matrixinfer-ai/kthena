@@ -230,7 +230,6 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 	}
 	if model.Generation != model.Status.ObservedGeneration {
 		klog.Info("model generation is not equal to observed generation, checking for LoRA adapter changes")
-
 		// First, check if only LoRA adapters have changed for runtime update
 		if oldModel, err := mc.getPreviousModelVersion(model); err == nil && oldModel != nil {
 			if mc.hasOnlyLoraAdaptersChanged(oldModel, model) {
@@ -250,7 +249,6 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 				}
 			}
 		}
-
 		// If not only LoRA adapters changed or LoRA update failed, proceed with full reconciliation
 		klog.Info("Proceeding with full reconciliation")
 		if err := mc.setModelUpdateCondition(ctx, model); err != nil {
@@ -280,7 +278,6 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 	if err := mc.setModelActiveCondition(ctx, model); err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -865,13 +862,20 @@ func (mc *ModelController) listModelInferByLabel(model *registryv1alpha1.Model) 
 	}
 }
 
-// updateModelInfer updates model infer when model changed
+// updateModelInfer updates model infer when model changed. And delete model infer that has been deleted from model.
 func (mc *ModelController) updateModelInfer(ctx context.Context, model *registryv1alpha1.Model) error {
+	// list model infers related to the model
+	existingModelInfers, err := mc.listModelInferByLabel(model)
+	if err != nil {
+		return err
+	}
 	modelInfers, err := convert.CreateModelInferResources(model)
 	if err != nil {
 		return err
 	}
+	modelInfersToKeep := make(map[string]bool)
 	for _, modelInfer := range modelInfers {
+		modelInfersToKeep[modelInfer.Name] = true
 		oldModelInfer, err := mc.modelInfersLister.ModelInfers(modelInfer.Namespace).Get(modelInfer.Name)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
@@ -891,6 +895,16 @@ func (mc *ModelController) updateModelInfer(ctx context.Context, model *registry
 		modelInfer.ResourceVersion = oldModelInfer.ResourceVersion
 		if _, err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Update(ctx, modelInfer, metav1.UpdateOptions{}); err != nil {
 			return err
+		}
+	}
+	for _, existingModelInfer := range existingModelInfers {
+		// if not exist in modelInfersToKeep, delete it
+		if _, ok := modelInfersToKeep[existingModelInfer.Name]; !ok {
+			err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Delete(ctx, existingModelInfer.Name, metav1.DeleteOptions{})
+			if err != nil {
+				return err
+			}
+			klog.Infof("Delete ModelInfer %s", existingModelInfer.Name)
 		}
 	}
 	return nil
