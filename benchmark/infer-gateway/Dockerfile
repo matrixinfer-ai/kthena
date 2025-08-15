@@ -16,6 +16,7 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
     echo 'export PATH="/root/.cargo/bin:$PATH"' >> ~/.bashrc && \
     . ~/.bashrc
 
+# Use private repo to prevent changes of original repo and make sure the benchmark tool is always available.
 RUN git clone https://github.com/YaoZengzeng/sglang.git && \
     cd sglang && \
     git fetch && \

@@ -4,9 +4,6 @@ metadata:
   name: benchmark-job
 spec:
   template:
-    # Unncessary if you don't want to cache generated test data in hostpath.
-    nodeSelector:
-      kubernetes.io/hostname: 192.168.0.126
     spec:
       containers:
       - name: benchmark
@@ -41,15 +38,9 @@ spec:
         - "800"
         - --max-concurrency
         - "300"
-        volumeMounts:
-        - name: benchmark-cache
-          mountPath: /root/.cache/sglang/benchmark
+        # If you don't want to generate new test data every time, you can mount the volume to the cache directory.
+        #volumeMounts:
+        #  - name: benchmark-cache
+        #    mountPath: /root/.cache/sglang/benchmark
       restartPolicy: Never
-      volumes:
-      # Change to any type of kubernetes storage type you want.
-      # If you want to generate new test data every time, then you don't need to mount any volume.
-      - name: benchmark-cache
-        hostPath:
-          path: /root/sglang-cache
-          type: Directory
   backoffLimit: 0  # Don't retry on failure 
