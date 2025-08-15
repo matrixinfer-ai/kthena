@@ -52,8 +52,8 @@ const (
 //go:embed templates/*
 var templateFS embed.FS
 
-// CreateModelInferResources creates ModelInfer objects based on the model's backends.
-func CreateModelInferResources(model *registry.Model) ([]*workload.ModelInfer, error) {
+// BuildModelInfer creates ModelInfer objects based on the model's backends.
+func BuildModelInfer(model *registry.Model) ([]*workload.ModelInfer, error) {
 	var infers []*workload.ModelInfer
 	for idx, backend := range model.Spec.Backends {
 		var infer *workload.ModelInfer
