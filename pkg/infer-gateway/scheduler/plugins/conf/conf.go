@@ -62,7 +62,7 @@ type PluginConfig struct {
 
 type AuthenticationConfig struct {
 	Issuer    string   `yaml:"issuer"`
-	Audiences []string `yaml:"audience"`
+	Audiences []string `yaml:"audiences"`
 	JwksUri   string   `yaml:"jwksUri"`
 }
 

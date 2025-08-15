@@ -27,8 +27,10 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/lestrrat-go/jwx/v3/jws"
 	"github.com/lestrrat-go/jwx/v3/jwt"
+	"k8s.io/klog/v2"
 
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 )
 
 // For the time being, the JWT is extracted directly from the fixed header name, and the configurable items are added later.
@@ -44,14 +46,22 @@ func extractTokenFromHeader(req *http.Request) string {
 }
 
 type JWTValidator struct {
-	cache datastore.Store
+	enable bool
+	cache  datastore.Store
 }
 
 // NewJWTValidator creates a new JWTValidator
-func NewJWTValidator(store datastore.Store) *JWTValidator {
-	return &JWTValidator{
-		cache: store,
+func NewJWTValidator(store datastore.Store, gatewayConfig *conf.GatewayConfiguration) *JWTValidator {
+	defaultValidator := &JWTValidator{
+		// By default, the JWT validation is disabled
+		enable: false,
+		cache:  store,
 	}
+
+	if gatewayConfig != nil && gatewayConfig.Auth.JwksUri != "" {
+		defaultValidator.enable = true
+	}
+	return defaultValidator
 }
 
 // parseAndValidateToken validates the token
@@ -112,9 +122,19 @@ func (j *JWTValidator) validateIssuer(token jwt.Token) error {
 
 func (j *JWTValidator) validateAudiences(token jwt.Token) error {
 	var aud interface{}
+	audinecesCache := j.cache.GetJwks().Audiences
+	if len(audinecesCache) == 0 {
+		// If audiences are not configured, we skip audience validation
+		return nil
+	}
+
 	err := token.Get("aud", &aud)
 	if err != nil {
 		return fmt.Errorf("audience claim missing")
+	}
+
+	if aud == nil {
+		return fmt.Errorf("need an audience")
 	}
 
 	// validate audience
@@ -269,12 +289,15 @@ func (j *JWTValidator) parseJWKS(jwksStr string) (*jwk.Set, error) {
 
 func (j *JWTValidator) Authenticate() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// validate the token about the jwtRules
-		token := extractTokenFromHeader(c.Request)
-		err := j.parseAndValidateToken(token)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": fmt.Sprintf("Unauthorized: %v", err)})
-			return
+		if j.enable {
+			// validate the token about the jwtRules
+			token := extractTokenFromHeader(c.Request)
+			klog.V(4).Infof("Extracted token: %s", token)
+			err := j.parseAndValidateToken(token)
+			if err != nil {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": fmt.Sprintf("Unauthorized: %v", err)})
+				return
+			}
 		}
 		// TODO: add Authorization handler
 		c.Next()

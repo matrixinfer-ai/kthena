@@ -326,8 +326,8 @@ func TestJWTValidatorValidateAudiences(t *testing.T) {
 				JwksUri:   "https://raw.githubusercontent.com/istio/istio/release-1.27/security/tools/jwt/samples/jwks.json",
 				Audiences: []string{},
 			},
-			expectError: true,
-			errorMsg:    "audience mismatch: expected one of [], got [valid-audience]",
+			expectError: false,
+			errorMsg:    "",
 		},
 		{
 			name:              "Empty audience in token",

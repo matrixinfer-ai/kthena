@@ -40,8 +40,8 @@ func NewJwks(configMapPath string) *Jwks {
 		klog.Fatalf("failed to parse gateway config: %v", err)
 		return nil
 	}
-	if gatewayConfig == nil {
-		klog.Error("gateway config is nil")
+	if gatewayConfig.Auth.JwksUri == "" {
+		klog.V(4).Info("JWKS URI is empty, skipping JWKS initialization")
 		return nil
 	}
 	keySet, err := jwk.Fetch(context.Background(), gatewayConfig.Auth.JwksUri)

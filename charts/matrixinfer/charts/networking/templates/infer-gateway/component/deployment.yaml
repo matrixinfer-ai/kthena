@@ -53,7 +53,7 @@ spec:
           volumeMounts:
           - name: scheduler-config
             mountPath: /etc/config/schedulerConfiguration.yaml
-            subPath: schedulerConfiguration
+            subPath: gatewayConfiguration
           {{- if and .Values.global.certManager.enabled .Values.inferGateway.tls.enabled }}
           - name: tls-certs
             mountPath: "/etc/tls"

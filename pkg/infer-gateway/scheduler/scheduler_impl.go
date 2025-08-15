@@ -54,15 +54,10 @@ type podInfoWithValue struct {
 	score int
 }
 
-func NewScheduler(store datastore.Store, gatewayConfigPath string) Scheduler {
+func NewScheduler(store datastore.Store, gatewayConfig *conf.GatewayConfiguration) Scheduler {
 	// For backward compatibility, use the default registry and ensure plugins are registered
 	registry := NewPluginRegistry()
 	registerDefaultPlugins(registry)
-
-	gatewayConfig, err := conf.ParseGatewayConfig(gatewayConfigPath)
-	if err != nil {
-		klog.Fatalf("failed to parse gateway config: %v", err)
-	}
 
 	// Default plugin configuration.
 	scorePluginMap := map[string]int{
@@ -80,6 +75,7 @@ func NewScheduler(store datastore.Store, gatewayConfigPath string) Scheduler {
 		"prefix-cache":  {Raw: []byte(`{"blockSizeToHash": 64, "maxBlocksToMatch": 128, "maxHashCacheSize": 50000}`)},
 	}
 
+	var err error
 	if gatewayConfig == nil {
 		// If no scheduler configuration is provided, use the default configuration
 		klog.Warning("No scheduler configuration found, using default configuration")

@@ -35,6 +35,7 @@ const (
 )
 
 func NewRouter(store datastore.Store) *router.Router {
+	store.FlushJwks(gatewayConfigFile)
 	return router.NewRouter(store, gatewayConfigFile)
 }
 

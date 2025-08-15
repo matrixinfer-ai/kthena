@@ -39,6 +39,7 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/handlers"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
@@ -75,10 +76,15 @@ func NewRouter(store datastore.Store, gatewayConfigPath string) *Router {
 		}
 	})
 
+	gatewayConfig, err := conf.ParseGatewayConfig(gatewayConfigPath)
+	if err != nil {
+		klog.Fatalf("failed to parse gateway config: %v", err)
+	}
+
 	return &Router{
 		store:            store,
-		scheduler:        scheduler.NewScheduler(store, gatewayConfigPath),
-		authValidator:    *auth.NewJWTValidator(store),
+		scheduler:        scheduler.NewScheduler(store, gatewayConfig),
+		authValidator:    *auth.NewJWTValidator(store, gatewayConfig),
 		loadRateLimiter:  loadRateLimiter,
 		connectorFactory: connectors.NewDefaultFactory(),
 	}
