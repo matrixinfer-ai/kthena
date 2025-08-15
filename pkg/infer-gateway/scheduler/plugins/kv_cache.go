@@ -14,6 +14,87 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/*
+KV Cache Plugin Design
+
+Overview:
+The KV Cache Plugin is a scoring plugin for the matrixinfer gateway scheduler that implements a token-based block matching mechanism
+for model inference requests. It leverages Redis as a distributed cache to track which pods have processed specific token sequences,
+enabling intelligent pod scheduling based on KV cache hit potential. The plugin supports both chat completion and text completion
+requests with advanced tokenization capabilities.
+
+Key Components:
+
+1. KVCache
+   - Main plugin struct implementing the framework.ScorePlugin interface
+   - Manages distributed caching mechanism using Redis for cross-pod cache coordination
+   - Integrates with tokenization system for accurate token sequence processing
+   - Configurable parameters for block size and maximum blocks to match
+
+2. TokenBlockProcessor
+   - Processes token sequences into fixed-size blocks for hashing
+   - Generates SHA-256 based hashes for token blocks to ensure consistency
+   - Handles token chunking with configurable block sizes (default: 128 tokens)
+
+3. Tokenization Integration
+   - TokenizerPool for managing model-specific tokenizers
+   - Support for vLLM remote tokenization
+   - Chat template processing for ChatML format requests
+
+4. Redis-based Distributed Cache
+   - Uses Redis hash structures to store block-to-pod mappings
+   - Key format: "matrix:kv:block:{model}@{hash}" -> {pod_identifiers}
+   - Pipeline operations for efficient batch queries
+   - Timeout handling and error recovery
+
+Core Features:
+
+1. Token Block Matching
+   - Tokenizes input prompts using model-specific tokenizers
+   - Divides token sequences into fixed-size blocks (default: 128 tokens)
+   - Generates standardized SHA-256 hashes for each token block
+   - Queries Redis to find pods that have cached the same token blocks
+
+2. Chat Template Support
+   - Automatic detection of chat completion requests (presence of "messages" field)
+   - ChatML format processing with proper role and content extraction
+   - Integration with model-specific chat templates via tokenizer pool
+
+3. Scoring Mechanism
+   - Scores pods based on consecutive token block matches starting from the beginning
+   - Score calculation: (matching consecutive blocks / total blocks) * 100
+   - Range: 0-100, where higher scores indicate better KV cache hit potential
+   - Early termination when no pods have consecutive matches
+
+4. Distributed Cache Management
+   - Redis-based storage for cross-pod cache coordination
+   - Efficient pipeline queries for batch block lookups
+   - Pod identifier extraction and normalization
+   - Timeout handling for Redis operations (5 seconds default)
+
+Usage:
+The plugin is used in the matrixinfer gateway scheduler framework to score pods based on their potential
+for KV cache hits. It's particularly effective for:
+- Chat completion workloads with similar conversation patterns
+- Text completion tasks with repeated prompt prefixes
+- Multi-turn conversations where context is reused
+- Scenarios where token-level cache precision is important
+
+Configuration Parameters:
+- BlockSizeToHash: Number of tokens per block for hashing (default: 128)
+- MaxBlocksToMatch: Maximum number of blocks to process (default: 128)
+- Redis connection managed through utils.GetRedisClient()
+- Tokenizer pool configuration with vLLM remote support
+- Timeout settings for tokenization (10s) and Redis operations (5s)
+
+Architecture Differences from Prefix Cache:
+- Uses token-based blocks instead of byte-based blocks for better semantic alignment
+- Leverages Redis for distributed caching instead of local LRU cache
+- Integrates advanced tokenization with chat template support
+- Designed for cross-pod cache coordination in distributed inference environments
+
+*/
+
 package plugins
 
 import (
@@ -21,7 +102,6 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -95,17 +175,11 @@ func NewKVCache(pluginArg runtime.RawExtension) *KVCache {
 	}
 	pool := tokenization.NewTokenizerPool(poolConfig)
 
-	// Check if we're in test environment to avoid Redis connection
-	var redisClient *redis.Client
-	if os.Getenv("GO_TEST_MODE") != "true" {
-		redisClient = utils.GetRedisClient()
-	}
-
 	return &KVCache{
 		name:             KVCachePluginName,
 		maxBlocksToMatch: maxBlocksToMatch,
 		keyPrefix:        keyPrefix,
-		redisClient:      redisClient,
+		redisClient:      utils.GetRedisClient(),
 		processor:        &TokenBlockProcessor{blockSize: blockSizeToHash},
 		tokenizerPool:    pool,
 	}
