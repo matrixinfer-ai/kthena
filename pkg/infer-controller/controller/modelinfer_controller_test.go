@@ -809,8 +809,10 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		err = controller.syncModelInfer(context.Background(), "default/test-mi-scale-down")
 		assert.NoError(t, err)
 
-		// Verify InferGroups initial state
+		// Initial status check
 		verifyInferGroups(t, controller, mi, 3)
+		verifyPodCount(t, controller, mi, 3)
+		verifyRoles(t, controller, mi, 3)
 
 		// Update ModelInfer to scale down
 		updatedMI := mi.DeepCopy()
@@ -944,8 +946,10 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		err = controller.syncModelInfer(context.Background(), "default/test-role-scale-down")
 		assert.NoError(t, err)
 
-		// Verify InferGroups initial state
+		// Initial status check
 		verifyInferGroups(t, controller, mi, 2)
+		verifyPodCount(t, controller, mi, 2)
+		verifyRoles(t, controller, mi, 2)
 
 		// Update ModelInfer to role scale down
 		updatedMI := mi.DeepCopy()
