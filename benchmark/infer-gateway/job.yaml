@@ -20,6 +20,7 @@ spec:
         - "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
         - --tokenizer
         # In restricted network environment, you should pre-download the tokenizer, pack it into the docker image and use the path of downloaded tokenizer as the argument.
+        # README shows how to pre-download the tokenizer.
         # - "/root/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-R1-Distill-Qwen-7B/snapshots/916b56a44061fd5cd7d6a8fb632557ed4f724f60/
         - "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
         - --dataset-name

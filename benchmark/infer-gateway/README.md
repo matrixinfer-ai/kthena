@@ -15,6 +15,7 @@ This tool is based on [`sglang/bench_serving.py`](https://github.com/sgl-project
     ```
     /root/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-R1-Distill-Qwen-7B/snapshots/916b56a44061fd5cd7d6a8fb632557ed4f724f60/
     ```
+  - How to pre-download tokenizer: Run the container on a public network using the model name as the `--tokenizer` parameter for testing. Once the test runs normally, the container will contain the tokenizer. At this point, commit the container to a new image, so that the image will include the corresponding tokenizer. 
 
 - **HostPath Volume for Caching:**  
   We use a `hostPath` volume to cache data generated during benchmarking, especially for datasets like `"generated-shared-prefix"`. Generating test data based on the tokenizer can be time-consuming, but by caching the results on the host, subsequent runs are much faster. You can use any Kubernetes-supported storage type for caching, not just `hostPath`.
