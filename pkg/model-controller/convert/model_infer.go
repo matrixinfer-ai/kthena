@@ -183,7 +183,6 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 		"ENGINE_DECODE_ENV":                decodeEngineEnv,
 		"MODEL_INFER_RUNTIME_ENGINE":       strings.ToLower(string(backend.Type)),
 		"MODEL_INFER_RUNTIME_POD":          "$(POD_NAME).$(NAMESPACE).svc.cluster.local",
-		"MODEL_INFER_RUNTIME_MODEL":        model.Name,
 		"PREFILL_REPLICAS":                 workersMap[registry.ModelWorkerTypePrefill].Replicas,
 		"DECODE_REPLICAS":                  workersMap[registry.ModelWorkerTypeDecode].Replicas,
 		"ENGINE_DECODE_RESOURCES":          workersMap[registry.ModelWorkerTypeDecode].Resources,
@@ -280,7 +279,6 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 		"MODEL_INFER_RUNTIME_METRICS_PATH": env.GetEnvValueOrDefault[string](backend, env.RuntimeMetricsPath, "/metrics"),
 		"MODEL_INFER_RUNTIME_ENGINE":       strings.ToLower(string(backend.Type)),
 		"MODEL_INFER_RUNTIME_POD":          "$(POD_NAME).$(NAMESPACE).svc.cluster.local",
-		"MODEL_INFER_RUNTIME_MODEL":        model.Name,
 		"ENGINE_SERVER_RESOURCES":          workersMap[registry.ModelWorkerTypeServer].Resources,
 		"ENGINE_SERVER_IMAGE":              workersMap[registry.ModelWorkerTypeServer].Image,
 		"ENGINE_SERVER_COMMAND":            commands,
@@ -304,12 +302,12 @@ func buildCommands(workerConfig *apiextensionsv1.JSON, modelDownloadPath string,
 	commands := []string{"python", "-m", "vllm.entrypoints.openai.api_server", "--model", modelDownloadPath, "--enable-lora"}
 	args, err := utils.ParseArgs(workerConfig)
 	commands = append(commands, args...)
-	commands = append(commands, "--kv-events-config", config.GetDefaultKVEventsConfig())
-	commands = append(commands, "--enforce-eager")
 	if workersMap[registry.ModelWorkerTypeServer] != nil && workersMap[registry.ModelWorkerTypeServer].Pods > 1 {
 		commands = append(commands, "--distributed_executor_backend", "ray")
 		commands = []string{"bash", "-c", fmt.Sprintf("chmod u+x %s && %s leader --ray_cluster_size=%d --num-gpus=%d && %s", VllmMultiNodeServingScriptPath, VllmMultiNodeServingScriptPath, workersMap[registry.ModelWorkerTypeServer].Pods, utils.GetDeviceNum(workersMap[registry.ModelWorkerTypeServer]), strings.Join(commands, " "))}
 	}
+	commands = append(commands, "--kv-events-config", config.GetDefaultKVEventsConfig())
+	commands = append(commands, "--enforce-eager")
 	return commands, err
 }
 

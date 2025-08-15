@@ -18,7 +18,6 @@ require (
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/time v0.11.0
 	gomodules.xyz/jsonpatch/v2 v2.5.0
-	gopkg.in/yaml.v2 v2.4.0
 	istio.io/istio v0.0.0-20250514001512-c9c7d1fa7da1
 	k8s.io/api v0.33.2
 	k8s.io/apiextensions-apiserver v0.33.0

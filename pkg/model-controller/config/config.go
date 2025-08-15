@@ -77,8 +77,7 @@ func GetDefaultKVEventsConfig() string {
 
 	data, err := json.Marshal(config)
 	if err != nil {
-		return fmt.Sprintf(`{"enable_kv_cache_events": true, "publisher": "%s", "topic": "%s", "endpoint": "%s"}`,
-			DefaultKVEventsPublisher, DefaultKVEventsTopic, DefaultKVEventsEndpoint)
+		panic(fmt.Sprintf("Failed to marshal KVEventsConfig: %v", err))
 	}
 
 	return string(data)

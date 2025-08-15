@@ -35,7 +35,7 @@ spec:
                   - --pod
                   - ${MODEL_INFER_RUNTIME_POD}
                   - --model
-                  - ${MODEL_INFER_RUNTIME_MODEL}
+                  - ${MODEL_NAME}
               - name: vllm
                 image: ${ENGINE_PREFILL_IMAGE}
                 ports:
@@ -96,7 +96,7 @@ spec:
                   - --pod
                   - ${MODEL_INFER_RUNTIME_POD}
                   - --model
-                  - ${MODEL_INFER_RUNTIME_MODEL}
+                  - ${MODEL_NAME}
               - name: vllm
                 image: ${ENGINE_DECODE_IMAGE}
                 ports:

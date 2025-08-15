@@ -54,7 +54,7 @@ spec:
                   - --pod
                   - ${MODEL_INFER_RUNTIME_POD}
                   - --model
-                  - ${MODEL_INFER_RUNTIME_MODEL}
+                  - ${MODEL_NAME}
                 readinessProbe:
                   httpGet:
                     path: /health

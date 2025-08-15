@@ -1,28 +1,29 @@
+{{- if .Values.redis.enabled }}
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: matrixinfer-system
+  name: {{ .Values.redis.namespace }}
   labels:
-    name: matrixinfer-system
+    name: {{ .Values.redis.namespace }}
 
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: redis-server
-  namespace: matrixinfer-system
+  namespace: {{ .Values.redis.namespace }}
   labels:
     app.kubernetes.io/name: redis
     app.kubernetes.io/component: redis-server
-    app.kubernetes.io/part-of: matrixinfer
+    {{- include "matrixinfer.labels" . | nindent 4 }}
 spec:
-  type: ClusterIP
+  type: {{ .Values.redis.service.type }}
   ports:
     - name: redis-port
       protocol: TCP
-      port: 6379
-      targetPort: 6379
+      port: {{ .Values.redis.service.port }}
+      targetPort: {{ .Values.redis.service.port }}
   selector:
     app.kubernetes.io/name: redis
     app.kubernetes.io/component: redis-server
@@ -32,13 +33,13 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: redis-server
-  namespace: matrixinfer-system
+  namespace: {{ .Values.redis.namespace }}
   labels:
     app.kubernetes.io/name: redis
     app.kubernetes.io/component: redis-server
-    app.kubernetes.io/part-of: matrixinfer
+    {{- include "matrixinfer.labels" . | nindent 4 }}
 spec:
-  replicas: 1
+  replicas: {{ .Values.redis.replicas }}
   selector:
     matchLabels:
       app.kubernetes.io/name: redis
@@ -48,25 +49,19 @@ spec:
       labels:
         app.kubernetes.io/name: redis
         app.kubernetes.io/component: redis-server
-        app.kubernetes.io/part-of: matrixinfer
+        {{- include "matrixinfer.labels" . | nindent 8 }}
     spec:
       containers:
-        - name: lookup-server
-          image: redis:7.2-alpine
-          imagePullPolicy: IfNotPresent
+        - name: redis-server
+          image: "{{ .Values.redis.image.repository }}:{{ .Values.redis.image.tag }}"
+          imagePullPolicy: {{ .Values.redis.image.pullPolicy }}
           command:
             - redis-server
           ports:
             - name: redis-port
-              containerPort: 6379
+              containerPort: {{ .Values.redis.service.port }}
               protocol: TCP
-          resources:
-            limits:
-              cpu: '8'
-              memory: 30Gi
-            requests:
-              cpu: '4'
-              memory: 8Gi
+          resources: {{- toYaml .Values.redis.resource | nindent 12 }}
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
       restartPolicy: Always
@@ -79,3 +74,4 @@ spec:
       maxSurge: 25%
   revisionHistoryLimit: 10
   progressDeadlineSeconds: 600
+{{- end }}

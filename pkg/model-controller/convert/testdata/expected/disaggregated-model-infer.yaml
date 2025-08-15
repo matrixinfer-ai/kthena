@@ -45,6 +45,10 @@ spec:
                   - http://localhost:8000
                   - --engine-metrics-path
                   - /metrics
+                  - --pod
+                  - $(POD_NAME).$(NAMESPACE).svc.cluster.local
+                  - --model
+                  - ds-r1-qwen-7b-pd
                 image: matrixinfer/runtime:latest
                 name: runtime
                 ports:
@@ -69,7 +73,22 @@ spec:
                   - --tensor-parallel-size
                   - "16"
                   - --trust-remote-code
+                  - --kv-events-config
+                  - '{"enable_kv_cache_events":true,"publisher":"zmq","topic":"kv-events","endpoint":"tcp://*:5557"}'
+                  - --enforce-eager
                 env:
+                  - name: ENDPOINT
+                    value: https://obs.test.com
+                  - name: POD_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.name
+                  - name: NAMESPACE
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.namespace
+                  - name: VLLM_USE_V1
+                    value: "1"
                   - name: HF_HUB_OFFLINE
                     value: "1"
                   - name: HCCL_IF_IP
@@ -157,6 +176,10 @@ spec:
                   - http://localhost:8000
                   - --engine-metrics-path
                   - /metrics
+                  - --pod
+                  - $(POD_NAME).$(NAMESPACE).svc.cluster.local
+                  - --model
+                  - ds-r1-qwen-7b-pd
                 envFrom:
                 - secretRef:
                     name: downloader-secrets
@@ -184,7 +207,22 @@ spec:
                   - --tensor-parallel-size
                   - "16"
                   - --trust-remote-code
+                  - --kv-events-config
+                  - '{"enable_kv_cache_events":true,"publisher":"zmq","topic":"kv-events","endpoint":"tcp://*:5557"}'
+                  - --enforce-eager
                 env:
+                  - name: ENDPOINT
+                    value: https://obs.test.com
+                  - name: POD_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.name
+                  - name: NAMESPACE
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.namespace
+                  - name: VLLM_USE_V1
+                    value: "1"
                   - name: HF_HUB_OFFLINE
                     value: "1"
                   - name: GLOO_SOCKET_IFNAME
