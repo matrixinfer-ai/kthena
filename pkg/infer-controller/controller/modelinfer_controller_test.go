@@ -733,6 +733,17 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		err = controller.syncModelInfer(context.Background(), "default/test-mi")
 		assert.NoError(t, err)
 
+		// Wait for pods to be created and synced to cache
+		expectedPodCount := utils.ExpectedPodNum(mi) * int(*mi.Spec.Replicas)
+		found = waitForObjectInCache(t, 2*time.Second, func() bool {
+			selector := labels.SelectorFromSet(map[string]string{
+				workloadv1alpha1.ModelInferNameLabelKey: mi.Name,
+			})
+			pods, _ := controller.podsLister.Pods("default").List(selector)
+			return len(pods) == expectedPodCount
+		})
+		assert.True(t, found, "Pods should be created and synced to cache")
+
 		// Verify InferGroups were created in store
 		verifyInferGroups(t, controller, mi, 2)
 		// Verify each InferGroup has correct roles
@@ -782,6 +793,17 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		err = controller.syncModelInfer(context.Background(), "default/test-mi-scale-up")
 		assert.NoError(t, err)
 
+		// Wait for pods to be created and synced to cache
+		expectedPodCount := utils.ExpectedPodNum(updatedMI) * int(*updatedMI.Spec.Replicas)
+		found = waitForObjectInCache(t, 2*time.Second, func() bool {
+			selector := labels.SelectorFromSet(map[string]string{
+				workloadv1alpha1.ModelInferNameLabelKey: updatedMI.Name,
+			})
+			pods, _ := controller.podsLister.Pods("default").List(selector)
+			return len(pods) == expectedPodCount
+		})
+		assert.True(t, found, "Pods should be created and synced to cache")
+
 		// Verify InferGroups were created in store
 		verifyInferGroups(t, controller, updatedMI, 3)
 		// Verify each InferGroup has correct roles
@@ -808,6 +830,17 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		// Process initial creation
 		err = controller.syncModelInfer(context.Background(), "default/test-mi-scale-down")
 		assert.NoError(t, err)
+
+		// Wait for pods to be created and synced to cache
+		expectedPodCount := utils.ExpectedPodNum(mi) * int(*mi.Spec.Replicas)
+		found = waitForObjectInCache(t, 2*time.Second, func() bool {
+			selector := labels.SelectorFromSet(map[string]string{
+				workloadv1alpha1.ModelInferNameLabelKey: mi.Name,
+			})
+			pods, _ := controller.podsLister.Pods("default").List(selector)
+			return len(pods) == expectedPodCount
+		})
+		assert.True(t, found, "Pods should be created and synced to cache")
 
 		// Initial status check
 		verifyInferGroups(t, controller, mi, 3)
@@ -867,7 +900,16 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 			controller.deletePod(pod)
 		}
 
-		time.Sleep(100 * time.Millisecond)
+		// Wait for pods to be created and synced to cache
+		expectedPodCount = utils.ExpectedPodNum(updatedMI) * int(*updatedMI.Spec.Replicas)
+		found = waitForObjectInCache(t, 2*time.Second, func() bool {
+			selector := labels.SelectorFromSet(map[string]string{
+				workloadv1alpha1.ModelInferNameLabelKey: updatedMI.Name,
+			})
+			pods, _ := controller.podsLister.Pods("default").List(selector)
+			return len(pods) == expectedPodCount
+		})
+		assert.True(t, found, "Pods should be created and synced to cache")
 
 		// Verify InferGroups were created in store
 		verifyInferGroups(t, controller, updatedMI, 1)
@@ -918,6 +960,17 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		err = controller.syncModelInfer(context.Background(), "default/test-role-scale-up")
 		assert.NoError(t, err)
 
+		// Wait for pods to be created and synced to cache
+		expectedPodCount := utils.ExpectedPodNum(updatedMI) * int(*updatedMI.Spec.Replicas)
+		found = waitForObjectInCache(t, 2*time.Second, func() bool {
+			selector := labels.SelectorFromSet(map[string]string{
+				workloadv1alpha1.ModelInferNameLabelKey: updatedMI.Name,
+			})
+			pods, _ := controller.podsLister.Pods("default").List(selector)
+			return len(pods) == expectedPodCount
+		})
+		assert.True(t, found, "Pods should be created and synced to cache")
+
 		// Verify InferGroups were created in store
 		verifyInferGroups(t, controller, updatedMI, 2)
 		// Verify each InferGroup has correct roles
@@ -945,6 +998,17 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		// Process initial creation
 		err = controller.syncModelInfer(context.Background(), "default/test-role-scale-down")
 		assert.NoError(t, err)
+
+		// Wait for pods to be created and synced to cache
+		expectedPodCount := utils.ExpectedPodNum(mi) * int(*mi.Spec.Replicas)
+		found = waitForObjectInCache(t, 2*time.Second, func() bool {
+			selector := labels.SelectorFromSet(map[string]string{
+				workloadv1alpha1.ModelInferNameLabelKey: mi.Name,
+			})
+			pods, _ := controller.podsLister.Pods("default").List(selector)
+			return len(pods) == expectedPodCount
+		})
+		assert.True(t, found, "Pods should be created and synced to cache")
 
 		// Initial status check
 		verifyInferGroups(t, controller, mi, 2)
@@ -1003,6 +1067,17 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 			assert.NoError(t, err)
 			controller.deletePod(pod)
 		}
+
+		// Wait for pods to be created and synced to cache
+		expectedPodCount = utils.ExpectedPodNum(updatedMI) * int(*updatedMI.Spec.Replicas)
+		found = waitForObjectInCache(t, 2*time.Second, func() bool {
+			selector := labels.SelectorFromSet(map[string]string{
+				workloadv1alpha1.ModelInferNameLabelKey: updatedMI.Name,
+			})
+			pods, _ := controller.podsLister.Pods("default").List(selector)
+			return len(pods) == expectedPodCount
+		})
+		assert.True(t, found, "Pods should be created and synced to cache")
 
 		// Verify InferGroups were created in store
 		verifyInferGroups(t, controller, updatedMI, 2)
