@@ -22,37 +22,33 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math"
 	"net/http"
-	"strconv"
 	"time"
+
+	"github.com/hashicorp/go-retryablehttp"
 )
 
 const (
-	defaultTimeout    = 30 * time.Second
-	defaultMaxRetries = 3
+	defaultTimeout    = 5 * time.Second
+	defaultMaxRetries = 1
 )
 
 type httpClient struct {
-	client     *http.Client
-	baseURL    string
-	maxRetries int
+	client  *retryablehttp.Client
+	baseURL string
 }
 
-func newHTTPClient(baseURL string, timeout time.Duration, maxRetries int) *httpClient {
-	if timeout <= 0 {
-		timeout = defaultTimeout
-	}
-	if maxRetries < 0 {
-		maxRetries = defaultMaxRetries
-	}
+func newHTTPClient(baseURL string) *httpClient {
+	retryClient := retryablehttp.NewClient()
+	retryClient.RetryMax = defaultMaxRetries
+	retryClient.RetryWaitMin = 1 * time.Second
+	retryClient.RetryWaitMax = 1 * time.Second
+	retryClient.HTTPClient.Timeout = defaultTimeout
+	retryClient.Logger = nil
 
 	return &httpClient{
-		client: &http.Client{
-			Timeout: timeout,
-		},
-		baseURL:    baseURL,
-		maxRetries: maxRetries,
+		client:  retryClient,
+		baseURL: baseURL,
 	}
 }
 
@@ -61,85 +57,37 @@ func (c *httpClient) Post(ctx context.Context, path string, data interface{}) ([
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
-
 	url := c.baseURL + path
-	var lastErr error
 
-	for attempt := 0; attempt <= c.maxRetries; attempt++ {
-		if attempt > 0 {
-			backoff := time.Duration(math.Pow(2, float64(attempt-1))) * time.Second
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-time.After(backoff):
-			}
-		}
+	req, err := retryablehttp.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
 
-		req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
-		if err != nil {
-			lastErr = err
-			continue
-		}
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
 
-		req.Header.Set("Content-Type", "application/json")
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
 
-		resp, err := c.client.Do(req)
-		if err != nil {
-			lastErr = err
-			continue
-		}
-
-		body, err := io.ReadAll(resp.Body)
-		resp.Body.Close()
-
-		if err != nil {
-			lastErr = err
-			continue
-		}
-
-		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-			return body, nil
-		}
-
-		lastErr = ErrHTTPRequest{
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return nil, ErrHTTPRequest{
 			StatusCode: resp.StatusCode,
 			Message:    string(body),
 		}
-
-		if !c.shouldRetry(resp.StatusCode) {
-			break
-		}
-
-		if retryAfter := resp.Header.Get("Retry-After"); retryAfter != "" {
-			if seconds, err := strconv.Atoi(retryAfter); err == nil {
-				select {
-				case <-ctx.Done():
-					return nil, ctx.Err()
-				case <-time.After(time.Duration(seconds) * time.Second):
-				}
-			}
-		}
 	}
 
-	return nil, lastErr
-}
-
-func (c *httpClient) shouldRetry(statusCode int) bool {
-	switch statusCode {
-	case http.StatusRequestTimeout,
-		http.StatusTooManyRequests,
-		http.StatusInternalServerError,
-		http.StatusBadGateway,
-		http.StatusServiceUnavailable,
-		http.StatusGatewayTimeout:
-		return true
-	default:
-		return false
-	}
+	return body, nil
 }
 
 func (c *httpClient) Close() {
-	if c.client != nil {
-		c.client.CloseIdleConnections()
+	if c.client != nil && c.client.HTTPClient != nil {
+		c.client.HTTPClient.CloseIdleConnections()
 	}
 }

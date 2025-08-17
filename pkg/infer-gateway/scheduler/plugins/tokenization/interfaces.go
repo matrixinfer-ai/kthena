@@ -18,10 +18,13 @@ package tokenization
 
 import "context"
 
+// Tokenizer provides basic text tokenization functionality for converting text to tokens
 type Tokenizer interface {
 	TokenizeInputText(string) ([]byte, error)
 }
 
+// extendedTokenizer extends the basic Tokenizer with advanced features like
+// context support, chat templates, and configurable options
 type extendedTokenizer interface {
 	Tokenizer
 	TokenizeWithOptions(ctx context.Context, input TokenizeInput) (*TokenizeResult, error)
@@ -30,7 +33,6 @@ type extendedTokenizer interface {
 type remoteTokenizer interface {
 	extendedTokenizer
 	GetEndpoint() string
-	IsHealthy(ctx context.Context) bool
 	Close() error
 }
 

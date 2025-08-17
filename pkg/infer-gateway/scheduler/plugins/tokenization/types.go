@@ -16,7 +16,7 @@ limitations under the License.
 
 package tokenization
 
-import "time"
+import "matrixinfer.ai/matrixinfer/pkg/infer-gateway/common"
 
 type TokenizeInputType string
 
@@ -28,7 +28,7 @@ const (
 type TokenizeInput struct {
 	Type                TokenizeInputType
 	Text                string
-	Messages            []ChatMessage
+	Messages            []common.Message
 	AddSpecialTokens    bool
 	ReturnTokenStrings  bool
 	AddGenerationPrompt bool
@@ -41,17 +41,10 @@ type TokenizeResult struct {
 	TokenStrings []string `json:"token_strs,omitempty"`
 }
 
-type ChatMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
-}
-
 type RemoteTokenizerConfig struct {
 	Engine             string
 	Endpoint           string
 	Model              string
-	Timeout            time.Duration
-	MaxRetries         int
 	AddSpecialTokens   bool
 	ReturnTokenStrings bool
 }
@@ -65,7 +58,7 @@ type vllmTokenizeCompletionRequest struct {
 
 type vllmTokenizeChatRequest struct {
 	Model                string                 `json:"model,omitempty"`
-	Messages             []ChatMessage          `json:"messages"`
+	Messages             []common.Message       `json:"messages"`
 	AddSpecialTokens     *bool                  `json:"add_special_tokens,omitempty"`
 	AddGenerationPrompt  *bool                  `json:"add_generation_prompt,omitempty"`
 	ContinueFinalMessage *bool                  `json:"continue_final_message,omitempty"`

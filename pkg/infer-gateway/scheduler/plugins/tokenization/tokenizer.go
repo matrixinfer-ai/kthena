@@ -18,13 +18,6 @@ package tokenization
 
 import (
 	"context"
-	"fmt"
-	"time"
-)
-
-const (
-	defaultRemoteTimeout    = 30 * time.Second
-	defaultRemoteMaxRetries = 3
 )
 
 type remoteTokenizerImpl struct {
@@ -34,18 +27,8 @@ type remoteTokenizerImpl struct {
 }
 
 func NewRemoteTokenizer(config RemoteTokenizerConfig) (Tokenizer, error) {
-	if err := validateRemoteConfig(&config); err != nil {
-		return nil, err
-	}
-
-	if config.Engine != "vllm" {
-		return nil, fmt.Errorf("unsupported engine: %s, only vllm is supported", config.Engine)
-	}
-
 	adapter := newVLLMAdapter(config.Model)
-
-	client := newHTTPClient(config.Endpoint, config.Timeout, config.MaxRetries)
-
+	client := newHTTPClient(config.Endpoint)
 	return &remoteTokenizerImpl{
 		config:  config,
 		client:  client,
@@ -102,36 +85,9 @@ func (t *remoteTokenizerImpl) GetEndpoint() string {
 	return t.config.Endpoint
 }
 
-func (t *remoteTokenizerImpl) IsHealthy(ctx context.Context) bool {
-	testInput := TokenizeInput{
-		Type:             CompletionInput,
-		Text:             "",
-		AddSpecialTokens: false,
-	}
-
-	_, err := t.TokenizeWithOptions(ctx, testInput)
-	return err == nil
-}
-
 func (t *remoteTokenizerImpl) Close() error {
 	if t.client != nil {
 		t.client.Close()
-	}
-	return nil
-}
-
-func validateRemoteConfig(c *RemoteTokenizerConfig) error {
-	if c.Engine == "" {
-		return ErrInvalidConfig{Message: "Engine cannot be empty"}
-	}
-	if c.Endpoint == "" {
-		return ErrInvalidConfig{Message: "Endpoint cannot be empty"}
-	}
-	if c.Timeout <= 0 {
-		c.Timeout = defaultRemoteTimeout
-	}
-	if c.MaxRetries < 0 {
-		c.MaxRetries = defaultRemoteMaxRetries
 	}
 	return nil
 }

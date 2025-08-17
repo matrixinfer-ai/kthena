@@ -98,8 +98,9 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusNotFound, "prompt not found")
 			return
 		}
-		if err := r.loadRateLimiter.RateLimit(modelName, prompt); err != nil {
-			klog.Infof("request model: %s, prompt: %s, error: %v", modelName, prompt, err)
+		promptStr := utils.GetPromptString(prompt)
+		if err := r.loadRateLimiter.RateLimit(modelName, promptStr); err != nil {
+			klog.Infof("request model: %s, prompt: %s, error: %v", modelName, promptStr, err)
 			c.AbortWithStatusJSON(http.StatusTooManyRequests, err.Error())
 			return
 		}

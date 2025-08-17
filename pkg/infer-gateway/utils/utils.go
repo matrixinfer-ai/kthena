@@ -24,7 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
-
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/common"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 	"sigs.k8s.io/yaml"
 )
@@ -44,54 +44,66 @@ func GetNamespaceName(obj metav1.Object) types.NamespacedName {
 	}
 }
 
-func GetPrompt(body map[string]interface{}) (string, error) {
+func GetPrompt(body map[string]interface{}) (common.ChatMessage, error) {
 	if prompt, ok := body["prompt"]; ok {
-		res, ok := prompt.(string)
+		promptStr, ok := prompt.(string)
 		if !ok {
-			return "", fmt.Errorf("prompt is not a string")
+			return common.ChatMessage{}, fmt.Errorf("prompt is not a string")
 		}
-		return res, nil
+		return common.ChatMessage{
+			Text: promptStr,
+		}, nil
 	}
 
 	if messages, ok := body["messages"]; ok {
 		messageList, ok := messages.([]interface{})
 		if !ok {
-			return "", fmt.Errorf("messages is not a list")
+			return common.ChatMessage{}, fmt.Errorf("messages is not a list")
 		}
 
-		res := ""
+		var msgs []common.Message
 		for _, message := range messageList {
 			msgMap, ok := message.(map[string]interface{})
 			if !ok {
 				continue
 			}
 
-			content, ok := msgMap["content"]
-			if !ok {
-				continue
-			}
-			contentStr, ok := content.(string)
+			role, ok := msgMap["role"].(string)
 			if !ok {
 				continue
 			}
 
-			role, ok := msgMap["role"]
+			content, ok := msgMap["content"].(string)
 			if !ok {
 				continue
 			}
 
-			roleStr, ok := role.(string)
-			if !ok {
-				continue
-			}
-
-			res += fmt.Sprintf("<|im_start|>%s\n%s<|im_end|>\n", roleStr, contentStr)
+			msgs = append(msgs, common.Message{
+				Role:    role,
+				Content: content,
+			})
 		}
 
-		return res, nil
+		return common.ChatMessage{
+			Messages: msgs,
+		}, nil
 	}
 
-	return "", fmt.Errorf("prompt or messages not found in request body")
+	return common.ChatMessage{}, fmt.Errorf("prompt or messages not found in request body")
+}
+
+func GetPromptString(chatMessage common.ChatMessage) string {
+	// If Text field is present, return text directly (for prompt format)
+	if chatMessage.Text != "" {
+		return chatMessage.Text
+	}
+
+	// For chat messages, convert to ChatML format
+	result := ""
+	for _, msg := range chatMessage.Messages {
+		result += fmt.Sprintf("<|im_start|>%s\n%s<|im_end|>\n", msg.Role, msg.Content)
+	}
+	return result
 }
 
 func LoadSchedulerConfig(configMapPath string) (map[string]int, []string, map[string]runtime.RawExtension, error) {
