@@ -214,6 +214,9 @@ func (t *KVCache) Name() string {
 }
 
 func (t *KVCache) getTokenizerForModel(ctx *framework.Context, pods []*datastore.PodInfo) tokenization.Tokenizer {
+	if t.tokenizerManager == nil {
+		return nil
+	}
 	return t.tokenizerManager.GetTokenizer(ctx.Model, pods)
 }
 
@@ -329,6 +332,11 @@ func (t *KVCache) queryRedisForBlocks(blockHashes []uint64, modelName string) (m
 	defer cancel()
 
 	blockToPods := make(map[uint64][]string)
+
+	if t.redisClient == nil {
+		return blockToPods, fmt.Errorf("redis client not initialized")
+	}
+
 	pipe := t.redisClient.Pipeline()
 	cmds := make([]*redis.StringSliceCmd, len(blockHashes))
 
