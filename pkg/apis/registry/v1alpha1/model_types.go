@@ -25,7 +25,8 @@ import (
 
 // ModelSpec defines the desired state of Model.
 type ModelSpec struct {
-	// Name is the name of the model.
+	// Name is the name of the model. Model CR name is restricted by kubernetes, for example, can't contain uppercase letters.
+	// So we use this field to specify the Model name.
 	// +optional
 	// +kubebuilder:validation:MaxLength=64
 	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
@@ -33,7 +34,8 @@ type ModelSpec struct {
 	// Owner is the owner of the model.
 	// +optional
 	Owner string `json:"owner,omitempty"`
-	// Backends is the list of model backends associated with this model.
+	// Backends is the list of model backends associated with this model. A Model CR at lease has one ModelBackend.
+	// ModelBackend is the minimum unit of inference instance. It can be vLLM, SGLang, MindIE or other types.
 	// +kubebuilder:validation:MinItems=1
 	// +listType=map
 	// +listMapKey=name
@@ -55,15 +57,15 @@ type ModelSpec struct {
 
 // ModelBackend defines the configuration for a model backend.
 type ModelBackend struct {
-	// Name is the name of the backend.
+	// Name is the name of the backend. Can't duplicate with other ModelBackend name in the same Model CR.
 	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
 	Name string `json:"name"`
 	// Type is the type of the backend.
 	Type ModelBackendType `json:"type"`
-	// ModelURI is the URI where the model is stored.
+	// ModelURI is the URI where the model is stored. Support hf://, s3://, pvc://.
 	// +kubebuilder:validation:Pattern=`^(hf://|s3://|pvc://).+`
 	ModelURI string `json:"modelURI"`
-	// CacheURI is the URI where the model cache is stored.
+	// CacheURI is the URI where the model cache is stored. Support hostpath://, pvc://.
 	// +optional
 	// +kubebuilder:validation:Pattern=`^(hostpath://|pvc://).+`
 	CacheURI string `json:"cacheURI,omitempty"`
@@ -77,6 +79,7 @@ type ModelBackend struct {
 	// +listType=atomic
 	EnvFrom []corev1.EnvFromSource `json:"envFrom,omitempty" protobuf:"bytes,19,rep,name=envFrom"`
 	// List of environment variables to set in the container.
+	// Support "ENDPOINT", "RUNTIME_URL"(default http://localhost:8000), "RUNTIME_PORT"(default 8100)
 	// Cannot be updated.
 	// +optional
 	// +patchMergeKey=name
@@ -167,6 +170,7 @@ type ModelWorker struct {
 	// +optional
 	Affinity corev1.Affinity `json:"affinity,omitempty"`
 	// Config contains worker-specific configuration in JSON format.
+	// You can find vLLM config here https://docs.vllm.ai/en/stable/api/vllm/config.html
 	// +optional
 	Config apiextensionsv1.JSON `json:"config,omitempty"`
 }
