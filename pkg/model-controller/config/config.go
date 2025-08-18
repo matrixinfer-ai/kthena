@@ -30,7 +30,7 @@ type ParseConfig struct {
 
 var Config ParseConfig
 
-func (p *ParseConfig) GetModelInferDownloaderImage() string {
+func (p *ParseConfig) ModelInferDownloaderImage() string {
 	if len(p.modelInferDownloaderImage) == 0 {
 		return DefaultModelInferDownloaderImage
 	}
@@ -41,7 +41,7 @@ func (p *ParseConfig) SetModelInferDownloaderImage(image string) {
 	p.modelInferDownloaderImage = image
 }
 
-func (p *ParseConfig) GetModelInferRuntimeImage() string {
+func (p *ParseConfig) ModelInferRuntimeImage() string {
 	if len(p.modelInferRuntimeImage) == 0 {
 		return DefaultModelInferRuntimeImage
 	}
