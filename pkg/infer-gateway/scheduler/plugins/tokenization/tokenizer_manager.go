@@ -17,10 +17,14 @@ limitations under the License.
 package tokenization
 
 import (
+	"context"
+	"encoding/binary"
 	"fmt"
 	"math/rand"
+	"time"
 
 	"k8s.io/klog/v2"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/common"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 )
 
@@ -81,4 +85,64 @@ func (m *TokenizerManager) createTokenizerFromPods(model string, pods []*datasto
 
 	klog.Warningf("Failed to create tokenizer for model %s after trying %d pods", model, len(pods))
 	return nil
+}
+
+// TokenizePrompt tokenizes a prompt (text or chat messages) and returns uint32 tokens
+func (m *TokenizerManager) TokenizePrompt(
+	model string,
+	prompt common.ChatMessage,
+	pods []*datastore.PodInfo,
+) ([]uint32, error) {
+	tokenizer := m.GetTokenizer(model, pods)
+	if tokenizer == nil {
+		return nil, fmt.Errorf("no tokenizer available for model %s", model)
+	}
+
+	// Handle text prompts directly
+	if prompt.Text != "" {
+		tokens, err := tokenizer.TokenizeInputText(prompt.Text)
+		if err != nil {
+			return nil, fmt.Errorf("text tokenization failed: %w", err)
+		}
+
+		// Convert byte array to uint32 tokens
+		tokens32 := make([]uint32, len(tokens)/4)
+		for i := 0; i < len(tokens32); i++ {
+			tokens32[i] = binary.BigEndian.Uint32(tokens[i*4 : (i+1)*4])
+		}
+		return tokens32, nil
+	}
+
+	// Handle chat messages with extended tokenizer
+	if len(prompt.Messages) > 0 {
+		extendedTok, ok := tokenizer.(ExtendedTokenizer)
+		if !ok {
+			return nil, fmt.Errorf("tokenizer does not support chat template processing")
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		input := TokenizeInput{
+			Type:                ChatInput,
+			Messages:            prompt.Messages,
+			AddSpecialTokens:    false,
+			AddGenerationPrompt: true,
+			ReturnTokenStrings:  false,
+		}
+
+		result, err := extendedTok.TokenizeWithOptions(ctx, input)
+		if err != nil {
+			return nil, fmt.Errorf("chat template tokenization failed: %w", err)
+		}
+
+		// Convert int tokens to uint32
+		tokens32 := make([]uint32, len(result.Tokens))
+		for i, token := range result.Tokens {
+			tokens32[i] = uint32(token)
+		}
+		return tokens32, nil
+	}
+
+	return nil, fmt.Errorf("empty prompt provided")
 }

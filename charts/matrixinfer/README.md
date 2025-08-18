@@ -22,6 +22,7 @@ it.
 - [Helm](https://helm.sh/docs/intro/install/) must be installed.
 - [Cert-manager](https://cert-manager.io/docs/installation/) is optional and only required if you enable it by setting `global.certManager.enable` to `true` in `values.yaml`.
 - [Webhook certificate](#webhook-certificate-configuration) must be configured.
+- **Redis** must be deployed separately if using KV cache or score plugins. See [Redis Deployment](#redis-deployment) section below.
 
 
 ## Install
@@ -194,3 +195,45 @@ cat /path/to/your/ca.crt | base64 | tr -d '\n'
 ```
 
 You will need to ensure that the certificates are properly mounted into the webhook pods and that the paths match the CLI parameters. The CA bundle is required for the Kubernetes API server to trust the webhook server's certificate.
+
+## Redis Deployment
+
+Redis is required when using MatrixInfer features like **KV cache plugin** or **score plugin**. Redis is **not** included in the Helm chart and must be deployed separately when needed.
+
+### Quick Start
+
+Deploy Redis when using caching features:
+
+```shell
+kubectl apply -f examples/redis/redis-standalone.yaml
+```
+
+### Configuration
+
+After deploying Redis, MatrixInfer components automatically read Redis connection information from the `redis-config` ConfigMap in the `matrixinfer-system` namespace.
+
+### Custom Redis Deployment
+
+If you have an existing Redis deployment, create the required configuration:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: matrixinfer-system
+data:
+  REDIS_HOST: "your-redis-host"
+  REDIS_PORT: "6379"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: redis-secret
+  namespace: matrixinfer-system
+type: Opaque
+data:
+  password: "base64-encoded-password"
+```
+
+For detailed information about when Redis is required and deployment instructions, see [examples/redis/README.md](../../examples/redis/README.md).

@@ -23,15 +23,15 @@ type Tokenizer interface {
 	TokenizeInputText(string) ([]byte, error)
 }
 
-// extendedTokenizer extends the basic Tokenizer with advanced features like
+// ExtendedTokenizer extends the basic Tokenizer with advanced features like
 // context support, chat templates, and configurable options
-type extendedTokenizer interface {
+type ExtendedTokenizer interface {
 	Tokenizer
 	TokenizeWithOptions(ctx context.Context, input TokenizeInput) (*TokenizeResult, error)
 }
 
 type remoteTokenizer interface {
-	extendedTokenizer
+	ExtendedTokenizer
 	GetEndpoint() string
 	Close() error
 }

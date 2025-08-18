@@ -547,3 +547,37 @@ func BenchmarkTokenizeInputText(b *testing.B) {
 		_, _ = tokenizer.TokenizeInputText("Hello world test benchmark")
 	}
 }
+
+// Test TokenizerManager.TokenizePrompt
+func TestTokenizerManagerTokenizePrompt(t *testing.T) {
+	config := TokenizerManagerConfig{
+		EnableVLLMRemote: true,
+		EndpointTemplate: "http://%s:8000",
+		ModelServiceMap:  make(map[string]string),
+	}
+
+	manager := NewTokenizerManager(config)
+	if manager == nil {
+		t.Fatal("Expected non-nil TokenizerManager")
+	}
+
+	// Test with empty pods
+	t.Run("Empty pods", func(t *testing.T) {
+		prompt := common.ChatMessage{Text: "Hello world"}
+
+		_, err := manager.TokenizePrompt("test-model", prompt, []*datastore.PodInfo{})
+		if err == nil {
+			t.Error("Expected error for empty pods")
+		}
+	})
+
+	// Test with empty prompt
+	t.Run("Empty prompt", func(t *testing.T) {
+		prompt := common.ChatMessage{}
+
+		_, err := manager.TokenizePrompt("test-model", prompt, []*datastore.PodInfo{})
+		if err == nil {
+			t.Error("Expected error for empty prompt")
+		}
+	})
+}

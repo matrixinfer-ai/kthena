@@ -25,30 +25,11 @@ inferGateway:
       memory: 128Mi
 
 redis:
-  enabled: true
-  # replicas is the number of redis instances to run.
-  replicas: 1
-  image:
-    # repository is the container image repository for redis.
-    repository: redis
-    # tag is the container image tag for redis.
-    tag: 7.2-alpine
-    # pullPolicy is the image pull policy for redis.
-    pullPolicy: IfNotPresent
-  # resource defines the resource limits and requests for redis.
-  resource:
-    limits:
-      cpu: 2000m
-      memory: 2Gi
-    requests:
-      cpu: 1000m
-      memory: 1Gi
-  # service configuration for redis
-  service:
-    type: ClusterIP
-    port: 6379
-  # namespace for redis deployment
-  namespace: matrixinfer-system
+  # Redis is deployed separately using examples in examples/redis/
+  # Set enabled to true when using KV cache plugin
+  enabled: false
+  # Redis connection configuration will be read from redis-config ConfigMap
+  # Deploy Redis using examples/redis/redis-standalone.yaml when needed
 
 webhook:
   enabled: true

@@ -17,9 +17,7 @@ limitations under the License.
 package plugins
 
 import (
-	"context"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -242,7 +240,7 @@ func TestTokenBlockProcessor_ChunkTokens_Core(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			processor := &TokenBlockProcessor{blockSize: tt.blockSize}
-			result := processor.chunkTokens(tt.tokens)
+			result := processor.chunkTokens(tt.tokens, 100) // Use reasonable maxBlocks for test
 
 			// Handle empty slice comparison
 			if len(result) == 0 && len(tt.expected) == 0 {
@@ -292,7 +290,7 @@ func TestTokenBlockProcessor_TokensToBlockHashes_Core(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			processor := &TokenBlockProcessor{blockSize: tt.blockSize}
-			result := processor.TokensToBlockHashes(tt.tokens)
+			result := processor.TokensToBlockHashes(tt.tokens, 100)
 
 			if len(result) != tt.expectLen {
 				t.Errorf("Expected %d hashes, got %d", tt.expectLen, len(result))
@@ -306,7 +304,7 @@ func TestTokenBlockProcessor_TokensToBlockHashes_Core(t *testing.T) {
 			}
 
 			// Verify consistency
-			result2 := processor.TokensToBlockHashes(tt.tokens)
+			result2 := processor.TokensToBlockHashes(tt.tokens, 100)
 			if !reflect.DeepEqual(result, result2) {
 				t.Errorf("TokensToBlockHashes should be consistent")
 			}
@@ -389,26 +387,6 @@ func TestKVCache_CalculatePodScores_Core(t *testing.T) {
 			}
 		})
 	}
-}
-
-// Mock tokenizer for testing
-type mockTokenizer struct {
-	tokenizeInputTextFunc   func(text string) ([]byte, error)
-	tokenizeWithOptionsFunc func(ctx context.Context, input tokenization.TokenizeInput) (*tokenization.TokenizeResult, error)
-}
-
-func (m *mockTokenizer) TokenizeInputText(text string) ([]byte, error) {
-	if m.tokenizeInputTextFunc != nil {
-		return m.tokenizeInputTextFunc(text)
-	}
-	return nil, errors.New("not implemented")
-}
-
-func (m *mockTokenizer) TokenizeWithOptions(ctx context.Context, input tokenization.TokenizeInput) (*tokenization.TokenizeResult, error) {
-	if m.tokenizeWithOptionsFunc != nil {
-		return m.tokenizeWithOptionsFunc(ctx, input)
-	}
-	return nil, errors.New("not implemented")
 }
 
 // Helper function to create test pods
@@ -612,89 +590,9 @@ func TestKVCache_Score_Core(t *testing.T) {
 	}
 }
 
-func TestKVCache_TokenizeWithChatTemplate_Core(t *testing.T) {
-	plugin := &KVCache{}
-
-	tests := []struct {
-		name        string
-		tokenizer   *mockTokenizer
-		chatMessage common.ChatMessage
-		expected    []uint32
-		expectError bool
-	}{
-		{
-			name: "Successful chat template tokenization",
-			tokenizer: &mockTokenizer{
-				tokenizeWithOptionsFunc: func(ctx context.Context, input tokenization.TokenizeInput) (*tokenization.TokenizeResult, error) {
-					return &tokenization.TokenizeResult{
-						Tokens: []int{1, 2, 3, 4, 5},
-					}, nil
-				},
-			},
-			chatMessage: common.ChatMessage{
-				Messages: []common.Message{
-					{Role: "user", Content: "Hello"},
-				},
-			},
-			expected:    []uint32{1, 2, 3, 4, 5},
-			expectError: false,
-		},
-		{
-			name: "Tokenization error",
-			tokenizer: &mockTokenizer{
-				tokenizeWithOptionsFunc: func(ctx context.Context, input tokenization.TokenizeInput) (*tokenization.TokenizeResult, error) {
-					return nil, errors.New("tokenization failed")
-				},
-			},
-			chatMessage: common.ChatMessage{
-				Messages: []common.Message{
-					{Role: "user", Content: "Hello"},
-				},
-			},
-			expected:    nil,
-			expectError: true,
-		},
-		{
-			name: "Empty result",
-			tokenizer: &mockTokenizer{
-				tokenizeWithOptionsFunc: func(ctx context.Context, input tokenization.TokenizeInput) (*tokenization.TokenizeResult, error) {
-					return &tokenization.TokenizeResult{
-						Tokens: []int{},
-					}, nil
-				},
-			},
-			chatMessage: common.ChatMessage{
-				Messages: []common.Message{
-					{Role: "user", Content: "Hello"},
-				},
-			},
-			expected:    []uint32{},
-			expectError: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := plugin.tokenizeWithChatTemplate(tt.tokenizer, tt.chatMessage)
-
-			if tt.expectError {
-				if err == nil {
-					t.Error("Expected error but got none")
-				}
-				return
-			}
-
-			if err != nil {
-				t.Errorf("Unexpected error: %v", err)
-				return
-			}
-
-			if !reflect.DeepEqual(result, tt.expected) {
-				t.Errorf("Expected %v, got %v", tt.expected, result)
-			}
-		})
-	}
-}
+// TestKVCache_TokenizeWithChatTemplate_Core has been removed as the tokenizeWithChatTemplate
+// method has been moved to the tokenization package. The functionality is now tested
+// in the tokenization package tests.
 
 func TestKVCache_MaxBlocksToMatch_Core(t *testing.T) {
 	tests := []struct {
@@ -731,12 +629,7 @@ func TestKVCache_MaxBlocksToMatch_Core(t *testing.T) {
 			}
 
 			processor := &TokenBlockProcessor{blockSize: 128}
-			blockHashes := processor.TokensToBlockHashes(tt.inputTokens)
-
-			// Simulate the maxBlocksToMatch logic
-			if len(blockHashes) > tt.maxBlocks {
-				blockHashes = blockHashes[:tt.maxBlocks]
-			}
+			blockHashes := processor.TokensToBlockHashes(tt.inputTokens, tt.maxBlocks)
 
 			if len(blockHashes) != tt.expectedBlocks {
 				t.Errorf("Expected %d blocks, got %d", tt.expectedBlocks, len(blockHashes))
@@ -757,7 +650,7 @@ func TestKVCache_EdgeCases_Core(t *testing.T) {
 			testFunc: func(t *testing.T) {
 				processor := &TokenBlockProcessor{blockSize: 1000}
 				tokens := []uint32{1, 2, 3, 4, 5}
-				hashes := processor.TokensToBlockHashes(tokens)
+				hashes := processor.TokensToBlockHashes(tokens, 100)
 
 				if len(hashes) != 1 {
 					t.Errorf("Expected 1 hash for large block size, got %d", len(hashes))
@@ -770,7 +663,7 @@ func TestKVCache_EdgeCases_Core(t *testing.T) {
 			testFunc: func(t *testing.T) {
 				processor := &TokenBlockProcessor{blockSize: 1}
 				tokens := []uint32{1, 2, 3, 4, 5}
-				hashes := processor.TokensToBlockHashes(tokens)
+				hashes := processor.TokensToBlockHashes(tokens, 100)
 
 				if len(hashes) != 5 {
 					t.Errorf("Expected 5 hashes for block size 1, got %d", len(hashes))
@@ -783,7 +676,7 @@ func TestKVCache_EdgeCases_Core(t *testing.T) {
 			testFunc: func(t *testing.T) {
 				processor := &TokenBlockProcessor{blockSize: 2}
 				tokens := []uint32{4294967295, 4294967294} // Max uint32 values
-				hashes := processor.TokensToBlockHashes(tokens)
+				hashes := processor.TokensToBlockHashes(tokens, 100)
 
 				if len(hashes) != 1 {
 					t.Errorf("Expected 1 hash, got %d", len(hashes))
@@ -1085,7 +978,7 @@ func TestKVCache_Performance_Core(t *testing.T) {
 				}
 
 				start := time.Now()
-				hashes := processor.TokensToBlockHashes(tokens)
+				hashes := processor.TokensToBlockHashes(tokens, 1000)
 				duration := time.Since(start)
 
 				expectedBlocks := (len(tokens) + 127) / 128 // Ceiling division
@@ -1118,7 +1011,7 @@ func TestKVCache_Performance_Core(t *testing.T) {
 
 				hashes := make([]uint64, len(sequences))
 				for i, seq := range sequences {
-					blockHashes := processor.TokensToBlockHashes(seq)
+					blockHashes := processor.TokensToBlockHashes(seq, 100)
 					if len(blockHashes) != 1 {
 						t.Errorf("Expected 1 hash for sequence %d, got %d", i, len(blockHashes))
 					}
@@ -1149,7 +1042,7 @@ func TestKVCache_Performance_Core(t *testing.T) {
 
 				// Process multiple times to check for memory leaks
 				for i := 0; i < 100; i++ {
-					hashes := processor.TokensToBlockHashes(tokens)
+					hashes := processor.TokensToBlockHashes(tokens, 1000)
 					if len(hashes) == 0 {
 						t.Error("Expected non-empty hashes")
 					}
@@ -1186,7 +1079,7 @@ func TestKVCache_Integration_Core(t *testing.T) {
 
 				// Test data
 				tokens := []uint32{1, 2, 3, 4, 5, 6, 7, 8}
-				blockHashes := plugin.processor.TokensToBlockHashes(tokens)
+				blockHashes := plugin.processor.TokensToBlockHashes(tokens, 100)
 
 				if len(blockHashes) != 2 {
 					t.Errorf("Expected 2 blocks, got %d", len(blockHashes))
@@ -1232,7 +1125,7 @@ func TestKVCache_Integration_Core(t *testing.T) {
 						tokens[i] = uint32(i + 1)
 					}
 
-					hashes := processor.TokensToBlockHashes(tokens)
+					hashes := processor.TokensToBlockHashes(tokens, 1000)
 					if len(hashes) != tc.expectedBlocks {
 						t.Errorf("BlockSize %d, TokenCount %d: expected %d blocks, got %d",
 							tc.blockSize, tc.tokenCount, tc.expectedBlocks, len(hashes))
@@ -1445,13 +1338,13 @@ func TestTokenBlockProcessor_Advanced_Core(t *testing.T) {
 			processor := &TokenBlockProcessor{blockSize: tt.blockSize}
 
 			// Test chunkTokens
-			chunks := processor.chunkTokens(tt.tokens)
+			chunks := processor.chunkTokens(tt.tokens, 100)
 			if len(chunks) != tt.expectedLen {
 				t.Errorf("Expected %d chunks, got %d", tt.expectedLen, len(chunks))
 			}
 
 			// Test TokensToBlockHashes
-			hashes := processor.TokensToBlockHashes(tt.tokens)
+			hashes := processor.TokensToBlockHashes(tt.tokens, 100)
 			if tt.expectedLen == 0 {
 				if hashes != nil {
 					t.Errorf("Expected nil hashes for empty tokens, got %v", hashes)
@@ -1799,139 +1692,8 @@ func TestKVCache_CalculatePodScores_Complex_Core(t *testing.T) {
 	}
 }
 
-// Test tokenizeWithChatTemplate method with various scenarios
-func TestKVCache_TokenizeWithChatTemplate_Advanced_Core(t *testing.T) {
-	plugin := &KVCache{}
-
-	tests := []struct {
-		name        string
-		tokenizer   *mockTokenizer
-		chatMessage common.ChatMessage
-		expected    []uint32
-		expectError bool
-		description string
-	}{
-		{
-			name: "Successful tokenization with multiple messages",
-			tokenizer: &mockTokenizer{
-				tokenizeWithOptionsFunc: func(ctx context.Context, input tokenization.TokenizeInput) (*tokenization.TokenizeResult, error) {
-					// Verify input parameters
-					if input.Type != tokenization.ChatInput {
-						return nil, errors.New("wrong input type")
-					}
-					if input.AddSpecialTokens != false {
-						return nil, errors.New("AddSpecialTokens should be false")
-					}
-					if input.AddGenerationPrompt != true {
-						return nil, errors.New("AddGenerationPrompt should be true")
-					}
-					return &tokenization.TokenizeResult{
-						Tokens: []int{1, 2, 3, 4, 5, 6},
-					}, nil
-				},
-			},
-			chatMessage: common.ChatMessage{
-				Messages: []common.Message{
-					{Role: "system", Content: "You are a helpful assistant"},
-					{Role: "user", Content: "Hello"},
-					{Role: "assistant", Content: "Hi there!"},
-				},
-			},
-			expected:    []uint32{1, 2, 3, 4, 5, 6},
-			expectError: false,
-			description: "Should handle multiple chat messages correctly",
-		},
-		{
-			name: "Tokenization timeout",
-			tokenizer: &mockTokenizer{
-				tokenizeWithOptionsFunc: func(ctx context.Context, input tokenization.TokenizeInput) (*tokenization.TokenizeResult, error) {
-					// Simulate timeout by checking context
-					select {
-					case <-ctx.Done():
-						return nil, ctx.Err()
-					case <-time.After(15 * time.Second): // Longer than 10s timeout
-						return &tokenization.TokenizeResult{Tokens: []int{1}}, nil
-					}
-				},
-			},
-			chatMessage: common.ChatMessage{
-				Messages: []common.Message{
-					{Role: "user", Content: "Hello"},
-				},
-			},
-			expected:    nil,
-			expectError: true,
-			description: "Should handle tokenization timeout",
-		},
-		{
-			name: "Empty messages",
-			tokenizer: &mockTokenizer{
-				tokenizeWithOptionsFunc: func(ctx context.Context, input tokenization.TokenizeInput) (*tokenization.TokenizeResult, error) {
-					return &tokenization.TokenizeResult{
-						Tokens: []int{},
-					}, nil
-				},
-			},
-			chatMessage: common.ChatMessage{
-				Messages: []common.Message{},
-			},
-			expected:    []uint32{},
-			expectError: false,
-			description: "Should handle empty messages",
-		},
-		{
-			name: "Large token sequence",
-			tokenizer: &mockTokenizer{
-				tokenizeWithOptionsFunc: func(ctx context.Context, input tokenization.TokenizeInput) (*tokenization.TokenizeResult, error) {
-					// Generate large token sequence
-					tokens := make([]int, 1000)
-					for i := range tokens {
-						tokens[i] = i + 1
-					}
-					return &tokenization.TokenizeResult{
-						Tokens: tokens,
-					}, nil
-				},
-			},
-			chatMessage: common.ChatMessage{
-				Messages: []common.Message{
-					{Role: "user", Content: "This is a very long message that should generate many tokens"},
-				},
-			},
-			expected: func() []uint32 {
-				tokens := make([]uint32, 1000)
-				for i := range tokens {
-					tokens[i] = uint32(i + 1)
-				}
-				return tokens
-			}(),
-			expectError: false,
-			description: "Should handle large token sequences",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := plugin.tokenizeWithChatTemplate(tt.tokenizer, tt.chatMessage)
-
-			if tt.expectError {
-				if err == nil {
-					t.Error("Expected error but got none")
-				}
-				return
-			}
-
-			if err != nil {
-				t.Errorf("Unexpected error: %v", err)
-				return
-			}
-
-			if !reflect.DeepEqual(result, tt.expected) {
-				t.Errorf("Expected %v, got %v", tt.expected, result)
-			}
-		})
-	}
-}
+// TestKVCache_TokenizeWithChatTemplate_Advanced_Core has been removed as the tokenizeWithChatTemplate
+// method has been moved to the tokenization package.
 
 // Test KVCacheBlock String method with various inputs
 func TestKVCacheBlock_String_Advanced_Core(t *testing.T) {
@@ -2303,7 +2065,7 @@ func TestKVCache_Integration_Comprehensive_Core(t *testing.T) {
 
 				// Test token processing pipeline
 				tokens := []uint32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
-				blockHashes := plugin.processor.TokensToBlockHashes(tokens)
+				blockHashes := plugin.processor.TokensToBlockHashes(tokens, 100)
 
 				if len(blockHashes) != 2 {
 					t.Errorf("Expected 2 blocks, got %d", len(blockHashes))
@@ -2351,7 +2113,7 @@ func TestKVCache_Integration_Comprehensive_Core(t *testing.T) {
 				}
 
 				start := time.Now()
-				blockHashes := plugin.processor.TokensToBlockHashes(tokens)
+				blockHashes := plugin.processor.TokensToBlockHashes(tokens, 1000)
 				duration := time.Since(start)
 
 				expectedBlocks := 100 // 1000 / 10

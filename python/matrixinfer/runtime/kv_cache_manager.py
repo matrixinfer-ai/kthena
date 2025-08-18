@@ -80,8 +80,8 @@ class VLLMKVCacheRedisManager:
 
             await pipe.execute()
 
-            logger.info(f"Runtime Redis Write - Model: {model_name}, Pod: {pod_identifier}, "
-                        f"BlockHashes: {block_hashes}, Count: {len(block_hashes)}")
+            logger.info(
+                f"Runtime Redis Write - Model: {model_name}, Pod: {pod_identifier}, BlockHashes: {block_hashes}, Count: {len(block_hashes)}")
             return True
 
         except Exception as e:
@@ -94,7 +94,12 @@ class VLLMKVCacheRedisManager:
         if not vllm_hashes:
             return False
 
-        block_size = 128
+        # Calculate block size: len(token_ids) / len(block_hashes)
+        block_size = len(token_ids) // len(vllm_hashes)
+        if len(token_ids) % len(vllm_hashes) != 0:
+            logger.error(f"Token count ({len(token_ids)}) cannot match block size with {len(vllm_hashes)} hashes")
+            return False
+
         for i, vllm_hash in enumerate(vllm_hashes):
             start_idx = i * block_size
             end_idx = min(start_idx + block_size, len(token_ids))

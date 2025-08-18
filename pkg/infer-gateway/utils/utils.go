@@ -44,7 +44,7 @@ func GetNamespaceName(obj metav1.Object) types.NamespacedName {
 	}
 }
 
-func GetPrompt(body map[string]interface{}) (common.ChatMessage, error) {
+func ParsePrompt(body map[string]interface{}) (common.ChatMessage, error) {
 	if prompt, ok := body["prompt"]; ok {
 		promptStr, ok := prompt.(string)
 		if !ok {

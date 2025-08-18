@@ -15,84 +15,14 @@ limitations under the License.
 */
 
 /*
-KV Cache Plugin Design
+KV Cache Plugin
 
-Overview:
-The KV Cache Plugin is a scoring plugin for the matrixinfer gateway scheduler that implements a token-based block matching mechanism
-for model inference requests. It leverages Redis as a distributed cache to track which pods have processed specific token sequences,
-enabling intelligent pod scheduling based on KV cache hit potential. The plugin supports both chat completion and text completion
-requests with advanced tokenization capabilities.
+The KV Cache Plugin is a scoring plugin for the MatrixInfer gateway scheduler that implements
+intelligent pod scheduling based on KV cache hit potential using token-level block matching
+with Redis-based distributed coordination.
 
-Key Components:
-
-1. KVCache
-   - Main plugin struct implementing the framework.ScorePlugin interface
-   - Manages distributed caching mechanism using Redis for cross-pod cache coordination
-   - Integrates with tokenization system for accurate token sequence processing
-   - Configurable parameters for block size and maximum blocks to match
-
-2. TokenBlockProcessor
-   - Processes token sequences into fixed-size blocks for hashing
-   - Generates SHA-256 based hashes for token blocks to ensure consistency
-   - Handles token chunking with configurable block sizes (default: 128 tokens)
-
-3. Tokenization Integration
-   - TokenizerManager for managing model-specific tokenizers
-   - Support for vLLM remote tokenization
-   - Chat template processing for ChatML format requests
-
-4. Redis-based Distributed Cache
-   - Uses Redis hash structures to store block-to-pod mappings
-   - Key format: "matrix:kv:block:{model}@{hash}" -> {pod_identifiers}
-   - Pipeline operations for efficient batch queries
-   - Timeout handling and error recovery
-
-Core Features:
-
-1. Token Block Matching
-   - Tokenizes input prompts using model-specific tokenizers
-   - Divides token sequences into fixed-size blocks (default: 128 tokens)
-   - Generates standardized SHA-256 hashes for each token block
-   - Queries Redis to find pods that have cached the same token blocks
-
-2. Chat Template Support
-   - Automatic detection of chat completion requests (presence of "messages" field)
-   - ChatML format processing with proper role and content extraction
-   - Integration with model-specific chat templates via tokenizer pool
-
-3. Scoring Mechanism
-   - Scores pods based on consecutive token block matches starting from the beginning
-   - Score calculation: (matching consecutive blocks / total blocks) * 100
-   - Range: 0-100, where higher scores indicate better KV cache hit potential
-   - Early termination when no pods have consecutive matches
-
-4. Distributed Cache Management
-   - Redis-based storage for cross-pod cache coordination
-   - Efficient pipeline queries for batch block lookups
-   - Pod identifier extraction and normalization
-   - Timeout handling for Redis operations (5 seconds default)
-
-Usage:
-The plugin is used in the matrixinfer gateway scheduler framework to score pods based on their potential
-for KV cache hits. It's particularly effective for:
-- Chat completion workloads with similar conversation patterns
-- Text completion tasks with repeated prompt prefixes
-- Multi-turn conversations where context is reused
-- Scenarios where token-level cache precision is important
-
-Configuration Parameters:
-- BlockSizeToHash: Number of tokens per block for hashing (default: 128)
-- MaxBlocksToMatch: Maximum number of blocks to process (default: 128)
-- Redis connection managed through utils.GetRedisClient()
-- Tokenizer manager configuration with vLLM remote support
-- Timeout settings for tokenization (10s) and Redis operations (5s)
-
-Architecture Differences from Prefix Cache:
-- Uses token-based blocks instead of byte-based blocks for better semantic alignment
-- Leverages Redis for distributed caching instead of local LRU cache
-- Integrates advanced tokenization with chat template support
-- Designed for cross-pod cache coordination in distributed inference environments
-
+For detailed design documentation, architecture overview, and implementation details,
+see: docs/proposal/kv-cache-plugin-design.md
 */
 
 package plugins
@@ -108,7 +38,6 @@ import (
 	"github.com/redis/go-redis/v9"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/common"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/tokenization"
@@ -135,8 +64,9 @@ const (
 )
 
 type KVCacheArgs struct {
-	BlockSizeToHash  int `yaml:"blockSizeToHash,omitempty"`
-	MaxBlocksToMatch int `yaml:"maxBlocksToMatch,omitempty"`
+	BlockSizeToHash  int  `yaml:"blockSizeToHash,omitempty"`
+	MaxBlocksToMatch int  `yaml:"maxBlocksToMatch,omitempty"`
+	Redis            bool `yaml:"redis,omitempty"`
 }
 
 type KVCache struct {
@@ -199,11 +129,16 @@ func NewKVCache(pluginArg runtime.RawExtension) *KVCache {
 	}
 	manager := tokenization.NewTokenizerManager(managerConfig)
 
+	var redisClient *redis.Client
+	if args.Redis {
+		redisClient = utils.GetRedisClient()
+	}
+
 	return &KVCache{
 		name:             KVCachePluginName,
 		maxBlocksToMatch: maxBlocksToMatch,
 		keyPrefix:        kvCacheKeyPrefix,
-		redisClient:      utils.GetRedisClient(),
+		redisClient:      redisClient,
 		processor:        &TokenBlockProcessor{blockSize: blockSizeToHash},
 		tokenizerManager: manager,
 	}
@@ -213,71 +148,11 @@ func (t *KVCache) Name() string {
 	return t.name
 }
 
-func (t *KVCache) getTokenizerForModel(ctx *framework.Context, pods []*datastore.PodInfo) tokenization.Tokenizer {
-	if t.tokenizerManager == nil {
-		return nil
-	}
-	return t.tokenizerManager.GetTokenizer(ctx.Model, pods)
-}
-
 func (t *KVCache) normalizeAndTokenizePrompt(ctx *framework.Context, pods []*datastore.PodInfo) ([]uint32, error) {
-	tok := t.getTokenizerForModel(ctx, pods)
-	if tok == nil {
-		return nil, fmt.Errorf("no tokenizer available for model %s", ctx.Model)
+	if t.tokenizerManager == nil {
+		return nil, fmt.Errorf("tokenizer manager not available")
 	}
-
-	// If it's a Text prompt, use TokenizeInputText directly
-	if ctx.Prompt.Text != "" {
-		text := ctx.Prompt.Text
-		tokens, err := tok.TokenizeInputText(text)
-		if err != nil {
-			return nil, err
-		}
-		tokens32 := make([]uint32, len(tokens)/4)
-		for i := 0; i < len(tokens32); i++ {
-			tokens32[i] = binary.BigEndian.Uint32(tokens[i*4 : (i+1)*4])
-		}
-		return tokens32, nil
-	}
-
-	// For chat messages, require extended tokenizer with chat template
-	if extendedTok, ok := tok.(interface {
-		TokenizeWithOptions(context.Context, tokenization.TokenizeInput) (*tokenization.TokenizeResult, error)
-	}); ok {
-		return t.tokenizeWithChatTemplate(extendedTok, ctx.Prompt)
-	}
-
-	return nil, fmt.Errorf("the model %s does not support normalize and tokenize prompt", ctx.Model)
-}
-
-func (t *KVCache) tokenizeWithChatTemplate(
-	extendedTok interface {
-		TokenizeWithOptions(context.Context, tokenization.TokenizeInput) (*tokenization.TokenizeResult, error)
-	},
-	chatMessage common.ChatMessage,
-) ([]uint32, error) {
-	tokenizeCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	input := tokenization.TokenizeInput{
-		Type:                tokenization.ChatInput,
-		Messages:            chatMessage.Messages,
-		AddSpecialTokens:    false,
-		AddGenerationPrompt: true,
-		ReturnTokenStrings:  false,
-	}
-
-	result, err := extendedTok.TokenizeWithOptions(tokenizeCtx, input)
-	if err != nil {
-		return nil, fmt.Errorf("chat template tokenization failed: %w", err)
-	}
-
-	tokens32 := make([]uint32, len(result.Tokens))
-	for i, token := range result.Tokens {
-		tokens32[i] = uint32(token)
-	}
-
-	return tokens32, nil
+	return t.tokenizerManager.TokenizePrompt(ctx.Model, ctx.Prompt, pods)
 }
 
 func (t *KVCache) Score(ctx *framework.Context, pods []*datastore.PodInfo) map[*datastore.PodInfo]int {
@@ -300,13 +175,9 @@ func (t *KVCache) Score(ctx *framework.Context, pods []*datastore.PodInfo) map[*
 		return scoreResults
 	}
 
-	blockHashes := t.processor.TokensToBlockHashes(tokens)
+	blockHashes := t.processor.TokensToBlockHashes(tokens, t.maxBlocksToMatch)
 	if len(blockHashes) == 0 {
 		return scoreResults
-	}
-
-	if len(blockHashes) > t.maxBlocksToMatch {
-		blockHashes = blockHashes[:t.maxBlocksToMatch]
 	}
 
 	blockToPods, err := t.queryRedisForBlocks(blockHashes, ctx.Model)
@@ -389,7 +260,7 @@ func (t *KVCache) calculatePodScores(blockHashes []uint64, blockToPods map[uint6
 		return podScores
 	}
 
-	activePods := make(map[string]bool)
+	activePods := make(map[string]bool, len(firstBlockPods))
 	for _, podName := range firstBlockPods {
 		activePods[podName] = true
 		podScores[podName] = 1
@@ -405,24 +276,19 @@ func (t *KVCache) calculatePodScores(blockHashes []uint64, blockToPods map[uint6
 			break
 		}
 
-		currentPods := make(map[string]bool)
+		nextActivePods := make(map[string]bool)
 		for _, podName := range blockPods {
-			currentPods[podName] = true
-		}
-
-		newActivePods := make(map[string]bool)
-		for podName := range activePods {
-			if currentPods[podName] {
-				newActivePods[podName] = true
+			if activePods[podName] {
+				nextActivePods[podName] = true
 				podScores[podName]++
 			}
 		}
 
-		if len(newActivePods) == 0 {
+		if len(nextActivePods) == 0 {
 			break
 		}
 
-		activePods = newActivePods
+		activePods = nextActivePods
 	}
 
 	totalBlocks := len(blockHashes)
@@ -435,12 +301,12 @@ func (t *KVCache) calculatePodScores(blockHashes []uint64, blockToPods map[uint6
 	return podScores
 }
 
-func (tbp *TokenBlockProcessor) TokensToBlockHashes(tokens []uint32) []uint64 {
+func (tbp *TokenBlockProcessor) TokensToBlockHashes(tokens []uint32, maxBlocks int) []uint64 {
 	if len(tokens) == 0 {
 		return nil
 	}
 
-	chunks := tbp.chunkTokens(tokens)
+	chunks := tbp.chunkTokens(tokens, maxBlocks)
 	return tbp.computeBlockHashes(chunks)
 }
 
@@ -467,14 +333,16 @@ func computeStandardizedHash(tokenIds []int) uint64 {
 	return result
 }
 
-func (tbp *TokenBlockProcessor) chunkTokens(tokens []uint32) [][]uint32 {
+func (tbp *TokenBlockProcessor) chunkTokens(tokens []uint32, maxBlocks int) [][]uint32 {
 	var chunks [][]uint32
-	for i := 0; i < len(tokens); i += tbp.blockSize {
+	counter := 0
+	for i := 0; i < len(tokens) && counter < maxBlocks; i += tbp.blockSize {
 		end := i + tbp.blockSize
 		if end > len(tokens) {
 			end = len(tokens)
 		}
 		chunks = append(chunks, tokens[i:end])
+		counter++
 	}
 	return chunks
 }
