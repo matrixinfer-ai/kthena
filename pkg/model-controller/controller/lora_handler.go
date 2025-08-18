@@ -35,6 +35,7 @@ import (
 	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/convert"
+	"matrixinfer.ai/matrixinfer/pkg/model-controller/env"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
 )
 
@@ -281,7 +282,7 @@ func (mc *ModelController) loadLoraAdaptersToAllReplicas(ctx context.Context, ru
 // getModelInferRuntimeURLs constructs the runtime service URLs for all ModelInfer pods
 func (mc *ModelController) getModelInferRuntimeURLs(modelInfer *workload.ModelInfer, backend *registryv1alpha1.ModelBackend) ([]string, error) {
 	// Get port from backend environment variables with default fallback to 8100
-	port := convert.GetEnvPortOrDefault(backend, "RUNTIME_PORT", 8100)
+	port := env.GetEnvValueOrDefault(backend, env.RuntimePort, 8100)
 
 	// Get all available pod IPs for this ModelInfer
 	podIPs, err := mc.getModelInferPodIPs(modelInfer)
