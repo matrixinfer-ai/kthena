@@ -7,8 +7,10 @@ metadata:
 spec:
   name: "deepseek-r1-distill-llama-8b"
   owner: "example"
-  autoscalingPolicyRef:
-    name: ""
+  autoscalingPolicy:
+    metrics:
+      - metricName: "matrixinfer:num_requests_waiting"
+        targetValue: 10
   backends:
     - name: "deepseek-r1-distill-llama-8b-vllm"
       type: "vLLM"
@@ -30,41 +32,6 @@ spec:
               nvidia.com/gpu: "1"
             requests:
               nvidia.com/gpu: "1"
-          affinity:
-      loraAdapterRefs:
-        - name: ""
-    - name: "deepseek-r1-distill-llama-8b-vllm-disaggregated"
-      type: "vLLMDisaggregated"
-      modelURI: "s3://model-bucket/deepseek-r1-distill-llama-8b"
-      minReplicas: 0
-      maxReplicas: 3
-      scalingCost: 4
-      scaleToZeroGracePeriod: 60s
-      workers:
-        - type: "prefill"
-          image: "vllm/vllm-openai:v0.7.1"
-          replicas: 2
-          pods: 2
-          config:
-            maxModelLen: 12288
-          resources:
-            limits:
-              nvidia.com/gpu: "1"
-            requests:
-              nvidia.com/gpu: "1"
-          affinity:
-        - type: "decode"
-          image: "vllm/vllm-openai:v0.7.1"
-          replicas: 2
-          pods: 2
-          config:
-            maxModelLen: 12288
-          resources:
-            limits:
-              nvidia.com/gpu: "1"
-            requests:
-              nvidia.com/gpu: "1"
-          affinity:
-      loraAdapterRefs:
-        - name: ""
-  costExpansionRatePercent: 0
+      loraAdapters:
+        - name: lora-sql
+          artifactURL: s3://aios_models/deepseek-ai/DeepSeek-V3-W8A8/vllm-ascend-lora

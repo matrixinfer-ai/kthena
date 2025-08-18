@@ -53,13 +53,14 @@ spec:
                   Maximize hardware utilization efficiency
                 properties:
                   costExpansionRatePercent:
+                    default: 200
                     description: CostExpansionRatePercent is the percentage rate at
                       which the cost expands.
                     format: int32
-                    maximum: 100
                     minimum: 0
                     type: integer
                   params:
+                    description: Parameters of multiple Model Infer Groups to be optimized.
                     items:
                       properties:
                         cost:
@@ -83,6 +84,7 @@ spec:
                           minimum: 0
                           type: integer
                         target:
+                          description: The scaling instance configuration
                           properties:
                             additionalMatchLabels:
                               additionalProperties:
@@ -95,6 +97,7 @@ spec:
                               properties:
                                 port:
                                   default: 8100
+                                  description: The port of pods exposing metric endpoints
                                   format: int32
                                   type: integer
                                 uri:
@@ -145,12 +148,17 @@ spec:
                                   type: string
                               type: object
                               x-kubernetes-map-type: atomic
+                          required:
+                          - targetRef
                           type: object
                       required:
                       - maxReplicas
                       - minReplicas
                       type: object
+                    minItems: 1
                     type: array
+                required:
+                - params
                 type: object
               policyRef:
                 description: PolicyRef references the autoscaling policy to be optimized
@@ -186,6 +194,7 @@ spec:
                     minimum: 0
                     type: integer
                   target:
+                    description: The scaling instance configuration
                     properties:
                       additionalMatchLabels:
                         additionalProperties:
@@ -198,6 +207,7 @@ spec:
                         properties:
                           port:
                             default: 8100
+                            description: The port of pods exposing metric endpoints
                             format: int32
                             type: integer
                           uri:
@@ -248,11 +258,15 @@ spec:
                             type: string
                         type: object
                         x-kubernetes-map-type: atomic
+                    required:
+                    - targetRef
                     type: object
                 required:
                 - maxReplicas
                 - minReplicas
                 type: object
+            required:
+            - policyRef
             type: object
             x-kubernetes-validations:
             - message: Either optimizerConfiguration or scalingConfiguration must

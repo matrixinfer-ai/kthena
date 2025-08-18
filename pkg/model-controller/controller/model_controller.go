@@ -686,6 +686,7 @@ func (mc *ModelController) isModelInferActive(model *registryv1alpha1.Model) (bo
 	}
 	// Ensure the number of Model Infers matches the number of backends
 	if len(modelInfers) != len(model.Spec.Backends) {
+		klog.Infof("Number of Model Infer: %d, number of backends: %d", len(modelInfers), len(model.Spec.Backends))
 		return false, fmt.Errorf("model infer number not equal to backend number")
 	}
 	// Check if all Model Infers are available
