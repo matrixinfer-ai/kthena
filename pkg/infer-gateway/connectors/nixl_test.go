@@ -47,7 +47,7 @@ func TestNIXLConnectorProxy(t *testing.T) {
 		}
 
 		// The NIXL connector will fail due to network issues (prefill request)
-		err := connector.Proxy(c, reqBody, "localhost:8000", "localhost:8001")
+		err := connector.Proxy(c, reqBody, "localhost:8000", "localhost:8001", nil, "test-model")
 		if err == nil {
 			t.Error("Expected NIXL connector Proxy to return error due to network/connection issues")
 		}
@@ -143,7 +143,7 @@ func TestNIXLConnectorProxy(t *testing.T) {
 		}
 
 		// The NIXL connector will fail due to network issues
-		err := connector.Proxy(c, reqBody, "localhost:8000", "localhost:8001")
+		err := connector.Proxy(c, reqBody, "localhost:8000", "localhost:8001", nil, "test-model")
 		if err == nil {
 			t.Error("Expected NIXL connector Proxy to return error due to network/connection issues")
 		}
@@ -237,7 +237,7 @@ func TestNIXLConnectorProxy(t *testing.T) {
 		}
 
 		// The NIXL connector will fail due to network issues
-		err := connector.Proxy(c, reqBody, "localhost:8000", "localhost:8001")
+		err := connector.Proxy(c, reqBody, "localhost:8000", "localhost:8001", nil, "test-model")
 		if err == nil {
 			t.Error("Expected NIXL connector Proxy to return error due to network/connection issues")
 		}
@@ -281,7 +281,7 @@ func TestNIXLConnectorProxy(t *testing.T) {
 		}
 
 		// The NIXL connector will fail due to network issues
-		err := connector.Proxy(c, reqBody, "localhost:8000", "localhost:8001")
+		err := connector.Proxy(c, reqBody, "localhost:8000", "localhost:8001", nil, "test-model")
 		if err == nil {
 			t.Error("Expected NIXL connector Proxy to return error due to network/connection issues")
 		}
@@ -338,7 +338,7 @@ func TestNIXLConnectorProxy(t *testing.T) {
 		}
 
 		// The NIXL connector will fail due to network issues
-		err := connector.Proxy(c, reqBody, "localhost:8000", "localhost:8001")
+		err := connector.Proxy(c, reqBody, "localhost:8000", "localhost:8001", nil, "test-model")
 		if err == nil {
 			t.Error("Expected NIXL connector Proxy to return error due to network/connection issues")
 		}

@@ -27,6 +27,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"k8s.io/klog/v2"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/filters/ratelimit"
 )
 
 // NIXLConnector implements high-performance distributed in-memory KV cache using NIXL
@@ -46,7 +47,7 @@ func (n *NIXLConnector) Name() string {
 }
 
 // Proxy executes the complete prefill-decode flow using NIXL for high-performance KV transfer
-func (n *NIXLConnector) Proxy(c *gin.Context, reqBody map[string]interface{}, prefillAddr, decodeAddr string) error {
+func (n *NIXLConnector) Proxy(c *gin.Context, reqBody map[string]interface{}, prefillAddr, decodeAddr string, rateLimiter *ratelimit.TokenRateLimiter, modelName string) error {
 	req := c.Request
 	if n.prefillRequest == nil {
 		prefillBody := cloneReqBody(reqBody)
@@ -63,7 +64,7 @@ func (n *NIXLConnector) Proxy(c *gin.Context, reqBody map[string]interface{}, pr
 	}
 	// 2. send decode request
 	decodeReq := n.buildDecodeRequest(c, n.decodeRequestBody, kvTransferParams)
-	return n.executeDecodeRequest(c, decodeReq, decodeAddr)
+	return n.executeDecodeRequest(c, decodeReq, decodeAddr, rateLimiter, modelName)
 }
 
 // executePrefillRequest builds and executes the prefill request, returns kv_transfer_params
@@ -115,14 +116,14 @@ func (n *NIXLConnector) buildDecodeRequest(c *gin.Context, reqBody map[string]in
 }
 
 // executeDecodeRequest builds and executes the decode request with streaming response
-func (n *NIXLConnector) executeDecodeRequest(c *gin.Context, req *http.Request, decodeAddr string) error {
+func (n *NIXLConnector) executeDecodeRequest(c *gin.Context, req *http.Request, decodeAddr string, rateLimiter *ratelimit.TokenRateLimiter, modelName string) error {
 	// Set kv_transfer_params from prefill response
 	req.URL.Host = decodeAddr
 
 	klog.V(4).Infof("NIXL decode: sending to %s", decodeAddr)
 
 	// Use decoderProxy to handle the decode response with proper streaming
-	return decoderProxy(c, req)
+	return decoderProxy(c, req, rateLimiter, modelName)
 }
 
 func cloneReqBody(reqBody map[string]interface{}) map[string]interface{} {

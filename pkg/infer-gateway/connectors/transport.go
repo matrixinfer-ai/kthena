@@ -26,6 +26,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"k8s.io/klog/v2"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/filters/ratelimit"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/handlers"
 )
 
@@ -48,7 +49,7 @@ func prefillerProxy(c *gin.Context, req *http.Request) error {
 	return nil
 }
 
-func decoderProxy(c *gin.Context, req *http.Request) error {
+func decoderProxy(c *gin.Context, req *http.Request, rateLimiter *ratelimit.TokenRateLimiter, modelName string) error {
 	resp, err := http.DefaultTransport.RoundTrip(req)
 	if err != nil {
 		return fmt.Errorf("decode request failed: %w", err)
@@ -73,10 +74,10 @@ func decoderProxy(c *gin.Context, req *http.Request) error {
 
 	if stream {
 		// Handle streaming response
-		return handleStreamingResponse(c, resp)
+		return handleStreamingResponse(c, resp, rateLimiter, modelName)
 	} else {
 		// Handle non-streaming response
-		return handleNonStreamingResponse(c, resp)
+		return handleNonStreamingResponse(c, resp, rateLimiter, modelName)
 	}
 }
 
@@ -176,7 +177,7 @@ func isStreamingResponse(resp *http.Response) bool {
 }
 
 // handleStreamingResponse handles streaming responses
-func handleStreamingResponse(c *gin.Context, resp *http.Response) error {
+func handleStreamingResponse(c *gin.Context, resp *http.Response, rateLimiter *ratelimit.TokenRateLimiter, modelName string) error {
 	reader := bufio.NewReader(resp.Body)
 	c.Stream(func(w io.Writer) bool {
 		line, err := reader.ReadBytes('\n')
@@ -185,6 +186,10 @@ func handleStreamingResponse(c *gin.Context, resp *http.Response) error {
 			parsed := handlers.ParseStreamRespForUsage(string(line))
 			if parsed.Usage.TotalTokens > 0 {
 				klog.V(4).Infof("Parsed usage: %+v", parsed.Usage)
+				// Record output tokens for rate limiting
+				if rateLimiter != nil {
+					rateLimiter.RecordOutputTokens(modelName, parsed.Usage.CompletionTokens)
+				}
 				// Check if token usage should be filtered
 				if v, ok := c.Get(tokenUsageKey); ok && v.(bool) {
 					return true
@@ -205,7 +210,7 @@ func handleStreamingResponse(c *gin.Context, resp *http.Response) error {
 }
 
 // handleNonStreamingResponse handles non-streaming responses
-func handleNonStreamingResponse(c *gin.Context, resp *http.Response) error {
+func handleNonStreamingResponse(c *gin.Context, resp *http.Response, rateLimiter *ratelimit.TokenRateLimiter, modelName string) error {
 	var buf bytes.Buffer
 	teeReader := io.TeeReader(resp.Body, &buf)
 
@@ -219,6 +224,10 @@ func handleNonStreamingResponse(c *gin.Context, resp *http.Response) error {
 	parsed, _ := handlers.ParseOpenAIResponseBody(buf.Bytes())
 	if parsed != nil && parsed.Usage.TotalTokens > 0 {
 		klog.V(4).Infof("Parsed usage: %+v", parsed.Usage)
+		// Record output tokens for rate limiting
+		if rateLimiter != nil {
+			rateLimiter.RecordOutputTokens(modelName, parsed.Usage.CompletionTokens)
+		}
 	}
 
 	return nil
