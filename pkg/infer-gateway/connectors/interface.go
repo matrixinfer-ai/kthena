@@ -18,7 +18,6 @@ package connectors
 
 import (
 	"github.com/gin-gonic/gin"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/filters/ratelimit"
 )
 
 // KVConnector is the main interface for KV cache operations
@@ -27,6 +26,6 @@ type KVConnector interface {
 	Name() string
 
 	// Proxy executes the complete prefill-decode flow with KV cache coordination
-	// For connectors that don't support unified proxy, this should return an error
-	Proxy(c *gin.Context, reqBody map[string]interface{}, prefillAddr, decodeAddr string, rateLimiter *ratelimit.TokenRateLimiter, modelName string) error
+	// Returns the number of output tokens consumed, or error if the operation fails
+	Proxy(c *gin.Context, reqBody map[string]interface{}, prefillAddr, decodeAddr string) (int, error)
 }

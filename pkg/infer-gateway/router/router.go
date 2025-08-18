@@ -400,17 +400,23 @@ func (r *Router) proxyToPDDisaggregated(
 
 		klog.V(4).Infof("Attempting PD disaggregated request: prefill=%s, decode=%s", prefillAddr, decodeAddr)
 
-		if err := kvConnector.Proxy(c, modelRequest, prefillAddr, decodeAddr, r.loadRateLimiter, ctx.Model); err != nil {
+		outputTokens, err := kvConnector.Proxy(c, modelRequest, prefillAddr, decodeAddr)
+		if err != nil {
 			klog.Errorf("proxy failed for prefill pod %s, decode pod %s: %v",
 				ctx.PrefillPods[i].Pod.Name, ctx.DecodePods[i].Pod.Name, err)
 			continue
 		}
 
+		// Record output tokens for rate limiting
+		if outputTokens > 0 && r.loadRateLimiter != nil {
+			r.loadRateLimiter.RecordOutputTokens(ctx.Model, outputTokens)
+		}
+
 		// Record successful operation in cache
 		r.scheduler.RunPostHooks(ctx, i)
 
-		klog.V(4).Infof("kv connector run successful for prefill pod %s, decode pod %s",
-			ctx.PrefillPods[i].Pod.Name, ctx.DecodePods[i].Pod.Name)
+		klog.V(4).Infof("kv connector run successful for prefill pod %s, decode pod %s, output tokens: %d",
+			ctx.PrefillPods[i].Pod.Name, ctx.DecodePods[i].Pod.Name, outputTokens)
 
 		return nil
 	}
