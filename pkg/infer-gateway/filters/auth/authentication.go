@@ -37,7 +37,7 @@ import (
 const (
 	header            = "Authorization"
 	prefix            = "Bearer "
-	GatewayConfigFile = "/etc/config/schedulerConfiguration.yaml"
+	GatewayConfigFile = "/etc/config/gatewayConfiguration.yaml"
 )
 
 func extractTokenFromHeader(req *http.Request) string {

@@ -31,7 +31,7 @@ import (
 
 const (
 	gracefulShutdownTimeout = 15 * time.Second
-	gatewayConfigFile       = "/etc/config/schedulerConfiguration.yaml"
+	gatewayConfigFile       = "/etc/config/gatewayConfiguration.yaml"
 )
 
 func NewRouter(store datastore.Store) *router.Router {
