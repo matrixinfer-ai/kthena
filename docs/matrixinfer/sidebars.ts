@@ -15,27 +15,76 @@ import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
 const sidebars: SidebarsConfig = {
   // MatrixInfer documentation sidebar
   tutorialSidebar: [
-    'intro',
+    "intro",
     {
       type: 'category',
       label: 'Getting Started',
       items: [
-        'getting-started/installation',
         'getting-started/quick-start',
+        'getting-started/installation',
       ],
     },
     {
       type: 'category',
       label: 'Architecture',
       items: [
-        'architecture/overview',
+        'architecture/matrixinfer-architecture',
+        'architecture/infer-controller',
+        'architecture/infer-gateway',
+        'architecture/autoscaler',
+        'architecture/model-controller',
       ],
     },
     {
       type: 'category',
-      label: 'API Reference',
+      label: 'General',
       items: [
-        'api/overview',
+        'general/prometheus',
+        'general/certmanager',
+        'general/ratelimit',
+        'general/faq',
+      ],
+    },
+    {
+      type: 'category',
+      label: 'User Guide',
+      items: [
+        'user-guide/gateway-routing',
+        'user-guide/prefill-decode-disaggregation',
+        'user-guide/multi-node-inference',
+        'user-guide/autoscaler',
+        'user-guide/runtime',
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Developer Guide',
+      items: [
+        'developer-guide/release',
+        'developer-guide/ci',
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Timeline',
+      items: [
+        'timeline/roadmap',
+        'timeline/releases',
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Reference',
+      items: [
+        {
+          type: 'category',
+          label: 'CRD Reference',
+          items: [
+            { type: 'doc', id: 'reference/crd/networking.matrixinfer.ai', label: 'Networking' },
+            { type: 'doc', id: 'reference/crd/registry.matrixinfer.ai', label: 'Registry' },
+            { type: 'doc', id: 'reference/crd/workload.matrixinfer.ai', label: 'Workload' },
+          ],
+        },
       ],
     },
   ],

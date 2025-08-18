@@ -58,7 +58,7 @@ gen-docs: crd-ref-docs ## Generate CRD reference documentation
 	$(CRD_REF_DOCS) \
 		--source-path=./pkg/apis \
 		--config=docs/matrixinfer/crd-ref-docs-config.yaml \
-		--output-path=docs/matrixinfer/docs/crd \
+		--output-path=docs/matrixinfer/docs/reference/crd \
 		--renderer=markdown \
 		--output-mode=group
 
@@ -212,12 +212,6 @@ docker-buildx: ## Build and push docker image for cross-platform support
 		-t ${IMG_INFER_GATEWAY_WEBHOOK} \
 		-f docker/Dockerfile.infergateway.webhook \
 		--push .
-
-.PHONY: build-installer
-build-installer: generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
-	mkdir -p dist
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default > dist/install.yaml
 
 ##@ Deployment
 
