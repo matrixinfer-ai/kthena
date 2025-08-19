@@ -15,16 +15,18 @@ import (
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "minfer",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
+	Short: "MatrixInfer CLI for managing AI inference workloads",
+	Long: `minfer is a CLI tool for managing MatrixInfer AI inference workloads.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	// Run: func(cmd *cobra.Command, args []string) { },
+It allows you to:
+- Create profiles from predefined templates with custom values
+- List and view MatrixInfer resources in Kubernetes clusters
+- Manage inference workloads, models, and autoscaling policies
+
+Examples:
+  minfer create profile --name my-model --template basic-inference
+  minfer list models
+  minfer profiles`,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

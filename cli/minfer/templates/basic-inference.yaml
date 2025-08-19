@@ -1,0 +1,69 @@
+# Description: Basic inference workload with a single model and autoscaling policy
+# This template creates a ModelInfer resource with basic configuration
+# Variables: name, image, namespace, replicas, model_name, model_version
+---
+apiVersion: workload.matrixinfer.ai/v1alpha1
+kind: ModelInfer
+metadata:
+  name: {{.name}}
+  namespace: {{.namespace}}
+spec:
+  replicas: {{if .replicas}}{{.replicas}}{{else}}1{{end}}
+  template:
+    spec:
+      containers:
+      - name: model-server
+        image: {{.image}}
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        env:
+        - name: MODEL_NAME
+          value: {{.model_name}}
+        - name: MODEL_VERSION
+          value: {{if .model_version}}{{.model_version}}{{else}}"v1.0"{{end}}
+        resources:
+          requests:
+            memory: {{if .memory_request}}{{.memory_request}}{{else}}"1Gi"{{end}}
+            cpu: {{if .cpu_request}}{{.cpu_request}}{{else}}"500m"{{end}}
+          limits:
+            memory: {{if .memory_limit}}{{.memory_limit}}{{else}}"2Gi"{{end}}
+            cpu: {{if .cpu_limit}}{{.cpu_limit}}{{else}}"1000m"{{end}}
+---
+apiVersion: registry.matrixinfer.ai/v1alpha1
+kind: Model
+metadata:
+  name: {{.model_name}}
+  namespace: {{.namespace}}
+spec:
+  name: {{.model_name}}
+  version: {{if .model_version}}{{.model_version}}{{else}}"v1.0"{{end}}
+  framework: {{if .framework}}{{.framework}}{{else}}"pytorch"{{end}}
+  description: "Model for {{.name}} inference workload"
+---
+apiVersion: registry.matrixinfer.ai/v1alpha1
+kind: AutoscalingPolicy
+metadata:
+  name: {{.name}}-autoscaling
+  namespace: {{.namespace}}
+spec:
+  minReplicas: {{if .min_replicas}}{{.min_replicas}}{{else}}1{{end}}
+  maxReplicas: {{if .max_replicas}}{{.max_replicas}}{{else}}5{{end}}
+  targetCPUUtilizationPercentage: {{if .target_cpu}}{{.target_cpu}}{{else}}70{{end}}
+  scaleUpPolicy:
+    stabilizationWindowSeconds: {{if .scale_up_window}}{{.scale_up_window}}{{else}}60{{end}}
+  scaleDownPolicy:
+    stabilizationWindowSeconds: {{if .scale_down_window}}{{.scale_down_window}}{{else}}300{{end}}
+---
+apiVersion: registry.matrixinfer.ai/v1alpha1
+kind: AutoscalingPolicyBinding
+metadata:
+  name: {{.name}}-binding
+  namespace: {{.namespace}}
+spec:
+  policyRef:
+    name: {{.name}}-autoscaling
+  targetRef:
+    apiVersion: workload.matrixinfer.ai/v1alpha1
+    kind: ModelInfer
+    name: {{.name}}

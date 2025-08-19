@@ -1,0 +1,18 @@
+# Description: Simple model registration without inference workload
+# This template creates only a Model resource for model registry
+# Variables: model_name, model_version, framework, namespace, description
+---
+apiVersion: registry.matrixinfer.ai/v1alpha1
+kind: Model
+metadata:
+  name: {{.model_name}}
+  namespace: {{.namespace}}
+spec:
+  name: {{.model_name}}
+  version: {{if .model_version}}{{.model_version}}{{else}}"v1.0"{{end}}
+  framework: {{if .framework}}{{.framework}}{{else}}"pytorch"{{end}}
+  description: {{if .description}}{{.description}}{{else}}"A registered model"{{end}}
+  metadata:
+    author: {{if .author}}{{.author}}{{else}}"unknown"{{end}}
+    tags: {{if .tags}}{{.tags}}{{else}}"inference"{{end}}
+    createdBy: "minfer-cli"
