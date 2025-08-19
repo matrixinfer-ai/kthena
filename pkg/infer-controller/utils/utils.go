@@ -497,3 +497,46 @@ func SendAdmissionResponse(w http.ResponseWriter, admissionReview *admissionv1.A
 
 	return nil
 }
+
+// getLabelsFromObject extract labels from objects
+func getLabelsFromObject(obj interface{}) (map[string]string, bool) {
+	switch v := obj.(type) {
+	case *corev1.Pod:
+		return v.GetLabels(), true
+	case *corev1.Service:
+		return v.GetLabels(), true
+	default:
+		return nil, false
+	}
+}
+
+func GroupNameIndexFunc(obj interface{}) ([]string, error) {
+	labels, ok := getLabelsFromObject(obj)
+	if !ok {
+		return []string{}, nil
+	}
+
+	groupName, exists := labels[workloadv1alpha1.GroupNameLabelKey]
+	if !exists {
+		return []string{}, nil
+	}
+	return []string{groupName}, nil
+}
+
+func RoleIDIndexFunc(obj interface{}) ([]string, error) {
+	labels, ok := getLabelsFromObject(obj)
+	if !ok {
+		return []string{}, nil
+	}
+
+	groupName := labels[workloadv1alpha1.GroupNameLabelKey]
+	roleName := labels[workloadv1alpha1.RoleLabelKey]
+	roleID := labels[workloadv1alpha1.RoleIDKey]
+
+	if groupName == "" || roleName == "" || roleID == "" {
+		return []string{}, nil
+	}
+
+	compositeKey := fmt.Sprintf("%s/%s/%s", groupName, roleName, roleID)
+	return []string{compositeKey}, nil
+}

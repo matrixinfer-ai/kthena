@@ -47,6 +47,11 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-controller/utils"
 )
 
+const (
+	GroupNameKey = "GroupName"
+	RoleIDKey    = "RoleID"
+)
+
 type ModelInferController struct {
 	kubeClientSet    kubernetes.Interface
 	modelInferClient clientset.Interface
@@ -84,6 +89,24 @@ func NewModelInferController(kubeClientSet kubernetes.Interface, modelInferClien
 	servicesInformer := kubeInformerFactory.Core().V1().Services()
 	modelInferInformerFactory := informersv1alpha1.NewSharedInformerFactory(modelInferClient, 0)
 	modelInferInformer := modelInferInformerFactory.Workload().V1alpha1().ModelInfers()
+
+	err = podsInformer.Informer().AddIndexers(cache.Indexers{
+		GroupNameKey: utils.GroupNameIndexFunc,
+		RoleIDKey:    utils.RoleIDIndexFunc,
+	})
+	if err != nil {
+		klog.Errorf("cannot create pod Informer Index, err: %v", err)
+		return nil
+	}
+
+	err = servicesInformer.Informer().AddIndexers(cache.Indexers{
+		GroupNameKey: utils.GroupNameIndexFunc,
+		RoleIDKey:    utils.RoleIDIndexFunc,
+	})
+	if err != nil {
+		klog.Errorf("cannot create service Informer Index, err: %v", err)
+		return nil
+	}
 
 	store := datastore.New()
 
@@ -562,9 +585,6 @@ func (c *ModelInferController) DeleteInferGroup(mi *workloadv1alpha1.ModelInfer,
 	}
 
 	label := fmt.Sprintf("%s=%s", workloadv1alpha1.GroupNameLabelKey, groupname)
-	selector := labels.SelectorFromSet(map[string]string{
-		workloadv1alpha1.GroupNameLabelKey: groupname,
-	})
 	if inferGroupStatus != datastore.InferGroupDeleting {
 		err := c.store.UpdateInferGroupStatus(miNamedName, groupname, datastore.InferGroupDeleting)
 		if err != nil {
@@ -584,7 +604,7 @@ func (c *ModelInferController) DeleteInferGroup(mi *workloadv1alpha1.ModelInfer,
 			return
 		}
 		// There is no DeleteCollection operation in the service of client-go. We need to list and delete them one by one.
-		services, err := c.servicesLister.Services(miNamedName.Namespace).List(selector)
+		services, err := c.getServicesByIndex(miNamedName.Namespace, GroupNameKey, groupname)
 		if err != nil {
 			klog.Errorf("failed to get service %v", err)
 			return
@@ -603,11 +623,11 @@ func (c *ModelInferController) DeleteInferGroup(mi *workloadv1alpha1.ModelInfer,
 	}
 
 	// check whether the deletion has been completed
-	pods, err := c.podsLister.Pods(mi.GetNamespace()).List(selector)
+	pods, err := c.getPodsByIndex(miNamedName.Namespace, GroupNameKey, groupname)
 	if err != nil {
 		klog.Errorf("failed to get pod, err:%v", err)
 	}
-	services, err := c.servicesLister.Services(miNamedName.Namespace).List(selector)
+	services, err := c.getServicesByIndex(miNamedName.Namespace, GroupNameKey, groupname)
 	if err != nil {
 		klog.Errorf("failed to get service, err:%v", err)
 	}
@@ -771,7 +791,8 @@ func (c *ModelInferController) DeleteRole(ctx context.Context, mi *workloadv1alp
 		klog.Errorf("failed to delete pods of role %s/%s: %v", groupName, roleID, err)
 	}
 	// There is no DeleteCollection operation in the service of client-go. We need to list and delete them one by one.
-	services, err := c.servicesLister.Services(mi.Namespace).List(selector)
+	roleIDValue := fmt.Sprintf("%s/%s/%s", groupName, roleName, roleID)
+	services, err := c.getServicesByIndex(mi.Namespace, RoleIDKey, roleIDValue)
 	if err != nil {
 		klog.Errorf("failed to get service %v", err)
 		return
@@ -946,13 +967,7 @@ func (c *ModelInferController) checkInferGroupReady(mi *workloadv1alpha1.ModelIn
 
 func (c *ModelInferController) isInferGroupOutdated(group datastore.InferGroup, namespace, newRevision string) bool {
 	// Find the pods corresponding to inferGroup
-	req, err := labels.NewRequirement(workloadv1alpha1.GroupNameLabelKey, selection.Equals, []string{group.Name})
-	if err != nil {
-		klog.Errorf("cannot create label selector,err: %v", err)
-		return true
-	}
-	selector := labels.NewSelector().Add(*req)
-	pods, err := c.podsLister.Pods(namespace).List(selector)
+	pods, err := c.getPodsByIndex(namespace, GroupNameKey, group.Name)
 	if err != nil {
 		klog.Errorf("cannot list pod when check group updated,err: %v", err)
 		return true
@@ -1001,15 +1016,12 @@ func (c *ModelInferController) isInferGroupDeleted(mi *workloadv1alpha1.ModelInf
 		return false
 	}
 	// check whether the inferGroup deletion has been completed
-	selector := labels.SelectorFromSet(map[string]string{
-		workloadv1alpha1.GroupNameLabelKey: inferGroupName,
-	})
-	pods, err := c.podsLister.Pods(mi.GetNamespace()).List(selector)
+	pods, err := c.getPodsByIndex(mi.Namespace, GroupNameKey, inferGroupName)
 	if err != nil {
 		klog.Errorf("failed to get pod, err: %v", err)
 		return false
 	}
-	services, err := c.servicesLister.Services(mi.GetNamespace()).List(selector)
+	services, err := c.getServicesByIndex(mi.Namespace, GroupNameKey, inferGroupName)
 	if err != nil {
 		klog.Errorf("failed to get service, err:%v", err)
 		return false
@@ -1022,21 +1034,59 @@ func (c *ModelInferController) isRoleDeleted(mi *workloadv1alpha1.ModelInfer, in
 		// It will be determined whether all resource have been deleted only when the role status is deleting.
 		return false
 	}
+	roleIDValue := fmt.Sprintf("%s/%s/%s", inferGroupName, roleName, roleID)
 	// check whether the role deletion has been completed
-	selector := labels.SelectorFromSet(map[string]string{
-		workloadv1alpha1.GroupNameLabelKey: inferGroupName,
-		workloadv1alpha1.RoleLabelKey:      roleName,
-		workloadv1alpha1.RoleIDKey:         roleID,
-	})
-	pods, err := c.podsLister.Pods(mi.GetNamespace()).List(selector)
+	pods, err := c.getPodsByIndex(mi.Namespace, RoleIDKey, roleIDValue)
 	if err != nil {
 		klog.Errorf("failed to get pod, err: %v", err)
 		return false
 	}
-	services, err := c.servicesLister.Services(mi.GetNamespace()).List(selector)
+	services, err := c.getServicesByIndex(mi.Namespace, RoleIDKey, roleIDValue)
 	if err != nil {
 		klog.Errorf("failed to get service, err:%v", err)
 		return false
 	}
 	return len(pods) == 0 && len(services) == 0
+}
+
+// getPodsByIndex filter pods using the informer indexer.
+func (c *ModelInferController) getPodsByIndex(namespace, indexName, indexValue string) ([]*corev1.Pod, error) {
+	indexer := c.podsInformer.GetIndexer()
+	if _, exists := indexer.GetIndexers()[indexName]; !exists {
+		return nil, fmt.Errorf("pod indexer %s not found", indexName)
+	}
+	objs, err := indexer.ByIndex(indexName, indexValue)
+	if err != nil {
+		return nil, err
+	}
+
+	var pods []*corev1.Pod
+	for _, obj := range objs {
+		pod := obj.(*corev1.Pod)
+		if pod.Namespace == namespace {
+			pods = append(pods, pod)
+		}
+	}
+	return pods, nil
+}
+
+// getServicesByIndex filter services using the informer indexer.
+func (c *ModelInferController) getServicesByIndex(namespace, indexName, indexValue string) ([]*corev1.Service, error) {
+	indexer := c.servicesInformer.GetIndexer()
+	if _, exists := indexer.GetIndexers()[indexName]; !exists {
+		return nil, fmt.Errorf("service indexer %s not found", indexName)
+	}
+	objs, err := indexer.ByIndex(indexName, indexValue)
+	if err != nil {
+		return nil, err
+	}
+
+	var services []*corev1.Service
+	for _, obj := range objs {
+		svc := obj.(*corev1.Service)
+		if svc.Namespace == namespace {
+			services = append(services, svc)
+		}
+	}
+	return services, nil
 }

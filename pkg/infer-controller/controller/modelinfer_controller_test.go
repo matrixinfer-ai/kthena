@@ -51,13 +51,19 @@ func TestIsInferGroupOutdated(t *testing.T) {
 	kubeClient := kubefake.NewSimpleClientset()
 	informerFactory := informers.NewSharedInformerFactory(kubeClient, 0)
 	podInformer := informerFactory.Core().V1().Pods()
+	err := podInformer.Informer().AddIndexers(cache.Indexers{
+		GroupNameKey: utils.GroupNameIndexFunc,
+		RoleIDKey:    utils.RoleIDIndexFunc,
+	})
+	assert.NoError(t, err)
 	stopCh := make(chan struct{})
 	defer close(stopCh)
 	informerFactory.Start(stopCh)
 	informerFactory.WaitForCacheSync(stopCh)
 
 	c := &ModelInferController{
-		podsLister: podInformer.Lister(),
+		podsLister:   podInformer.Lister(),
+		podsInformer: podInformer.Informer(),
 	}
 
 	cases := []struct {
@@ -128,11 +134,17 @@ func TestCheckInferGroupReady(t *testing.T) {
 	kubeClient := kubefake.NewSimpleClientset()
 	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, 0)
 	podInformer := kubeInformerFactory.Core().V1().Pods()
+	err := podInformer.Informer().AddIndexers(cache.Indexers{
+		GroupNameKey: utils.GroupNameIndexFunc,
+		RoleIDKey:    utils.RoleIDIndexFunc,
+	})
+	assert.NoError(t, err)
 	store := datastore.New()
 	// build controller
 	controller := &ModelInferController{
-		podsLister: podInformer.Lister(),
-		store:      store,
+		podsInformer: podInformer.Informer(),
+		podsLister:   podInformer.Lister(),
+		store:        store,
 	}
 	stop := make(chan struct{})
 	defer close(stop)
@@ -223,11 +235,25 @@ func TestIsInferGroupDeleted(t *testing.T) {
 	podInformer := kubeInformerFactory.Core().V1().Pods()
 	serviceInformer := kubeInformerFactory.Core().V1().Services()
 
+	err := podInformer.Informer().AddIndexers(cache.Indexers{
+		GroupNameKey: utils.GroupNameIndexFunc,
+		RoleIDKey:    utils.RoleIDIndexFunc,
+	})
+	assert.NoError(t, err)
+
+	err = serviceInformer.Informer().AddIndexers(cache.Indexers{
+		GroupNameKey: utils.GroupNameIndexFunc,
+		RoleIDKey:    utils.RoleIDIndexFunc,
+	})
+	assert.NoError(t, err)
+
 	store := datastore.New()
 	controller := &ModelInferController{
-		podsLister:     podInformer.Lister(),
-		servicesLister: serviceInformer.Lister(),
-		store:          store,
+		podsInformer:     podInformer.Informer(),
+		servicesInformer: serviceInformer.Informer(),
+		podsLister:       podInformer.Lister(),
+		servicesLister:   serviceInformer.Lister(),
+		store:            store,
 	}
 
 	stop := make(chan struct{})
@@ -407,11 +433,25 @@ func TestIsRoleDeleted(t *testing.T) {
 	podInformer := kubeInformerFactory.Core().V1().Pods()
 	serviceInformer := kubeInformerFactory.Core().V1().Services()
 
+	err := podInformer.Informer().AddIndexers(cache.Indexers{
+		GroupNameKey: utils.GroupNameIndexFunc,
+		RoleIDKey:    utils.RoleIDIndexFunc,
+	})
+	assert.NoError(t, err)
+
+	err = serviceInformer.Informer().AddIndexers(cache.Indexers{
+		GroupNameKey: utils.GroupNameIndexFunc,
+		RoleIDKey:    utils.RoleIDIndexFunc,
+	})
+	assert.NoError(t, err)
+
 	store := datastore.New()
 	controller := &ModelInferController{
-		podsLister:     podInformer.Lister(),
-		servicesLister: serviceInformer.Lister(),
-		store:          store,
+		podsInformer:     podInformer.Informer(),
+		servicesInformer: serviceInformer.Informer(),
+		podsLister:       podInformer.Lister(),
+		servicesLister:   serviceInformer.Lister(),
+		store:            store,
 	}
 
 	stop := make(chan struct{})
