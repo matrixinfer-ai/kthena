@@ -17,9 +17,12 @@ limitations under the License.
 package ratelimit
 
 import (
+	"context"
+	"fmt"
 	"sync"
 	"time"
 
+	"github.com/go-redis/redis/v8"
 	"golang.org/x/time/rate"
 	"k8s.io/klog/v2"
 
@@ -29,58 +32,98 @@ import (
 
 type RateLimitExceededError struct{}
 
-func (e RateLimitExceededError) Error() string {
+func (e *RateLimitExceededError) Error() string {
 	return "rate limit exceeded"
 }
 
 type InputRateLimitExceededError struct{}
 
-func (e InputRateLimitExceededError) Error() string {
+func (e *InputRateLimitExceededError) Error() string {
 	return "input token rate limit exceeded"
 }
 
 type OutputRateLimitExceededError struct{}
 
-func (e OutputRateLimitExceededError) Error() string {
+func (e *OutputRateLimitExceededError) Error() string {
 	return "output token rate limit exceeded"
 }
 
-type TokenRateLimiter struct {
-	mutex sync.RWMutex
-	// ratelimiter by model
-	inputLimiter  map[string]*rate.Limiter
-	outputLimiter map[string]*rate.Limiter
-	tokenizer     tokenizer.Tokenizer
+// Limiter interface that both local and global rate limiters implement
+// This extends the golang.org/x/time/rate.Limiter interface with additional methods
+type Limiter interface {
+	Allow() bool
+	AllowN(now time.Time, n int) bool
+	Burst() int
+	Limit() rate.Limit
+	Reserve() *rate.Reservation
+	ReserveN(now time.Time, n int) *rate.Reservation
+	Wait(ctx context.Context) error
+	WaitN(ctx context.Context, n int) error
+	// Tokens returns the number of tokens currently available
+	Tokens() float64
 }
 
-func NewRateLimiter() *TokenRateLimiter {
+// TokenRateLimiter provides rate limiting functionality for both input and output tokens
+type TokenRateLimiter struct {
+	mutex sync.RWMutex
+
+	// Unified rate limiters using Limiter interface
+	inputLimiter  map[string]Limiter
+	outputLimiter map[string]Limiter
+
+	// Redis client for global rate limiting
+	redisClient *redis.Client
+
+	tokenizer tokenizer.Tokenizer
+}
+
+// LocalLimiter wraps golang.org/x/time/rate.Limiter to implement our Limiter interface
+type LocalLimiter struct {
+	*rate.Limiter
+}
+
+// NewLocalLimiter creates a new LocalLimiter
+func NewLocalLimiter(limit rate.Limit, burst int) *LocalLimiter {
+	return &LocalLimiter{
+		Limiter: rate.NewLimiter(limit, burst),
+	}
+}
+
+// Tokens returns the number of tokens currently available
+func (l *LocalLimiter) Tokens() float64 {
+	return l.Limiter.Tokens()
+}
+
+// NewTokenRateLimiter creates a new TokenRateLimiter instance
+func NewTokenRateLimiter() *TokenRateLimiter {
 	return &TokenRateLimiter{
-		inputLimiter:  make(map[string]*rate.Limiter),
-		outputLimiter: make(map[string]*rate.Limiter),
+		inputLimiter:  make(map[string]Limiter),
+		outputLimiter: make(map[string]Limiter),
 		tokenizer:     tokenizer.NewSimpleEstimateTokenizer(),
 	}
 }
 
+// RateLimit checks if the request is within rate limits for both input and output tokens
 func (r *TokenRateLimiter) RateLimit(model, prompt string) error {
+	// Estimate input tokens
+	tokens, err := r.tokenizer.CalculateTokenNum(prompt)
+	if err != nil {
+		klog.Errorf("failed to calculate token number: %v", err)
+		tokens = len(prompt) / 4 // fallback estimation
+	}
+
 	r.mutex.RLock()
 	inputLimiter, hasInputLimit := r.inputLimiter[model]
 	outputLimiter, hasOutputLimit := r.outputLimiter[model]
 	r.mutex.RUnlock()
 
 	// Check input token rate limit
-	if hasInputLimit {
-		size, err := r.tokenizer.CalculateTokenNum(prompt)
-		if err != nil {
-			return err
-		}
-		if !inputLimiter.AllowN(time.Now(), size) {
-			return &InputRateLimitExceededError{}
-		}
+	if hasInputLimit && !inputLimiter.AllowN(time.Now(), tokens) {
+		return &InputRateLimitExceededError{}
 	}
 
-	// Check if output rate limit has any capacity left
-	// We check if there are enough tokens for a typical output (assume at least 1 token needed)
-	// This is conservative - we only block if there's no capacity at all
+	// Check output token rate limit - we conservatively check if there's at least 1 token available
+	// This prevents starting requests that likely won't be able to complete
 	if hasOutputLimit && outputLimiter.Tokens() < 1.0 {
 		return &OutputRateLimitExceededError{}
 	}
@@ -89,74 +132,107 @@ func (r *TokenRateLimiter) RateLimit(model, prompt string) error {
 }
 
 // RecordOutputTokens records the actual output tokens consumed after response generation
-// This should be called after getting the response with completion_tokens
 func (r *TokenRateLimiter) RecordOutputTokens(model string, tokenCount int) {
-	if tokenCount <= 0 {
-		return
-	}
-
 	r.mutex.RLock()
-	limiter, exists := r.outputLimiter[model]
+	outputLimiter, exists := r.outputLimiter[model]
 	r.mutex.RUnlock()
 
-	if !exists {
-		return
+	if exists {
+		outputLimiter.AllowN(time.Now(), tokenCount)
 	}
-
-	// Consume the actual tokens that were used
-	limiter.AllowN(time.Now(), tokenCount)
 }
 
-func (r *TokenRateLimiter) AddOrUpdateLimiter(model string, ratelimit *networkingv1alpha1.RateLimit) {
-	if model == "" {
-		return
-	}
-
-	// Calculate time unit factor
-	var unit float64
-	switch ratelimit.Unit {
-	case networkingv1alpha1.Second:
-		unit = 1
-	case networkingv1alpha1.Minute:
-		unit = 60
-	case networkingv1alpha1.Hour:
-		unit = 3600
-	case networkingv1alpha1.Day:
-		unit = 24 * 3600
-	case networkingv1alpha1.Month:
-		unit = 30 * 24 * 3600 // Approximate a month as 30 days
-	default:
-		klog.Errorf("unknown rate limit unit: %s", ratelimit.Unit)
-		return
-	}
-
+// AddOrUpdateLimiter adds or updates rate limiter for a model
+func (r *TokenRateLimiter) AddOrUpdateLimiter(model string, ratelimit *networkingv1alpha1.RateLimit) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
-	// Handle input token rate limiting
-	if ratelimit == nil || ratelimit.InputTokensPerUnit == nil || *ratelimit.InputTokensPerUnit <= 0 {
-		delete(r.inputLimiter, model)
+	// Determine if we should use global or local rate limiting
+	useGlobal := ratelimit.Global != nil && ratelimit.Global.Redis != nil
+
+	if useGlobal {
+		// Initialize Redis client if not already done
+		if r.redisClient == nil {
+			r.redisClient = redis.NewClient(&redis.Options{
+				Addr:     ratelimit.Global.Redis.Address,
+				Password: ratelimit.Global.Redis.Password,
+				DB:       0,
+			})
+
+			// Test connection
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := r.redisClient.Ping(ctx).Err(); err != nil {
+				return fmt.Errorf("failed to connect to redis: %w", err)
+			}
+		}
+
+		// Create global rate limiters
+		if ratelimit.InputTokensPerUnit != nil {
+			r.inputLimiter[model] = NewGlobalRateLimiter(
+				r.redisClient,
+				"matrixinfer:ratelimit",
+				model,
+				"input",
+				*ratelimit.InputTokensPerUnit,
+				ratelimit.Unit,
+			)
+		}
+
+		if ratelimit.OutputTokensPerUnit != nil {
+			r.outputLimiter[model] = NewGlobalRateLimiter(
+				r.redisClient,
+				"matrixinfer:ratelimit",
+				model,
+				"output",
+				*ratelimit.OutputTokensPerUnit,
+				ratelimit.Unit,
+			)
+		}
 	} else {
-		inputLimiter := rate.NewLimiter(rate.Limit(*ratelimit.InputTokensPerUnit)/rate.Limit(unit), int(*ratelimit.InputTokensPerUnit))
-		r.inputLimiter[model] = inputLimiter
+		// Create local rate limiters
+		duration := getTimeUnitDuration(ratelimit.Unit)
+
+		if ratelimit.InputTokensPerUnit != nil {
+			r.inputLimiter[model] = NewLocalLimiter(
+				rate.Limit(float64(*ratelimit.InputTokensPerUnit)/duration.Seconds()),
+				int(*ratelimit.InputTokensPerUnit),
+			)
+		}
+
+		if ratelimit.OutputTokensPerUnit != nil {
+			r.outputLimiter[model] = NewLocalLimiter(
+				rate.Limit(float64(*ratelimit.OutputTokensPerUnit)/duration.Seconds()),
+				int(*ratelimit.OutputTokensPerUnit),
+			)
+		}
 	}
 
-	// Handle output token rate limiting
-	if ratelimit == nil || ratelimit.OutputTokensPerUnit == nil || *ratelimit.OutputTokensPerUnit <= 0 {
-		delete(r.outputLimiter, model)
-	} else {
-		outputLimiter := rate.NewLimiter(rate.Limit(*ratelimit.OutputTokensPerUnit)/rate.Limit(unit), int(*ratelimit.OutputTokensPerUnit))
-		r.outputLimiter[model] = outputLimiter
-	}
+	return nil
 }
 
+// DeleteLimiter deletes rate limiter for a model
 func (r *TokenRateLimiter) DeleteLimiter(model string) {
-	if model == "" {
-		return
-	}
-
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
+
 	delete(r.inputLimiter, model)
 	delete(r.outputLimiter, model)
+}
+
+func getTimeUnitDuration(unit networkingv1alpha1.RateLimitUnit) time.Duration {
+	switch unit {
+	case networkingv1alpha1.Second:
+		return time.Second
+	case networkingv1alpha1.Minute:
+		return time.Minute
+	case networkingv1alpha1.Hour:
+		return time.Hour
+	case networkingv1alpha1.Day:
+		return 24 * time.Hour
+	case networkingv1alpha1.Month:
+		return 30 * 24 * time.Hour // Approximate
+	default:
+		return time.Second
+	}
 }

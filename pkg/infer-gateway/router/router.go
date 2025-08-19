@@ -56,6 +56,9 @@ type Router struct {
 	store           datastore.Store
 	loadRateLimiter *ratelimit.TokenRateLimiter
 
+	// Unified rate limiter for all models
+	rateLimiter *ratelimit.TokenRateLimiter
+
 	// KV Connector management
 	connectorFactory *connectors.Factory
 }
@@ -69,10 +72,15 @@ func NewRouter(store datastore.Store, gatewayConfigPath string) *Router {
 				return
 			}
 			klog.Infof("add or update rate limit for model %s", data.ModelName)
-			loadRateLimiter.AddOrUpdateLimiter(data.ModelName, data.ModelRoute.Spec.RateLimit)
+
+			// Configure the unified rate limiter for this model
+			if err := rateLimiter.AddOrUpdateLimiter(data.ModelName, data.ModelRoute.Spec.RateLimit); err != nil {
+				klog.Errorf("failed to configure rate limiter for model %s: %v", data.ModelName, err)
+			}
+
 		case datastore.EventDelete:
 			klog.Infof("delete rate limit for model %s", data.ModelName)
-			loadRateLimiter.DeleteLimiter(data.ModelName)
+			rateLimiter.DeleteLimiter(data.ModelName)
 		}
 	})
 
@@ -86,6 +94,7 @@ func NewRouter(store datastore.Store, gatewayConfigPath string) *Router {
 		scheduler:        scheduler.NewScheduler(store, gatewayConfig),
 		authValidator:    *auth.NewJWTValidator(store, gatewayConfig),
 		loadRateLimiter:  loadRateLimiter,
+		rateLimiter:      rateLimiter,
 		connectorFactory: connectors.NewDefaultFactory(),
 	}
 }
@@ -108,9 +117,18 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 			return
 		}
 		promptStr := utils.GetPromptString(prompt)
+		// Apply rate limiting using the unified rate limiter
 		if err := r.loadRateLimiter.RateLimit(modelName, promptStr); err != nil {
-			klog.Infof("request model: %s, prompt: %s, error: %v", modelName, promptStr, err)
-			c.AbortWithStatusJSON(http.StatusTooManyRequests, err.Error())
+			var errorMsg string
+			switch err.(type) {
+			case *ratelimit.InputRateLimitExceededError:
+				errorMsg = "input token rate limit exceeded"
+			case *ratelimit.OutputRateLimitExceededError:
+				errorMsg = "output token rate limit exceeded"
+			default:
+				errorMsg = "token usage exceeds rate limit"
+			}
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, errorMsg)
 			return
 		}
 

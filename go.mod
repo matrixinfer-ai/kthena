@@ -4,9 +4,11 @@ go 1.24.0
 
 require (
 	github.com/agiledragon/gomonkey/v2 v2.13.0
+	github.com/alicebob/miniredis/v2 v2.35.0
 	github.com/cespare/xxhash v1.1.0
 	github.com/gammazero/deque v1.0.0
 	github.com/gin-gonic/gin v1.10.0
+	github.com/go-redis/redis/v8 v8.11.5
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-retryablehttp v0.7.7
 	github.com/hashicorp/golang-lru/v2 v2.0.7
@@ -40,7 +42,10 @@ require (
 	github.com/cloudwego/base64x v0.1.4 // indirect
 	github.com/cloudwego/iasm v0.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
+<<<<<<< HEAD
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
+=======
+>>>>>>> ac3247f (global rate limit)
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/dlclark/regexp2 v1.10.0 // indirect
 	github.com/emicklei/go-restful/v3 v3.12.2 // indirect
@@ -84,8 +89,12 @@ require (
 	github.com/ugorji/go/codec v1.2.12 // indirect
 	github.com/valyala/fastjson v1.6.4 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
+<<<<<<< HEAD
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
+=======
+	github.com/yuin/gopher-lua v1.1.1 // indirect
+>>>>>>> ac3247f (global rate limit)
 	golang.org/x/arch v0.8.0 // indirect
 	golang.org/x/crypto v0.40.0 // indirect
 	golang.org/x/mod v0.25.0 // indirect
