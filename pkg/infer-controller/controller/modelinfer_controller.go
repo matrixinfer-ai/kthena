@@ -71,11 +71,10 @@ type ModelInferController struct {
 	initialSync bool     // indicates whether the initial sync has been completed
 }
 
-func NewModelInferController(kubeClientSet kubernetes.Interface, modelInferClient clientset.Interface) *ModelInferController {
+func NewModelInferController(kubeClientSet kubernetes.Interface, modelInferClient clientset.Interface) (*ModelInferController, error) {
 	selector, err := labels.NewRequirement(workloadv1alpha1.GroupNameLabelKey, selection.Exists, nil)
 	if err != nil {
-		klog.Errorf("cannot create label selector, err: %v", err)
-		return nil
+		return nil, fmt.Errorf("cannot create label selector, err: %v", err)
 	}
 
 	kubeInformerFactory := informers.NewSharedInformerFactoryWithOptions(
@@ -95,8 +94,7 @@ func NewModelInferController(kubeClientSet kubernetes.Interface, modelInferClien
 		RoleIDKey:    utils.RoleIDIndexFunc,
 	})
 	if err != nil {
-		klog.Errorf("cannot create pod Informer Index, err: %v", err)
-		return nil
+		return nil, fmt.Errorf("cannot create pod Informer Index, err: %v", err)
 	}
 
 	err = servicesInformer.Informer().AddIndexers(cache.Indexers{
@@ -104,8 +102,7 @@ func NewModelInferController(kubeClientSet kubernetes.Interface, modelInferClien
 		RoleIDKey:    utils.RoleIDIndexFunc,
 	})
 	if err != nil {
-		klog.Errorf("cannot create service Informer Index, err: %v", err)
-		return nil
+		return nil, fmt.Errorf("cannot create service Informer Index, err: %v", err)
 	}
 
 	store := datastore.New()
@@ -151,7 +148,7 @@ func NewModelInferController(kubeClientSet kubernetes.Interface, modelInferClien
 
 	c.syncHandler = c.syncModelInfer
 
-	return c
+	return c, nil
 }
 
 func (c *ModelInferController) addModelInfer(obj interface{}) {
@@ -1062,7 +1059,11 @@ func (c *ModelInferController) getPodsByIndex(namespace, indexName, indexValue s
 
 	var pods []*corev1.Pod
 	for _, obj := range objs {
-		pod := obj.(*corev1.Pod)
+		pod, ok := obj.(*corev1.Pod)
+		if !ok {
+			klog.Errorf("unexpected object type in pod indexer: %T", obj)
+			continue
+		}
 		if pod.Namespace == namespace {
 			pods = append(pods, pod)
 		}
@@ -1083,7 +1084,11 @@ func (c *ModelInferController) getServicesByIndex(namespace, indexName, indexVal
 
 	var services []*corev1.Service
 	for _, obj := range objs {
-		svc := obj.(*corev1.Service)
+		svc, ok := obj.(*corev1.Service)
+		if !ok {
+			klog.Errorf("unexpected object type in service indexer: %T", obj)
+			continue
+		}
 		if svc.Namespace == namespace {
 			services = append(services, svc)
 		}

@@ -529,11 +529,11 @@ func RoleIDIndexFunc(obj interface{}) ([]string, error) {
 		return []string{}, nil
 	}
 
-	groupName := labels[workloadv1alpha1.GroupNameLabelKey]
-	roleName := labels[workloadv1alpha1.RoleLabelKey]
-	roleID := labels[workloadv1alpha1.RoleIDKey]
+	groupName, groupNameExists := labels[workloadv1alpha1.GroupNameLabelKey]
+	roleName, roleNameExists := labels[workloadv1alpha1.RoleLabelKey]
+	roleID, roleIDExists := labels[workloadv1alpha1.RoleIDKey]
 
-	if groupName == "" || roleName == "" || roleID == "" {
+	if !groupNameExists || !roleNameExists || !roleIDExists || groupName == "" || roleName == "" || roleID == "" {
 		return []string{}, nil
 	}
 

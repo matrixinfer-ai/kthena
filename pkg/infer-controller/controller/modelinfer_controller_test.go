@@ -736,7 +736,8 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 	matrixinferInformerFactory := informersv1alpha1.NewSharedInformerFactory(matrixinferClient, 0)
 
 	// Create controller
-	controller := NewModelInferController(kubeClient, matrixinferClient)
+	controller, err := NewModelInferController(kubeClient, matrixinferClient)
+	assert.NoError(t, err)
 
 	stop := make(chan struct{})
 	defer close(stop)
