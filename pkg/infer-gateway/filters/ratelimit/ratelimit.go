@@ -49,16 +49,10 @@ func (e *OutputRateLimitExceededError) Error() string {
 }
 
 // Limiter interface that both local and global rate limiters implement
-// This extends the golang.org/x/time/rate.Limiter interface with additional methods
+// Only includes methods that are actually used
 type Limiter interface {
-	Allow() bool
+	// AllowN reports whether n tokens may be consumed and consumes them if so
 	AllowN(now time.Time, n int) bool
-	Burst() int
-	Limit() rate.Limit
-	Reserve() *rate.Reservation
-	ReserveN(now time.Time, n int) *rate.Reservation
-	Wait(ctx context.Context) error
-	WaitN(ctx context.Context, n int) error
 	// Tokens returns the number of tokens currently available
 	Tokens() float64
 }

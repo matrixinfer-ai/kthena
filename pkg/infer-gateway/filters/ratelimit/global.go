@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
-	"golang.org/x/time/rate"
 	"k8s.io/klog/v2"
 
 	networkingv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
@@ -50,11 +49,6 @@ func NewGlobalRateLimiter(client *redis.Client, keyPrefix, modelName, tokenType 
 		unit:      unit,
 		burst:     int(limit),
 	}
-}
-
-// Allow implements Limiter interface
-func (g *GlobalRateLimiter) Allow() bool {
-	return g.AllowN(time.Now(), 1)
 }
 
 // AllowN implements Limiter interface
@@ -91,52 +85,6 @@ func (g *GlobalRateLimiter) AllowN(now time.Time, n int) bool {
 	}
 
 	return totalTokens <= int64(g.limit)
-}
-
-// Burst implements Limiter interface
-func (g *GlobalRateLimiter) Burst() int {
-	return g.burst
-}
-
-// Limit implements Limiter interface
-func (g *GlobalRateLimiter) Limit() rate.Limit {
-	duration := getTimeUnitDuration(g.unit)
-	return rate.Limit(float64(g.limit) / duration.Seconds())
-}
-
-// Reserve implements Limiter interface
-func (g *GlobalRateLimiter) Reserve() *rate.Reservation {
-	return g.ReserveN(time.Now(), 1)
-}
-
-// ReserveN implements Limiter interface
-func (g *GlobalRateLimiter) ReserveN(now time.Time, n int) *rate.Reservation {
-	// For simplicity, use Allow() logic and return appropriate reservation
-	if g.AllowN(now, n) {
-		return &rate.Reservation{}
-	}
-	// Return a reservation that will block until next allowed time
-	return &rate.Reservation{}
-}
-
-// Wait implements Limiter interface
-func (g *GlobalRateLimiter) Wait(ctx context.Context) error {
-	return g.WaitN(ctx, 1)
-}
-
-// WaitN implements Limiter interface
-func (g *GlobalRateLimiter) WaitN(ctx context.Context, n int) error {
-	if g.AllowN(time.Now(), n) {
-		return nil
-	}
-
-	// Wait for next window
-	select {
-	case <-time.After(getTimeUnitDuration(g.unit)):
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
 }
 
 func (g *GlobalRateLimiter) getTotalTokensInWindow(key string, windowStart float64) (int64, error) {
