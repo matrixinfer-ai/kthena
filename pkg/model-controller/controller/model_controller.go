@@ -907,8 +907,8 @@ func (mc *ModelController) updateModelInfer(ctx context.Context, model *registry
 	for _, existingModelInfer := range existingModelInfers {
 		// if not exist in modelInfersToKeep, delete it
 		if _, ok := modelInfersToKeep[existingModelInfer.Name]; !ok {
-			err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Delete(ctx, existingModelInfer.Name, metav1.DeleteOptions{})
-			if err != nil {
+			if err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Delete(ctx, existingModelInfer.Name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+				klog.Errorf("Failed to delete ModelInfer %s: %v", klog.KObj(existingModelInfer), err)
 				return err
 			}
 			klog.V(4).Infof("Delete ModelInfer %s", existingModelInfer.Name)
