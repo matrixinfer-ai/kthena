@@ -51,83 +51,150 @@ func NewGlobalRateLimiter(client *redis.Client, keyPrefix, modelName, tokenType 
 	}
 }
 
-// AllowN implements Limiter interface
+// AllowN implements Limiter interface using token bucket algorithm
 func (g *GlobalRateLimiter) AllowN(now time.Time, n int) bool {
 	key := fmt.Sprintf("%s:%s:%s", g.keyPrefix, g.modelName, g.tokenType)
 
-	// Use sliding window algorithm with Redis
-	windowStart := now.Add(-getTimeUnitDuration(g.unit))
-	windowStartScore := float64(windowStart.Unix())
-
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Remove old entries and add new entry atomically
-	pipe := g.client.Pipeline()
-	pipe.ZRemRangeByScore(ctx, key, "0", fmt.Sprintf("%.0f", windowStartScore))
-	pipe.ZAdd(ctx, key, &redis.Z{
-		Score:  float64(now.Unix()),
-		Member: fmt.Sprintf("%d:%d", now.UnixNano(), n),
-	})
-	pipe.Expire(ctx, key, getTimeUnitDuration(g.unit))
+	// Use Redis Lua script for atomic token bucket operations
+	luaScript := `
+		local key = KEYS[1]
+		local requested_tokens = tonumber(ARGV[1])
+		local capacity = tonumber(ARGV[2])
+		local refill_rate = tonumber(ARGV[3])
+		local current_time = tonumber(ARGV[4])
+		local expire_seconds = tonumber(ARGV[5])
+		
+		-- Get current state
+		local bucket_data = redis.call('hmget', key, 'tokens', 'last_update')
+		local current_tokens = tonumber(bucket_data[1]) or capacity
+		local last_update = tonumber(bucket_data[2]) or current_time
+		
+		-- Calculate tokens to add based on time elapsed
+		local time_passed = math.max(0, current_time - last_update)
+		local tokens_to_add = time_passed * refill_rate
+		
+		-- Update current tokens (capped at capacity)
+		current_tokens = math.min(capacity, current_tokens + tokens_to_add)
+		
+		-- Check if we have enough tokens
+		if current_tokens >= requested_tokens then
+			-- Consume tokens
+			current_tokens = current_tokens - requested_tokens
+			
+			-- Update Redis state
+			redis.call('hmset', key, 'tokens', current_tokens, 'last_update', current_time)
+			redis.call('expire', key, expire_seconds)
+			
+			return 1 -- Success
+		else
+			-- Not enough tokens, but still update the bucket state
+			redis.call('hmset', key, 'tokens', current_tokens, 'last_update', current_time)
+			redis.call('expire', key, expire_seconds)
+			
+			return 0 -- Failed
+		end
+	`
 
-	_, err := pipe.Exec(ctx)
-	if err != nil {
-		klog.Errorf("failed to execute redis pipeline: %v", err)
+	// Calculate refill rate (tokens per second) and expire time
+	refillRate := g.getRefillRate()
+	expireSeconds := g.getExpireSeconds()
+	currentTime := float64(now.Unix()) + float64(now.Nanosecond())/1e9
+
+	result := g.client.Eval(ctx, luaScript, []string{key}, n, g.burst, refillRate, currentTime, expireSeconds)
+
+	if result.Err() != nil {
+		klog.Errorf("failed to execute token bucket lua script: %v", result.Err())
 		return false
 	}
 
-	// Get current usage
-	totalTokens, err := g.getTotalTokensInWindow(key, windowStartScore)
-	if err != nil {
-		klog.Errorf("failed to get total tokens: %v", err)
+	allowed, ok := result.Val().(int64)
+	if !ok {
+		klog.Errorf("unexpected result type from lua script: %T", result.Val())
 		return false
 	}
 
-	return totalTokens <= int64(g.limit)
+	return allowed == 1
 }
 
-func (g *GlobalRateLimiter) getTotalTokensInWindow(key string, windowStart float64) (int64, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+// getRefillRate calculates the token refill rate per second
+func (g *GlobalRateLimiter) getRefillRate() float64 {
+	duration := getTimeUnitDuration(g.unit)
+	return float64(g.limit) / duration.Seconds()
+}
 
-	result := g.client.ZRangeByScore(ctx, key, &redis.ZRangeBy{
-		Min: fmt.Sprintf("%.0f", windowStart),
-		Max: "+inf",
-	})
+// getExpireSeconds calculates appropriate expire time based on rate limit unit
+func (g *GlobalRateLimiter) getExpireSeconds() int {
+	duration := getTimeUnitDuration(g.unit)
+	// Set expire time to 3x the rate limit unit duration, with reasonable bounds
+	expireSeconds := int(duration.Seconds() * 3)
 
-	members, err := result.Result()
-	if err != nil {
-		return 0, err
+	// Set reasonable bounds
+	if expireSeconds < 600 { // Minimum 10 minutes
+		expireSeconds = 600
+	} else if expireSeconds > 7776000 { // Maximum 90 days
+		expireSeconds = 7776000
 	}
 
-	var total int64
-	for _, member := range members {
-		var timestamp, tokens int64
-		if _, err := fmt.Sscanf(member, "%d:%d", &timestamp, &tokens); err == nil {
-			total += tokens
-		}
-	}
-
-	return total, nil
+	return expireSeconds
 }
 
 // Tokens returns the estimated number of tokens currently available
 func (g *GlobalRateLimiter) Tokens() float64 {
-	// For global rate limiter, we estimate available tokens by checking current usage
 	key := fmt.Sprintf("%s:%s:%s", g.keyPrefix, g.modelName, g.tokenType)
-	windowStart := time.Now().Add(-getTimeUnitDuration(g.unit))
-	windowStartScore := float64(windowStart.Unix())
 
-	totalTokens, err := g.getTotalTokensInWindow(key, windowStartScore)
-	if err != nil {
-		klog.Errorf("failed to get total tokens for Tokens(): %v", err)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Lua script to get current available tokens without consuming any
+	luaScript := `
+		local key = KEYS[1]
+		local capacity = tonumber(ARGV[1])
+		local refill_rate = tonumber(ARGV[2])
+		local current_time = tonumber(ARGV[3])
+		local expire_seconds = tonumber(ARGV[4])
+		
+		-- Get current state
+		local bucket_data = redis.call('hmget', key, 'tokens', 'last_update')
+		local current_tokens = tonumber(bucket_data[1]) or capacity
+		local last_update = tonumber(bucket_data[2]) or current_time
+		
+		-- Calculate tokens to add based on time elapsed
+		local time_passed = math.max(0, current_time - last_update)
+		local tokens_to_add = time_passed * refill_rate
+		
+		-- Calculate current available tokens (capped at capacity)
+		local available_tokens = math.min(capacity, current_tokens + tokens_to_add)
+		
+		-- Update bucket state for next time (even though we're just checking)
+		redis.call('hmset', key, 'tokens', available_tokens, 'last_update', current_time)
+		redis.call('expire', key, expire_seconds)
+		
+		return available_tokens
+	`
+
+	refillRate := g.getRefillRate()
+	expireSeconds := g.getExpireSeconds()
+	currentTime := float64(time.Now().Unix()) + float64(time.Now().Nanosecond())/1e9
+
+	result := g.client.Eval(ctx, luaScript, []string{key}, g.burst, refillRate, currentTime, expireSeconds)
+
+	if result.Err() != nil {
+		klog.Errorf("failed to execute tokens check lua script: %v", result.Err())
 		return 0
 	}
 
-	available := int64(g.limit) - totalTokens
-	if available < 0 {
+	tokens, ok := result.Val().(float64)
+	if !ok {
+		// Try to convert from int64 to float64
+		if tokensInt, ok := result.Val().(int64); ok {
+			return float64(tokensInt)
+		}
+		klog.Errorf("unexpected result type from tokens lua script: %T", result.Val())
 		return 0
 	}
-	return float64(available)
+
+	return tokens
 }
