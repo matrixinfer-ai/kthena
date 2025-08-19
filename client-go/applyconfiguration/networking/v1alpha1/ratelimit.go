@@ -25,9 +25,10 @@ import (
 // RateLimitApplyConfiguration represents a declarative configuration of the RateLimit type for use
 // with apply.
 type RateLimitApplyConfiguration struct {
-	InputTokensPerUnit  *uint32                           `json:"inputTokensPerUnit,omitempty"`
-	OutputTokensPerUnit *uint32                           `json:"outputTokensPerUnit,omitempty"`
-	Unit                *networkingv1alpha1.RateLimitUnit `json:"unit,omitempty"`
+	InputTokensPerUnit  *uint32                            `json:"inputTokensPerUnit,omitempty"`
+	OutputTokensPerUnit *uint32                            `json:"outputTokensPerUnit,omitempty"`
+	Unit                *networkingv1alpha1.RateLimitUnit  `json:"unit,omitempty"`
+	Global              *GlobalRateLimitApplyConfiguration `json:"global,omitempty"`
 }
 
 // RateLimitApplyConfiguration constructs a declarative configuration of the RateLimit type for use with
@@ -57,5 +58,13 @@ func (b *RateLimitApplyConfiguration) WithOutputTokensPerUnit(value uint32) *Rat
 // If called multiple times, the Unit field is set to the value of the last call.
 func (b *RateLimitApplyConfiguration) WithUnit(value networkingv1alpha1.RateLimitUnit) *RateLimitApplyConfiguration {
 	b.Unit = &value
+	return b
+}
+
+// WithGlobal sets the Global field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the Global field is set to the value of the last call.
+func (b *RateLimitApplyConfiguration) WithGlobal(value *GlobalRateLimitApplyConfiguration) *RateLimitApplyConfiguration {
+	b.Global = value
 	return b
 }

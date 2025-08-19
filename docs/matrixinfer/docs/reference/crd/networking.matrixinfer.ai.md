@@ -15,6 +15,22 @@
 
 
 
+#### GlobalRateLimit
+
+
+
+GlobalRateLimit contains configuration for global rate limiting
+
+
+
+_Appears in:_
+- [RateLimit](#ratelimit)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `redis` _[RedisConfig](#redisconfig)_ | Redis contains configuration for Redis-based global rate limiting. |  |  |
+
+
 #### InferenceEngine
 
 _Underlying type:_ _string_
@@ -273,6 +289,7 @@ _Appears in:_
 | `inputTokensPerUnit` _integer_ | InputTokensPerUnit is the maximum number of input tokens allowed per unit of time.<br />If this field is not set, there is no limit on input tokens. |  | Minimum: 1 <br /> |
 | `outputTokensPerUnit` _integer_ | OutputTokensPerUnit is the maximum number of output tokens allowed per unit of time.<br />If this field is not set, there is no limit on output tokens. |  | Minimum: 1 <br /> |
 | `unit` _[RateLimitUnit](#ratelimitunit)_ | Unit is the time unit for the rate limit. | second | Enum: [second minute hour day month] <br /> |
+| `global` _[GlobalRateLimit](#globalratelimit)_ | Global contains configuration for global rate limiting using distributed storage.<br />If this field is set, global rate limiting will be used; otherwise, local rate limiting will be used. |  |  |
 
 
 #### RateLimitUnit
@@ -294,6 +311,23 @@ _Appears in:_
 | `hour` |  |
 | `day` |  |
 | `month` |  |
+
+
+#### RedisConfig
+
+
+
+RedisConfig contains Redis connection configuration
+
+
+
+_Appears in:_
+- [GlobalRateLimit](#globalratelimit)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `address` _string_ | Address is the Redis server address in the format "host:port". |  | Required: \{\} <br /> |
+| `password` _string_ | Password for Redis authentication. If empty, no authentication is used. |  |  |
 
 
 #### Retry
