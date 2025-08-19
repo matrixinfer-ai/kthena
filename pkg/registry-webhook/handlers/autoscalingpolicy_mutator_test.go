@@ -38,15 +38,13 @@ import (
 
 // TestNewAutoscalingPolicyMutator tests the constructor
 func TestNewAutoscalingPolicyMutator(t *testing.T) {
-	mutator := NewAutoscalingPolicyMutator(nil, nil)
+	mutator := NewAutoscalingPolicyMutator()
 	assert.NotNil(t, mutator)
-	assert.Nil(t, mutator.kubeClient)
-	assert.Nil(t, mutator.matrixinferClient)
 }
 
 // TestAutoscalingPolicyMutator_Handle_InvalidJSON tests handling of invalid JSON input
 func TestAutoscalingPolicyMutator_Handle_InvalidJSON(t *testing.T) {
-	mutator := NewAutoscalingPolicyMutator(nil, nil)
+	mutator := NewAutoscalingPolicyMutator()
 
 	// Test with invalid JSON
 	req := httptest.NewRequest("POST", "/mutate", bytes.NewBufferString("invalid json"))
@@ -61,7 +59,7 @@ func TestAutoscalingPolicyMutator_Handle_InvalidJSON(t *testing.T) {
 
 // TestAutoscalingPolicyMutator_Handle_InvalidObject tests handling of invalid object structure
 func TestAutoscalingPolicyMutator_Handle_InvalidObject(t *testing.T) {
-	mutator := NewAutoscalingPolicyMutator(nil, nil)
+	mutator := NewAutoscalingPolicyMutator()
 
 	// Create admission review with invalid field types that will cause JSON unmarshaling errors
 	admissionReview := admissionv1.AdmissionReview{
@@ -86,7 +84,7 @@ func TestAutoscalingPolicyMutator_Handle_InvalidObject(t *testing.T) {
 
 // TestAutoscalingPolicyMutator_Handle_Success tests successful mutation of a policy
 func TestAutoscalingPolicyMutator_Handle_Success(t *testing.T) {
-	mutator := NewAutoscalingPolicyMutator(nil, nil)
+	mutator := NewAutoscalingPolicyMutator()
 
 	// Create a minimal AutoscalingPolicy without behavior - should be mutated
 	policy := &registryv1.AutoscalingPolicy{

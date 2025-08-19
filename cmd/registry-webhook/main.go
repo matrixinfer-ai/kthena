@@ -23,7 +23,6 @@ import (
 	"syscall"
 
 	"github.com/spf13/pflag"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
@@ -62,11 +61,6 @@ func main() {
 		klog.Fatalf("Error building kubeconfig: %s", err.Error())
 	}
 
-	kubeClient, err := kubernetes.NewForConfig(cfg)
-	if err != nil {
-		klog.Fatalf("Error building kubernetes clientset: %s", err.Error())
-	}
-
 	matrixinferClient, err := clientset.NewForConfig(cfg)
 	if err != nil {
 		klog.Fatalf("Error building matrixinfer clientset: %s", err.Error())
@@ -74,7 +68,6 @@ func main() {
 
 	// Create webhook server
 	webhookServer := server.NewWebhookServer(
-		kubeClient,
 		matrixinferClient,
 		config.tlsCertFile,
 		config.tlsPrivateKey,

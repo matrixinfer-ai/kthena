@@ -37,7 +37,7 @@ import (
 )
 
 func TestValidateAutoscalingPolicy_ErrorFormatting(t *testing.T) {
-	validator := NewAutoscalingPolicyValidator(nil, nil)
+	validator := NewAutoscalingPolicyValidator()
 
 	// Create an autoscaling policy that will trigger multiple validation errors
 	policy := &registryv1.AutoscalingPolicy{
@@ -111,7 +111,7 @@ func TestValidateAutoscalingPolicy_ErrorFormatting(t *testing.T) {
 }
 
 func TestValidateAutoscalingPolicy_NoErrors(t *testing.T) {
-	validator := NewAutoscalingPolicyValidator(nil, nil)
+	validator := NewAutoscalingPolicyValidator()
 
 	// Create a valid autoscaling policy
 	policy := &registryv1.AutoscalingPolicy{
@@ -166,7 +166,7 @@ func TestValidateAutoscalingPolicy_NoErrors(t *testing.T) {
 }
 
 func TestAutoscalingPolicyValidator_Handle_ValidPolicy(t *testing.T) {
-	validator := NewAutoscalingPolicyValidator(nil, nil)
+	validator := NewAutoscalingPolicyValidator()
 
 	// Create a valid AutoscalingPolicy
 	policy := &registryv1.AutoscalingPolicy{

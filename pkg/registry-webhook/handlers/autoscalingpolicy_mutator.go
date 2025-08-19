@@ -25,25 +25,18 @@ import (
 	"gomodules.xyz/jsonpatch/v2"
 	admissionv1 "k8s.io/api/admission/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
-	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
 	registryv1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
 
 // AutoscalingPolicyMutator handles mutation of AutoscalingPolicy resources
 type AutoscalingPolicyMutator struct {
-	kubeClient        kubernetes.Interface
-	matrixinferClient clientset.Interface
 }
 
 // NewAutoscalingPolicyMutator creates a new AutoscalingPolicyMutator
-func NewAutoscalingPolicyMutator(kubeClient kubernetes.Interface, matrixinferClient clientset.Interface) *AutoscalingPolicyMutator {
-	return &AutoscalingPolicyMutator{
-		kubeClient:        kubeClient,
-		matrixinferClient: matrixinferClient,
-	}
+func NewAutoscalingPolicyMutator() *AutoscalingPolicyMutator {
+	return &AutoscalingPolicyMutator{}
 }
 
 // Handle handles admission requests for AutoscalingPolicy resources

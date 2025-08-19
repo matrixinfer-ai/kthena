@@ -25,24 +25,17 @@ import (
 	admissionv1 "k8s.io/api/admission/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
-	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
 	registryv1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
 
 // AutoscalingPolicyValidator handles validation of AutoscalingPolicy resources
 type AutoscalingPolicyValidator struct {
-	kubeClient        kubernetes.Interface
-	matrixinferClient clientset.Interface
 }
 
 // NewAutoscalingPolicyValidator creates a new AutoscalingPolicyValidator
-func NewAutoscalingPolicyValidator(kubeClient kubernetes.Interface, matrixinferClient clientset.Interface) *AutoscalingPolicyValidator {
-	return &AutoscalingPolicyValidator{
-		kubeClient:        kubeClient,
-		matrixinferClient: matrixinferClient,
-	}
+func NewAutoscalingPolicyValidator() *AutoscalingPolicyValidator {
+	return &AutoscalingPolicyValidator{}
 }
 
 // Handle handles admission requests for AutoscalingPolicy resources
@@ -114,7 +107,7 @@ func (v *AutoscalingPolicyValidator) validateAutoscalingPolicy(policy *registryv
 // validateMetrics validates the metrics configuration
 func (v *AutoscalingPolicyValidator) validateMetrics(policy *registryv1.AutoscalingPolicy) field.ErrorList {
 	var allErrs field.ErrorList
-	metricNames := make(map[string]bool)
+	metricNames := make(map[string]struct{})
 
 	for i, metric := range policy.Spec.Metrics {
 		metricPath := field.NewPath("spec").Child("metrics").Index(i)
@@ -129,14 +122,14 @@ func (v *AutoscalingPolicyValidator) validateMetrics(policy *registryv1.Autoscal
 		}
 
 		// Validate metric name uniqueness
-		if metricNames[metric.MetricName] {
+		if _, exists := metricNames[metric.MetricName]; exists {
 			allErrs = append(allErrs, field.Invalid(
 				metricPath.Child("metricName"),
 				metric.MetricName,
 				fmt.Sprintf("duplicate metric name %s is not allowed", metric.MetricName),
 			))
 		}
-		metricNames[metric.MetricName] = true
+		metricNames[metric.MetricName] = struct{}{}
 	}
 
 	return allErrs

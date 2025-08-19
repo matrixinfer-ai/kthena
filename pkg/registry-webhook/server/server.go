@@ -23,7 +23,6 @@ import (
 	"net/http"
 	"time"
 
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
 	"matrixinfer.ai/matrixinfer/pkg/registry-webhook/handlers"
@@ -31,7 +30,6 @@ import (
 
 // WebhookServer contains the server configuration
 type WebhookServer struct {
-	kubeClient        kubernetes.Interface
 	matrixInferClient clientset.Interface
 	server            *http.Server
 	tlsCertFile       string
@@ -42,7 +40,6 @@ type WebhookServer struct {
 
 // NewWebhookServer creates a new webhook server
 func NewWebhookServer(
-	kubeClient kubernetes.Interface,
 	matrixinferClient clientset.Interface,
 	tlsCertFile string,
 	tlsPrivateKey string,
@@ -50,7 +47,6 @@ func NewWebhookServer(
 	timeout int,
 ) *WebhookServer {
 	return &WebhookServer{
-		kubeClient:        kubeClient,
 		matrixInferClient: matrixinferClient,
 		tlsCertFile:       tlsCertFile,
 		tlsPrivateKey:     tlsPrivateKey,
@@ -63,10 +59,10 @@ func NewWebhookServer(
 func (ws *WebhookServer) Start(stopCh <-chan struct{}) error {
 	mux := http.NewServeMux()
 	// Create model handlers
-	modelValidator := handlers.NewModelValidator(ws.kubeClient, ws.matrixInferClient)
-	modelMutator := handlers.NewModelMutator(ws.kubeClient, ws.matrixInferClient)
-	autoscalingPolicyValidator := handlers.NewAutoscalingPolicyValidator(ws.kubeClient, ws.matrixInferClient)
-	autoscalingPolicyMutator := handlers.NewAutoscalingPolicyMutator(ws.kubeClient, ws.matrixInferClient)
+	modelValidator := handlers.NewModelValidator()
+	modelMutator := handlers.NewModelMutator()
+	autoscalingPolicyValidator := handlers.NewAutoscalingPolicyValidator()
+	autoscalingPolicyMutator := handlers.NewAutoscalingPolicyMutator()
 
 	// Create mux and register handlers
 	mux.HandleFunc("/validate-registry-matrixinfer-ai-v1alpha1-model", modelValidator.Handle)
@@ -75,7 +71,7 @@ func (ws *WebhookServer) Start(stopCh <-chan struct{}) error {
 	mux.HandleFunc("/mutate-registry-matrixinfer-ai-v1alpha1-autoscalingpolicy", autoscalingPolicyMutator.Handle)
 
 	// Create autoscalingBinding handlers
-	autoscalingBindingValidator := handlers.NewAutoscalingBindingValidator(ws.kubeClient, ws.matrixInferClient)
+	autoscalingBindingValidator := handlers.NewAutoscalingBindingValidator(ws.matrixInferClient)
 	mux.HandleFunc("/validate-registry-matrixinfer-ai-v1alpha1-autoscalingpolicybinding", autoscalingBindingValidator.Handle)
 
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {

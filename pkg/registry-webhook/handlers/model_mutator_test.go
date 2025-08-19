@@ -55,7 +55,7 @@ func TestCreatePatch(t *testing.T) {
 	// Create a mutated model and apply the actual mutations
 	mutated := original.DeepCopy()
 
-	mutator := NewModelMutator(nil, nil) // nil clients are fine since mutateModel doesn't use them
+	mutator := NewModelMutator() // No parameters needed since mutateModel doesn't use client
 	mutator.mutateModel(mutated)
 
 	// Test the createPatch function
