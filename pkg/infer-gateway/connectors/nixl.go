@@ -46,7 +46,7 @@ func (n *NIXLConnector) Name() string {
 }
 
 // Proxy executes the complete prefill-decode flow using NIXL for high-performance KV transfer
-func (n *NIXLConnector) Proxy(c *gin.Context, reqBody map[string]interface{}, prefillAddr, decodeAddr string) error {
+func (n *NIXLConnector) Proxy(c *gin.Context, reqBody map[string]interface{}, prefillAddr, decodeAddr string) (int, error) {
 	req := c.Request
 	if n.prefillRequest == nil {
 		prefillBody := cloneReqBody(reqBody)
@@ -59,7 +59,7 @@ func (n *NIXLConnector) Proxy(c *gin.Context, reqBody map[string]interface{}, pr
 	// 1. send prefill request
 	kvTransferParams, err := n.executePrefillRequest(n.prefillRequest, prefillAddr)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	// 2. send decode request
 	decodeReq := n.buildDecodeRequest(c, n.decodeRequestBody, kvTransferParams)
@@ -115,7 +115,7 @@ func (n *NIXLConnector) buildDecodeRequest(c *gin.Context, reqBody map[string]in
 }
 
 // executeDecodeRequest builds and executes the decode request with streaming response
-func (n *NIXLConnector) executeDecodeRequest(c *gin.Context, req *http.Request, decodeAddr string) error {
+func (n *NIXLConnector) executeDecodeRequest(c *gin.Context, req *http.Request, decodeAddr string) (int, error) {
 	// Set kv_transfer_params from prefill response
 	req.URL.Host = decodeAddr
 

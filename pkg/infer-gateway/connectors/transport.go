@@ -48,15 +48,15 @@ func prefillerProxy(c *gin.Context, req *http.Request) error {
 	return nil
 }
 
-func decoderProxy(c *gin.Context, req *http.Request) error {
+func decoderProxy(c *gin.Context, req *http.Request) (int, error) {
 	resp, err := http.DefaultTransport.RoundTrip(req)
 	if err != nil {
-		return fmt.Errorf("decode request failed: %w", err)
+		return 0, fmt.Errorf("decode request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("decode request failed with status %d", resp.StatusCode)
+		return 0, fmt.Errorf("decode request failed with status %d", resp.StatusCode)
 	}
 
 	// Copy response headers
@@ -176,15 +176,18 @@ func isStreamingResponse(resp *http.Response) bool {
 }
 
 // handleStreamingResponse handles streaming responses
-func handleStreamingResponse(c *gin.Context, resp *http.Response) error {
+func handleStreamingResponse(c *gin.Context, resp *http.Response) (int, error) {
+	totalOutputTokens := 0
 	reader := bufio.NewReader(resp.Body)
 	c.Stream(func(w io.Writer) bool {
 		line, err := reader.ReadBytes('\n')
 		if len(line) > 0 {
 			// Try to parse usage from this line
 			parsed := handlers.ParseStreamRespForUsage(string(line))
-			if parsed.Usage.TotalTokens > 0 {
+			if parsed.Usage.CompletionTokens > 0 {
 				klog.V(4).Infof("Parsed usage: %+v", parsed.Usage)
+				// Accumulate output tokens
+				totalOutputTokens += parsed.Usage.CompletionTokens
 				// Check if token usage should be filtered
 				if v, ok := c.Get(tokenUsageKey); ok && v.(bool) {
 					return true
@@ -201,25 +204,26 @@ func handleStreamingResponse(c *gin.Context, resp *http.Response) error {
 		}
 		return true
 	})
-	return nil
+	return totalOutputTokens, nil
 }
 
 // handleNonStreamingResponse handles non-streaming responses
-func handleNonStreamingResponse(c *gin.Context, resp *http.Response) error {
+func handleNonStreamingResponse(c *gin.Context, resp *http.Response) (int, error) {
 	var buf bytes.Buffer
 	teeReader := io.TeeReader(resp.Body, &buf)
 
 	_, err := io.Copy(c.Writer, teeReader)
 	if err != nil {
 		klog.Errorf("copy response to downstream failed: %v", err)
-		return err
+		return 0, err
 	}
 
 	// Parse usage if present
 	parsed, _ := handlers.ParseOpenAIResponseBody(buf.Bytes())
-	if parsed != nil && parsed.Usage.TotalTokens > 0 {
+	if parsed != nil && parsed.Usage.CompletionTokens > 0 {
 		klog.V(4).Infof("Parsed usage: %+v", parsed.Usage)
+		return parsed.Usage.CompletionTokens, nil
 	}
 
-	return nil
+	return 0, nil
 }

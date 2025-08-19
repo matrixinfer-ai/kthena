@@ -33,36 +33,78 @@ func (e RateLimitExceededError) Error() string {
 	return "rate limit exceeded"
 }
 
+type InputRateLimitExceededError struct{}
+
+func (e InputRateLimitExceededError) Error() string {
+	return "input token rate limit exceeded"
+}
+
+type OutputRateLimitExceededError struct{}
+
+func (e OutputRateLimitExceededError) Error() string {
+	return "output token rate limit exceeded"
+}
+
 type TokenRateLimiter struct {
 	mutex sync.RWMutex
 	// ratelimiter by model
-	inputLimiter map[string]*rate.Limiter
-	tokenizer    tokenizer.Tokenizer
+	inputLimiter  map[string]*rate.Limiter
+	outputLimiter map[string]*rate.Limiter
+	tokenizer     tokenizer.Tokenizer
 }
 
 func NewRateLimiter() *TokenRateLimiter {
 	return &TokenRateLimiter{
-		inputLimiter: make(map[string]*rate.Limiter),
-		tokenizer:    tokenizer.NewSimpleEstimateTokenizer(),
+		inputLimiter:  make(map[string]*rate.Limiter),
+		outputLimiter: make(map[string]*rate.Limiter),
+		tokenizer:     tokenizer.NewSimpleEstimateTokenizer(),
 	}
 }
 
 func (r *TokenRateLimiter) RateLimit(model, prompt string) error {
 	r.mutex.RLock()
-	limiter, exists := r.inputLimiter[model]
+	inputLimiter, hasInputLimit := r.inputLimiter[model]
+	outputLimiter, hasOutputLimit := r.outputLimiter[model]
 	r.mutex.RUnlock()
-	if !exists {
-		return nil
+
+	// Check input token rate limit
+	if hasInputLimit {
+		size, err := r.tokenizer.CalculateTokenNum(prompt)
+		if err != nil {
+			return err
+		}
+		if !inputLimiter.AllowN(time.Now(), size) {
+			return &InputRateLimitExceededError{}
+		}
 	}
 
-	size, err := r.tokenizer.CalculateTokenNum(prompt)
-	if err != nil {
-		return err
+	// Check if output rate limit has any capacity left
+	// We check if there are enough tokens for a typical output (assume at least 1 token needed)
+	// This is conservative - we only block if there's no capacity at all
+	if hasOutputLimit && outputLimiter.Tokens() < 1.0 {
+		return &OutputRateLimitExceededError{}
 	}
-	if limiter.AllowN(time.Now(), size) {
-		return nil
+
+	return nil
+}
+
+// RecordOutputTokens records the actual output tokens consumed after response generation
+// This should be called after getting the response with completion_tokens
+func (r *TokenRateLimiter) RecordOutputTokens(model string, tokenCount int) {
+	if tokenCount <= 0 {
+		return
 	}
-	return &RateLimitExceededError{}
+
+	r.mutex.RLock()
+	limiter, exists := r.outputLimiter[model]
+	r.mutex.RUnlock()
+
+	if !exists {
+		return
+	}
+
+	// Consume the actual tokens that were used
+	limiter.AllowN(time.Now(), tokenCount)
 }
 
 func (r *TokenRateLimiter) AddOrUpdateLimiter(model string, ratelimit *networkingv1alpha1.RateLimit) {
@@ -70,13 +112,7 @@ func (r *TokenRateLimiter) AddOrUpdateLimiter(model string, ratelimit *networkin
 		return
 	}
 
-	// TODO: only handle input tokens first, add output tokens later
-	if ratelimit == nil || ratelimit.InputTokensPerUnit == nil || *ratelimit.InputTokensPerUnit <= 0 {
-		r.mutex.Lock()
-		delete(r.inputLimiter, model)
-		r.mutex.Unlock()
-		return
-	}
+	// Calculate time unit factor
 	var unit float64
 	switch ratelimit.Unit {
 	case networkingv1alpha1.Second:
@@ -94,10 +130,24 @@ func (r *TokenRateLimiter) AddOrUpdateLimiter(model string, ratelimit *networkin
 		return
 	}
 
-	limiter := rate.NewLimiter(rate.Limit(*ratelimit.InputTokensPerUnit)/rate.Limit(unit), int(*ratelimit.InputTokensPerUnit))
 	r.mutex.Lock()
-	r.inputLimiter[model] = limiter
-	r.mutex.Unlock()
+	defer r.mutex.Unlock()
+
+	// Handle input token rate limiting
+	if ratelimit == nil || ratelimit.InputTokensPerUnit == nil || *ratelimit.InputTokensPerUnit <= 0 {
+		delete(r.inputLimiter, model)
+	} else {
+		inputLimiter := rate.NewLimiter(rate.Limit(*ratelimit.InputTokensPerUnit)/rate.Limit(unit), int(*ratelimit.InputTokensPerUnit))
+		r.inputLimiter[model] = inputLimiter
+	}
+
+	// Handle output token rate limiting
+	if ratelimit == nil || ratelimit.OutputTokensPerUnit == nil || *ratelimit.OutputTokensPerUnit <= 0 {
+		delete(r.outputLimiter, model)
+	} else {
+		outputLimiter := rate.NewLimiter(rate.Limit(*ratelimit.OutputTokensPerUnit)/rate.Limit(unit), int(*ratelimit.OutputTokensPerUnit))
+		r.outputLimiter[model] = outputLimiter
+	}
 }
 
 func (r *TokenRateLimiter) DeleteLimiter(model string) {
@@ -108,4 +158,5 @@ func (r *TokenRateLimiter) DeleteLimiter(model string) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 	delete(r.inputLimiter, model)
+	delete(r.outputLimiter, model)
 }
