@@ -95,16 +95,6 @@ When cert-manager integration is enabled, the following resources are created:
 - `<subchart-name>-webhook-certs` (per subchart: registry, workload, networking)
 - `<secretName>` (configurable for infer gateway)
 
-## Best Practices
-
-1. **Use Production Issuers**: For production deployments, consider using Let's Encrypt or your organization's CA instead of self-signed certificates.
-
-2. **DNS Configuration**: Ensure your DNS names are properly configured and accessible from your cluster.
-
-3. **Certificate Monitoring**: Monitor certificate expiration and renewal status using cert-manager's built-in metrics.
-
-4. **Backup Certificates**: Consider backing up important certificates and private keys.
-
 ## Troubleshooting
 
 ### Common Issues
