@@ -35,7 +35,6 @@ const (
 )
 
 func NewRouter(store datastore.Store) *router.Router {
-	store.FlushJwks(gatewayConfigFile)
 	return router.NewRouter(store, gatewayConfigFile)
 }
 
@@ -50,7 +49,7 @@ func (s *Server) startRouter(ctx context.Context, router *router.Router) {
 
 	// engine.Use(auth.Authenticate)
 	// engine.Use(auth.Authorize)
-	engine.Use(JWTAuthMiddleware(router))
+	engine.Use(AuthMiddleware(router))
 
 	engine.GET("/healthz", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
@@ -104,7 +103,7 @@ func (s *Server) startRouter(ctx context.Context, router *router.Router) {
 	klog.Info("HTTP server exited")
 }
 
-func JWTAuthMiddleware(gwRouter *router.Router) gin.HandlerFunc {
+func AuthMiddleware(gwRouter *router.Router) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Auth for "/v1/" only
 		if !strings.HasPrefix(c.Request.URL.Path, "/v1/") {

@@ -20,7 +20,6 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/json"
-	"os"
 	"testing"
 	"time"
 
@@ -29,7 +28,6 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jws"
 	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/stretchr/testify/assert"
-	"sigs.k8s.io/yaml"
 
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
@@ -201,13 +199,8 @@ func TestJWTValidatorValidateIssuer(t *testing.T) {
 			jwtValidator := &JWTValidator{
 				cache: store,
 			}
-			gatewayConf := &conf.GatewayConfiguration{
-				Auth: tt.auth,
-			}
-			wrtieAuthConfigToFile(t, "auth_config.yaml", gatewayConf)
-			defer os.Remove("auth_config.yaml")
 
-			jwtValidator.cache.FlushJwks("auth_config.yaml")
+			jwtValidator.cache.RotateJwks(tt.auth)
 			err := jwtValidator.validateIssuer(tt.token)
 
 			if tt.expectError {
@@ -399,13 +392,8 @@ func TestJWTValidatorValidateAudiences(t *testing.T) {
 			jwtValidator := &JWTValidator{
 				cache: store,
 			}
-			gatewayConf := &conf.GatewayConfiguration{
-				Auth: tt.auth,
-			}
-			wrtieAuthConfigToFile(t, "auth_config.yaml", gatewayConf)
-			defer os.Remove("auth_config.yaml")
 
-			jwtValidator.cache.FlushJwks("auth_config.yaml")
+			jwtValidator.cache.RotateJwks(tt.auth)
 			err := jwtValidator.validateAudiences(tt.token)
 
 			if tt.expectError {
@@ -840,11 +828,4 @@ func TestJwTParse(t *testing.T) {
 
 	_, err = jwt.Parse(signed, jwt.WithKeySet(keySet))
 	assert.NoError(t, err, "Failed to parse signed token")
-}
-
-func wrtieAuthConfigToFile(t *testing.T, filePath string, config *conf.GatewayConfiguration) {
-	data, err := yaml.Marshal(config)
-	assert.NoError(t, err, "Failed to marshal gatewayConfiguration")
-	err = os.WriteFile(filePath, data, 0644)
-	assert.NoError(t, err, "Failed to write gatewayConfiguration to file")
 }

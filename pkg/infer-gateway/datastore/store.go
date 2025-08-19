@@ -35,6 +35,7 @@ import (
 
 	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/backend"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
@@ -125,8 +126,8 @@ type Store interface {
 	GetRequestWaitingQueueStats() []QueueStat
 
 	// jwks cache methods
-	GetJwks() *Jwks
-	FlushJwks(configMapPath string)
+	GetJwks() Jwks
+	RotateJwks(config conf.AuthenticationConfig)
 }
 
 // QueueStat holds per-model queue metrics to aid scheduling decisions
@@ -168,7 +169,7 @@ type modelRouteInfo struct {
 }
 
 type store struct {
-	jwksCache   *Jwks    // map[string]*jwk.Set
+	jwksCache   *Jwks
 	modelServer sync.Map // map[types.NamespacedName]*modelServer
 	pods        sync.Map // map[types.NamespacedName]*PodInfo
 
@@ -205,22 +206,25 @@ func New() Store {
 }
 
 func (s *store) Run(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-			s.pods.Range(func(key, value any) bool {
-				if p, ok := value.(*PodInfo); ok {
-					s.updatePodMetrics(p)
-					s.updatePodModels(p)
-				}
-				return true
-			})
-			s.initialSynced.Store(true)
-			time.Sleep(uppdateInterval)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				s.pods.Range(func(key, value any) bool {
+					if p, ok := value.(*PodInfo); ok {
+						s.updatePodMetrics(p)
+						s.updatePodModels(p)
+					}
+					return true
+				})
+				s.initialSynced.Store(true)
+				time.Sleep(uppdateInterval)
+			}
 		}
-	}
+	}()
+	go s.jwksRefresher(ctx)
 }
 func (s *store) GetTokenCount(userID, model string) (float64, error) {
 	return s.tokenTracker.GetTokenCount(userID, model)

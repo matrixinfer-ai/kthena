@@ -26,50 +26,92 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 )
 
+const (
+	maxRetry = 3
+)
+
 type Jwks struct {
-	Jwks          jwk.Set
-	Audiences     []string
-	Issuer        string
-	ExpiredTime   time.Duration
-	LastFreshTime time.Time
+	Jwks      jwk.Set
+	Audiences []string
+	Issuer    string
+	// Used to update jwks
+	Uri         string
+	ExpiredTime time.Duration
 }
 
-func NewJwks(configMapPath string) *Jwks {
-	gatewayConfig, err := conf.ParseGatewayConfig(configMapPath)
-	if err != nil {
-		klog.Fatalf("failed to parse gateway config: %v", err)
-		return nil
-	}
-	if gatewayConfig.Auth.JwksUri == "" {
+func NewJwks(config conf.AuthenticationConfig) *Jwks {
+	if config.JwksUri == "" {
 		klog.V(4).Info("JWKS URI is empty, skipping JWKS initialization")
 		return nil
 	}
-	keySet, err := jwk.Fetch(context.Background(), gatewayConfig.Auth.JwksUri)
-	if err != nil {
-		klog.Errorf("failed to fetch JWKS from %s: %v", gatewayConfig.Auth.JwksUri, err)
-		return nil
+
+	var keySet jwk.Set
+	var err error
+	for i := 0; i < maxRetry; i++ {
+		keySet, err = jwk.Fetch(context.Background(), config.JwksUri)
+		if err != nil {
+			klog.V(4).Infof("failed to fetch JWKS from %s: %v", config.JwksUri, err)
+		} else {
+			return &Jwks{
+				Jwks:      keySet,
+				Audiences: config.Audiences,
+				Issuer:    config.Issuer,
+				Uri:       config.JwksUri,
+				// Default expiration time is set to 7 days
+				ExpiredTime: time.Hour * 24 * 7, // Default to 7 days
+			}
+		}
 	}
-	return &Jwks{
-		Jwks:          keySet,
-		Audiences:     gatewayConfig.Auth.Audiences,
-		Issuer:        gatewayConfig.Auth.Issuer,
-		ExpiredTime:   time.Hour * 24 * 7, // Default to 7 days
-		LastFreshTime: time.Now(),
-	}
+
+	return nil
 }
 
-func (s *store) GetJwks() *Jwks {
-	return s.jwksCache
+func (s *store) GetJwks() Jwks {
+	s.routeMutex.RLock()
+	defer s.routeMutex.RUnlock()
+	// The jwksCache has already been initialized in the NewStore, so there will be no null pointers
+	return *s.jwksCache
 }
 
-func (s *store) FlushJwks(configMapPath string) {
+func (s *store) RotateJwks(config conf.AuthenticationConfig) {
 	// This function is used to refresh the JWKS cache.
 	// It can be called periodically or when a specific event occurs.
-	newJwks := NewJwks(configMapPath)
+	newJwks := NewJwks(config)
 	if newJwks != nil {
+		s.routeMutex.Lock()
 		s.jwksCache = newJwks
+		s.routeMutex.Unlock()
 		klog.V(4).Infof("JWKS cache refreshed successfully")
 	} else {
 		klog.Error("Failed to refresh JWKS cache")
+	}
+}
+
+func (s *store) jwksRefresher(ctx context.Context) {
+	var interval time.Duration
+	var config conf.AuthenticationConfig
+	jwks := s.GetJwks()
+	if jwks.Uri == "" {
+		// If jwks.uri is empty, means not configuration of authentication.
+		// No need to fresh jwks.
+		return
+	} else {
+		interval = jwks.ExpiredTime
+		config.Audiences = jwks.Audiences
+		config.Issuer = jwks.Issuer
+		config.JwksUri = jwks.Uri
+	}
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			s.RotateJwks(config)
+			klog.V(4).Info("JWKS refreshed successfully")
+		}
 	}
 }

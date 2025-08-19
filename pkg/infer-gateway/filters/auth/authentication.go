@@ -35,9 +35,8 @@ import (
 
 // For the time being, the JWT is extracted directly from the fixed header name, and the configurable items are added later.
 const (
-	header            = "Authorization"
-	prefix            = "Bearer "
-	GatewayConfigFile = "/etc/config/gatewayConfiguration.yaml"
+	header = "Authorization"
+	prefix = "Bearer "
 )
 
 func extractTokenFromHeader(req *http.Request) string {
@@ -53,14 +52,14 @@ type JWTValidator struct {
 // NewJWTValidator creates a new JWTValidator
 func NewJWTValidator(store datastore.Store, gatewayConfig *conf.GatewayConfiguration) *JWTValidator {
 	defaultValidator := &JWTValidator{
-		// By default, the JWT validation is disabled
 		enable: false,
-		cache:  store,
+	}
+	if gatewayConfig != nil && gatewayConfig.Auth.JwksUri != "" {
+		store.RotateJwks(gatewayConfig.Auth)
+		defaultValidator.enable = true
+		defaultValidator.cache = store
 	}
 
-	if gatewayConfig != nil && gatewayConfig.Auth.JwksUri != "" {
-		defaultValidator.enable = true
-	}
 	return defaultValidator
 }
 
@@ -70,22 +69,7 @@ func (j *JWTValidator) parseAndValidateToken(tokenStr string) error {
 	var token jwt.Token
 	token, err := jwt.Parse([]byte(tokenStr), jwt.WithKeySet(key.Jwks, jws.WithInferAlgorithmFromKey(true)))
 	if err != nil {
-		// first failed. Check if need to refetch the jwks.
-		j.cache.FlushJwks(GatewayConfigFile)
-		if err != nil {
-			return fmt.Errorf("failed to refresh jwks: %w", err)
-		}
-		newKey := j.cache.GetJwks()
-		// After completing the refresh of the jwks, do the jwt Parse again.
-		token, err = jwt.Parse([]byte(tokenStr), jwt.WithKeySet(newKey.Jwks, jws.WithInferAlgorithmFromKey(true)))
-		if err != nil {
-			return fmt.Errorf("failed to parse jwt: %w", err)
-		}
-
-		if err := j.validateClaims(token); err != nil {
-			return fmt.Errorf("failed to validate claims: %w", err)
-		}
-		return nil
+		return fmt.Errorf("failed to parse jwt: %w", err)
 	}
 
 	// Validate the claims in the token
@@ -114,8 +98,9 @@ func (j *JWTValidator) validateClaims(token jwt.Token) error {
 
 func (j *JWTValidator) validateIssuer(token jwt.Token) error {
 	var iss string
-	if err := token.Get("iss", &iss); err != nil || iss != j.cache.GetJwks().Issuer {
-		return fmt.Errorf("invalid issuer: expected %s, got %v", j.cache.GetJwks().Issuer, iss)
+	jwks := j.cache.GetJwks()
+	if err := token.Get("iss", &iss); err != nil || iss != jwks.Issuer {
+		return fmt.Errorf("invalid issuer: expected %s, got %v", jwks.Issuer, iss)
 	}
 	return nil
 }
@@ -141,7 +126,7 @@ func (j *JWTValidator) validateAudiences(token jwt.Token) error {
 	audMatched := false
 	switch audVal := aud.(type) {
 	case string:
-		for _, expectedAud := range j.cache.GetJwks().Audiences {
+		for _, expectedAud := range audinecesCache {
 			if audVal == expectedAud {
 				audMatched = true
 				break
@@ -149,7 +134,7 @@ func (j *JWTValidator) validateAudiences(token jwt.Token) error {
 		}
 	case []string:
 		for _, audItem := range audVal {
-			for _, expectedAud := range j.cache.GetJwks().Audiences {
+			for _, expectedAud := range audinecesCache {
 				if audItem == expectedAud {
 					audMatched = true
 					break
@@ -159,7 +144,7 @@ func (j *JWTValidator) validateAudiences(token jwt.Token) error {
 	}
 
 	if !audMatched {
-		return fmt.Errorf("audience mismatch: expected one of %v, got %v", j.cache.GetJwks().Audiences, aud)
+		return fmt.Errorf("audience mismatch: expected one of %v, got %v", audinecesCache, aud)
 	}
 	return nil
 }

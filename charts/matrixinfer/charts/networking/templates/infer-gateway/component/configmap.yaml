@@ -34,7 +34,3 @@ data:
               weight: 1
             - name: prefix-cache
               weight: 1
-    auth:
-      issuer: "testing@secure.istio.io"
-      audiences: ["matrixinfer.io"]
-      jwksUri: "https://raw.githubusercontent.com/istio/istio/release-1.27/security/tools/jwt/samples/jwks.json"

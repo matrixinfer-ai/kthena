@@ -20,12 +20,18 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 )
 
 func TestStoreFetchJwksRealURL(t *testing.T) {
 	store := New()
+	config := conf.AuthenticationConfig{
+		Issuer:    "https://example.com",
+		Audiences: []string{"audience1", "audience2"},
+		JwksUri:   "https://raw.githubusercontent.com/istio/istio/release-1.27/security/tools/jwt/samples/jwks.json",
+	}
 
-	store.FlushJwks("../utils/testdata/configmap-jwt.yaml")
+	store.RotateJwks(config)
 	cachedJwks := store.GetJwks()
 	assert.NotNil(t, cachedJwks, "JWKS should be stored in cache")
 }
