@@ -68,6 +68,7 @@ spec:
                           evaluated.
                         type: string
                       selectPolicy:
+                        default: Or
                         description: SelectPolicy determines the selection strategy
                           for scaling up (e.g., Or, And).
                         enum:
@@ -88,10 +89,12 @@ spec:
                           for panic scaling up.
                         properties:
                           panicModeHold:
+                            default: 60s
                             description: PanicModeHold is the duration to hold in
                               panic mode before returning to normal.
                             type: string
                           panicThresholdPercent:
+                            default: "200"
                             description: PanicThresholdPercent is the threshold percent
                               to enter panic mode.
                             format: int32
@@ -99,6 +102,7 @@ spec:
                             minimum: 110
                             type: integer
                           percent:
+                            default: "1000"
                             description: Percent is the maximum percentage of instances
                               to scale up.
                             format: int32
@@ -137,6 +141,7 @@ spec:
                               is evaluated.
                             type: string
                           selectPolicy:
+                            default: Or
                             description: SelectPolicy determines the selection strategy
                               for scaling up (e.g., Or, And).
                             enum:
@@ -184,6 +189,7 @@ spec:
                 type: integer
             required:
             - metrics
+            - tolerancePercent
             type: object
           status:
             description: AutoscalingPolicyStatus defines the observed state of AutoscalingPolicy.

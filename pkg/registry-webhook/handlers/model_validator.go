@@ -25,24 +25,17 @@ import (
 	admissionv1 "k8s.io/api/admission/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
-	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
 	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
 
 // ModelValidator handles validation of Model resources
 type ModelValidator struct {
-	kubeClient        kubernetes.Interface
-	matrixinferClient clientset.Interface
 }
 
 // NewModelValidator creates a new ModelValidator
-func NewModelValidator(kubeClient kubernetes.Interface, matrixinferClient clientset.Interface) *ModelValidator {
-	return &ModelValidator{
-		kubeClient:        kubeClient,
-		matrixinferClient: matrixinferClient,
-	}
+func NewModelValidator() *ModelValidator {
+	return &ModelValidator{}
 }
 
 // Handle handles admission requests for Model resources

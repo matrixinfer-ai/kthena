@@ -35,7 +35,7 @@ func TestValidateAutoscalingBinding(t *testing.T) {
 		},
 		Spec: registryv1alpha1.AutoscalingPolicySpec{},
 	})
-	validator := NewAutoscalingBindingValidator(nil, fakeClient)
+	validator := NewAutoscalingBindingValidator(fakeClient)
 
 	tests := []struct {
 		name     string

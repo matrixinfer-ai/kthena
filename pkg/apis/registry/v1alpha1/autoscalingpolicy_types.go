@@ -27,7 +27,6 @@ type AutoscalingPolicySpec struct {
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=100
 	// +kubebuilder:default=10
-	// +optional
 	TolerancePercent int32 `json:"tolerancePercent"`
 	// Metrics is the list of metrics used to evaluate scaling decisions.
 	// +kubebuilder:validation:MinItems=1
@@ -77,7 +76,7 @@ type AutoscalingPolicyStablePolicy struct {
 	// +kubebuilder:default="15s"
 	Period *metav1.Duration `json:"period,omitempty"`
 	// SelectPolicy determines the selection strategy for scaling up (e.g., Or, And).
-	// +optional
+	// +kubebuilder:default="Or"
 	SelectPolicy SelectPolicyType `json:"selectPolicy,omitempty"`
 	// StabilizationWindow is the time window to stabilize scaling up actions.
 	// +optional
@@ -98,17 +97,17 @@ type AutoscalingPolicyPanicPolicy struct {
 	// Percent is the maximum percentage of instances to scale up.
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=1000
-	// +optional
+	// +kubebuilder:default="1000"
 	Percent *int32 `json:"percent,omitempty"`
 	// Period is the duration over which scaling down is evaluated.
 	Period metav1.Duration `json:"period"`
 	// PanicThresholdPercent is the threshold percent to enter panic mode.
 	// +kubebuilder:validation:Minimum=110
 	// +kubebuilder:validation:Maximum=1000
-	// +optional
+	// +kubebuilder:default="200"
 	PanicThresholdPercent *int32 `json:"panicThresholdPercent,omitempty"`
 	// PanicModeHold is the duration to hold in panic mode before returning to normal.
-	// +optional
+	// +kubebuilder:default="60s"
 	PanicModeHold *metav1.Duration `json:"panicModeHold,omitempty"`
 }
 

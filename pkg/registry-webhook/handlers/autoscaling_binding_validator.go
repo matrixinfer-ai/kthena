@@ -26,23 +26,20 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
 	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
 
-// AutoscalingBindingValidator handles validation of Model resources
+// AutoscalingBindingValidator handles validation of AutoscalingPolicyBinding resources
 type AutoscalingBindingValidator struct {
-	kubeClient kubernetes.Interface
-	client     clientset.Interface
+	client clientset.Interface
 }
 
 // NewAutoscalingBindingValidator creates a new AutoscalingBindingValidator
-func NewAutoscalingBindingValidator(kubeClient kubernetes.Interface, client clientset.Interface) *AutoscalingBindingValidator {
+func NewAutoscalingBindingValidator(client clientset.Interface) *AutoscalingBindingValidator {
 	return &AutoscalingBindingValidator{
-		kubeClient: kubeClient,
-		client:     client,
+		client: client,
 	}
 }
 
