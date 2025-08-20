@@ -585,8 +585,9 @@ spec:
                       pattern: ^(hf://|s3://|pvc://).+
                       type: string
                     name:
-                      description: Name is the name of the backend. Can't duplicate
-                        with other ModelBackend name in the same Model CR.
+                      description: |-
+                        Name is the name of the backend. Can't duplicate with other ModelBackend name in the same Model CR.
+                        Note: update name will cause the old modelInfer deletion and a new modelInfer creation.
                       pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
                       type: string
                     routeWeight:
