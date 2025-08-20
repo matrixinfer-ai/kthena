@@ -575,7 +575,7 @@ spec:
                     name:
                       description: |-
                         Name is the name of the backend. Can't duplicate with other ModelBackend name in the same Model CR.
-                        Attention: update name will delete old model infer and then create a new model infer.
+                        Note: update name will cause the old modelInfer deletion and a new modelInfer creation.
                       pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
                       type: string
                     routeWeight:
