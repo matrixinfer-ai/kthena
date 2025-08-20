@@ -1,0 +1,23 @@
+apiVersion: networking.matrixinfer.ai/v1alpha1
+kind: ModelRoute
+metadata:
+  name: deepseek-global-rate-limit
+  namespace: default
+spec:
+  modelName: "deepseek-r1-with-global-rate-limit"
+  rules:
+  - name: "default"
+    targetModels:
+    - modelServerName: "deepseek-r1-1-5b"
+  # Advanced rate limit configuration:
+  # - 10000 input tokens per minute (suitable for heavy usage)
+  # - 5000 output tokens per minute (controls generation cost)
+  # This configuration applies to all rules in this ModelRoute
+  rateLimit:
+    inputTokensPerUnit: 10
+    outputTokensPerUnit: 5000
+    unit: minute
+    global:
+      redis:
+        address: "redis.default.svc.cluster.local:6379"
+
