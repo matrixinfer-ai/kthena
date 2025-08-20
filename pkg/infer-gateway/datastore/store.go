@@ -117,9 +117,18 @@ type Store interface {
 	GetPodInfo(podName types.NamespacedName) *PodInfo
 	// GetTokenCount returns the token count for a user and model
 	GetTokenCount(userId, modelName string) (float64, error)
-	RequestWaitingQueuePush(*Request) error
-	RequestWaitingQueuePop(modelName string) *Request
-	GetRequestWaitingQueueModel() []string
+	// UpdateTokenCount updates token usage for a user and model
+	UpdateTokenCount(userId, modelName string, inputTokens, outputTokens float64) error
+	Enqueue(*Request) error
+
+	// GetRequestWaitingQueueStats returns per-model queue lengths
+	GetRequestWaitingQueueStats() []QueueStat
+}
+
+// QueueStat holds per-model queue metrics to aid scheduling decisions
+type QueueStat struct {
+	Model  string
+	Length int
 }
 
 type PodInfo struct {
@@ -169,8 +178,8 @@ type store struct {
 
 	// initialSynced is used to indicate whether all the resources has been processed and storred into this store.
 	initialSynced *atomic.Bool
-	//
-	requestWaitingQueue sync.Map // map[string]*RequestPriorityQueue
+	// model -> RequestPriorityQueue
+	requestWaitingQueue sync.Map
 	tokenTracker        TokenTracker
 }
 
@@ -184,7 +193,8 @@ func New() Store {
 		callbacks:           make(map[string][]CallbackFunc),
 		initialSynced:       &atomic.Bool{},
 		requestWaitingQueue: sync.Map{},
-		tokenTracker:        NewInMemorySlidingWindowTokenTracker(),
+		// Make options explicit; tweak as needed or wire to config
+		tokenTracker: NewInMemorySlidingWindowTokenTracker(),
 	}
 }
 
@@ -210,11 +220,14 @@ func (s *store) GetTokenCount(userID, model string) (float64, error) {
 	return s.tokenTracker.GetTokenCount(userID, model)
 }
 
+func (s *store) UpdateTokenCount(userID, model string, inputTokens, outputTokens float64) error {
+	return s.tokenTracker.UpdateTokenCount(userID, model, inputTokens, outputTokens)
+}
+
 type ModelRequest map[string]interface{}
 
-func (s *store) RequestWaitingQueuePush(queueReq *Request) error {
-	modelRequest := queueReq.Payload.(ModelRequest)
-	modelName := modelRequest["model"].(string)
+func (s *store) Enqueue(req *Request) error {
+	modelName := req.ModelName
 	var queue *RequestPriorityQueue
 	val, loaded := s.requestWaitingQueue.Load(modelName)
 	if loaded {
@@ -227,34 +240,32 @@ func (s *store) RequestWaitingQueuePush(queueReq *Request) error {
 		} else {
 			queue = newQueue
 		}
+		// TODO: make the ctx and qps configurable
+		go queue.Run(context.Background(), 100)
 	}
-	err := queue.PushRequest(queueReq)
+	err := queue.PushRequest(req)
 	if err != nil {
 		klog.Errorf("failed to push request to waiting queue: %v", err)
 		return err
 	}
 	return nil
 }
-func (s *store) RequestWaitingQueuePop(modelName string) *Request {
-	val, _ := s.requestWaitingQueue.Load(modelName)
-	queue, _ := val.(*RequestPriorityQueue)
-	req, err := queue.PopRequest()
-	if err != nil {
-		return nil
-	}
-	return req
-}
-func (s *store) GetRequestWaitingQueueModel() []string {
-	var modelNames []string
+
+func (s *store) GetRequestWaitingQueueStats() []QueueStat {
+	stats := make([]QueueStat, 0)
 	s.requestWaitingQueue.Range(func(modelName, queueVal interface{}) bool {
-		modelNameStr, _ := modelName.(string)
+		name, _ := modelName.(string)
 		queue, _ := queueVal.(*RequestPriorityQueue)
-		if queue.Len() > 0 {
-			modelNames = append(modelNames, modelNameStr)
+		length := 0
+		if queue != nil {
+			length = queue.Len()
+		}
+		if length > 0 {
+			stats = append(stats, QueueStat{Model: name, Length: length})
 		}
 		return true
 	})
-	return modelNames
+	return stats
 }
 
 func (s *store) HasSynced() bool {

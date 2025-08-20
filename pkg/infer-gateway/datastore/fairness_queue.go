@@ -17,6 +17,7 @@ package datastore
 
 import (
 	"container/heap"
+	"context"
 	"errors"
 	"sync"
 	"time"
@@ -29,10 +30,10 @@ var (
 // Request represents a request item in the priority queue
 type Request struct {
 	ReqID       string
-	UserID      string
-	Payload     interface{} // Request payload data
-	Priority    float64     // Priority (lower value means higher priority)
-	Index       int         // Index in the heap
+	UserID      string  // User ID for fairness scheduling
+	ModelName   string  // Target model for per-model fair queuing
+	Priority    float64 // Priority (lower value means higher priority)
+	Index       int     // Index in the heap
 	RequestTime time.Time
 	NotifyChan  chan struct{}
 }
@@ -41,20 +42,26 @@ type Request struct {
 type RequestPriorityQueue struct {
 	mu   sync.RWMutex // Ensure concurrent safety with read/write locks
 	heap []*Request   // Underlying storage structure
+	cond *sync.Cond   // Condition variable to signal availability
 }
 
 func NewRequestPriorityQueue() *RequestPriorityQueue {
-	return &RequestPriorityQueue{
+	pq := &RequestPriorityQueue{
 		heap: make([]*Request, 0),
 	}
+	pq.cond = sync.NewCond(&pq.mu)
+	return pq
 }
 
 // Implement heap.Interface methods
-func (pq *RequestPriorityQueue) Len() int {
-	return len(pq.heap)
-}
+func (pq *RequestPriorityQueue) Len() int { return len(pq.heap) }
 
 func (pq *RequestPriorityQueue) Less(i, j int) bool {
+	// same user, FIFO
+	if pq.heap[i].UserID == pq.heap[j].UserID {
+		return pq.heap[i].RequestTime.Before(pq.heap[j].RequestTime)
+	}
+	// different users, compare priority, actually token usage here
 	if pq.heap[i].Priority != pq.heap[j].Priority {
 		return pq.heap[i].Priority < pq.heap[j].Priority
 	}
@@ -90,6 +97,10 @@ func (pq *RequestPriorityQueue) PushRequest(r *Request) error {
 	pq.mu.Lock()
 	defer pq.mu.Unlock()
 	heap.Push(pq, r)
+	// Signal that a new item is available
+	if pq.cond != nil {
+		pq.cond.Signal()
+	}
 	return nil
 }
 
@@ -101,4 +112,43 @@ func (pq *RequestPriorityQueue) PopRequest() (*Request, error) {
 	}
 	req := heap.Pop(pq).(*Request)
 	return req, nil
+}
+
+// popWhenAvailable blocks until an item is available or the context is done, then pops one item.
+func (pq *RequestPriorityQueue) popWhenAvailable(ctx context.Context) (*Request, error) {
+	pq.mu.Lock()
+	defer pq.mu.Unlock()
+	for len(pq.heap) == 0 {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		pq.cond.Wait() // releases lock and waits; re-acquires before returning
+	}
+	req := heap.Pop(pq).(*Request)
+	return req, nil
+}
+
+func (pq *RequestPriorityQueue) Run(ctx context.Context, qps int) {
+	if qps <= 0 {
+		qps = 1 // prevent division by zero; or treat as unlimited with a fast ticker
+	}
+	interval := time.Second / time.Duration(qps)
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			req, err := pq.popWhenAvailable(ctx)
+			if err != nil {
+				return
+			}
+			// Optional: notify producer that request is dequeued
+			if req != nil && req.NotifyChan != nil {
+				// Closing signals once; ensure only consumer closes it.
+				close(req.NotifyChan)
+			}
+		}
+	}
 }

@@ -53,8 +53,7 @@ func (s *Server) Run(ctx context.Context) {
 	r := NewRouter(store)
 	// Start queue processor: control dequeue rate to 5 requests per second
 	stopChan := make(chan struct{})
-	defer close(stopChan)              // Close processor when program exits
-	r.StartQueueProcessor(5, stopChan) // Core: start processor with rate limiting
+	defer close(stopChan) // Close processor when program exits
 	// start controller
 	s.controllers = startControllers(store, ctx.Done())
 
