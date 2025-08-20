@@ -203,27 +203,27 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 			return err
 		}
 	}
+
+	// Track backends that have been dynamically updated
+	var dynamicUpdatedBackends []string
 	// check if only LoRA adapters have changed for runtime update
 	if oldModel, err := mc.getPreviousModelVersion(model); err == nil && oldModel != nil && mc.hasOnlyLoraAdaptersChanged(oldModel, model) {
-		klog.Info("Detected only LoRA adapter changes, attempting runtime update")
-		if err := mc.handleLoraAdapterUpdate(oldModel, model); err != nil {
-			klog.Errorf("Failed to handle LoRA adapter update: %v, falling back to full reconciliation", err)
-			mc.setModelFailedCondition(ctx, model, err)
-			return err
-		} else {
-			// LoRA adapter update successful, update observed generation and return
-			if err := mc.updateModelStatus(ctx, model); err != nil {
-				klog.Errorf("Failed to update model status after LoRA adapter update: %v", err)
-				return err
+		klog.Info("model generation is not equal to observed generation, checking for LoRA adapter changes")
+
+		if oldModel, err := mc.getPreviousModelVersion(model); err == nil && oldModel != nil {
+			dynamicBackends := mc.getDynamicLoraUpdateBackends(oldModel, model)
+			if len(dynamicBackends) > 0 {
+				klog.Infof("Detected LoRA adapter changes for backends: %v, attempting runtime update", dynamicBackends)
+				successUpdatedBackends := mc.handleDynamicLoraUpdates(oldModel, model, dynamicBackends)
+				klog.Infof("Dynamic LoRA updates completed successfully for backends: %v", successUpdatedBackends)
+				dynamicUpdatedBackends = successUpdatedBackends
 			}
-			klog.Info("LoRA adapter update completed successfully")
-			return nil
 		}
 	}
 	if err := mc.setModelProcessingCondition(ctx, model); err != nil {
 		return err
 	}
-	if err := mc.createOrUpdateModelInfer(ctx, model); err != nil {
+	if err := mc.createOrUpdateModelInfer(ctx, model, dynamicUpdatedBackends); err != nil {
 		mc.setModelFailedCondition(ctx, model, err)
 		return err
 	}
@@ -246,6 +246,7 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 	if err := mc.setModelActiveCondition(ctx, model); err != nil {
 		return err
 	}
+
 	return nil
 }
 
