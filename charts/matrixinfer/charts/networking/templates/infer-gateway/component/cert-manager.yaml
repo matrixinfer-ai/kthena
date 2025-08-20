@@ -2,7 +2,7 @@
 apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
-  name: {{ include "matrixinfer.fullname" . }}-gateway-issuer
+  name: {{ include "matrixinfer.name" . }}-gateway-issuer
   namespace: {{ .Release.Namespace }}
 spec:
   selfSigned: {}
@@ -10,13 +10,13 @@ spec:
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: {{ include "matrixinfer.fullname" . }}-gateway-cert
+  name: {{ include "matrixinfer.name" . }}-gateway-cert
   namespace: {{ .Release.Namespace }}
 spec:
   dnsNames:
     - {{ .Values.inferGateway.tls.dnsName }}
   issuerRef:
     kind: Issuer
-    name: {{ include "matrixinfer.fullname" . }}-gateway-issuer
+    name: {{ include "matrixinfer.name" . }}-gateway-issuer
   secretName: {{ .Values.inferGateway.tls.secretName }}
 {{- end }}
