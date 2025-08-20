@@ -58,7 +58,7 @@ type ModelSpec struct {
 // ModelBackend defines the configuration for a model backend.
 type ModelBackend struct {
 	// Name is the name of the backend. Can't duplicate with other ModelBackend name in the same Model CR.
-	// Attention: update name will delete old model infer and then create a new model infer.
+	// Note: update name will cause the old modelInfer deletion and a new modelInfer creation.
 	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
 	Name string `json:"name"`
 	// Type is the type of the backend.
