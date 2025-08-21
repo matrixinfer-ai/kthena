@@ -33,7 +33,6 @@ type Request struct {
 	UserID      string  // User ID for fairness scheduling
 	ModelName   string  // Target model for per-model fair queuing
 	Priority    float64 // Priority (lower value means higher priority)
-	Index       int     // Index in the heap
 	RequestTime time.Time
 	NotifyChan  chan struct{}
 }
@@ -71,13 +70,10 @@ func (pq *RequestPriorityQueue) Less(i, j int) bool {
 
 func (pq *RequestPriorityQueue) Swap(i, j int) {
 	pq.heap[i], pq.heap[j] = pq.heap[j], pq.heap[i]
-	pq.heap[i].Index = i
-	pq.heap[j].Index = j
 }
 
 func (pq *RequestPriorityQueue) Push(x interface{}) {
 	item := x.(*Request)
-	item.Index = len(pq.heap)
 	pq.heap = append(pq.heap, item)
 }
 
@@ -88,7 +84,6 @@ func (pq *RequestPriorityQueue) Pop() interface{} {
 	}
 	item := pq.heap[n-1]
 	pq.heap[n-1] = nil
-	item.Index = -1
 	pq.heap = pq.heap[0 : n-1]
 	return item
 }

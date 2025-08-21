@@ -42,9 +42,8 @@ import (
 )
 
 const (
-	tokenUsageKey             = "token_usage"
-	userIdKey                 = "user_id"
-	statusClientClosedRequest = 499 // Nginx non-standard code for client closed connection
+	tokenUsageKey = "token_usage"
+	userIdKey     = "user_id"
 )
 
 var EnableFairnessScheduling = env.RegisterBoolVar("ENABLE_FAIRNESS_SCHEDULING", false, "Enable fairness scheduling for inference requests").Get()
