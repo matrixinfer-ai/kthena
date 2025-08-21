@@ -55,13 +55,11 @@ func (s *Server) Run(ctx context.Context) {
 	s.controllers = startControllers(store, ctx.Done())
 
 	// Start store's periodic update loop after controllers have synced
-	go func() {
-		if !cache.WaitForCacheSync(ctx.Done(), s.controllers.HasSynced) {
-			klog.Fatalf("Failed to sync controllers")
-		}
-		klog.Infof("Controllers have synced, starting store periodic update loop")
-		store.Run(ctx)
-	}()
+	if !cache.WaitForCacheSync(ctx.Done(), s.controllers.HasSynced) {
+		klog.Fatalf("Failed to sync controllers")
+	}
+	klog.Infof("Controllers have synced, starting store periodic update loop")
+	store.Run(ctx)
 	// start router
 	s.startRouter(ctx, r)
 }

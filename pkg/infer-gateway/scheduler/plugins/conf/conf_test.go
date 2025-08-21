@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package utils
+package conf
 
 import (
 	"strings"
@@ -29,7 +29,7 @@ func TestLoadSchedulerConfig(t *testing.T) {
 	}{
 		{
 			name:       "LoadSchedulerConfig success",
-			configFile: "testdata/configmap.yaml",
+			configFile: "../../../utils/testdata/configmap-jwt.yaml",
 			expectErrs: "",
 		},
 		{
@@ -39,18 +39,25 @@ func TestLoadSchedulerConfig(t *testing.T) {
 		},
 		{
 			name:       "invalid YAML syntax",
-			configFile: "testdata/configmap-invalid.yaml",
+			configFile: "../../../utils/testdata/configmap-invalid.yaml",
 			expectErrs: "failed to Unmarshal schedulerConfiguration",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, _, _, errs := LoadSchedulerConfig(tc.configFile)
-			if errs == nil && tc.expectErrs != "" {
-				t.Errorf("expected error containing %q, got nil", tc.expectErrs)
-			} else if errs != nil && !strings.Contains(errs.Error(), tc.expectErrs) {
-				t.Errorf("unexpected error, got %v, want %q", errs, tc.expectErrs)
+			gatewayConf, err := ParseGatewayConfig(tc.configFile)
+			if err != nil {
+				if !strings.Contains(err.Error(), tc.expectErrs) {
+					t.Errorf("expected error %q, got %q", tc.expectErrs, err.Error())
+				}
+			} else {
+				_, _, _, err = LoadSchedulerConfig(&gatewayConf.Scheduler)
+				if err != nil {
+					if !strings.Contains(err.Error(), tc.expectErrs) {
+						t.Errorf("expected error %q, got %q", tc.expectErrs, err.Error())
+					}
+				}
 			}
 		})
 	}

@@ -4,32 +4,33 @@ metadata:
   name: {{ include "matrixinfer.name" . }}-infer-gateway-config
   namespace: {{ .Release.Namespace }}
 data:
-  schedulerConfiguration: |-
-    pluginConfig:
-    - name: least-request
-      args: 
-        maxWaitingRequests: 10
-    - name: least-latency
-      args:
-        TTFTTPOTWeightFactor: 0.5
-    - name: prefix-cache
-      args:
-        blockSizeToHash: 64
-        maxBlocksToMatch: 128
-        maxHashCacheSize: 50000
-    plugins:
-      Filter:
-        enabled:
-          - least-request
-        disabled:
-          - lora-affinity
-      Score:
-        enabled:
-          - name: least-request
-            weight: 1
-          - name: kv-cache
-            weight: 1
-          - name: least-latency
-            weight: 1
-          - name: prefix-cache
-            weight: 1
+  gatewayConfiguration: |-
+    scheduler:
+      pluginConfig:
+      - name: least-request
+        args: 
+          maxWaitingRequests: 10
+      - name: least-latency
+        args:
+          TTFTTPOTWeightFactor: 0.5
+      - name: prefix-cache
+        args:
+          blockSizeToHash: 64
+          maxBlocksToMatch: 128
+          maxHashCacheSize: 50000
+      plugins:
+        Filter:
+          enabled:
+            - least-request
+          disabled:
+            - lora-affinity
+        Score:
+          enabled:
+            - name: least-request
+              weight: 1
+            - name: kv-cache
+              weight: 1
+            - name: least-latency
+              weight: 1
+            - name: prefix-cache
+              weight: 1

@@ -34,10 +34,12 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/connectors"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/filters/auth"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/filters/ratelimit"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/handlers"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
@@ -50,6 +52,7 @@ var EnableFairnessScheduling = env.RegisterBoolVar("ENABLE_FAIRNESS_SCHEDULING",
 
 type Router struct {
 	scheduler       scheduler.Scheduler
+	authValidator   auth.JWTValidator
 	store           datastore.Store
 	loadRateLimiter *ratelimit.TokenRateLimiter
 
@@ -57,7 +60,7 @@ type Router struct {
 	connectorFactory *connectors.Factory
 }
 
-func NewRouter(store datastore.Store) *Router {
+func NewRouter(store datastore.Store, gatewayConfigPath string) *Router {
 	loadRateLimiter := ratelimit.NewRateLimiter()
 	store.RegisterCallback("ModelRoute", func(data datastore.EventData) {
 		switch data.EventType {
@@ -73,9 +76,15 @@ func NewRouter(store datastore.Store) *Router {
 		}
 	})
 
+	gatewayConfig, err := conf.ParseGatewayConfig(gatewayConfigPath)
+	if err != nil {
+		klog.Fatalf("failed to parse gateway config: %v", err)
+	}
+
 	return &Router{
 		store:            store,
-		scheduler:        scheduler.NewScheduler(store),
+		scheduler:        scheduler.NewScheduler(store, gatewayConfig),
+		authValidator:    *auth.NewJWTValidator(store, gatewayConfig),
 		loadRateLimiter:  loadRateLimiter,
 		connectorFactory: connectors.NewDefaultFactory(),
 	}
@@ -86,7 +95,7 @@ type ModelRequest map[string]interface{}
 func (r *Router) HandlerFunc() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Step 1: Parse and validate request
-		modelRequest, err := parseModelRequest(c)
+		modelRequest, err := ParseModelRequest(c)
 		if err != nil {
 			return
 		}
@@ -172,7 +181,7 @@ func (r *Router) doLoadbalance(c *gin.Context, modelRequest ModelRequest) {
 	}
 }
 
-func parseModelRequest(c *gin.Context) (ModelRequest, error) {
+func ParseModelRequest(c *gin.Context) (ModelRequest, error) {
 	bodyBytes, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, err)
@@ -269,6 +278,26 @@ func (r *Router) proxyModelEndpoint(
 
 	// PD disaggregated mode - use KV connector
 	return r.proxyToPDDisaggregated(c, req, ctx, kvConnector, modelRequest, port)
+}
+
+func (r *Router) GetModelServer(modelName string, req *http.Request) (*v1alpha1.ModelServer, error) {
+	modelServerName, isLora, err := r.store.MatchModelServer(modelName, req)
+	if err != nil {
+		return nil, fmt.Errorf("can't find corresponding model server: %v", err)
+	}
+	klog.V(4).Infof("modelServer is %v, is_lora: %v", modelServerName, isLora)
+
+	pods, modelServer, err := r.getPodsAndServer(modelServerName)
+	if err != nil || len(pods) == 0 {
+		klog.Errorf("failed to get pods and model server: %v, %v", modelServerName, err)
+		return nil, fmt.Errorf("can't find model server: %v", modelServerName)
+	}
+
+	return modelServer, nil
+}
+
+func (r *Router) Auth() gin.HandlerFunc {
+	return r.authValidator.Authenticate()
 }
 
 // proxyRequest proxies the request to the model server pods, returns response to downstream.
