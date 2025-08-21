@@ -33,6 +33,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
+	networkingv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
@@ -371,9 +372,24 @@ func NewModelController(kubeClient kubernetes.Interface, client clientset.Interf
 	}
 	_, err = modelInferInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: mc.triggerModel,
+		DeleteFunc: mc.deleteModelInfer,
 	})
 	if err != nil {
 		klog.Fatal("Unable to add model infer event handler")
+		return nil
+	}
+	_, err = modelRouteInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: mc.deleteModelRoute,
+	})
+	if err != nil {
+		klog.Fatal("Unable to add model route event handler")
+		return nil
+	}
+	_, err = modelServerInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: mc.deleteModelServer,
+	})
+	if err != nil {
+		klog.Fatal("Unable to add model server event handler")
 		return nil
 	}
 	mc.syncHandler = mc.reconcile
@@ -421,6 +437,51 @@ func (mc *ModelController) triggerModel(old any, new any) {
 	if newModelInfer.OwnerReferences != nil {
 		// Find the owner of modelInfer and reconcile the owner to change its status
 		if model, err := mc.modelsLister.Models(newModelInfer.Namespace).Get(newModelInfer.OwnerReferences[0].Name); err == nil {
+			mc.enqueueModel(model)
+		}
+	}
+}
+
+// deleteModelInfer is called when a ModelInfer is deleted. It will reconcile the Model. Recreate model infer.
+func (mc *ModelController) deleteModelInfer(obj any) {
+	modelInfer, ok := obj.(*workload.ModelInfer)
+	if !ok {
+		klog.Error("failed to parse ModelInfer when deleteModelInfer")
+		return
+	}
+	klog.V(4).Infof("model infer: %s is deleted, try to recreate it", klog.KObj(modelInfer))
+	if modelInfer.OwnerReferences != nil {
+		if model, err := mc.modelsLister.Models(modelInfer.Namespace).Get(modelInfer.OwnerReferences[0].Name); err == nil {
+			mc.enqueueModel(model)
+		}
+	}
+}
+
+// deleteModelRoute is called when a ModelRoute is deleted. It will reconcile the Model. Recreate model route.
+func (mc *ModelController) deleteModelRoute(obj any) {
+	modelRoute, ok := obj.(*networkingv1alpha1.ModelRoute)
+	if !ok {
+		klog.Error("failed to parse ModelRoute when deleteModelRoute")
+		return
+	}
+	klog.V(4).Infof("model route: %s is deleted, try to recreate it", klog.KObj(modelRoute))
+	if modelRoute.OwnerReferences != nil {
+		if model, err := mc.modelsLister.Models(modelRoute.Namespace).Get(modelRoute.OwnerReferences[0].Name); err == nil {
+			mc.enqueueModel(model)
+		}
+	}
+}
+
+// deleteModelServer is called when a ModelServer is deleted. It will reconcile the Model. Recreate model server.
+func (mc *ModelController) deleteModelServer(obj any) {
+	modelServer, ok := obj.(*networkingv1alpha1.ModelServer)
+	if !ok {
+		klog.Error("failed to parse ModelServer when deleteModelServer")
+		return
+	}
+	klog.V(4).Infof("model server: %s is deleted, try to recreate it", klog.KObj(modelServer))
+	if modelServer.OwnerReferences != nil {
+		if model, err := mc.modelsLister.Models(modelServer.Namespace).Get(modelServer.OwnerReferences[0].Name); err == nil {
 			mc.enqueueModel(model)
 		}
 	}
