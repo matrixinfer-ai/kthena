@@ -229,19 +229,16 @@ type ModelRequest map[string]interface{}
 func (s *store) Enqueue(req *Request) error {
 	modelName := req.ModelName
 	var queue *RequestPriorityQueue
-	val, loaded := s.requestWaitingQueue.Load(modelName)
-	if loaded {
+	val, ok := s.requestWaitingQueue.Load(modelName)
+	if ok {
 		queue, _ = val.(*RequestPriorityQueue)
 	} else {
 		newQueue := NewRequestPriorityQueue()
-		val, loaded = s.requestWaitingQueue.LoadOrStore(modelName, newQueue)
-		if loaded {
-			queue, _ = val.(*RequestPriorityQueue)
-		} else {
-			queue = newQueue
+		val, ok = s.requestWaitingQueue.LoadOrStore(modelName, newQueue)
+		if !ok {
+			go newQueue.Run(context.TODO(), 100)
 		}
-		// TODO: make the ctx and qps configurable
-		go queue.Run(context.Background(), 100)
+		queue, _ = val.(*RequestPriorityQueue)
 	}
 	err := queue.PushRequest(req)
 	if err != nil {

@@ -39,14 +39,16 @@ type Request struct {
 
 // RequestPriorityQueue implements the heap.Interface
 type RequestPriorityQueue struct {
-	mu   sync.RWMutex // Ensure concurrent safety with read/write locks
-	heap []*Request   // Underlying storage structure
-	cond *sync.Cond   // Condition variable to signal availability
+	stopCh chan struct{} // Context for cancellation
+	mu     sync.RWMutex  // Ensure concurrent safety with read/write locks
+	heap   []*Request    // Underlying storage structure
+	cond   *sync.Cond    // Condition variable to signal availability
 }
 
 func NewRequestPriorityQueue() *RequestPriorityQueue {
 	pq := &RequestPriorityQueue{
-		heap: make([]*Request, 0),
+		stopCh: make(chan struct{}),
+		heap:   make([]*Request, 0),
 	}
 	pq.cond = sync.NewCond(&pq.mu)
 	return pq
@@ -124,6 +126,13 @@ func (pq *RequestPriorityQueue) popWhenAvailable(ctx context.Context) (*Request,
 }
 
 func (pq *RequestPriorityQueue) Run(ctx context.Context, qps int) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() {
+		<-pq.stopCh
+		cancel() // Ensure we cancel the context when stopping
+	}()
+
 	if qps <= 0 {
 		qps = 1 // prevent division by zero; or treat as unlimited with a fast ticker
 	}

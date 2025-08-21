@@ -116,8 +116,11 @@ func (t *InMemorySlidingWindowTokenTracker) pruneExpiredBuckets(user, model stri
 
 	// Compact if we've skipped more than half the slice
 	if newStart > 0 && newStart >= len(bucketData.buckets)/2 {
-		remaining := bucketData.buckets[newStart:]
-		bucketData.buckets = append([]bucketNode(nil), remaining...)
+		// More memory-efficient compaction: explicit copy to avoid holding reference to old array
+		remainingCount := len(bucketData.buckets) - newStart
+		newBuckets := make([]bucketNode, remainingCount)
+		copy(newBuckets, bucketData.buckets[newStart:])
+		bucketData.buckets = newBuckets
 		bucketData.start = 0
 	}
 }

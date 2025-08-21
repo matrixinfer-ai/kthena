@@ -99,7 +99,8 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 			return
 		}
 		if err := r.loadRateLimiter.RateLimit(modelName, prompt); err != nil {
-			c.AbortWithStatusJSON(http.StatusTooManyRequests, "token usage exceeds rate limit")
+			klog.Infof("request model: %s, prompt: %s, error: %v", modelName, prompt, err)
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, err.Error())
 			return
 		}
 
