@@ -115,6 +115,20 @@ type Store interface {
 
 	// GetPodInfo returns the pod info for a given pod name (for testing)
 	GetPodInfo(podName types.NamespacedName) *PodInfo
+	// GetTokenCount returns the token count for a user and model
+	GetTokenCount(userId, modelName string) (float64, error)
+	// UpdateTokenCount updates token usage for a user and model
+	UpdateTokenCount(userId, modelName string, inputTokens, outputTokens float64) error
+	Enqueue(*Request) error
+
+	// GetRequestWaitingQueueStats returns per-model queue lengths
+	GetRequestWaitingQueueStats() []QueueStat
+}
+
+// QueueStat holds per-model queue metrics to aid scheduling decisions
+type QueueStat struct {
+	Model  string
+	Length int
 }
 
 type PodInfo struct {
@@ -164,17 +178,23 @@ type store struct {
 
 	// initialSynced is used to indicate whether all the resources has been processed and storred into this store.
 	initialSynced *atomic.Bool
+	// model -> RequestPriorityQueue
+	requestWaitingQueue sync.Map
+	tokenTracker        TokenTracker
 }
 
 func New() Store {
 	return &store{
-		modelServer:   sync.Map{},
-		pods:          sync.Map{},
-		routeInfo:     make(map[string]*modelRouteInfo),
-		routes:        make(map[string]*aiv1alpha1.ModelRoute),
-		loraRoutes:    make(map[string]*aiv1alpha1.ModelRoute),
-		callbacks:     make(map[string][]CallbackFunc),
-		initialSynced: &atomic.Bool{},
+		modelServer:         sync.Map{},
+		pods:                sync.Map{},
+		routeInfo:           make(map[string]*modelRouteInfo),
+		routes:              make(map[string]*aiv1alpha1.ModelRoute),
+		loraRoutes:          make(map[string]*aiv1alpha1.ModelRoute),
+		callbacks:           make(map[string][]CallbackFunc),
+		initialSynced:       &atomic.Bool{},
+		requestWaitingQueue: sync.Map{},
+		// Make options explicit; tweak as needed or wire to config
+		tokenTracker: NewInMemorySlidingWindowTokenTracker(),
 	}
 }
 
@@ -195,6 +215,54 @@ func (s *store) Run(ctx context.Context) {
 			time.Sleep(uppdateInterval)
 		}
 	}
+}
+func (s *store) GetTokenCount(userID, model string) (float64, error) {
+	return s.tokenTracker.GetTokenCount(userID, model)
+}
+
+func (s *store) UpdateTokenCount(userID, model string, inputTokens, outputTokens float64) error {
+	return s.tokenTracker.UpdateTokenCount(userID, model, inputTokens, outputTokens)
+}
+
+type ModelRequest map[string]interface{}
+
+func (s *store) Enqueue(req *Request) error {
+	modelName := req.ModelName
+	var queue *RequestPriorityQueue
+	val, ok := s.requestWaitingQueue.Load(modelName)
+	if ok {
+		queue, _ = val.(*RequestPriorityQueue)
+	} else {
+		newQueue := NewRequestPriorityQueue()
+		val, ok = s.requestWaitingQueue.LoadOrStore(modelName, newQueue)
+		if !ok {
+			go newQueue.Run(context.TODO(), 100)
+		}
+		queue, _ = val.(*RequestPriorityQueue)
+	}
+	err := queue.PushRequest(req)
+	if err != nil {
+		klog.Errorf("failed to push request to waiting queue: %v", err)
+		return err
+	}
+	return nil
+}
+
+func (s *store) GetRequestWaitingQueueStats() []QueueStat {
+	stats := make([]QueueStat, 0)
+	s.requestWaitingQueue.Range(func(modelName, queueVal interface{}) bool {
+		name, _ := modelName.(string)
+		queue, _ := queueVal.(*RequestPriorityQueue)
+		length := 0
+		if queue != nil {
+			length = queue.Len()
+		}
+		if length > 0 {
+			stats = append(stats, QueueStat{Model: name, Length: length})
+		}
+		return true
+	})
+	return stats
 }
 
 func (s *store) HasSynced() bool {
