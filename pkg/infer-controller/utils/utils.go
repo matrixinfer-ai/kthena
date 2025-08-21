@@ -498,20 +498,20 @@ func SendAdmissionResponse(w http.ResponseWriter, admissionReview *admissionv1.A
 	return nil
 }
 
-// getLabelsFromObject extract labels from objects
-func getLabelsFromObject(obj interface{}) (map[string]string, bool) {
+// getIndexKeyFromObject extract index key from objects
+func getIndexKeyFromObject(obj interface{}) (map[string]string, string, bool) {
 	switch v := obj.(type) {
 	case *corev1.Pod:
-		return v.GetLabels(), true
+		return v.GetLabels(), v.GetNamespace(), true
 	case *corev1.Service:
-		return v.GetLabels(), true
+		return v.GetLabels(), v.GetNamespace(), true
 	default:
-		return nil, false
+		return nil, "", false
 	}
 }
 
 func GroupNameIndexFunc(obj interface{}) ([]string, error) {
-	labels, ok := getLabelsFromObject(obj)
+	labels, namespace, ok := getIndexKeyFromObject(obj)
 	if !ok {
 		return []string{}, nil
 	}
@@ -520,11 +520,12 @@ func GroupNameIndexFunc(obj interface{}) ([]string, error) {
 	if !exists {
 		return []string{}, nil
 	}
-	return []string{groupName}, nil
+	compositeKey := fmt.Sprintf("%s/%s", namespace, groupName)
+	return []string{compositeKey}, nil
 }
 
 func RoleIDIndexFunc(obj interface{}) ([]string, error) {
-	labels, ok := getLabelsFromObject(obj)
+	labels, namespace, ok := getIndexKeyFromObject(obj)
 	if !ok {
 		return []string{}, nil
 	}
@@ -537,6 +538,6 @@ func RoleIDIndexFunc(obj interface{}) ([]string, error) {
 		return []string{}, nil
 	}
 
-	compositeKey := fmt.Sprintf("%s/%s/%s", groupName, roleName, roleID)
+	compositeKey := fmt.Sprintf("%s/%s/%s/%s", namespace, groupName, roleName, roleID)
 	return []string{compositeKey}, nil
 }
