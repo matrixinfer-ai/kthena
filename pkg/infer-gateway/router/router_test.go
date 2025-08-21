@@ -46,7 +46,7 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 )
 
 func TestMain(m *testing.M) {
@@ -55,12 +55,17 @@ func TestMain(m *testing.M) {
 	// Set klog verbosity level to 4
 	flag.Set("v", "4")
 	flag.Parse() // Parse flags to apply the klog level
+	gatewayConfig, _ := conf.ParseGatewayConfig("../scheduler/testdata/configmap.yaml")
+	patch1 := gomonkey.ApplyFunc(conf.ParseGatewayConfig, func(configMapPath string) (*conf.GatewayConfiguration, error) {
+		return gatewayConfig, nil
+	})
+	defer patch1.Reset()
 
-	pluginsWeight, plugins, pluginConfig, _ := utils.LoadSchedulerConfig("../scheduler/testdata/configmap.yaml")
-	patch := gomonkey.ApplyFunc(utils.LoadSchedulerConfig, func() (map[string]int, []string, map[string]runtime.RawExtension, error) {
+	pluginsWeight, plugins, pluginConfig, _ := conf.LoadSchedulerConfig(&gatewayConfig.Scheduler)
+	patch2 := gomonkey.ApplyFunc(conf.LoadSchedulerConfig, func() (map[string]int, []string, map[string]runtime.RawExtension, error) {
 		return pluginsWeight, plugins, pluginConfig, nil
 	})
-	defer patch.Reset()
+	defer patch2.Reset()
 
 	// Run the tests
 	exitCode := m.Run()
@@ -88,7 +93,7 @@ func TestProxyModelEndpoint(t *testing.T) {
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 	req, _ := http.NewRequest("POST", "/", nil)
 	modelReq := ModelRequest{"model": "test"}
-	r := NewRouter(datastore.New())
+	r := NewRouter(datastore.New(), "testdata/comfigmap.yaml")
 	hookPatch := gomonkey.ApplyMethod(r.scheduler, "RunPostHooks", func(s scheduler.Scheduler, ctx *framework.Context, index int) {})
 	defer hookPatch.Reset()
 
@@ -165,7 +170,7 @@ func setupTestRouter(backendHandler http.Handler) (*Router, datastore.Store, *ht
 
 	backend := httptest.NewServer(backendHandler)
 	store := datastore.New()
-	router := NewRouter(store)
+	router := NewRouter(store, "")
 
 	return router, store, backend
 }

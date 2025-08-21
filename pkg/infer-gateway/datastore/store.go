@@ -35,6 +35,7 @@ import (
 
 	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/backend"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
@@ -123,6 +124,10 @@ type Store interface {
 
 	// GetRequestWaitingQueueStats returns per-model queue lengths
 	GetRequestWaitingQueueStats() []QueueStat
+
+	// jwks cache methods
+	GetJwks() Jwks
+	RotateJwks(config conf.AuthenticationConfig)
 }
 
 // QueueStat holds per-model queue metrics to aid scheduling decisions
@@ -164,6 +169,7 @@ type modelRouteInfo struct {
 }
 
 type store struct {
+	jwksCache   *Jwks
 	modelServer sync.Map // map[types.NamespacedName]*modelServer
 	pods        sync.Map // map[types.NamespacedName]*PodInfo
 
@@ -185,6 +191,7 @@ type store struct {
 
 func New() Store {
 	return &store{
+		jwksCache:           &Jwks{},
 		modelServer:         sync.Map{},
 		pods:                sync.Map{},
 		routeInfo:           make(map[string]*modelRouteInfo),
@@ -199,22 +206,25 @@ func New() Store {
 }
 
 func (s *store) Run(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-			s.pods.Range(func(key, value any) bool {
-				if p, ok := value.(*PodInfo); ok {
-					s.updatePodMetrics(p)
-					s.updatePodModels(p)
-				}
-				return true
-			})
-			s.initialSynced.Store(true)
-			time.Sleep(uppdateInterval)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				s.pods.Range(func(key, value any) bool {
+					if p, ok := value.(*PodInfo); ok {
+						s.updatePodMetrics(p)
+						s.updatePodModels(p)
+					}
+					return true
+				})
+				s.initialSynced.Store(true)
+				time.Sleep(uppdateInterval)
+			}
 		}
-	}
+	}()
+	go s.jwksRefresher(ctx)
 }
 func (s *store) GetTokenCount(userID, model string) (float64, error) {
 	return s.tokenTracker.GetTokenCount(userID, model)
@@ -285,6 +295,7 @@ func (s *store) AddOrUpdateModelServer(ms *aiv1alpha1.ModelServer, pods sets.Set
 		modelServerObj = value.(*modelServer)
 		modelServerObj.modelServer = ms
 	}
+
 	if len(pods) != 0 {
 		// donot operate s.pods here, which are done within pod handler
 		modelServerObj.pods = pods
@@ -677,7 +688,7 @@ func (s *store) updatePodModels(podInfo *PodInfo) {
 
 	models, err := backend.GetPodModels(podInfo.engine, podInfo.Pod)
 	if err != nil {
-		klog.Errorf("failed to get models of pod %s/%s", podInfo.Pod.GetNamespace(), podInfo.Pod.GetName())
+		klog.V(4).Infof("failed to get models of pod %s/%s", podInfo.Pod.GetNamespace(), podInfo.Pod.GetName())
 	}
 
 	podInfo.UpdateModels(models)

@@ -1,4 +1,5 @@
-pluginConfig:
+scheduler:
+  pluginConfig:
   - name: least-request
     args:
       maxWaitingRequests: 10
@@ -10,19 +11,19 @@ pluginConfig:
       blockSizeToHash: 64
       maxBlocksToMatch: 128
       maxHashCacheSize: 50000
-plugins:
-  Filter:
-    enabled:
-      - least-request
-    disabled:
-      - lora-affinity
-  Score:
-    enabled:
-      - name: least-request
-        weight: 1
-      - name: gpu-usage
-        weight: 1
-      - name: least-latency
-        weight: 1
-      - name: prefix-cache
-        weight: 1
+  plugins:
+    Filter:
+      enabled:
+        - least-request
+      disabled:
+        - lora-affinity
+    Score:
+      enabled:
+        - name: least-request
+          weight: 1
+        - name: gpu-usage
+          weight: 1
+        - name: least-latency
+          weight: 1
+        - name: prefix-cache
+          weight: 1

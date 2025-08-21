@@ -20,18 +20,17 @@ import (
 	"fmt"
 	"sort"
 
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 )
 
 const (
-	schedulerConfigFile = "/etc/config/schedulerConfiguration.yaml"
-
 	// Get the top five scoring podinfo
 	topN = 5
 )
@@ -55,14 +54,36 @@ type podInfoWithValue struct {
 	score int
 }
 
-func NewScheduler(store datastore.Store) Scheduler {
+func NewScheduler(store datastore.Store, gatewayConfig *conf.GatewayConfiguration) Scheduler {
 	// For backward compatibility, use the default registry and ensure plugins are registered
 	registry := NewPluginRegistry()
 	registerDefaultPlugins(registry)
 
-	scorePluginMap, filterPluginMap, pluginsArgMap, err := utils.LoadSchedulerConfig(schedulerConfigFile)
-	if err != nil {
-		klog.Fatalf("failed to Load Scheduler: %v", err)
+	// Default plugin configuration.
+	scorePluginMap := map[string]int{
+		"least-request": 1,
+		"kv-cache":      1,
+		"least-latency": 1,
+		"prefix-cache":  1,
+	}
+	filterPluginMap := []string{
+		"least-request",
+	}
+	pluginsArgMap := map[string]runtime.RawExtension{
+		"least-request": {Raw: []byte(`{"maxWaitingRequests": 10}`)},
+		"least-latency": {Raw: []byte(`{"TTFTTPOTWeightFactor": 0.5}`)},
+		"prefix-cache":  {Raw: []byte(`{"blockSizeToHash": 64, "maxBlocksToMatch": 128, "maxHashCacheSize": 50000}`)},
+	}
+
+	var err error
+	if gatewayConfig == nil {
+		// If no scheduler configuration is provided, use the default configuration
+		klog.Warning("No scheduler configuration found, using default configuration")
+	} else {
+		scorePluginMap, filterPluginMap, pluginsArgMap, err = conf.LoadSchedulerConfig(&gatewayConfig.Scheduler)
+		if err != nil {
+			klog.Fatalf("failed to Load Scheduler: %v", err)
+		}
 	}
 
 	prefixCache := plugins.NewPrefixCache(store, pluginsArgMap[plugins.PrefixCachePluginName])
