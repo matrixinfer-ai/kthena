@@ -71,8 +71,7 @@ func (mc *ModelController) createOrUpdateModelInfer(ctx context.Context, model *
 	for _, existingModelInfer := range existingModelInfers {
 		// if not exist in modelInfersToKeep, delete it
 		if _, ok := modelInfersToKeep[existingModelInfer.Name]; !ok {
-			err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Delete(ctx, existingModelInfer.Name, metav1.DeleteOptions{})
-			if err != nil {
+			if err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Delete(ctx, existingModelInfer.Name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 				return err
 			}
 			klog.V(4).Infof("Delete ModelInfer %s", existingModelInfer.Name)

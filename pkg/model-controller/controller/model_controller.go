@@ -434,7 +434,7 @@ func (mc *ModelController) triggerModel(old any, new any) {
 		klog.Error("failed to parse old ModelInfer")
 		return
 	}
-	if newModelInfer.OwnerReferences != nil {
+	if len(newModelInfer.OwnerReferences) > 0 {
 		// Find the owner of modelInfer and reconcile the owner to change its status
 		if model, err := mc.modelsLister.Models(newModelInfer.Namespace).Get(newModelInfer.OwnerReferences[0].Name); err == nil {
 			mc.enqueueModel(model)
@@ -450,7 +450,7 @@ func (mc *ModelController) deleteModelInfer(obj any) {
 		return
 	}
 	klog.V(4).Infof("model infer: %s is deleted", klog.KObj(modelInfer))
-	if modelInfer.OwnerReferences != nil {
+	if len(modelInfer.OwnerReferences) > 0 {
 		if model, err := mc.modelsLister.Models(modelInfer.Namespace).Get(modelInfer.OwnerReferences[0].Name); err == nil {
 			mc.enqueueModel(model)
 		}
@@ -465,7 +465,7 @@ func (mc *ModelController) deleteModelRoute(obj any) {
 		return
 	}
 	klog.V(4).Infof("model route: %s is deleted", klog.KObj(modelRoute))
-	if modelRoute.OwnerReferences != nil {
+	if len(modelRoute.OwnerReferences) > 0 {
 		if model, err := mc.modelsLister.Models(modelRoute.Namespace).Get(modelRoute.OwnerReferences[0].Name); err == nil {
 			mc.enqueueModel(model)
 		}
@@ -480,7 +480,7 @@ func (mc *ModelController) deleteModelServer(obj any) {
 		return
 	}
 	klog.V(4).Infof("model server: %s is deleted", klog.KObj(modelServer))
-	if modelServer.OwnerReferences != nil {
+	if len(modelServer.OwnerReferences) > 0 {
 		if model, err := mc.modelsLister.Models(modelServer.Namespace).Get(modelServer.OwnerReferences[0].Name); err == nil {
 			mc.enqueueModel(model)
 		}

@@ -67,8 +67,7 @@ func (mc *ModelController) createOrUpdateModelServer(ctx context.Context, model 
 	}
 	for _, existingModelServer := range existingModelServers {
 		if _, ok := modelServersToKeep[existingModelServer.Name]; !ok {
-			err := mc.client.NetworkingV1alpha1().ModelServers(model.Namespace).Delete(ctx, existingModelServer.Name, metav1.DeleteOptions{})
-			if err != nil {
+			if err := mc.client.NetworkingV1alpha1().ModelServers(model.Namespace).Delete(ctx, existingModelServer.Name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 				return err
 			}
 			klog.V(4).Infof("Delete ModelServer %s", existingModelServer.Name)

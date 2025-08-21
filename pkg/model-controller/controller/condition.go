@@ -66,6 +66,7 @@ func (mc *ModelController) setModelProcessingCondition(ctx context.Context, mode
 func (mc *ModelController) setModelFailedCondition(ctx context.Context, model *registryv1alpha1.Model, err error) {
 	model, getError := mc.client.RegistryV1alpha1().Models(model.Namespace).Get(ctx, model.Name, metav1.GetOptions{})
 	if getError != nil {
+		klog.Errorf("get model failed: %v", getError)
 		return
 	}
 	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeFailed),
