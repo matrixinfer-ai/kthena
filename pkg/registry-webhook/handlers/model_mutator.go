@@ -25,24 +25,17 @@ import (
 	"gomodules.xyz/jsonpatch/v2"
 	admissionv1 "k8s.io/api/admission/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
-	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
 	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
 
 // ModelMutator handles mutation of Model resources
 type ModelMutator struct {
-	kubeClient        kubernetes.Interface
-	matrixinferClient clientset.Interface
 }
 
 // NewModelMutator creates a new ModelMutator
-func NewModelMutator(kubeClient kubernetes.Interface, matrixinferClient clientset.Interface) *ModelMutator {
-	return &ModelMutator{
-		kubeClient:        kubeClient,
-		matrixinferClient: matrixinferClient,
-	}
+func NewModelMutator() *ModelMutator {
+	return &ModelMutator{}
 }
 
 // Handle handles admission requests for Model resources

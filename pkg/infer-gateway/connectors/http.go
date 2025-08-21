@@ -50,7 +50,7 @@ func (h *HTTPConnector) prefill(req *http.Request, prefillAddr string) error {
 }
 
 // decode executes decode request and streams response
-func (h *HTTPConnector) decode(c *gin.Context, req *http.Request, decodeAddr string) error {
+func (h *HTTPConnector) decode(c *gin.Context, req *http.Request, decodeAddr string) (int, error) {
 	req.URL.Host = decodeAddr
 	req.URL.Scheme = "http"
 
@@ -59,7 +59,7 @@ func (h *HTTPConnector) decode(c *gin.Context, req *http.Request, decodeAddr str
 }
 
 // Proxy executes the complete prefill-decode flow for HTTP connector
-func (h *HTTPConnector) Proxy(c *gin.Context, reqBody map[string]interface{}, prefillAddr, decodeAddr string) error {
+func (h *HTTPConnector) Proxy(c *gin.Context, reqBody map[string]interface{}, prefillAddr, decodeAddr string) (int, error) {
 	if h.decodeRequest == nil {
 		h.decodeRequest = BuildDecodeRequest(c, c.Request, reqBody)
 	}
@@ -71,7 +71,7 @@ func (h *HTTPConnector) Proxy(c *gin.Context, reqBody map[string]interface{}, pr
 	}
 
 	if err := h.prefill(h.prefillRequest, prefillAddr); err != nil {
-		return err
+		return 0, err
 	}
 
 	return h.decode(c, h.decodeRequest, decodeAddr)

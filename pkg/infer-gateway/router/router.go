@@ -94,7 +94,17 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 			return
 		}
 		if err := r.loadRateLimiter.RateLimit(modelName, prompt); err != nil {
-			c.AbortWithStatusJSON(http.StatusTooManyRequests, "token usage exceeds rate limit")
+			var errorMsg string
+			switch err.(type) {
+			case *ratelimit.InputRateLimitExceededError:
+				errorMsg = "input token rate limit exceeded"
+			case *ratelimit.OutputRateLimitExceededError:
+				errorMsg = "output token rate limit exceeded"
+			default:
+				errorMsg = "token usage exceeds rate limit"
+			}
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, errorMsg)
+			return
 		}
 
 		// step 3: Find pods and model server details
@@ -195,7 +205,7 @@ func (r *Router) proxy(
 ) error {
 	for i := 0; i < len(ctx.BestPods); i++ {
 		// Request dispatched to the pod.
-		if err := proxyRequest(c, req, ctx.BestPods[i].Pod.Status.PodIP, port, stream); err != nil {
+		if err := proxyRequest(c, req, ctx.BestPods[i].Pod.Status.PodIP, port, stream, r.loadRateLimiter, ctx.Model); err != nil {
 			klog.Errorf(" pod request error: %v", err)
 			continue
 		}
@@ -240,6 +250,8 @@ func proxyRequest(
 	podIP string,
 	port int32,
 	stream bool,
+	rateLimiter *ratelimit.TokenRateLimiter,
+	modelName string,
 ) error {
 	resp, err := doRequest(req, podIP, port)
 	if err != nil {
@@ -264,8 +276,12 @@ func proxyRequest(
 			if len(line) > 0 {
 				// Try to parse usage from this line, assuming it's a data line
 				parsed := handlers.ParseStreamRespForUsage(string(line))
-				if parsed.Usage.TotalTokens > 0 {
+				if parsed.Usage.CompletionTokens > 0 {
 					klog.V(4).Infof("Parsed usage: %+v", parsed.Usage)
+					// Record output tokens for rate limiting
+					if rateLimiter != nil {
+						rateLimiter.RecordOutputTokens(modelName, parsed.Usage.CompletionTokens)
+					}
 					// The token usage is set by gateway, so remove it before sending to downstream
 					if v, ok := c.Get(tokenUsageKey); ok && v.(bool) {
 						return true
@@ -295,8 +311,12 @@ func proxyRequest(
 
 		// Parse usage if present
 		parsed, _ := handlers.ParseOpenAIResponseBody(buf.Bytes())
-		if parsed != nil && parsed.Usage.TotalTokens > 0 {
+		if parsed != nil && parsed.Usage.CompletionTokens > 0 {
 			klog.V(4).Infof("Parsed usage: %+v", parsed.Usage)
+			// Record output tokens for rate limiting
+			if rateLimiter != nil {
+				rateLimiter.RecordOutputTokens(modelName, parsed.Usage.CompletionTokens)
+			}
 		}
 	}
 
@@ -380,17 +400,23 @@ func (r *Router) proxyToPDDisaggregated(
 
 		klog.V(4).Infof("Attempting PD disaggregated request: prefill=%s, decode=%s", prefillAddr, decodeAddr)
 
-		if err := kvConnector.Proxy(c, modelRequest, prefillAddr, decodeAddr); err != nil {
+		outputTokens, err := kvConnector.Proxy(c, modelRequest, prefillAddr, decodeAddr)
+		if err != nil {
 			klog.Errorf("proxy failed for prefill pod %s, decode pod %s: %v",
 				ctx.PrefillPods[i].Pod.Name, ctx.DecodePods[i].Pod.Name, err)
 			continue
 		}
 
+		// Record output tokens for rate limiting
+		if outputTokens > 0 && r.loadRateLimiter != nil {
+			r.loadRateLimiter.RecordOutputTokens(ctx.Model, outputTokens)
+		}
+
 		// Record successful operation in cache
 		r.scheduler.RunPostHooks(ctx, i)
 
-		klog.V(4).Infof("kv connector run successful for prefill pod %s, decode pod %s",
-			ctx.PrefillPods[i].Pod.Name, ctx.DecodePods[i].Pod.Name)
+		klog.V(4).Infof("kv connector run successful for prefill pod %s, decode pod %s, output tokens: %d",
+			ctx.PrefillPods[i].Pod.Name, ctx.DecodePods[i].Pod.Name, outputTokens)
 
 		return nil
 	}

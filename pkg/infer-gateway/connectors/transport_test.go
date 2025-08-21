@@ -430,7 +430,7 @@ func TestHandleNonStreamingResponse(t *testing.T) {
 				resp.Header.Set(k, v)
 			}
 
-			err := handleNonStreamingResponse(c, resp)
+			_, err := handleNonStreamingResponse(c, resp)
 
 			// Should not return error for any of these cases
 			assert.NoError(t, err)
@@ -486,7 +486,7 @@ func TestHandleStreamingResponse(t *testing.T) {
 			}
 			resp.Header.Set("Content-Type", "text/event-stream")
 
-			err := handleStreamingResponse(c, resp)
+			_, err := handleStreamingResponse(c, resp)
 
 			// Should not return error
 			assert.NoError(t, err)
@@ -632,7 +632,7 @@ func TestDecoderProxy(t *testing.T) {
 			require.NoError(t, err)
 			testReq.Header.Set("Content-Type", "application/json")
 
-			err = decoderProxy(c, testReq)
+			_, err = decoderProxy(c, testReq)
 
 			if tt.expectError {
 				assert.Error(t, err)
