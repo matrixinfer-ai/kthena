@@ -97,14 +97,14 @@ type AutoscalingPolicyPanicPolicy struct {
 	// Percent is the maximum percentage of instances to scale up.
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=1000
-	// +kubebuilder:default="1000"
+	// +kubebuilder:default=1000
 	Percent *int32 `json:"percent,omitempty"`
 	// Period is the duration over which scaling down is evaluated.
 	Period metav1.Duration `json:"period"`
 	// PanicThresholdPercent is the threshold percent to enter panic mode.
 	// +kubebuilder:validation:Minimum=110
 	// +kubebuilder:validation:Maximum=1000
-	// +kubebuilder:default="200"
+	// +kubebuilder:default=200
 	PanicThresholdPercent *int32 `json:"panicThresholdPercent,omitempty"`
 	// PanicModeHold is the duration to hold in panic mode before returning to normal.
 	// +kubebuilder:default="60s"
