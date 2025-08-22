@@ -1,19 +1,22 @@
 # Model Controller
 
-This page describes the Model Controller component and its role in managing model lifecycle and deployment.
-
 ## Overview
 
-<!-- Add overview here -->
+![model-controller.png](../../static/img/model-controller-architecture.svg)
 
-## Model Lifecycle
+The Model Controller is a component designed to help you manage `Model Infer`, `Model Server`, `Model Route`,
+`AutoscalingPolicy`,
+`AutoscalingPolicyBinding` resources based on the `Model` Custom Resource (CR) you define.
 
-<!-- Add model lifecycle here -->
+## Limitations
 
-## Deployment Strategies
+Please note the following limitations when using the Model Controller:
 
-<!-- Add deployment strategies here -->
+- Each `Model` can create only one `Model Route`.
+- Rate limiting for `Model Route` is not supported.
+- Topology configuration for `Model Infer` is not supported.
+- The `panicPolicy` configuration for `AutoscalingPolicy` is not supported.
+- Behavior configuration for `AutoscalingPolicy` is not supported.
 
-## Configuration
-
-<!-- Add configuration details here -->
+In these cases, you can manually create `Model Infer`, `Model Server`, `Model Route`, `AutoscalingPolicy`,
+`AutoscalingPolicyBinding` resources as needed.
