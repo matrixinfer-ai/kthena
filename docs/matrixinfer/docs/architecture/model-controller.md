@@ -31,11 +31,6 @@ name of the generated `Model Server` will be `test-model-backend1` and `test-mod
 name of the generated `Model Route` will be `test-model`. If `AutoscalingPolicy` is defined in the model level, the name
 will be `test-model`, otherwise the name will be `test-model-backend1` and `test-model-backend2`.
 
-### Descriptions of Model CR
-
-You can find descriptions of `Model`
-CR [here](https://github.com/matrixinfer-ai/matrixinfer/blob/main/docs/matrixinfer/docs/crd/registry.matrixinfer.ai.md)
-
 ### How Model Controller works
 
 Model Controller watches for changes to `Model` CR in the Kubernetes cluster. When a `Model` CR is created or updated,
