@@ -287,8 +287,12 @@ func (mc *ModelController) updateModelStatus(ctx context.Context, model *registr
 	}
 	model.Status.BackendStatuses = backendStatus
 	model.Status.ObservedGeneration = model.Generation
-	if _, err := mc.client.RegistryV1alpha1().Models(model.Namespace).UpdateStatus(ctx, model, metav1.UpdateOptions{}); err != nil {
-		klog.Errorf("update model status failed: %v", err)
+	patch := client.MergeFrom(model.DeepCopy())
+	data, err := patch.Data(model)
+	if err != nil {
+		return fmt.Errorf("failed to generate patch data: %w", err)
+	}
+	if _, err := mc.client.RegistryV1alpha1().Models(model.Namespace).Patch(ctx, model.Name, patch.Type(), data, metav1.PatchOptions{}); err != nil {
 		return err
 	}
 
