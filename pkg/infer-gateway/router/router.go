@@ -23,28 +23,36 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"istio.io/istio/pkg/env"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 
 	"matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/connectors"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/filters/auth"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/filters/ratelimit"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/handlers"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
 const (
 	tokenUsageKey = "token_usage"
+	userIdKey     = "user_id"
 )
+
+var EnableFairnessScheduling = env.RegisterBoolVar("ENABLE_FAIRNESS_SCHEDULING", false, "Enable fairness scheduling for inference requests").Get()
 
 type Router struct {
 	scheduler       scheduler.Scheduler
+	authValidator   auth.JWTValidator
 	store           datastore.Store
 	loadRateLimiter *ratelimit.TokenRateLimiter
 
@@ -52,7 +60,7 @@ type Router struct {
 	connectorFactory *connectors.Factory
 }
 
-func NewRouter(store datastore.Store) *Router {
+func NewRouter(store datastore.Store, gatewayConfigPath string) *Router {
 	loadRateLimiter := ratelimit.NewRateLimiter()
 	store.RegisterCallback("ModelRoute", func(data datastore.EventData) {
 		switch data.EventType {
@@ -68,9 +76,15 @@ func NewRouter(store datastore.Store) *Router {
 		}
 	})
 
+	gatewayConfig, err := conf.ParseGatewayConfig(gatewayConfigPath)
+	if err != nil {
+		klog.Fatalf("failed to parse gateway config: %v", err)
+	}
+
 	return &Router{
 		store:            store,
-		scheduler:        scheduler.NewScheduler(store),
+		scheduler:        scheduler.NewScheduler(store, gatewayConfig),
+		authValidator:    *auth.NewJWTValidator(store, gatewayConfig),
 		loadRateLimiter:  loadRateLimiter,
 		connectorFactory: connectors.NewDefaultFactory(),
 	}
@@ -81,7 +95,7 @@ type ModelRequest map[string]interface{}
 func (r *Router) HandlerFunc() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Step 1: Parse and validate request
-		modelRequest, err := parseModelRequest(c)
+		modelRequest, err := ParseModelRequest(c)
 		if err != nil {
 			return
 		}
@@ -94,75 +108,80 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 			return
 		}
 		if err := r.loadRateLimiter.RateLimit(modelName, prompt); err != nil {
-			var errorMsg string
-			switch err.(type) {
-			case *ratelimit.InputRateLimitExceededError:
-				errorMsg = "input token rate limit exceeded"
-			case *ratelimit.OutputRateLimitExceededError:
-				errorMsg = "output token rate limit exceeded"
-			default:
-				errorMsg = "token usage exceeds rate limit"
-			}
-			c.AbortWithStatusJSON(http.StatusTooManyRequests, errorMsg)
+			klog.Infof("request model: %s, prompt: %s, error: %v", modelName, prompt, err)
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, err.Error())
 			return
 		}
 
-		// step 3: Find pods and model server details
-		modelServerName, isLora, err := r.store.MatchModelServer(modelName, c.Request)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusNotFound, fmt.Sprintf("can't find corresponding model server: %v", err))
-			return
-		}
-		klog.V(4).Infof("modelServer is %v, is_lora: %v", modelServerName, isLora)
-
-		pods, modelServer, err := r.getPodsAndServer(modelServerName)
-		if err != nil || len(pods) == 0 {
-			klog.Errorf("failed to get pods and model server: %v, %v", modelServerName, err)
-			c.AbortWithStatusJSON(http.StatusNotFound, fmt.Sprintf("can't find model server: %v", modelServerName))
-			return
-		}
-		model := modelServer.Spec.Model
-		// step 4: Overwrite model.
-		if model != nil && !isLora {
-			modelRequest["model"] = *model
-		}
-
-		var pdGroup *v1alpha1.PDGroup
-		if modelServer.Spec.WorkloadSelector != nil {
-			pdGroup = modelServer.Spec.WorkloadSelector.PDGroup
-		}
-
-		ctx := &framework.Context{
-			Model:           modelName,
-			Prompt:          prompt,
-			ModelServerName: modelServerName,
-			PDGroup:         pdGroup,
-		}
-
-		// step 5: call scheduler.Schedule. Get top n decode pods and perfill pods
-		err = r.scheduler.Schedule(ctx, pods)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, fmt.Sprintf("can't schedule to target pod: %v", err))
-			return
-		}
-
-		// step 6: Generate request ID at the beginning
-		req := c.Request
 		requestID := uuid.New().String()
-		if req.Header.Get("x-request-id") == "" {
-			// Add x-request-id header to prefill request
-			req.Header.Set("x-request-id", requestID)
+		if c.Request.Header.Get("x-request-id") == "" {
+			c.Request.Header.Set("x-request-id", requestID)
 		}
 
-		// step 7: proxy to pods
-		if err := r.proxyModelEndpoint(c, req, ctx, modelRequest, modelServer.Spec.WorkloadPort.Port); err != nil {
-			klog.Errorf("request failed: %v", err)
+		// step 3.1: load balancing
+		if !EnableFairnessScheduling {
+			r.doLoadbalance(c, modelRequest)
+			return
+		}
+
+		// step 3.2: load balancing for Fairness scheduling enabled case
+		if err := r.handleFairnessScheduling(c, modelRequest, requestID, modelName); err != nil {
 			return
 		}
 	}
 }
 
-func parseModelRequest(c *gin.Context) (ModelRequest, error) {
+func (r *Router) doLoadbalance(c *gin.Context, modelRequest ModelRequest) {
+	modelName := modelRequest["model"].(string)
+	// step 3: Find pods and model server details
+	modelServerName, isLora, err := r.store.MatchModelServer(modelName, c.Request)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusNotFound, fmt.Sprintf("can't find corresponding model server: %v", err))
+		return
+	}
+	klog.V(4).Infof("modelServer is %v, is_lora: %v", modelServerName, isLora)
+	pods, modelServer, err := r.getPodsAndServer(modelServerName)
+	if err != nil || len(pods) == 0 {
+		klog.Errorf("failed to get pods and model server: %v, %v", modelServerName, err)
+		c.AbortWithStatusJSON(http.StatusNotFound, fmt.Sprintf("can't find model server: %v", modelServerName))
+		return
+	}
+
+	model := modelServer.Spec.Model
+	if model != nil && !isLora {
+		modelRequest["model"] = *model
+	}
+
+	var pdGroup *v1alpha1.PDGroup
+	if modelServer.Spec.WorkloadSelector != nil {
+		pdGroup = modelServer.Spec.WorkloadSelector.PDGroup
+	}
+	prompt, err := utils.GetPrompt(modelRequest)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusNotFound, "prompt not found")
+		return
+	}
+	ctx := &framework.Context{
+		Model:           modelName,
+		Prompt:          prompt,
+		ModelServerName: modelServerName,
+		PDGroup:         pdGroup,
+	}
+
+	err = r.scheduler.Schedule(ctx, pods)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, fmt.Sprintf("can't schedule to target pod: %v", err))
+		return
+	}
+
+	req := c.Request
+	if err := r.proxyModelEndpoint(c, req, ctx, modelRequest, modelServer.Spec.WorkloadPort.Port); err != nil {
+		klog.Errorf("request failed reqID: %s: %v", c.Request.Header.Get("x-request-id"), err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, "request processing failed")
+	}
+}
+
+func ParseModelRequest(c *gin.Context) (ModelRequest, error) {
 	bodyBytes, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, err)
@@ -202,10 +221,11 @@ func (r *Router) proxy(
 	ctx *framework.Context,
 	stream bool,
 	port int32,
+	onUsage func(u handlers.OpenAIResponse),
 ) error {
 	for i := 0; i < len(ctx.BestPods); i++ {
 		// Request dispatched to the pod.
-		if err := proxyRequest(c, req, ctx.BestPods[i].Pod.Status.PodIP, port, stream, r.loadRateLimiter, ctx.Model); err != nil {
+		if err := proxyRequest(c, req, ctx.BestPods[i].Pod.Status.PodIP, port, stream, onUsage); err != nil {
 			klog.Errorf(" pod request error: %v", err)
 			continue
 		}
@@ -229,7 +249,24 @@ func (r *Router) proxyModelEndpoint(
 		decodeRequest := connectors.BuildDecodeRequest(c, req, modelRequest)
 		// build request
 		stream := isStreaming(modelRequest)
-		return r.proxy(c, decodeRequest, ctx, stream, port)
+		userID := ""
+		if v, ok := modelRequest["userId"].(string); ok {
+			userID = v
+		}
+		modelName := ctx.Model
+		return r.proxy(c, decodeRequest, ctx, stream, port, func(resp handlers.OpenAIResponse) {
+			if resp.Usage.TotalTokens <= 0 {
+				return
+			}
+			// Record output tokens for rate limiting
+			if r.loadRateLimiter != nil {
+				r.loadRateLimiter.RecordOutputTokens(modelName, resp.Usage.CompletionTokens)
+			}
+			if userID == "" || modelName == "" {
+				return
+			}
+			_ = r.store.UpdateTokenCount(userID, modelName, float64(resp.Usage.PromptTokens), float64(resp.Usage.CompletionTokens))
+		})
 	}
 
 	// Get appropriate connector for this model server
@@ -243,6 +280,26 @@ func (r *Router) proxyModelEndpoint(
 	return r.proxyToPDDisaggregated(c, req, ctx, kvConnector, modelRequest, port)
 }
 
+func (r *Router) GetModelServer(modelName string, req *http.Request) (*v1alpha1.ModelServer, error) {
+	modelServerName, isLora, err := r.store.MatchModelServer(modelName, req)
+	if err != nil {
+		return nil, fmt.Errorf("can't find corresponding model server: %v", err)
+	}
+	klog.V(4).Infof("modelServer is %v, is_lora: %v", modelServerName, isLora)
+
+	pods, modelServer, err := r.getPodsAndServer(modelServerName)
+	if err != nil || len(pods) == 0 {
+		klog.Errorf("failed to get pods and model server: %v, %v", modelServerName, err)
+		return nil, fmt.Errorf("can't find model server: %v", modelServerName)
+	}
+
+	return modelServer, nil
+}
+
+func (r *Router) Auth() gin.HandlerFunc {
+	return r.authValidator.Authenticate()
+}
+
 // proxyRequest proxies the request to the model server pods, returns response to downstream.
 func proxyRequest(
 	c *gin.Context,
@@ -250,8 +307,7 @@ func proxyRequest(
 	podIP string,
 	port int32,
 	stream bool,
-	rateLimiter *ratelimit.TokenRateLimiter,
-	modelName string,
+	onUsage func(u handlers.OpenAIResponse),
 ) error {
 	resp, err := doRequest(req, podIP, port)
 	if err != nil {
@@ -278,13 +334,13 @@ func proxyRequest(
 				parsed := handlers.ParseStreamRespForUsage(string(line))
 				if parsed.Usage.CompletionTokens > 0 {
 					klog.V(4).Infof("Parsed usage: %+v", parsed.Usage)
-					// Record output tokens for rate limiting
-					if rateLimiter != nil {
-						rateLimiter.RecordOutputTokens(modelName, parsed.Usage.CompletionTokens)
-					}
+
 					// The token usage is set by gateway, so remove it before sending to downstream
 					if v, ok := c.Get(tokenUsageKey); ok && v.(bool) {
 						return true
+					}
+					if onUsage != nil {
+						onUsage(parsed)
 					}
 				}
 				// Forward to downstream
@@ -301,9 +357,9 @@ func proxyRequest(
 	} else {
 		// Non-stream: efficiently stream response while capturing for parsing
 		var buf bytes.Buffer
-		teeReader := io.TeeReader(resp.Body, &buf)
+		ttee := io.TeeReader(resp.Body, &buf)
 
-		_, err := io.Copy(c.Writer, teeReader)
+		_, err := io.Copy(c.Writer, ttee)
 		if err != nil {
 			klog.Errorf("copy response to downstream failed: %v", err)
 			return nil
@@ -313,9 +369,8 @@ func proxyRequest(
 		parsed, _ := handlers.ParseOpenAIResponseBody(buf.Bytes())
 		if parsed != nil && parsed.Usage.CompletionTokens > 0 {
 			klog.V(4).Infof("Parsed usage: %+v", parsed.Usage)
-			// Record output tokens for rate limiting
-			if rateLimiter != nil {
-				rateLimiter.RecordOutputTokens(modelName, parsed.Usage.CompletionTokens)
+			if onUsage != nil {
+				onUsage(*parsed)
 			}
 		}
 	}
@@ -423,4 +478,45 @@ func (r *Router) proxyToPDDisaggregated(
 
 	c.AbortWithStatusJSON(http.StatusInternalServerError, "all prefill/decode attempts failed")
 	return fmt.Errorf("all prefill/decode attempts failed")
+}
+
+// handleFairnessScheduling handles the fairness scheduling flow for requests
+func (r *Router) handleFairnessScheduling(c *gin.Context, modelRequest ModelRequest, requestID string, modelName string) error {
+	userIdVal, ok := c.Get(userIdKey)
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusBadRequest, "missing userId in request body")
+		return fmt.Errorf("missing userId in request body")
+	}
+	userId, ok := userIdVal.(string)
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusBadRequest, "userId is not a string")
+		return fmt.Errorf("userId is not a string")
+	}
+
+	// TODO: better cal priority based on input and output token count
+	pri, _ := r.store.GetTokenCount(userId, modelName)
+	queueReq := &datastore.Request{
+		ReqID:       requestID,
+		UserID:      userId,
+		ModelName:   modelName,
+		Priority:    pri,
+		RequestTime: time.Now(),
+		NotifyChan:  make(chan struct{}),
+	}
+
+	if err := r.store.Enqueue(queueReq); err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, fmt.Sprintf("failed to enqueue request: %v", err))
+		return fmt.Errorf("failed to enqueue request: %v", err)
+	}
+
+	select {
+	case <-queueReq.NotifyChan:
+		r.doLoadbalance(c, modelRequest)
+		return nil
+	case <-time.After(60 * time.Second):
+		// avoid blocking indefinitely
+		klog.Errorf("request %s processing timed out after 60 seconds", requestID)
+		c.AbortWithStatusJSON(http.StatusGatewayTimeout, "Request processing timed out")
+		return fmt.Errorf("request processing timed out")
+	}
 }

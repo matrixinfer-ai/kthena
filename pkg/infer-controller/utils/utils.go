@@ -497,3 +497,47 @@ func SendAdmissionResponse(w http.ResponseWriter, admissionReview *admissionv1.A
 
 	return nil
 }
+
+// getIndexKeyFromObject extract index key from objects
+func getIndexKeyFromObject(obj interface{}) (map[string]string, string, bool) {
+	switch v := obj.(type) {
+	case *corev1.Pod:
+		return v.GetLabels(), v.GetNamespace(), true
+	case *corev1.Service:
+		return v.GetLabels(), v.GetNamespace(), true
+	default:
+		return nil, "", false
+	}
+}
+
+func GroupNameIndexFunc(obj interface{}) ([]string, error) {
+	labels, namespace, ok := getIndexKeyFromObject(obj)
+	if !ok {
+		return []string{}, nil
+	}
+
+	groupName, exists := labels[workloadv1alpha1.GroupNameLabelKey]
+	if !exists {
+		return []string{}, nil
+	}
+	compositeKey := fmt.Sprintf("%s/%s", namespace, groupName)
+	return []string{compositeKey}, nil
+}
+
+func RoleIDIndexFunc(obj interface{}) ([]string, error) {
+	labels, namespace, ok := getIndexKeyFromObject(obj)
+	if !ok {
+		return []string{}, nil
+	}
+
+	groupName, groupNameExists := labels[workloadv1alpha1.GroupNameLabelKey]
+	roleName, roleNameExists := labels[workloadv1alpha1.RoleLabelKey]
+	roleID, roleIDExists := labels[workloadv1alpha1.RoleIDKey]
+
+	if !groupNameExists || !roleNameExists || !roleIDExists || groupName == "" || roleName == "" || roleID == "" {
+		return []string{}, nil
+	}
+
+	compositeKey := fmt.Sprintf("%s/%s/%s/%s", namespace, groupName, roleName, roleID)
+	return []string{compositeKey}, nil
+}

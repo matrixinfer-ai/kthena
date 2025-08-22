@@ -14,16 +14,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package auth
+package datastore
 
 import (
-	"net/http"
+	"testing"
 
-	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 )
 
-func Authorize(ctx *gin.Context) {
-	ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-		"message": "authentication failed",
-	})
+func TestStoreFetchJwksRealURL(t *testing.T) {
+	store := New()
+	config := conf.AuthenticationConfig{
+		Issuer:    "https://example.com",
+		Audiences: []string{"audience1", "audience2"},
+		JwksUri:   "https://raw.githubusercontent.com/istio/istio/release-1.27/security/tools/jwt/samples/jwks.json",
+	}
+
+	store.RotateJwks(config)
+	cachedJwks := store.GetJwks()
+	assert.NotNil(t, cachedJwks, "JWKS should be stored in cache")
 }

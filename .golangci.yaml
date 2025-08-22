@@ -13,10 +13,6 @@ run:
   # on Windows.
   skip-dirs: []
 
-  # default is true. Enables skipping of directories:
-  #   vendor$, third_party$, testdata$, examples$, Godeps$, builtin$
-  skip-dirs-use-default: true
-
   # One of 'readonly' and 'vendor'.
   #  - readonly: the go command is disallowed from the implicit automatic updating of go.mod described above.
   #              Instead, it fails when any changes to go.mod are needed. This setting is most useful to check
@@ -65,6 +61,9 @@ linters-settings:
 
 
 issues:
+  # default is true. Enables skipping of directories:
+  #   vendor$, third_party$, testdata$, examples$, Godeps$, builtin$
+  exclude-dirs-use-default: true
   # List of regexps of issue texts to exclude, empty list by default.
   # But independently from this option we use default exclude patterns,
   # it can be disabled by `exclude-use-default: false`. To list all
