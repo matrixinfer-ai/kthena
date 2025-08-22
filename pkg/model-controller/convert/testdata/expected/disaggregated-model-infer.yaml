@@ -46,7 +46,7 @@ spec:
                   - --engine-metrics-path
                   - /metrics
                   - --pod
-                  - $(POD_NAME).$(NAMESPACE).svc.cluster.local
+                  - $(POD_NAME).$(NAMESPACE)
                   - --model
                   - ds-r1-qwen-7b-pd
                 image: matrixinfer/runtime:latest
@@ -177,7 +177,7 @@ spec:
                   - --engine-metrics-path
                   - /metrics
                   - --pod
-                  - $(POD_NAME).$(NAMESPACE).svc.cluster.local
+                  - $(POD_NAME).$(NAMESPACE)
                   - --model
                   - ds-r1-qwen-7b-pd
                 envFrom:

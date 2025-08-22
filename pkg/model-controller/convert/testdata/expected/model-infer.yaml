@@ -47,7 +47,7 @@ spec:
                   - --engine-metrics-path
                   - /metrics
                   - --pod
-                  - $(POD_NAME).$(NAMESPACE).svc.cluster.local
+                  - $(POD_NAME).$(NAMESPACE)
                   - --model
                   - test-model
                 env:

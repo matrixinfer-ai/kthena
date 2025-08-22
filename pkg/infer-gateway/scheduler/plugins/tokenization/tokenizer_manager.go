@@ -31,7 +31,6 @@ import (
 type TokenizerManagerConfig struct {
 	EnableVLLMRemote bool
 	EndpointTemplate string
-	ModelServiceMap  map[string]string
 }
 
 type TokenizerManager struct {

@@ -75,7 +75,6 @@ func TestTokenizerManager(t *testing.T) {
 	config := TokenizerManagerConfig{
 		EnableVLLMRemote: true,
 		EndpointTemplate: "http://%s:8000",
-		ModelServiceMap:  make(map[string]string),
 	}
 
 	manager := NewTokenizerManager(config)
@@ -553,7 +552,6 @@ func TestTokenizerManagerTokenizePrompt(t *testing.T) {
 	config := TokenizerManagerConfig{
 		EnableVLLMRemote: true,
 		EndpointTemplate: "http://%s:8000",
-		ModelServiceMap:  make(map[string]string),
 	}
 
 	manager := NewTokenizerManager(config)

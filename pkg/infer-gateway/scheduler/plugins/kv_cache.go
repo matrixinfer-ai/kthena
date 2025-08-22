@@ -98,8 +98,8 @@ type KVCacheBlock struct {
 //
 //	Key: "matrix:kv:block:deepseek-ai/DeepSeek-R1-Distill-Qwen-7B@12345678901234567890"
 //	Fields: {
-//	  "pod-name-1.namespace.svc.cluster.local": "1703123456",
-//	  "pod-name-2.namespace.svc.cluster.local": "1703123789"
+//	  "pod-name-1.namespace": "1703123456",
+//	  "pod-name-2.namespace": "1703123789"
 //	}
 func (b KVCacheBlock) String(prefix string) string {
 	return fmt.Sprintf("%s%s@%d", prefix, b.ModelName, b.ChunkHash)
@@ -125,7 +125,6 @@ func NewKVCache(pluginArg runtime.RawExtension) *KVCache {
 	managerConfig := tokenization.TokenizerManagerConfig{
 		EnableVLLMRemote: true,
 		EndpointTemplate: "http://%s:8000",
-		ModelServiceMap:  make(map[string]string),
 	}
 	manager := tokenization.NewTokenizerManager(managerConfig)
 
