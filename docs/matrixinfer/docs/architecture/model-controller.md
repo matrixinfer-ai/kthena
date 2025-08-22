@@ -4,15 +4,19 @@
 
 ![model-controller.png](../../static/img/model-controller-architecture.svg)
 
-Model Controller is a component that help you manage `Model Infer`, `Model Server`, `Model Route`, `AutoscalingPolicy`,
-`AutoscalingPolicyBinding` based on the `Model` CR that you defined.
+The Model Controller is a component designed to help you manage `Model Infer`, `Model Server`, `Model Route`,
+`AutoscalingPolicy`,
+`AutoscalingPolicyBinding` resources based on the `Model` Custom Resource (CR) you define.
 
-However, there are some limitations when you use Model Controller:
+## Limitations
 
-- One `Model` can only create one `Model Route`.
-- Don't support configure `Model Route` rate limit.
-- Don't support configure `Model Infer` topology.
-- Don't support configure `AutoscalingPolicy` panicPolicy.
-- Don't support configure `AutoscalingPolicy` behavior.
+Please note the following limitations when using the Model Controller:
 
-You can create these resources directly in such condition.
+- Each `Model` can create only one `Model Route`.
+- Rate limiting for `Model Route` is not supported.
+- Topology configuration for `Model Infer` is not supported.
+- The `panicPolicy` configuration for `AutoscalingPolicy` is not supported.
+- Behavior configuration for `AutoscalingPolicy` is not supported.
+
+In these cases, you can manually create `Model Infer`, `Model Server`, `Model Route`, `AutoscalingPolicy`,
+`AutoscalingPolicyBinding` resources as needed.
