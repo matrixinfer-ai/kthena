@@ -94,7 +94,7 @@ spec:
                               panic mode before returning to normal.
                             type: string
                           panicThresholdPercent:
-                            default: "200"
+                            default: 200
                             description: PanicThresholdPercent is the threshold percent
                               to enter panic mode.
                             format: int32
@@ -102,7 +102,7 @@ spec:
                             minimum: 110
                             type: integer
                           percent:
-                            default: "1000"
+                            default: 1000
                             description: Percent is the maximum percentage of instances
                               to scale up.
                             format: int32
