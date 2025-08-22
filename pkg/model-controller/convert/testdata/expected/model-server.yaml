@@ -8,7 +8,7 @@ metadata:
     registry.matrixinfer.ai/managed-by: registry.matrixinfer.ai
     registry.matrixinfer.ai/model-name: test-model
     registry.matrixinfer.ai/model-uid: randomUID
-    registry.matrixinfer.ai/revision: 6bb65f6764
+    registry.matrixinfer.ai/revision: 57db76469c
   ownerReferences:
     - apiVersion: registry.matrixinfer.ai/v1alpha1
       blockOwnerDeletion: true

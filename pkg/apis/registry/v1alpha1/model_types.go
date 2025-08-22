@@ -45,7 +45,7 @@ type ModelSpec struct {
 	AutoscalingPolicy *AutoscalingPolicySpec `json:"autoscalingPolicy,omitempty"`
 	// CostExpansionRatePercent is the percentage rate at which the cost expands.
 	// +kubebuilder:validation:Minimum=0
-	// +kubebuilder:validation:Maximum=100
+	// +kubebuilder:validation:Maximum=1000
 	// +optional
 	CostExpansionRatePercent *int32 `json:"costExpansionRatePercent,omitempty"`
 	// ModelMatch defines the predicate used to match LLM inference requests to a given

@@ -1,16 +1,4 @@
 # Model Controller
-
-## Introduction
-
-Model Controller is a component that manages the lifecycle of `Model` CR(Custom Resource) in kubernetes. It is
-responsible for creating,
-updating, and deleting `Model`, `Model Infer`, `Model Server`, `Model Route`, `AutoscalingPolicy`,
-`AutoscalingPolicyBinding` based on the `Model` CR that user defined. The namespace of these resources is same with
-`Model`.
-
-There may be multiple `backends` in `Model` CR, each `backend` stands for a model that can be used for inference. Each
-`backend` has its own `Model Infer`. And `backend` has several `workers` that are used to run the inference.
-
 ### The rules of generated resource name
 
 - The name of the `Model Infer` is in the format of `<model-name>-<backend-name>`.
@@ -29,19 +17,6 @@ name of the generated `Model Server` will be `test-model-backend1` and `test-mod
 name of the generated `Model Route` will be `test-model`. If `AutoscalingPolicy` is defined in the model level, the name
 will be `test-model`, otherwise the name will be `test-model-backend1` and `test-model-backend2`.
 
-### Descriptions of Model CR
-You can find descriptions of `Model` CR [here](https://github.com/matrixinfer-ai/matrixinfer/blob/main/docs/matrixinfer/docs/crd/registry.matrixinfer.ai.md)
-
-### Conditions of Model CR
-
-`Model` CR has several conditions that indicate the status of the model. These conditions are:
-
-| ConditionType | Description                                                          |
-|---------------|----------------------------------------------------------------------|
-| `Initialized` | The Model CR has been validated and is waiting to be processed.      |
-| `Active`      | The Model is ready for inference.                                    |
-| `Failed`      | The Model failed to become active. See the message for more details. |
-
 ### How Model Controller works
 
 Model Controller watches for changes to `Model` CR in the Kubernetes cluster. When a `Model` CR is created or updated,
@@ -59,6 +34,16 @@ the controller performs the following steps:
 
 The `OwnerReference` is set to the `Model` CR for all the created resources, so that when the `Model` CR is deleted, all
 the related resources will be deleted as well.
+
+## Model Lifecycle
+
+`Model` CR has several conditions that indicate the status of the model. These conditions are:
+
+| ConditionType | Description                                                          |
+|---------------|----------------------------------------------------------------------|
+| `Initialized` | The Model CR has been validated and is waiting to be processed.      |
+| `Active`      | The Model is ready for inference.                                    |
+| `Failed`      | The Model failed to become active. See the message for more details. |
 
 ## Examples of Model CR
 
