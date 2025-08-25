@@ -61,6 +61,7 @@ const sidebars: SidebarsConfig = {
       label: 'Developer Guide',
       items: [
         'developer-guide/release',
+        'developer-guide/modelinfer-rolling-update',
         'developer-guide/ci',
       ],
     },
