@@ -8,46 +8,67 @@
 
 ```plantuml
 @startuml
-!define RECTANGLE class
 
-actor "DevOps Engineer" as user
-actor "ML Engineer" as mluser
-actor "Kubernetes Cluster" as k8s
+actor "User" as user
 
-rectangle "minfer CLI" {
-  usecase "List Templates" as UC1
-  usecase "Describe Template" as UC2
-  usecase "Create Manifest" as UC3
-  usecase "List Resources" as UC4
-  usecase "Dry Run Preview" as UC5
+package "minfer CLI" {
+  
+  package "Action Layer" {
+    usecase "List" as ListAction
+    usecase "Create" as CreateAction
+  }
+  
+  package "Target Layer" {
+    usecase "Templates" as TemplatesTarget
+    rectangle "Matrixinfer Resources" as Resources {
+       usecase "Models" as ModelsTarget
+       usecase "ModelInfers" as ModelInfersTarget
+       usecase "Policies" as PoliciesTarget
+    }
+  }
+  
+  package "Flag Layer" {
+    usecase "--describe" as DescribeFlag
+    usecase "--dry-run" as DryRunFlag
+    usecase "--namespace" as NamespaceFlag
+    usecase "--all-namespaces" as AllNamespacesFlag
+  }
 }
 
-user --> UC1 : minfer list templates
-user --> UC2 : minfer list templates --describe
-user --> UC3 : minfer create manifest
-user --> UC4 : minfer list modelinfers/models
-user --> UC5 : minfer create manifest --dry-run
+' User interactions with action layer
+user --> ListAction : minfer list
+user --> CreateAction : minfer create
 
-mluser --> UC1
-mluser --> UC2
-mluser --> UC3
-mluser --> UC5
+' Action layer connects to target layer
+ListAction --> TemplatesTarget : templates
+ListAction --> ModelsTarget : models
+ListAction --> ModelInfersTarget : modelinfers
+ListAction --> PoliciesTarget : autoscaling-policies
 
-UC3 --> k8s : Apply resources
-UC4 --> k8s : Query resources
+CreateAction --> TemplatesTarget : manifest
 
-note right of UC1
+' Targets can use flags
+TemplatesTarget --> DescribeFlag
+TemplatesTarget --> DryRunFlag
+ModelsTarget --> NamespaceFlag
+ModelsTarget --> AllNamespacesFlag
+ModelInfersTarget --> AllNamespacesFlag
+ModelInfersTarget --> NamespaceFlag
+PoliciesTarget --> AllNamespacesFlag
+PoliciesTarget --> NamespaceFlag
+
+note left of TemplatesTarget
   Browse available manifest templates
   with descriptions and variables
 end note
 
-note right of UC3
+note top of CreateAction
   Create MatrixInfer resources from
   templates with custom values
 end note
 
-note right of UC4
-  List ModelInfer, Model, AutoscalingPolicy
+note right of Resources
+  List Model, ModelInfer, AutoscalingPolicy
   and AutoscalingPolicyBinding resources
 end note
 
@@ -84,10 +105,6 @@ CLI -> U: All resources applied successfully!
 alt Dry Run Mode
   U -> CLI: minfer create manifest --dry-run
   CLI -> U: Display YAML (no application)
-end
-
-alt Template not found
-  CLI -> U: Error: template 'name' not found
 end
 
 @enduml
