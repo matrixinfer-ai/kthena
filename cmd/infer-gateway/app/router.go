@@ -19,6 +19,7 @@ package app
 import (
 	"context"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -28,10 +29,13 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/router"
 )
 
-const gracefulShutdownTimeout = 15 * time.Second
+const (
+	gracefulShutdownTimeout = 15 * time.Second
+	gatewayConfigFile       = "/etc/config/gatewayConfiguration.yaml"
+)
 
 func NewRouter(store datastore.Store) *router.Router {
-	return router.NewRouter(store)
+	return router.NewRouter(store, gatewayConfigFile)
 }
 
 // Starts router
@@ -45,6 +49,7 @@ func (s *Server) startRouter(ctx context.Context, router *router.Router) {
 
 	// engine.Use(auth.Authenticate)
 	// engine.Use(auth.Authorize)
+	engine.Use(AuthMiddleware(router))
 
 	engine.GET("/healthz", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
@@ -96,4 +101,22 @@ func (s *Server) startRouter(ctx context.Context, router *router.Router) {
 		klog.Errorf("Server shutdown failed: %v", err)
 	}
 	klog.Info("HTTP server exited")
+}
+
+func AuthMiddleware(gwRouter *router.Router) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Auth for "/v1/" only
+		if !strings.HasPrefix(c.Request.URL.Path, "/v1/") {
+			c.Next()
+			return
+		}
+
+		// Calling Middleware
+		gwRouter.Auth()(c)
+		if c.IsAborted() {
+			return
+		}
+
+		c.Next()
+	}
 }

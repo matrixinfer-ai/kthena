@@ -77,7 +77,10 @@ func main() {
 		klog.Fatalf("failed to create ModelInfer client: %v", err)
 	}
 	// create ModelInfer controller
-	mic := controller.NewModelInferController(kubeClient, modelInferClient)
+	mic, err := controller.NewModelInferController(kubeClient, modelInferClient)
+	if err != nil {
+		klog.Fatalf("failed to create ModelInfer controller: %v", err)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

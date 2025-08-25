@@ -209,7 +209,6 @@ func (c *ModelServerController) syncModelServerHandler(key string) error {
 	}
 
 	_ = c.store.AddOrUpdateModelServer(ms, pods)
-
 	return nil
 }
 

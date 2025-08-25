@@ -327,7 +327,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `name` _string_ | Name is the name of the backend. Can't duplicate with other ModelBackend name in the same Model CR. |  | Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?$` <br /> |
+| `name` _string_ | Name is the name of the backend. Can't duplicate with other ModelBackend name in the same Model CR.<br />Note: update name will cause the old modelInfer deletion and a new modelInfer creation. |  | Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?$` <br /> |
 | `type` _[ModelBackendType](#modelbackendtype)_ | Type is the type of the backend. |  | Enum: [vLLM vLLMDisaggregated SGLang MindIE MindIEDisaggregated] <br /> |
 | `modelURI` _string_ | ModelURI is the URI where the model is stored. Support hf://, s3://, pvc://. |  | Pattern: `^(hf://\|s3://\|pvc://).+` <br /> |
 | `cacheURI` _string_ | CacheURI is the URI where the model cache is stored. Support hostpath://, pvc://. |  | Pattern: `^(hostpath://\|pvc://).+` <br /> |
@@ -418,7 +418,7 @@ _Appears in:_
 | `owner` _string_ | Owner is the owner of the model. |  |  |
 | `backends` _[ModelBackend](#modelbackend) array_ | Backends is the list of model backends associated with this model. A Model CR at lease has one ModelBackend.<br />ModelBackend is the minimum unit of inference instance. It can be vLLM, SGLang, MindIE or other types. |  | MinItems: 1 <br /> |
 | `autoscalingPolicy` _[AutoscalingPolicySpec](#autoscalingpolicyspec)_ | AutoscalingPolicy references the autoscaling policy to be used for this model. |  |  |
-| `costExpansionRatePercent` _integer_ | CostExpansionRatePercent is the percentage rate at which the cost expands. |  | Maximum: 100 <br />Minimum: 0 <br /> |
+| `costExpansionRatePercent` _integer_ | CostExpansionRatePercent is the percentage rate at which the cost expands. |  | Maximum: 1000 <br />Minimum: 0 <br /> |
 | `modelMatch` _[ModelMatch](#modelmatch)_ | ModelMatch defines the predicate used to match LLM inference requests to a given<br />TargetModels. Multiple match conditions are ANDed together, i.e. the match will<br />evaluate to true only if all conditions are satisfied. |  |  |
 
 

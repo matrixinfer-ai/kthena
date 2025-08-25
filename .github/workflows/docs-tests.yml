@@ -1,0 +1,35 @@
+name: Documentation Test
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'docs/matrixinfer/**'
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/matrixinfer/**'
+
+jobs:
+  docs_test:
+    name: Docusaurus tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.5.0'
+          cache: 'npm'
+          cache-dependency-path: 'docs/matrixinfer/package-lock.json'
+      - name: Install dependencies
+        working-directory: docs/matrixinfer
+        run: npm ci
+      - name: Type check
+        working-directory: docs/matrixinfer
+        run: npm run typecheck
+      - name: Build documentation
+        working-directory: docs/matrixinfer
+        run: npm run build

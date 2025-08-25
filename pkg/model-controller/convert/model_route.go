@@ -58,7 +58,6 @@ func BuildModelRoute(model *registry.Model) *networking.ModelRoute {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      model.Name,
 			Namespace: model.Namespace,
-			Labels:    utils.GetModelControllerLabels(model, "", icUtils.Revision(model.Spec)),
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion: registry.GroupVersion.String(),
@@ -74,5 +73,6 @@ func BuildModelRoute(model *registry.Model) *networking.ModelRoute {
 			Rules:        rules,
 		},
 	}
+	route.Labels = utils.GetModelControllerLabels(model, "", icUtils.Revision(route.Spec))
 	return route
 }

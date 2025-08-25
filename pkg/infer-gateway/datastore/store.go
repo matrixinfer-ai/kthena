@@ -35,6 +35,7 @@ import (
 
 	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/backend"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
@@ -115,6 +116,24 @@ type Store interface {
 
 	// GetPodInfo returns the pod info for a given pod name (for testing)
 	GetPodInfo(podName types.NamespacedName) *PodInfo
+	// GetTokenCount returns the token count for a user and model
+	GetTokenCount(userId, modelName string) (float64, error)
+	// UpdateTokenCount updates token usage for a user and model
+	UpdateTokenCount(userId, modelName string, inputTokens, outputTokens float64) error
+	Enqueue(*Request) error
+
+	// GetRequestWaitingQueueStats returns per-model queue lengths
+	GetRequestWaitingQueueStats() []QueueStat
+
+	// jwks cache methods
+	GetJwks() Jwks
+	RotateJwks(config conf.AuthenticationConfig)
+}
+
+// QueueStat holds per-model queue metrics to aid scheduling decisions
+type QueueStat struct {
+	Model  string
+	Length int
 }
 
 type PodInfo struct {
@@ -150,6 +169,7 @@ type modelRouteInfo struct {
 }
 
 type store struct {
+	jwksCache   *Jwks
 	modelServer sync.Map // map[types.NamespacedName]*modelServer
 	pods        sync.Map // map[types.NamespacedName]*PodInfo
 
@@ -164,37 +184,95 @@ type store struct {
 
 	// initialSynced is used to indicate whether all the resources has been processed and storred into this store.
 	initialSynced *atomic.Bool
+	// model -> RequestPriorityQueue
+	requestWaitingQueue sync.Map
+	tokenTracker        TokenTracker
 }
 
 func New() Store {
 	return &store{
-		modelServer:   sync.Map{},
-		pods:          sync.Map{},
-		routeInfo:     make(map[string]*modelRouteInfo),
-		routes:        make(map[string]*aiv1alpha1.ModelRoute),
-		loraRoutes:    make(map[string]*aiv1alpha1.ModelRoute),
-		callbacks:     make(map[string][]CallbackFunc),
-		initialSynced: &atomic.Bool{},
+		jwksCache:           &Jwks{},
+		modelServer:         sync.Map{},
+		pods:                sync.Map{},
+		routeInfo:           make(map[string]*modelRouteInfo),
+		routes:              make(map[string]*aiv1alpha1.ModelRoute),
+		loraRoutes:          make(map[string]*aiv1alpha1.ModelRoute),
+		callbacks:           make(map[string][]CallbackFunc),
+		initialSynced:       &atomic.Bool{},
+		requestWaitingQueue: sync.Map{},
+		// Make options explicit; tweak as needed or wire to config
+		tokenTracker: NewInMemorySlidingWindowTokenTracker(),
 	}
 }
 
 func (s *store) Run(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-			s.pods.Range(func(key, value any) bool {
-				if p, ok := value.(*PodInfo); ok {
-					s.updatePodMetrics(p)
-					s.updatePodModels(p)
-				}
-				return true
-			})
-			s.initialSynced.Store(true)
-			time.Sleep(uppdateInterval)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				s.pods.Range(func(key, value any) bool {
+					if p, ok := value.(*PodInfo); ok {
+						s.updatePodMetrics(p)
+						s.updatePodModels(p)
+					}
+					return true
+				})
+				s.initialSynced.Store(true)
+				time.Sleep(uppdateInterval)
+			}
 		}
+	}()
+	go s.jwksRefresher(ctx)
+}
+func (s *store) GetTokenCount(userID, model string) (float64, error) {
+	return s.tokenTracker.GetTokenCount(userID, model)
+}
+
+func (s *store) UpdateTokenCount(userID, model string, inputTokens, outputTokens float64) error {
+	return s.tokenTracker.UpdateTokenCount(userID, model, inputTokens, outputTokens)
+}
+
+type ModelRequest map[string]interface{}
+
+func (s *store) Enqueue(req *Request) error {
+	modelName := req.ModelName
+	var queue *RequestPriorityQueue
+	val, ok := s.requestWaitingQueue.Load(modelName)
+	if ok {
+		queue, _ = val.(*RequestPriorityQueue)
+	} else {
+		newQueue := NewRequestPriorityQueue()
+		val, ok = s.requestWaitingQueue.LoadOrStore(modelName, newQueue)
+		if !ok {
+			go newQueue.Run(context.TODO(), 100)
+		}
+		queue, _ = val.(*RequestPriorityQueue)
 	}
+	err := queue.PushRequest(req)
+	if err != nil {
+		klog.Errorf("failed to push request to waiting queue: %v", err)
+		return err
+	}
+	return nil
+}
+
+func (s *store) GetRequestWaitingQueueStats() []QueueStat {
+	stats := make([]QueueStat, 0)
+	s.requestWaitingQueue.Range(func(modelName, queueVal interface{}) bool {
+		name, _ := modelName.(string)
+		queue, _ := queueVal.(*RequestPriorityQueue)
+		length := 0
+		if queue != nil {
+			length = queue.Len()
+		}
+		if length > 0 {
+			stats = append(stats, QueueStat{Model: name, Length: length})
+		}
+		return true
+	})
+	return stats
 }
 
 func (s *store) HasSynced() bool {
@@ -217,6 +295,7 @@ func (s *store) AddOrUpdateModelServer(ms *aiv1alpha1.ModelServer, pods sets.Set
 		modelServerObj = value.(*modelServer)
 		modelServerObj.modelServer = ms
 	}
+
 	if len(pods) != 0 {
 		// donot operate s.pods here, which are done within pod handler
 		modelServerObj.pods = pods
@@ -609,7 +688,7 @@ func (s *store) updatePodModels(podInfo *PodInfo) {
 
 	models, err := backend.GetPodModels(podInfo.engine, podInfo.Pod)
 	if err != nil {
-		klog.Errorf("failed to get models of pod %s/%s", podInfo.Pod.GetNamespace(), podInfo.Pod.GetName())
+		klog.V(4).Infof("failed to get models of pod %s/%s", podInfo.Pod.GetNamespace(), podInfo.Pod.GetName())
 	}
 
 	podInfo.UpdateModels(models)
