@@ -32,17 +32,15 @@ spec:
                   - ${MODEL_INFER_RUNTIME_URL}
                   - --engine-metrics-path
                   - ${MODEL_INFER_RUNTIME_METRICS_PATH}
+                  - --pod
+                  - ${MODEL_INFER_RUNTIME_POD}
+                  - --model
+                  - ${MODEL_NAME}
               - name: vllm
                 image: ${ENGINE_PREFILL_IMAGE}
                 ports:
                   - containerPort: 8000
-                env:
-                  - name: HF_HUB_OFFLINE
-                    value: "1"
-                  - name: HCCL_IF_IP
-                    valueFrom:
-                      fieldRef:
-                        fieldPath: status.podIP
+                env: ${ENGINE_PREFILL_ENV}
                 command: ${ENGINE_PREFILL_COMMAND}
                 imagePullPolicy: IfNotPresent
                 resources: ${ENGINE_PREFILL_RESOURCES}
@@ -95,19 +93,15 @@ spec:
                   - ${MODEL_INFER_RUNTIME_URL}
                   - --engine-metrics-path
                   - ${MODEL_INFER_RUNTIME_METRICS_PATH}
+                  - --pod
+                  - ${MODEL_INFER_RUNTIME_POD}
+                  - --model
+                  - ${MODEL_NAME}
               - name: vllm
                 image: ${ENGINE_DECODE_IMAGE}
                 ports:
                   - containerPort: 8000
-                env:
-                  - name: HF_HUB_OFFLINE
-                    value: "1"
-                  - name: GLOO_SOCKET_IFNAME
-                    value: eth0
-                  - name: TP_SOCKET_IFNAME
-                    value: eth0
-                  - name: HCCL_SOCKET_IFNAME
-                    value: eth0
+                env: ${ENGINE_DECODE_ENV}
                 command: ${ENGINE_DECODE_COMMAND}
                 imagePullPolicy: IfNotPresent
                 resources: ${ENGINE_DECODE_RESOURCES}

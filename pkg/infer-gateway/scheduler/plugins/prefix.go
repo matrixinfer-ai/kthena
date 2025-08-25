@@ -82,6 +82,7 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/cache"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
 const PrefixCachePluginName = "prefix-cache"
@@ -132,7 +133,7 @@ func (p *PrefixCache) Name() string {
 
 func (p *PrefixCache) Score(ctx *framework.Context, pods []*datastore.PodInfo) map[*datastore.PodInfo]int {
 	// Hash the prompt
-	hashes := p.hashPrompt(ctx.Model, ctx.Prompt)
+	hashes := p.hashPrompt(ctx.Model, utils.GetPromptString(ctx.Prompt))
 	if len(hashes) == 0 {
 		return nil
 	}

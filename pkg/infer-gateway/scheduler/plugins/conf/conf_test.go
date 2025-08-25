@@ -75,11 +75,11 @@ func TestHandleRandomPluginConflicts(t *testing.T) {
 			scorePluginMap: map[string]int{
 				"random":        10,
 				"least-latency": 20,
-				"kv-cache":      30,
+				"gpu-usage":     30,
 			},
 			expectedPlugins: map[string]int{
 				"least-latency": 20,
-				"kv-cache":      30,
+				"gpu-usage":     30,
 			},
 			expectConflict: true,
 		},
@@ -97,11 +97,11 @@ func TestHandleRandomPluginConflicts(t *testing.T) {
 			name: "no random plugin - should keep all",
 			scorePluginMap: map[string]int{
 				"least-latency": 20,
-				"kv-cache":      30,
+				"gpu-usage":     30,
 			},
 			expectedPlugins: map[string]int{
 				"least-latency": 20,
-				"kv-cache":      30,
+				"gpu-usage":     30,
 			},
 			expectConflict: false,
 		},

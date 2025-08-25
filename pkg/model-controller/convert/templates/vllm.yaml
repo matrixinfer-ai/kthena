@@ -51,6 +51,10 @@ spec:
                   - ${MODEL_INFER_RUNTIME_URL}
                   - --engine-metrics-path
                   - ${MODEL_INFER_RUNTIME_METRICS_PATH}
+                  - --pod
+                  - ${MODEL_INFER_RUNTIME_POD}
+                  - --model
+                  - ${MODEL_NAME}
                 readinessProbe:
                   httpGet:
                     path: /health

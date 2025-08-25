@@ -41,6 +41,7 @@ import (
 	"k8s.io/klog/v2"
 
 	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/common"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/connectors"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler"
@@ -106,7 +107,7 @@ func TestProxyModelEndpoint(t *testing.T) {
 			name: "BestPods are set, aggregated mode success",
 			ctx: &framework.Context{
 				Model:    "test",
-				Prompt:   "test",
+				Prompt:   common.ChatMessage{Text: "test"},
 				BestPods: []*datastore.PodInfo{buildPodInfo("decode1", "1.1.1.1")},
 			},
 			proxyPatch: func() *gomonkey.Patches {
@@ -127,7 +128,7 @@ func TestProxyModelEndpoint(t *testing.T) {
 			name: "BestPods proxy returns error",
 			ctx: &framework.Context{
 				Model:    "test",
-				Prompt:   "test",
+				Prompt:   common.ChatMessage{Text: "test"},
 				BestPods: []*datastore.PodInfo{buildPodInfo("decode1", "1.1.1.1")},
 			},
 			proxyPatch: func() *gomonkey.Patches {

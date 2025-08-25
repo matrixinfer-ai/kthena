@@ -12,24 +12,43 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
 import argparse
-import os
 import json
+import logging
+import os
+from contextlib import asynccontextmanager
+from typing import Optional
+
+import asyncio
+import httpx
+import uvicorn
+from fastapi import BackgroundTasks
 from fastapi import FastAPI, APIRouter, Request, HTTPException
 from fastapi.responses import Response
-import httpx
-from starlette.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
-from contextlib import asynccontextmanager
+from starlette.responses import JSONResponse
 
-import uvicorn
-
-from matrixinfer.runtime.collect import process_metrics
-from matrixinfer.runtime.standard import MetricStandard
-from fastapi import BackgroundTasks
 from matrixinfer.downloader.app import load_config
 from matrixinfer.downloader.downloader import download_model
+from matrixinfer.runtime.collect import process_metrics
+from matrixinfer.runtime.events import get_event_publisher, EventType
+from matrixinfer.runtime.kv_cache_manager import get_vllm_kv_cache_handler
+from matrixinfer.runtime.redis_client import get_redis_client
+from matrixinfer.runtime.standard import MetricStandard
+from matrixinfer.runtime.zmq_subscriber import get_vllm_zmq_subscriber
+
+
+class AppState:
+    def __init__(self):
+        self.client: Optional[httpx.AsyncClient] = None
+        self.redis_client = None
+        self.event_publisher = None
+        self.vllm_zmq_subscriber = None
+        self.metric_standard: Optional[MetricStandard] = None
+        self.engine_metrics_url: Optional[str] = None
+        self.pod_identifier: Optional[str] = None
+        self.model_name: Optional[str] = None
+
 
 TIMEOUT = float(os.getenv("REQUEST_TIMEOUT", "30.0"))
 
@@ -39,21 +58,106 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def get_app_state(app: FastAPI) -> AppState:
+    if not hasattr(app.state, 'app_state'):  # type: ignore
+        setattr(app.state, 'app_state', AppState())  # type: ignore
+    return getattr(app.state, 'app_state')  # type: ignore
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.client = httpx.AsyncClient(
+    state = get_app_state(app)
+    state.client = httpx.AsyncClient(
         limits=httpx.Limits(
             max_keepalive_connections=200,
             keepalive_expiry=60,
+            max_connections=300,
         ),
         timeout=httpx.Timeout(TIMEOUT),
+        follow_redirects=True,
     )
-    logger.info("HTTP client initialized")
+
+    try:
+        redis_client = get_redis_client()
+        await redis_client.connect()
+        state.redis_client = redis_client
+        logger.info("Redis client initialized successfully")
+    except Exception as e:
+        logger.warning(f"Failed to initialize Redis client: {e}")
+        state.redis_client = None
+
+    try:
+        event_publisher = get_event_publisher()
+        state.event_publisher = event_publisher
+
+        pod_identifier = state.pod_identifier
+        model_name = state.model_name
+
+        if pod_identifier and model_name:
+            vllm_kv_cache_handler = get_vllm_kv_cache_handler()
+
+            event_types = [
+                EventType.VLLM_BLOCK_STORED,
+                EventType.VLLM_BLOCK_REMOVED,
+                EventType.VLLM_ALL_BLOCKS_CLEARED
+            ]
+
+            for event_type in event_types:
+                event_publisher.subscribe(event_type, vllm_kv_cache_handler)
+
+            logger.info("Event handlers registered successfully")
+        else:
+            logger.info("Pod identifier or model name not provided, skipping event handler registration")
+
+        await event_publisher.start()
+        logger.info("Event publisher started successfully")
+
+    except Exception as e:
+        logger.error(f"Failed to initialize event system: {e}")
+        state.event_publisher = None
+
+    state.vllm_zmq_subscriber = None
+
+    if (state.metric_standard and
+            state.metric_standard.engine == 'vllm' and
+            state.pod_identifier and
+            state.model_name):
+
+        try:
+            vllm_zmq_subscriber = get_vllm_zmq_subscriber(
+                state.pod_identifier,
+                state.model_name
+            )
+            asyncio.create_task(vllm_zmq_subscriber.start())
+            state.vllm_zmq_subscriber = vllm_zmq_subscriber
+            logger.info("vLLM ZMQ subscriber initialized successfully")
+        except Exception as e:
+            logger.warning(f"Failed to initialize vLLM ZMQ subscriber: {e}")
 
     yield
 
-    await app.state.client.aclose()
-    logger.info("HTTP client closed")
+    cleanup_tasks = []
+
+    if state.vllm_zmq_subscriber:
+        cleanup_tasks.append(('vLLM ZMQ subscriber', state.vllm_zmq_subscriber.stop()))
+
+    if state.event_publisher:
+        cleanup_tasks.append(('Event system', state.event_publisher.stop()))
+
+    if state.redis_client:
+        cleanup_tasks.append(('Redis client', state.redis_client.disconnect()))
+
+    if state.client:
+        cleanup_tasks.append(('HTTP client', state.client.aclose()))
+
+    for name, task in cleanup_tasks:
+        try:
+            await asyncio.wait_for(task, timeout=5.0)
+            logger.info(f"{name} stopped")
+        except asyncio.TimeoutError:
+            logger.warning(f"{name} cleanup timed out")
+        except Exception as e:
+            logger.error(f"Error stopping {name}: {e}")
 
 
 @router.get("/health", tags=["Health"])
@@ -99,15 +203,20 @@ async def get_metrics(request: Request) -> Response:
 def create_application(args: argparse.Namespace) -> FastAPI:
     app = FastAPI(lifespan=lifespan)
 
-    app.state.metric_standard = MetricStandard(args.engine)
-    app.state.engine_base_url = args.engine_base_url
-    app.state.engine_metrics_url = args.engine_base_url + args.engine_metrics_path
+    state = get_app_state(app)
+    state.metric_standard = MetricStandard(args.engine)
+    state.engine_base_url = args.engine_base_url
+    state.engine_metrics_url = args.engine_base_url + args.engine_metrics_path
+    state.pod_identifier = args.pod
+    state.model_name = args.model
 
     app.include_router(router)
 
     logger.info(f"Application configured for engine: {args.engine}")
     logger.info(f"Engine base URL: {args.engine_base_url}")
     logger.info(f"Engine metrics URL: {args.engine_base_url + args.engine_metrics_path}")
+    logger.info(f"Pod: {args.pod}")
+    logger.info(f"Model: {args.model}")
 
     return app
 
@@ -151,6 +260,20 @@ def parse_arguments() -> argparse.Namespace:
         type=str,
         default="/metrics",
         help="Metrics endpoint path"
+    )
+
+    parser.add_argument(
+        "-I", "--pod",
+        type=str,
+        required=True,
+        help="Pod identifier"
+    )
+
+    parser.add_argument(
+        "-N", "--model",
+        type=str,
+        required=True,
+        help="Model name"
     )
 
     return parser.parse_args()
@@ -198,7 +321,7 @@ async def load_lora_adapter(request: Request, background_tasks: BackgroundTasks)
         lora_path = body.get("output_dir")
         source = body.get("source")
         output_dir = body.get("output_dir")
-        config = load_config(body.get("config",{}))
+        config = load_config(body.get("config", {}))
         max_workers = body.get("max_workers", 8)
         async_download = body.get("async_download", False)
 
@@ -244,10 +367,10 @@ async def load_lora_adapter(request: Request, background_tasks: BackgroundTasks)
         else:
             # Run synchronously but in a thread pool to avoid blocking the event loop
             logger.info(f"Downloading LoRA adapter from {source} to {output_dir}")
-            
+
             # Run the blocking download_model function in FastAPI's optimized thread pool
             await run_in_threadpool(download_model, source, output_dir, config, max_workers)
-            
+
             logger.info(f"LoRA adapter download completed: {source} -> {output_dir}")
 
             # Load the adapter
@@ -261,12 +384,12 @@ async def load_lora_adapter(request: Request, background_tasks: BackgroundTasks)
                 error_detail = f"HTTP {response.status_code}: {response.text}"
                 logger.error(f"Engine request failed: {error_detail}")
                 raise HTTPException(status_code=response.status_code, detail=error_detail)
-            
+
             try:
                 response_content = response.json()
             except (json.JSONDecodeError, ValueError) as e:
                 response_content = {"message": response.text}
-            
+
             return JSONResponse(content=response_content, status_code=response.status_code)
 
     except HTTPException:
@@ -274,6 +397,7 @@ async def load_lora_adapter(request: Request, background_tasks: BackgroundTasks)
     except Exception as e:
         logger.error(f"Error loading LoRA adapter: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.post("/v1/unload_lora_adapter", tags=["LoRA"])
 async def unload_lora_adapter(request: Request) -> JSONResponse:
@@ -285,18 +409,19 @@ async def unload_lora_adapter(request: Request) -> JSONResponse:
             error_detail = f"HTTP {response.status_code}: {response.text}"
             logger.error(f"Engine request failed: {error_detail}")
             raise HTTPException(status_code=response.status_code, detail=error_detail)
-        
+
         try:
             response_content = response.json()
         except (json.JSONDecodeError, ValueError) as e:
             response_content = {"message": response.text}
-        
+
         return JSONResponse(content=response_content, status_code=response.status_code)
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error unloading LoRA adapter: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.post("/v1/download_model", tags=["Download"])
 async def download_model_endpoint(request: Request, background_tasks: BackgroundTasks) -> JSONResponse:
@@ -316,7 +441,7 @@ async def download_model_endpoint(request: Request, background_tasks: Background
         # Validate required parameters
         source = body.get("source")
         output_dir = body.get("output_dir")
-        config = load_config(body.get("config",{}))
+        config = load_config(body.get("config", {}))
         max_workers = body.get("max_workers", 8)
         async_download = body.get("async_download", False)
 
@@ -351,7 +476,7 @@ async def download_model_endpoint(request: Request, background_tasks: Background
             # Run download synchronously but in FastAPI's optimized thread pool to avoid blocking the event loop
             await run_in_threadpool(download_model, source, output_dir, config, max_workers)
             logger.info(f"Model download completed successfully: {source} -> {output_dir}")
-            
+
             return JSONResponse(
                 content={
                     "status": "completed",
@@ -367,6 +492,7 @@ async def download_model_endpoint(request: Request, background_tasks: Background
     except Exception as e:
         logger.error(f"Error in download endpoint: {e}")
         raise HTTPException(status_code=500, detail=f"Download failed: {str(e)}")
+
 
 if __name__ == "__main__":
     main()
