@@ -2,6 +2,162 @@
 
 `minfer` is a command-line interface tool for managing MatrixInfer AI inference workloads in Kubernetes clusters.
 
+## Architecture Diagrams
+
+### Use Case Diagram
+
+```plantuml
+@startuml
+!define RECTANGLE class
+
+actor "DevOps Engineer" as user
+actor "ML Engineer" as mluser
+actor "Kubernetes Cluster" as k8s
+
+rectangle "minfer CLI" {
+  usecase "List Templates" as UC1
+  usecase "Describe Template" as UC2
+  usecase "Create Manifest" as UC3
+  usecase "List Resources" as UC4
+  usecase "Dry Run Preview" as UC5
+}
+
+user --> UC1 : minfer list templates
+user --> UC2 : minfer list templates --describe
+user --> UC3 : minfer create manifest
+user --> UC4 : minfer list modelinfers/models
+user --> UC5 : minfer create manifest --dry-run
+
+mluser --> UC1
+mluser --> UC2
+mluser --> UC3
+mluser --> UC5
+
+UC3 --> k8s : Apply resources
+UC4 --> k8s : Query resources
+
+note right of UC1
+  Browse available manifest templates
+  with descriptions and variables
+end note
+
+note right of UC3
+  Create MatrixInfer resources from
+  templates with custom values
+end note
+
+note right of UC4
+  List ModelInfer, Model, AutoscalingPolicy
+  and AutoscalingPolicyBinding resources
+end note
+
+@enduml
+```
+
+### Sequence Diagram - Create Manifest Flow
+
+```plantuml
+@startuml
+participant "User" as U
+participant "minfer CLI" as CLI
+participant "Template Engine" as TE
+participant "Kubernetes API" as K8S
+
+U -> CLI: minfer create manifest --template basic-inference --set name=my-model
+CLI -> CLI: Load template values from flags/file
+CLI -> TE: Get embedded template content
+TE -> CLI: Return template YAML
+CLI -> TE: Render template with values
+TE -> CLI: Return rendered YAML
+CLI -> U: Display generated YAML
+U -> CLI: Confirm application (y/N)
+CLI -> K8S: Apply ModelInfer resource
+K8S -> CLI: Resource created
+CLI -> K8S: Apply Model resource  
+K8S -> CLI: Resource created
+CLI -> K8S: Apply AutoscalingPolicy resource
+K8S -> CLI: Resource created
+CLI -> K8S: Apply AutoscalingPolicyBinding resource
+K8S -> CLI: Resource created
+CLI -> U: All resources applied successfully!
+
+alt Dry Run Mode
+  U -> CLI: minfer create manifest --dry-run
+  CLI -> U: Display YAML (no application)
+end
+
+alt Template not found
+  CLI -> U: Error: template 'name' not found
+end
+
+@enduml
+```
+
+### Component Diagram
+
+```plantuml
+@startuml
+!define COMPONENT component
+
+package "minfer CLI" {
+  COMPONENT [Root Command] as root
+  COMPONENT [Create Command] as create
+  COMPONENT [List Command] as list
+  COMPONENT [Template Engine] as templates
+  
+  package "Embedded Templates" {
+    COMPONENT [basic-inference.yaml] as basic
+    COMPONENT [simple-model.yaml] as simple
+  }
+  
+  package "Resource Managers" {
+    COMPONENT [ModelInfer Manager] as mi
+    COMPONENT [Model Manager] as model
+    COMPONENT [AutoscalingPolicy Manager] as asp
+    COMPONENT [AutoscalingPolicyBinding Manager] as aspb
+  }
+}
+
+package "External Dependencies" {
+  COMPONENT [Kubernetes Client] as k8sclient
+  COMPONENT [MatrixInfer Client] as miclient
+  COMPONENT [YAML Parser] as yaml
+  COMPONENT [Template Parser] as tmpl
+}
+
+root --> create
+root --> list
+create --> templates
+list --> templates
+list --> mi
+list --> model
+list --> asp
+list --> aspb
+
+templates --> basic
+templates --> simple
+templates --> tmpl
+
+create --> yaml
+create --> miclient
+list --> miclient
+
+miclient --> k8sclient
+
+note top of templates
+  Manages embedded template files
+  and provides template rendering
+  capabilities
+end note
+
+note bottom of miclient
+  Provides typed clients for
+  MatrixInfer custom resources
+end note
+
+@enduml
+```
+
 ## Overview
 
 The `minfer` CLI provides an easy way to:
