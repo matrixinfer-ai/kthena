@@ -45,15 +45,15 @@ Available resource types:
 - models: List registered models
 - autoscaling-policies: List autoscaling policies
 - autoscaling-policy-bindings: List autoscaling policy bindings
-- profiles: List available profile templates
+- templates: List available profile templates
 
 Examples:
   minfer list modelinfers
   minfer list models
   minfer list models --namespace=production
   minfer list modelinfers --all-namespaces
-  minfer list profiles
-  minfer list profiles --describe basic-inference`,
+  minfer list templates
+  minfer list templates --describe basic-inference`,
 }
 
 // modelinfersCmd represents the list modelinfers command
@@ -92,19 +92,19 @@ var autoscalingPolicyBindingsCmd = &cobra.Command{
 	RunE:    runListAutoscalingPolicyBindings,
 }
 
-// profilesListCmd represents the list profiles command
-var profilesListCmd = &cobra.Command{
-	Use:   "profiles",
+// templatesListCmd represents the list templates command
+var templatesListCmd = &cobra.Command{
+	Use:   "templates",
 	Short: "List available profile templates",
 	Long: `List all available profile templates that can be used with the 'create profile' command.
 
-Profiles are predefined combinations of MatrixInfer resources that can be
-customized with your specific values. Each profile template defines a set
+Templates are predefined combinations of MatrixInfer resources that can be
+customized with your specific values. Each template defines a set
 of resources and the variables that can be customized.
 
 Examples:
-  minfer list profiles
-  minfer list profiles --describe basic-inference`,
+  minfer list templates
+  minfer list templates --describe basic-inference`,
 	RunE: runListProfiles,
 }
 
@@ -114,14 +114,14 @@ func init() {
 	listCmd.AddCommand(modelsCmd)
 	listCmd.AddCommand(autoscalingPoliciesCmd)
 	listCmd.AddCommand(autoscalingPolicyBindingsCmd)
-	listCmd.AddCommand(profilesListCmd)
+	listCmd.AddCommand(templatesListCmd)
 
 	// Add persistent flags to the list command
 	listCmd.PersistentFlags().StringVarP(&listNamespace, "namespace", "n", "", "Kubernetes namespace (default: current context namespace)")
 	listCmd.PersistentFlags().BoolVarP(&allNamespaces, "all-namespaces", "A", false, "List resources across all namespaces")
 	
-	// Add profiles-specific flags
-	profilesListCmd.Flags().StringVar(&describeProfile, "describe", "", "Show detailed information about a specific profile template")
+	// Add templates-specific flags
+	templatesListCmd.Flags().StringVar(&describeProfile, "describe", "", "Show detailed information about a specific template")
 }
 
 func getMatrixInferClient() (*versioned.Clientset, error) {
