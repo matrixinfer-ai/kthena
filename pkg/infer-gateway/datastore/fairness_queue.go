@@ -23,10 +23,6 @@ import (
 	"time"
 )
 
-var (
-	ErrQueueEmpty = errors.New("queue is empty")
-)
-
 // Request represents a request item in the priority queue
 type Request struct {
 	ReqID       string
@@ -104,16 +100,6 @@ func (pq *RequestPriorityQueue) PushRequest(r *Request) error {
 	return nil
 }
 
-func (pq *RequestPriorityQueue) PopRequest() (*Request, error) {
-	pq.mu.Lock()
-	defer pq.mu.Unlock()
-	if len(pq.heap) == 0 {
-		return nil, ErrQueueEmpty
-	}
-	req := heap.Pop(pq).(*Request)
-	return req, nil
-}
-
 // popWhenAvailable blocks until an item is available or the context is done, then pops one item.
 func (pq *RequestPriorityQueue) popWhenAvailable(ctx context.Context) (*Request, error) {
 	for {
@@ -174,5 +160,4 @@ func (pq *RequestPriorityQueue) Close() {
 	default:
 		close(pq.stopCh)
 	}
-	// No need to broadcast with channels - stopCh closure will wake up waiters
 }
