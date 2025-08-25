@@ -4,7 +4,7 @@ Rolling updates represent a critical operational strategy for online services ai
 
 Currently, `ModelInfer` supports rolling upgrades at the `InferGroup` level, enabling users to configure `Partitions` to control the rolling process.
 
-- Partition: Indicates the ordinal at which the `ModelInfer` should be partitioned for updates. During rolling update, all inferGroups from ordinal Replicas-1 to Partition are updated. All inferGroups from ordinal Partition-1 to 0 remain untouched.
+- Partition: Indicates the ordinal at which the `ModelInfer` should be partitioned for updates. During a rolling update, replicas with an ordinal greater than or equal to `Partition` will be updated. Replicas with an ordinal less than `Partition` will not be updated.
 
 Here’s a ModelInfer configured with rollout strategy:
 
@@ -22,13 +22,13 @@ In the following we’ll show how rolling update processes for a `ModelInfer` wi
 - ❎ Replica hasn’t been updated
 - ⏳ Replica is in rolling update
 
-|        | R-0 | R-1 | R-2 | R-3 | Note                                                                                          |
-|--------|-----|-----|-----|-----|-----------------------------------------------------------------------------------------------|
-| Stage1 | ✅   | ✅   | ✅   | ✅   | Before rolling update                                                                         |
-| Stage2 | ❎   | ❎   | ❎   | ⏳   | Rolling update started, delete and recreate the replica with the largest sequence number      |
-| Stage3 | ❎   | ❎   | ⏳   | ✅   | When the replica with the largest serial number is updated, the next replica will be updated. |
-| Stage4 | ❎   | ⏳   | ✅   | ✅   | Update the next replica                                                                       |
-| Stage5 | ⏳   | ✅   | ✅   | ✅   | Update the last replica                                                                       |
-| Stage6 | ✅   | ✅   | ✅   | ✅   | Update completed                                                                              |
+|        | R-0 | R-1 | R-2 | R-3 | Note                                                                          |
+|--------|-----|-----|-----|-----|-------------------------------------------------------------------------------|
+| Stage1 | ✅   | ✅   | ✅   | ✅   | Before rolling update                                                         |
+| Stage2 | ❎   | ❎   | ❎   | ⏳   | Rolling update started, The replica with the highest ordinal (R-3) is updated |
+| Stage3 | ❎   | ❎   | ⏳   | ✅   | R-3 is updated. The next replica (R-2) is now being updated                   |
+| Stage4 | ❎   | ⏳   | ✅   | ✅   | R-2 is updated. The next replica (R-1) is now being updated                   |
+| Stage5 | ⏳   | ✅   | ✅   | ✅   | R-1 is updated. The last replica (R-0) is now being updated                   |
+| Stage6 | ✅   | ✅   | ✅   | ✅   | Update completed. All replicas are on the new version                         |
 
 During a rolling upgrade, the controller deletes and rebuilds the replica with the highest sequence number among the replicas need to be updated. The next replica will not be updated until the new replica is running normally.
