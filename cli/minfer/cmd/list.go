@@ -31,7 +31,7 @@ import (
 var (
 	listNamespace string
 	allNamespaces bool
-	describeProfile string
+	describeManifest string
 )
 
 // listCmd represents the list command
@@ -45,7 +45,7 @@ Available resource types:
 - models: List registered models
 - autoscaling-policies: List autoscaling policies
 - autoscaling-policy-bindings: List autoscaling policy bindings
-- templates: List available profile templates
+- templates: List available manifest templates
 
 Examples:
   minfer list modelinfers
@@ -95,8 +95,8 @@ var autoscalingPolicyBindingsCmd = &cobra.Command{
 // templatesListCmd represents the list templates command
 var templatesListCmd = &cobra.Command{
 	Use:   "templates",
-	Short: "List available profile templates",
-	Long: `List all available profile templates that can be used with the 'create profile' command.
+	Short: "List available manifest templates",
+	Long: `List all available manifest templates that can be used with the 'create manifest' command.
 
 Templates are predefined combinations of MatrixInfer resources that can be
 customized with your specific values. Each template defines a set
@@ -121,7 +121,7 @@ func init() {
 	listCmd.PersistentFlags().BoolVarP(&allNamespaces, "all-namespaces", "A", false, "List resources across all namespaces")
 	
 	// Add templates-specific flags
-	templatesListCmd.Flags().StringVar(&describeProfile, "describe", "", "Show detailed information about a specific template")
+	templatesListCmd.Flags().StringVar(&describeManifest, "describe", "", "Show detailed information about a specific template")
 }
 
 func getMatrixInferClient() (*versioned.Clientset, error) {

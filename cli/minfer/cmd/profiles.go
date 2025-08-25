@@ -27,11 +27,11 @@ import (
 // profilesCmd represents the profiles command
 var profilesCmd = &cobra.Command{
 	Use:   "profiles",
-	Short: "List available profile templates",
-	Long: `List all available profile templates that can be used with the 'create profile' command.
+	Short: "List available manifest templates",
+	Long: `List all available manifest templates that can be used with the 'create manifest' command.
 
-Profiles are predefined combinations of MatrixInfer resources that can be
-customized with your specific values. Each profile template defines a set
+Manifests are predefined combinations of MatrixInfer resources that can be
+customized with your specific values. Each manifest template defines a set
 of resources and the variables that can be customized.
 
 Examples:
@@ -46,48 +46,48 @@ func init() {
 
 func runListProfiles(cmd *cobra.Command, args []string) error {
 	// Get the describe flag value
-	describeProfile, _ := cmd.Flags().GetString("describe")
+	describeManifest, _ := cmd.Flags().GetString("describe")
 	
-	// If describing a specific profile
-	if describeProfile != "" {
-		return describeProfileTemplate(describeProfile)
+	// If describing a specific manifest
+	if describeManifest != "" {
+		return describeProfileTemplate(describeManifest)
 	}
 
-	// List all profile templates from embedded files
+	// List all manifest templates from embedded files
 	templateNames, err := ListTemplates()
 	if err != nil {
 		return fmt.Errorf("failed to read templates: %v", err)
 	}
 
 	if len(templateNames) == 0 {
-		fmt.Println("No profile templates found.")
+		fmt.Println("No manifest templates found.")
 		return nil
 	}
 
-	var profiles []ProfileInfo
+	var manifests []ManifestInfo
 	for _, templateName := range templateNames {
-		profileInfo, err := GetTemplateInfo(templateName)
+		manifestInfo, err := GetTemplateInfo(templateName)
 		if err != nil {
-			profileInfo = ProfileInfo{
+			manifestInfo = ManifestInfo{
 				Name:        templateName,
 				Description: "No description available",
 				FilePath:    fmt.Sprintf("%s.yaml", templateName),
 			}
 		}
-		profiles = append(profiles, profileInfo)
+		manifests = append(manifests, manifestInfo)
 	}
 
-	// Print profiles in tabular format
+	// Print manifests in tabular format
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
 	fmt.Fprintln(w, "NAME\tDESCRIPTION")
-	for _, profile := range profiles {
-		fmt.Fprintf(w, "%s\t%s\n", profile.Name, profile.Description)
+	for _, manifest := range manifests {
+		fmt.Fprintf(w, "%s\t%s\n", manifest.Name, manifest.Description)
 	}
 
 	return w.Flush()
 }
 
-type ProfileInfo struct {
+type ManifestInfo struct {
 	Name        string
 	Description string
 	FilePath    string
@@ -97,7 +97,7 @@ type ProfileInfo struct {
 func describeProfileTemplate(profileName string) error {
 	// Check if template exists
 	if !TemplateExists(profileName) {
-		return fmt.Errorf("profile template '%s' not found", profileName)
+		return fmt.Errorf("manifest template '%s' not found", profileName)
 	}
 
 	// Read template content from embedded files
@@ -106,11 +106,11 @@ func describeProfileTemplate(profileName string) error {
 		return fmt.Errorf("failed to read template: %v", err)
 	}
 
-	fmt.Printf("Profile: %s\n", profileName)
+	fmt.Printf("Manifest: %s\n", profileName)
 	fmt.Println("================")
 
 	// Extract description
-	description := extractProfileDescriptionFromContent(content)
+	description := extractManifestDescriptionFromContent(content)
 	fmt.Printf("Description: %s\n\n", description)
 
 	// Extract variables from template

@@ -38,23 +38,23 @@ var (
 	valuesFile   string
 	dryRun       bool
 	namespace    string
-	profileFlags map[string]string
+	manifestFlags map[string]string
 )
 
 // createCmd represents the create command
 var createCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create MatrixInfer resources",
-	Long:  `Create MatrixInfer resources using predefined profiles and templates.`,
+	Long:  `Create MatrixInfer resources using predefined manifests and templates.`,
 }
 
-// profileCmd represents the create profile command
-var profileCmd = &cobra.Command{
-	Use:   "profile",
-	Short: "Create resources from a profile template",
-	Long: `Create MatrixInfer resources from predefined profile templates.
+// manifestCmd represents the create manifest command
+var manifestCmd = &cobra.Command{
+	Use:   "manifest",
+	Short: "Create resources from a manifest template",
+	Long: `Create MatrixInfer resources from predefined manifest templates.
 
-Profiles are predefined combinations of MatrixInfer resources that can be
+Manifests are predefined combinations of MatrixInfer resources that can be
 customized with your specific values. This command will:
 1. Render the template with your provided values
 2. Show you the resulting YAML
@@ -62,30 +62,30 @@ customized with your specific values. This command will:
 4. Apply the resources to Kubernetes (unless --dry-run is specified)
 
 Examples:
-  minfer create profile --template basic-inference --name my-model --image my-registry/model:v1.0
-  minfer create profile --template basic-inference --values-file values.yaml
-  minfer create profile --template basic-inference --name my-model --dry-run`,
-	RunE: runCreateProfile,
+  minfer create manifest --template basic-inference --name my-model --image my-registry/model:v1.0
+  minfer create manifest --template basic-inference --values-file values.yaml
+  minfer create manifest --template basic-inference --name my-model --dry-run`,
+	RunE: runCreateManifest,
 }
 
 func init() {
 	rootCmd.AddCommand(createCmd)
-	createCmd.AddCommand(profileCmd)
+	createCmd.AddCommand(manifestCmd)
 
-	// Profile command flags
-	profileCmd.Flags().StringVarP(&templateName, "template", "t", "", "Template name to use (required)")
-	profileCmd.Flags().StringVarP(&valuesFile, "values-file", "f", "", "YAML file containing template values")
-	profileCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show rendered template without applying to cluster")
-	profileCmd.Flags().StringVarP(&namespace, "namespace", "n", "default", "Kubernetes namespace to create resources in")
+	// Manifest command flags
+	manifestCmd.Flags().StringVarP(&templateName, "template", "t", "", "Template name to use (required)")
+	manifestCmd.Flags().StringVarP(&valuesFile, "values-file", "f", "", "YAML file containing template values")
+	manifestCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show rendered template without applying to cluster")
+	manifestCmd.Flags().StringVarP(&namespace, "namespace", "n", "default", "Kubernetes namespace to create resources in")
 	
 	// Dynamic flags for template values
-	profileFlags = make(map[string]string)
-	profileCmd.Flags().StringToStringVar(&profileFlags, "set", nil, "Set template values (can specify multiple or separate values with commas: key1=val1,key2=val2)")
+	manifestFlags = make(map[string]string)
+	manifestCmd.Flags().StringToStringVar(&manifestFlags, "set", nil, "Set template values (can specify multiple or separate values with commas: key1=val1,key2=val2)")
 
-	profileCmd.MarkFlagRequired("template")
+	manifestCmd.MarkFlagRequired("template")
 }
 
-func runCreateProfile(cmd *cobra.Command, args []string) error {
+func runCreateManifest(cmd *cobra.Command, args []string) error {
 	// Load template values
 	values, err := loadTemplateValues()
 	if err != nil {
@@ -135,7 +135,7 @@ func loadTemplateValues() (map[string]interface{}, error) {
 	}
 
 	// Override with command line flags
-	for key, value := range profileFlags {
+	for key, value := range manifestFlags {
 		values[key] = value
 	}
 

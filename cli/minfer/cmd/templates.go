@@ -49,22 +49,22 @@ func TemplateExists(templateName string) bool {
 }
 
 // GetTemplateInfo returns template information including name, description, and file path
-func GetTemplateInfo(templateName string) (ProfileInfo, error) {
+func GetTemplateInfo(templateName string) (ManifestInfo, error) {
 	content, err := GetTemplateContent(templateName)
 	if err != nil {
-		return ProfileInfo{}, err
+		return ManifestInfo{}, err
 	}
 
-	description := extractProfileDescriptionFromContent(content)
-	return ProfileInfo{
+	description := extractManifestDescriptionFromContent(content)
+	return ManifestInfo{
 		Name:        templateName,
 		Description: description,
 		FilePath:    fmt.Sprintf("%s.yaml", templateName),
 	}, nil
 }
 
-// extractProfileDescriptionFromContent extracts description from template content
-func extractProfileDescriptionFromContent(content string) string {
+// extractManifestDescriptionFromContent extracts description from template content
+func extractManifestDescriptionFromContent(content string) string {
 	lines := strings.Split(content, "\n")
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)

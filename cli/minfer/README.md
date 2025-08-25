@@ -5,7 +5,7 @@
 ## Overview
 
 The `minfer` CLI provides an easy way to:
-- Create MatrixInfer resources from predefined profile templates
+- Create MatrixInfer resources from predefined manifest templates
 - List and view existing MatrixInfer resources in your cluster
 - Manage inference workloads, models, and autoscaling policies
 - Apply configurations with template rendering and user confirmation
@@ -50,7 +50,7 @@ export PATH=$PATH:$(pwd)/bin
 # Show help
 minfer --help
 
-# List available profile templates
+# List available manifest templates
 minfer list templates
 
 # Show detailed information about a specific template
@@ -62,22 +62,22 @@ minfer list models
 minfer list autoscaling-policies
 ```
 
-### Creating Resources from Profiles
+### Creating Resources from Manifests
 
-The `minfer create profile` command allows you to create MatrixInfer resources from predefined templates.
+The `minfer create manifest` command allows you to create MatrixInfer resources from predefined templates.
 
 #### Basic Usage
 
 ```bash
 # Create a basic inference workload
-minfer create profile \
+minfer create manifest \
   --template basic-inference \
   --set name=my-model \
   --set image=my-registry/model:v1.0 \
   --set model_name=my-model
 
 # Use dry-run to preview without applying
-minfer create profile \
+minfer create manifest \
   --template basic-inference \
   --set name=my-model \
   --set image=nginx:latest \
@@ -85,12 +85,12 @@ minfer create profile \
   --dry-run
 
 # Create from values file
-minfer create profile \
+minfer create manifest \
   --template basic-inference \
   --values-file values.yaml
 
 # Specify target namespace
-minfer create profile \
+minfer create manifest \
   --template basic-inference \
   --namespace production \
   --set name=prod-model \
@@ -145,7 +145,7 @@ minfer list autoscaling-policies
 minfer list autoscaling-policy-bindings
 ```
 
-## Available Profile Templates
+## Available Manifest Templates
 
 ### basic-inference
 
@@ -191,9 +191,9 @@ Creates only a Model resource for model registration.
 
 - `--help, -h`: Show help information
 
-### `minfer create profile`
+### `minfer create manifest`
 
-Create resources from a profile template.
+Create resources from a manifest template.
 
 **Flags:**
 - `--template, -t`: Template name (required)
@@ -204,9 +204,9 @@ Create resources from a profile template.
 
 **Examples:**
 ```bash
-minfer create profile --template basic-inference --set name=test,image=nginx,model_name=test
-minfer create profile --template simple-model --values-file model-values.yaml
-minfer create profile --template basic-inference --set name=test --dry-run
+minfer create manifest --template basic-inference --set name=test,image=nginx,model_name=test
+minfer create manifest --template simple-model --values-file model-values.yaml
+minfer create manifest --template basic-inference --set name=test --dry-run
 ```
 
 ### `minfer list`
@@ -230,36 +230,36 @@ minfer list models --namespace production
 minfer list autoscaling-policies --all-namespaces
 ```
 
-### `minfer profiles`
+### `minfer list templates`
 
-List and describe available profile templates.
+List and describe available manifest templates.
 
 **Flags:**
-- `--describe`: Show detailed information about a specific profile
+- `--describe`: Show detailed information about a specific manifest
 
 **Examples:**
 ```bash
-minfer profiles
-minfer profiles --describe basic-inference
+minfer list templates
+minfer list templates --describe basic-inference
 ```
 
 ## Workflow Example
 
 Here's a typical workflow for creating a new inference workload:
 
-1. **List available profiles:**
+1. **List available manifests:**
    ```bash
-   minfer profiles
+   minfer list templates
    ```
 
-2. **Examine a profile template:**
+2. **Examine a manifest template:**
    ```bash
-   minfer profiles --describe basic-inference
+   minfer list templates --describe basic-inference
    ```
 
 3. **Create and preview resources:**
    ```bash
-   minfer create profile \
+   minfer create manifest \
      --template basic-inference \
      --set name=sentiment-model \
      --set image=my-registry/sentiment:v1.0 \
@@ -269,12 +269,11 @@ Here's a typical workflow for creating a new inference workload:
 
 4. **Apply to cluster:**
    ```bash
-   minfer create profile \
+   minfer create manifest \
      --template basic-inference \
      --set name=sentiment-model \
      --set image=my-registry/sentiment:v1.0 \
      --set model_name=sentiment-analysis
-   # Review the output and confirm when prompted
    ```
 
 5. **Verify deployment:**
@@ -298,7 +297,7 @@ The CLI uses your local kubectl configuration. Ensure you have:
 ```bash
 Error: template 'my-template' not found at templates/my-template.yaml
 ```
-- Check available templates with `minfer profiles`
+- Check available templates with `minfer list templates`
 - Ensure you're in the correct directory with the `templates/` folder
 
 **Kubeconfig issues:**
@@ -320,17 +319,17 @@ Error: failed to apply ModelInfer my-model: resources not found
 Use `--dry-run` to preview generated YAML without applying:
 
 ```bash
-minfer create profile --template basic-inference --set name=debug --dry-run
+minfer create manifest --template basic-inference --set name=debug --dry-run
 ```
 
 ## Contributing
 
-To add new profile templates:
+To add new manifest templates:
 
 1. Create a new `.yaml` file in the `templates/` directory
 2. Use Go template syntax with variables: `{{.variable_name}}`
 3. Add a description comment at the top: `# Description: Your template description`
-4. Test with `minfer profiles --describe your-template`
+4. Test with `minfer list templates --describe your-template`
 
 Example template structure:
 ```yaml
