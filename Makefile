@@ -120,6 +120,7 @@ build: generate fmt vet
 	go build -o bin/registry-webhook cmd/registry-webhook/main.go
 	go build -o bin/infer-webhook cmd/modelinfer-webhook/main.go
 	go build -o bin/infer-gateway-webhook cmd/infer-gateway-webhook/main.go
+	go build -o bin/minfer cli/minfer/main.go
 
 IMG_MODELINFER ?= ${HUB}/infer-controller:${TAG}
 IMG_MODELCONTROLLER ?= ${HUB}/model-controller:${TAG}
