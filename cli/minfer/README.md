@@ -124,7 +124,7 @@ description: Sentiment analysis model for customer feedback
 Then use it:
 
 ```bash
-minfer create profile --template basic-inference --values-file values.yaml
+minfer create manifest --template basic-inference --values-file values.yaml
 ```
 
 ### Listing Resources

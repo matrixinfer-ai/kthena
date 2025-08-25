@@ -24,9 +24,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// profilesCmd represents the profiles command
-var profilesCmd = &cobra.Command{
-	Use:   "profiles",
+// manifestsCmd represents the manifests command
+var manifestsCmd = &cobra.Command{
+	Use:   "manifests",
 	Short: "List available manifest templates",
 	Long: `List all available manifest templates that can be used with the 'create manifest' command.
 
@@ -35,22 +35,22 @@ customized with your specific values. Each manifest template defines a set
 of resources and the variables that can be customized.
 
 Examples:
-  minfer profiles
-  minfer profiles --describe basic-inference`,
-	RunE: runListProfiles,
+  minfer manifests
+  minfer manifests --describe basic-inference`,
+	RunE: runListManifests,
 }
 
 func init() {
-	// profiles command is now registered as a subcommand of list in list.go
+	// manifests command is now registered as a subcommand of list in list.go
 }
 
-func runListProfiles(cmd *cobra.Command, args []string) error {
+func runListManifests(cmd *cobra.Command, args []string) error {
 	// Get the describe flag value
 	describeManifest, _ := cmd.Flags().GetString("describe")
 	
 	// If describing a specific manifest
 	if describeManifest != "" {
-		return describeProfileTemplate(describeManifest)
+		return describeManifestTemplate(describeManifest)
 	}
 
 	// List all manifest templates from embedded files
@@ -94,19 +94,19 @@ type ManifestInfo struct {
 }
 
 
-func describeProfileTemplate(profileName string) error {
+func describeManifestTemplate(manifestName string) error {
 	// Check if template exists
-	if !TemplateExists(profileName) {
-		return fmt.Errorf("manifest template '%s' not found", profileName)
+	if !TemplateExists(manifestName) {
+		return fmt.Errorf("manifest template '%s' not found", manifestName)
 	}
 
 	// Read template content from embedded files
-	content, err := GetTemplateContent(profileName)
+	content, err := GetTemplateContent(manifestName)
 	if err != nil {
 		return fmt.Errorf("failed to read template: %v", err)
 	}
 
-	fmt.Printf("Manifest: %s\n", profileName)
+	fmt.Printf("Manifest: %s\n", manifestName)
 	fmt.Println("================")
 
 	// Extract description

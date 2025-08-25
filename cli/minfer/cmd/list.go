@@ -105,7 +105,7 @@ of resources and the variables that can be customized.
 Examples:
   minfer list templates
   minfer list templates --describe basic-inference`,
-	RunE: runListProfiles,
+	RunE: runListManifests,
 }
 
 func init() {

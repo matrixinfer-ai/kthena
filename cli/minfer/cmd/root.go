@@ -19,14 +19,14 @@ var rootCmd = &cobra.Command{
 	Long: `minfer is a CLI tool for managing MatrixInfer AI inference workloads.
 
 It allows you to:
-- Create profiles from predefined templates with custom values
+- Create manifests from predefined templates with custom values
 - List and view MatrixInfer resources in Kubernetes clusters
 - Manage inference workloads, models, and autoscaling policies
 
 Examples:
-  minfer create profile --name my-model --template basic-inference
+  minfer create manifest --name my-model --template basic-inference
   minfer list models
-  minfer profiles`,
+  minfer list templates`,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
