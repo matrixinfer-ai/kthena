@@ -64,7 +64,9 @@ type Router struct {
 }
 
 func NewRouter(store datastore.Store, gatewayConfigPath string) *Router {
-	loadRateLimiter := ratelimit.NewRateLimiter()
+	// Create a unified rate limiter for all models
+	loadRateLimiter := ratelimit.NewTokenRateLimiter()
+
 	store.RegisterCallback("ModelRoute", func(data datastore.EventData) {
 		switch data.EventType {
 		case datastore.EventAdd, datastore.EventUpdate:
@@ -74,13 +76,13 @@ func NewRouter(store datastore.Store, gatewayConfigPath string) *Router {
 			klog.Infof("add or update rate limit for model %s", data.ModelName)
 
 			// Configure the unified rate limiter for this model
-			if err := rateLimiter.AddOrUpdateLimiter(data.ModelName, data.ModelRoute.Spec.RateLimit); err != nil {
+			if err := loadRateLimiter.AddOrUpdateLimiter(data.ModelName, data.ModelRoute.Spec.RateLimit); err != nil {
 				klog.Errorf("failed to configure rate limiter for model %s: %v", data.ModelName, err)
 			}
 
 		case datastore.EventDelete:
 			klog.Infof("delete rate limit for model %s", data.ModelName)
-			rateLimiter.DeleteLimiter(data.ModelName)
+			loadRateLimiter.DeleteLimiter(data.ModelName)
 		}
 	})
 
@@ -94,7 +96,6 @@ func NewRouter(store datastore.Store, gatewayConfigPath string) *Router {
 		scheduler:        scheduler.NewScheduler(store, gatewayConfig),
 		authValidator:    *auth.NewJWTValidator(store, gatewayConfig),
 		loadRateLimiter:  loadRateLimiter,
-		rateLimiter:      rateLimiter,
 		connectorFactory: connectors.NewDefaultFactory(),
 	}
 }

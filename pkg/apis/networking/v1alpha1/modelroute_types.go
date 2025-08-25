@@ -133,9 +133,6 @@ type RedisConfig struct {
 	// Address is the Redis server address in the format "host:port".
 	// +kubebuilder:validation:Required
 	Address string `json:"address"`
-	// Password for Redis authentication. If empty, no authentication is used.
-	// +optional
-	Password string `json:"password,omitempty"`
 }
 
 // +kubebuilder:validation:Enum=second;minute;hour;day;month
