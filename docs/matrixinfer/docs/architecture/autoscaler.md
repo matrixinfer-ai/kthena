@@ -1,3 +1,4 @@
+# Autoscaler
 
 Facing real-time changing inference requests, the required hardware resources also fluctuate dynamically. Matrix Infer Autoscaler, as an optional component of the Matrix Infer project running in a Kubernetes environment, dynamically adjusts the number of deployed inference instances based on their real-time load. It ensures healthy business metrics (such as SLO indicators) while reducing the consumption of computational resources.
 
@@ -5,7 +6,7 @@ Facing real-time changing inference requests, the required hardware resources al
 
 Matrix Infer Autoscaler periodically collects runtime metrics from the Pods of managed inference instances. Based on one or more monitoring metrics specified by the user and their corresponding target values, it estimates the required number of inference instances. Finally, it performs scaling operations according to the configured scaling policies.
 
-![alt text](architecture-autoscaler.svg)
+![alt text](../../static/img/architecture-autoscaler.svg)
 
 Matrix Infer Autoscaler provides two granularities of scaling methods: **Scaling Autoscale** and **Optimize Autoscale**.
 
