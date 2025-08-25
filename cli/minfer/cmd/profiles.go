@@ -17,9 +17,7 @@ package cmd
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
-	"path/filepath"
 	"strings"
 	"text/tabwriter"
 
@@ -50,46 +48,33 @@ func init() {
 }
 
 func runListProfiles(cmd *cobra.Command, args []string) error {
-	templatesDir := "templates"
-
-	// Check if templates directory exists
-	if _, err := os.Stat(templatesDir); os.IsNotExist(err) {
-		fmt.Printf("Templates directory '%s' not found.\n", templatesDir)
-		fmt.Println("Please create the templates directory and add your profile templates.")
-		return nil
-	}
-
 	// If describing a specific profile
 	if describeProfile != "" {
 		return describeProfileTemplate(describeProfile)
 	}
 
-	// List all profile templates
-	files, err := ioutil.ReadDir(templatesDir)
+	// List all profile templates from embedded files
+	templateNames, err := ListTemplates()
 	if err != nil {
-		return fmt.Errorf("failed to read templates directory: %v", err)
+		return fmt.Errorf("failed to read templates: %v", err)
+	}
+
+	if len(templateNames) == 0 {
+		fmt.Println("No profile templates found.")
+		return nil
 	}
 
 	var profiles []ProfileInfo
-	for _, file := range files {
-		if !file.IsDir() && strings.HasSuffix(file.Name(), ".yaml") {
-			profileName := strings.TrimSuffix(file.Name(), ".yaml")
-			description, err := extractProfileDescription(filepath.Join(templatesDir, file.Name()))
-			if err != nil {
-				description = "No description available"
+	for _, templateName := range templateNames {
+		profileInfo, err := GetTemplateInfo(templateName)
+		if err != nil {
+			profileInfo = ProfileInfo{
+				Name:        templateName,
+				Description: "No description available",
+				FilePath:    fmt.Sprintf("%s.yaml", templateName),
 			}
-			profiles = append(profiles, ProfileInfo{
-				Name:        profileName,
-				Description: description,
-				FilePath:    file.Name(),
-			})
 		}
-	}
-
-	if len(profiles) == 0 {
-		fmt.Printf("No profile templates found in '%s' directory.\n", templatesDir)
-		fmt.Println("Profile templates should be YAML files with .yaml extension.")
-		return nil
+		profiles = append(profiles, profileInfo)
 	}
 
 	// Print profiles in tabular format
@@ -108,54 +93,28 @@ type ProfileInfo struct {
 	FilePath    string
 }
 
-func extractProfileDescription(filePath string) (string, error) {
-	content, err := ioutil.ReadFile(filePath)
-	if err != nil {
-		return "", err
-	}
-
-	lines := strings.Split(string(content), "\n")
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		// Look for description in comments at the top of the file
-		if strings.HasPrefix(trimmed, "# Description:") {
-			return strings.TrimSpace(strings.TrimPrefix(trimmed, "# Description:")), nil
-		}
-		if strings.HasPrefix(trimmed, "# ") && strings.Contains(strings.ToLower(trimmed), "description") {
-			return strings.TrimSpace(strings.TrimPrefix(trimmed, "# ")), nil
-		}
-		// Stop looking after the first non-comment, non-empty line
-		if trimmed != "" && !strings.HasPrefix(trimmed, "#") {
-			break
-		}
-	}
-
-	return "No description available", nil
-}
 
 func describeProfileTemplate(profileName string) error {
-	templatePath := filepath.Join("templates", profileName+".yaml")
-
 	// Check if template exists
-	if _, err := os.Stat(templatePath); os.IsNotExist(err) {
+	if !TemplateExists(profileName) {
 		return fmt.Errorf("profile template '%s' not found", profileName)
 	}
 
-	// Read template content
-	content, err := ioutil.ReadFile(templatePath)
+	// Read template content from embedded files
+	content, err := GetTemplateContent(profileName)
 	if err != nil {
-		return fmt.Errorf("failed to read template file: %v", err)
+		return fmt.Errorf("failed to read template: %v", err)
 	}
 
 	fmt.Printf("Profile: %s\n", profileName)
 	fmt.Println("================")
 
 	// Extract description
-	description, _ := extractProfileDescription(templatePath)
+	description := extractProfileDescriptionFromContent(content)
 	fmt.Printf("Description: %s\n\n", description)
 
 	// Extract variables from template
-	variables := extractTemplateVariables(string(content))
+	variables := extractTemplateVariables(content)
 	if len(variables) > 0 {
 		fmt.Println("Available Variables:")
 		for _, variable := range variables {
@@ -166,7 +125,7 @@ func describeProfileTemplate(profileName string) error {
 
 	fmt.Println("Template Content:")
 	fmt.Println("=================")
-	fmt.Println(string(content))
+	fmt.Println(content)
 
 	return nil
 }

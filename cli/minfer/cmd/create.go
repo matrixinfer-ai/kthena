@@ -148,19 +148,18 @@ func loadTemplateValues() (map[string]interface{}, error) {
 }
 
 func renderTemplate(templateName string, values map[string]interface{}) (string, error) {
-	templatePath := fmt.Sprintf("templates/%s.yaml", templateName)
-	
-	// Check if template file exists
-	if _, err := os.Stat(templatePath); os.IsNotExist(err) {
-		return "", fmt.Errorf("template '%s' not found at %s", templateName, templatePath)
+	// Check if template exists in embedded files
+	if !TemplateExists(templateName) {
+		return "", fmt.Errorf("template '%s' not found", templateName)
 	}
 
-	templateData, err := ioutil.ReadFile(templatePath)
+	// Get template content from embedded files
+	templateData, err := GetTemplateContent(templateName)
 	if err != nil {
-		return "", fmt.Errorf("failed to read template file: %v", err)
+		return "", fmt.Errorf("failed to read template: %v", err)
 	}
 
-	tmpl, err := template.New(templateName).Parse(string(templateData))
+	tmpl, err := template.New(templateName).Parse(templateData)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse template: %v", err)
 	}
