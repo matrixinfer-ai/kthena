@@ -40,14 +40,14 @@ Examples:
 	RunE: runListProfiles,
 }
 
-var describeProfile string
-
 func init() {
-	rootCmd.AddCommand(profilesCmd)
-	profilesCmd.Flags().StringVar(&describeProfile, "describe", "", "Show detailed information about a specific profile template")
+	// profiles command is now registered as a subcommand of list in list.go
 }
 
 func runListProfiles(cmd *cobra.Command, args []string) error {
+	// Get the describe flag value
+	describeProfile, _ := cmd.Flags().GetString("describe")
+	
 	// If describing a specific profile
 	if describeProfile != "" {
 		return describeProfileTemplate(describeProfile)

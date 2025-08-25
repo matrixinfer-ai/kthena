@@ -51,10 +51,10 @@ export PATH=$PATH:$(pwd)/bin
 minfer --help
 
 # List available profile templates
-minfer profiles
+minfer list profiles
 
 # Show detailed information about a specific profile
-minfer profiles --describe basic-inference
+minfer list profiles --describe basic-inference
 
 # List MatrixInfer resources
 minfer list modelinfers
