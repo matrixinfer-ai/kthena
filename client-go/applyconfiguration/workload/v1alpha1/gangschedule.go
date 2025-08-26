@@ -18,10 +18,16 @@ limitations under the License.
 
 package v1alpha1
 
+import (
+	workloadv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
+)
+
 // GangScheduleApplyConfiguration represents a declarative configuration of the GangSchedule type for use
 // with apply.
 type GangScheduleApplyConfiguration struct {
-	Enable *bool `json:"enable,omitempty"`
+	Enable          *bool                               `json:"enable,omitempty"`
+	Level           *workloadv1alpha1.GangScheduleLevel `json:"level,omitempty"`
+	MinRoleReplicas map[string]int32                    `json:"minRoleReplicas,omitempty"`
 }
 
 // GangScheduleApplyConfiguration constructs a declarative configuration of the GangSchedule type for use with
@@ -35,5 +41,27 @@ func GangSchedule() *GangScheduleApplyConfiguration {
 // If called multiple times, the Enable field is set to the value of the last call.
 func (b *GangScheduleApplyConfiguration) WithEnable(value bool) *GangScheduleApplyConfiguration {
 	b.Enable = &value
+	return b
+}
+
+// WithLevel sets the Level field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the Level field is set to the value of the last call.
+func (b *GangScheduleApplyConfiguration) WithLevel(value workloadv1alpha1.GangScheduleLevel) *GangScheduleApplyConfiguration {
+	b.Level = &value
+	return b
+}
+
+// WithMinRoleReplicas puts the entries into the MinRoleReplicas field in the declarative configuration
+// and returns the receiver, so that objects can be build by chaining "With" function invocations.
+// If called multiple times, the entries provided by each call will be put on the MinRoleReplicas field,
+// overwriting an existing map entries in MinRoleReplicas field with the same key.
+func (b *GangScheduleApplyConfiguration) WithMinRoleReplicas(entries map[string]int32) *GangScheduleApplyConfiguration {
+	if b.MinRoleReplicas == nil && len(entries) > 0 {
+		b.MinRoleReplicas = make(map[string]int32, len(entries))
+	}
+	for k, v := range entries {
+		b.MinRoleReplicas[k] = v
+	}
 	return b
 }

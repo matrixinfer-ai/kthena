@@ -20,13 +20,36 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+// GangScheduleLevel defines the level at which gang scheduling should be applied
+type GangScheduleLevel string
+
+const (
+	// GangScheduleLevelRole enables gang scheduling at the role level within each InferGroup
+	GangScheduleLevelRole GangScheduleLevel = "role"
+	// GangScheduleLevelGroup enables gang scheduling at the ModelInfer group level, creating podgroup for each modelinfer replica
+	GangScheduleLevelGroup GangScheduleLevel = "group"
+)
+
 // GangSchedule defines the gang scheduling configuration.
 type GangSchedule struct {
 	// Enable indicates whether users want to enforce gang-scheduling,
 	// default true
 	// +kubebuilder:default=true
 	Enable *bool `json:"enable,omitempty"`
-	// todo: add more gang scheduling configuration fields
+
+	// Level defines the level at which gang scheduling should be applied
+	// +optional
+	// +kubebuilder:default="group"
+	// +kubebuilder:validation:Enum={role,group}
+	Level GangScheduleLevel `json:"level,omitempty"`
+
+	// MinRoleReplicas defines the minimum number of replicas required for each role
+	// in role-level gang scheduling. This map allows users to specify different
+	// minimum replica requirements for different roles.
+	// Key: role name, Value: minimum number of replicas required for that role
+	// Only used when Level is "role"
+	// +optional
+	MinRoleReplicas map[string]int32 `json:"minRoleReplicas,omitempty"`
 }
 
 // Role defines the specific pod instance role that performs the inference task.
