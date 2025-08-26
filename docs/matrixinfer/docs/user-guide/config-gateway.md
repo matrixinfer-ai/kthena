@@ -32,7 +32,7 @@ Score Plugins (Score):
 |enabled|List of enabled score plugins (with weights)|
 |disabled|List of disabled score plugins|
 
-Authentication Configuration (Authentication)
+### Authentication Configuration
 
 Authentication configuration is used to enable and configure JWT authentication.
 
@@ -92,6 +92,51 @@ data:
             weight: 1
           - name: prefix-cache
             weight: 1
+```
+
+If you want to use Authentication feature of gateway. Here is an example:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "matrixinfer.name" . }}-infer-gateway-config
+  namespace: {{ .Release.Namespace }}
+data:
+  gatewayConfiguration: |-
+    scheduler:
+      pluginConfig:
+      - name: least-request
+        args: 
+          maxWaitingRequests: 10
+      - name: least-latency
+        args:
+          TTFTTPOTWeightFactor: 0.5
+      - name: prefix-cache
+        args:
+          blockSizeToHash: 64
+          maxBlocksToMatch: 128
+          maxHashCacheSize: 50000
+      plugins:
+        Filter:
+          enabled:
+            - least-request
+          disabled:
+            - lora-affinity
+        Score:
+          enabled:
+            - name: least-request
+              weight: 1
+            - name: kv-cache
+              weight: 1
+            - name: least-latency
+              weight: 1
+            - name: prefix-cache
+              weight: 1
+    auth:
+      issuer: "testing@secure.istio.io"
+      audiences: ["matrixinfer.io"]
+      jwksUri: "https://raw.githubusercontent.com/istio/istio/release-1.27/security/tools/jwt/samples/jwks.json"
 ```
 
 After creating or updating the ConfigMap, you need to restart the Gateway Pod for the configuration to take effect:
