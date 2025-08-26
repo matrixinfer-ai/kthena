@@ -1,9 +1,6 @@
-name: Docker Build And Push
+name: Docker Push
 on:
   workflow_dispatch: # manual trigger
-  pull_request:
-    branches:
-      - main
   push:
     branches:
       - main
@@ -41,14 +38,7 @@ jobs:
             type=sha
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Build Docker images (PR)
-        if: github.event_name == 'pull_request'
-        run: make docker-buildx
-        env:
-          TAG: pr-${{ github.event.number }}
-
-      - name: Push Docker images (Push to main)
-        if: github.event_name == 'push'
+      - name: Push Docker images
         run: make docker-push
         env:
           TAG: ${{ github.sha }}
