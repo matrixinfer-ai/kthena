@@ -117,14 +117,16 @@ func (g *GlobalRateLimiter) AllowN(now time.Time, n int) bool {
 		local requested_tokens = tonumber(ARGV[1])    -- Number of tokens to consume for this request
 		local capacity = tonumber(ARGV[2])            -- Maximum capacity of the token bucket
 		local refill_rate = tonumber(ARGV[3])         -- Token refill rate (tokens per second)
-		local current_time = tonumber(ARGV[4])        -- Current timestamp (seconds)
-		local expire_seconds = tonumber(ARGV[5])      -- Expiration time for Redis key (seconds)
+		local expire_seconds = tonumber(ARGV[4])      -- Expiration time for Redis key (seconds)
+		
+		-- Get current time from Redis for consistency across distributed systems
+		local time_result = redis.call('time')
+		local current_time = tonumber(time_result[1]) + tonumber(time_result[2]) / 1000000
 		
 		-- Get current token bucket state
 		-- If first access, use default values: tokens=capacity, last_update=current_time
-		local bucket_data = redis.call('hmget', key, 'tokens', 'last_update')
-		local current_tokens = tonumber(bucket_data[1]) or capacity
-		local last_update = tonumber(bucket_data[2]) or current_time
+		local current_tokens = tonumber(redis.call('hget', key, 'tokens')) or capacity
+		local last_update = tonumber(redis.call('hget', key, 'last_update')) or current_time
 		
 		-- Calculate tokens to add based on time elapsed
 		-- time_passed: seconds elapsed since last update
@@ -141,13 +143,13 @@ func (g *GlobalRateLimiter) AllowN(now time.Time, n int) bool {
 			current_tokens = current_tokens - requested_tokens
 			
 			-- Atomically update token bucket state in Redis
-			redis.call('hmset', key, 'tokens', current_tokens, 'last_update', current_time)
+			redis.call('hset', key, 'tokens', current_tokens, 'last_update', current_time)
 			redis.call('expire', key, expire_seconds)
 			
 			return 1 -- Return 1 to indicate request is allowed
 		else
 			-- Insufficient tokens: reject request, but still update bucket state for time synchronization
-			redis.call('hmset', key, 'tokens', current_tokens, 'last_update', current_time)
+			redis.call('hset', key, 'tokens', current_tokens, 'last_update', current_time)
 			redis.call('expire', key, expire_seconds)
 			
 			return 0 -- Return 0 to indicate request is rate limited
@@ -157,9 +159,8 @@ func (g *GlobalRateLimiter) AllowN(now time.Time, n int) bool {
 	// Calculate refill rate (tokens per second) and expire time
 	refillRate := g.getRefillRate()
 	expireSeconds := g.getExpireSeconds()
-	currentTime := float64(now.Unix()) + float64(now.Nanosecond())/1e9
 
-	result := g.client.Eval(ctx, luaScript, []string{key}, n, g.burst, refillRate, currentTime, expireSeconds)
+	result := g.client.Eval(ctx, luaScript, []string{key}, n, g.burst, refillRate, expireSeconds)
 
 	if result.Err() != nil {
 		klog.Errorf("failed to execute token bucket lua script: %v", result.Err())
@@ -237,14 +238,16 @@ func (g *GlobalRateLimiter) Tokens() float64 {
 		local key = KEYS[1]                           -- Redis key name for the token bucket
 		local capacity = tonumber(ARGV[1])            -- Maximum capacity of the token bucket
 		local refill_rate = tonumber(ARGV[2])         -- Token refill rate (tokens per second)
-		local current_time = tonumber(ARGV[3])        -- Current timestamp (seconds)
-		local expire_seconds = tonumber(ARGV[4])      -- Expiration time for Redis key (seconds)
+		local expire_seconds = tonumber(ARGV[3])      -- Expiration time for Redis key (seconds)
+		
+		-- Get current time from Redis for consistency across distributed systems
+		local time_result = redis.call('time')
+		local current_time = tonumber(time_result[1]) + tonumber(time_result[2]) / 1000000
 		
 		-- Get current token bucket state from Redis
 		-- If bucket doesn't exist (first access), use default values
-		local bucket_data = redis.call('hmget', key, 'tokens', 'last_update')
-		local current_tokens = tonumber(bucket_data[1]) or capacity
-		local last_update = tonumber(bucket_data[2]) or current_time
+		local current_tokens = tonumber(redis.call('hget', key, 'tokens')) or capacity
+		local last_update = tonumber(redis.call('hget', key, 'last_update')) or current_time
 		
 		-- Calculate tokens to add based on elapsed time since last update
 		-- This ensures the bucket reflects the proper state even for read-only operations
@@ -257,7 +260,7 @@ func (g *GlobalRateLimiter) Tokens() float64 {
 		-- Update bucket state to maintain accurate timing for subsequent operations
 		-- Even though this is a read-only query, we update the state to keep the
 		-- token bucket synchronized with real time
-		redis.call('hmset', key, 'tokens', available_tokens, 'last_update', current_time)
+		redis.call('hset', key, 'tokens', available_tokens, 'last_update', current_time)
 		redis.call('expire', key, expire_seconds)
 		
 		-- Return the number of tokens currently available in the bucket
