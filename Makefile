@@ -176,42 +176,20 @@ PLATFORMS ?= linux/arm64,linux/amd64
 #   docker buildx inspect --bootstrap
 
 .PHONY: docker-buildx
-docker-buildx: ## Build and push docker image for cross-platform support
-	$(CONTAINER_TOOL) buildx build \
-		--platform ${PLATFORMS} \
-		-t ${IMG_GATEWAY} \
-		-f docker/Dockerfile.gateway \
-		--push .
-	$(CONTAINER_TOOL) buildx build \
-		--platform ${PLATFORMS}\
-		-t ${IMG_MODELINFER} \
-		-f docker/Dockerfile.modelinfer \
-		--push .
-	$(CONTAINER_TOOL) buildx build \
-		--platform ${PLATFORMS} \
-		-t ${IMG_MODELCONTROLLER} \
-		-f docker/Dockerfile.modelcontroller \
-		--push .
-	$(CONTAINER_TOOL) buildx build \
-		--platform ${PLATFORMS} \
-		-t ${IMG_AUTOSCALER} \
-		-f docker/Dockerfile.autoscaler \
-		--push .
-	$(CONTAINER_TOOL) buildx build \
-		--platform ${PLATFORMS} \
-		-t ${IMG_REGISTRY_WEBHOOK} \
-		-f docker/Dockerfile.registry.webhook \
-		--push .
-	$(CONTAINER_TOOL) buildx build \
-		--platform ${PLATFORMS} \
-		-t ${IMG_MODELINFER_WEBHOOK} \
-		-f Dockerfile.modelinfer.webhook \
-		--push .
-	$(CONTAINER_TOOL) buildx build \
-		--platform ${PLATFORMS} \
-		-t ${IMG_INFER_GATEWAY_WEBHOOK} \
-		-f docker/Dockerfile.infergateway.webhook \
-		--push .
+docker-buildx: ## Build docker image for cross-platform support
+	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
+	find docker -name "Dockerfile.*" -type f -exec sh -c 'sed "s/FROM \(golang:[^[:space:]]\+\) AS builder/FROM --platform=\$$BUILDPLATFORM \1 AS builder/g" "$$1" > "$$1.cross"' _ {} \;
+	-$(CONTAINER_TOOL) buildx create --name matrixinfer-builder
+	$(CONTAINER_TOOL) buildx use matrixinfer-builder
+	-$(CONTAINER_TOOL) buildx build --platform ${PLATFORMS} --tag ${IMG_GATEWAY} -f docker/Dockerfile.gateway.cross .
+	-$(CONTAINER_TOOL) buildx build --platform ${PLATFORMS} --tag ${IMG_MODELINFER} -f docker/Dockerfile.modelinfer.cross .
+	-$(CONTAINER_TOOL) buildx build --platform ${PLATFORMS} --tag ${IMG_MODELCONTROLLER} -f docker/Dockerfile.modelcontroller.cross .
+	-$(CONTAINER_TOOL) buildx build --platform ${PLATFORMS} --tag ${IMG_AUTOSCALER} -f docker/Dockerfile.autoscaler.cross .
+	-$(CONTAINER_TOOL) buildx build --platform ${PLATFORMS} --tag ${IMG_REGISTRY_WEBHOOK} -f docker/Dockerfile.registry.webhook.cross .
+	-$(CONTAINER_TOOL) buildx build --platform ${PLATFORMS} --tag ${IMG_MODELINFER_WEBHOOK} -f docker/Dockerfile.modelinfer.webhook.cross .
+	-$(CONTAINER_TOOL) buildx build --platform ${PLATFORMS} --tag ${IMG_INFER_GATEWAY_WEBHOOK} -f docker/Dockerfile.infergateway.webhook.cross .
+	-$(CONTAINER_TOOL) buildx rm matrixinfer-builder
+	find docker -name "*.cross" -type f -delete
 
 ##@ Deployment
 
