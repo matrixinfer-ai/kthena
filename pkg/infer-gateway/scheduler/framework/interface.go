@@ -20,13 +20,14 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/common"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 )
 
 // Context stores information which maybe useful in Filter or Score plugins.
 type Context struct {
 	Model  string
-	Prompt string
+	Prompt common.ChatMessage
 
 	Hashes []uint64
 

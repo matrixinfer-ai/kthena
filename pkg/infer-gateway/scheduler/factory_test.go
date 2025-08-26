@@ -47,7 +47,7 @@ func TestRegisterDefaultPlugins(t *testing.T) {
 
 	// Test that all expected score plugins are registered
 	expectedScorePlugins := []string{
-		plugins.KVCachePluginName,
+		plugins.GPUCacheUsagePluginName,
 		plugins.LeastLatencyPluginName,
 		plugins.LeastRequestPluginName,
 		plugins.RandomPluginName,
@@ -190,17 +190,17 @@ func TestGetScorePlugins(t *testing.T) {
 		{
 			name: "multiple valid plugins with different weights",
 			scorePluginMap: map[string]int{
-				plugins.LeastRequestPluginName: 3,
-				plugins.KVCachePluginName:      7,
+				plugins.LeastRequestPluginName:  3,
+				plugins.GPUCacheUsagePluginName: 7,
 			},
 			pluginsArgMap: map[string]runtime.RawExtension{
-				plugins.LeastRequestPluginName: {Raw: []byte(`{"maxWaitingRequests": 10}`)},
-				plugins.KVCachePluginName:      {Raw: []byte(`{}`)},
+				plugins.LeastRequestPluginName:  {Raw: []byte(`{"maxWaitingRequests": 10}`)},
+				plugins.GPUCacheUsagePluginName: {Raw: []byte(`{}`)},
 			},
 			expectedCount: 2,
 			expectedWeights: map[string]int{
-				plugins.LeastRequestPluginName: 3,
-				plugins.KVCachePluginName:      7,
+				plugins.LeastRequestPluginName:  3,
+				plugins.GPUCacheUsagePluginName: 7,
 			},
 		},
 		{

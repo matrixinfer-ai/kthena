@@ -21,7 +21,7 @@ spec:
     type: InferGroupRollingUpdate
   schedulerName: ""
   template:
-    gangSchedule: {}
+    gangSchedule: { }
     networkTopology:
       highestTierAllowed: 2
       mode: hard
@@ -46,11 +46,25 @@ spec:
                   - http://localhost:8000
                   - --engine-metrics-path
                   - /metrics
+                  - --pod
+                  - $(POD_NAME).$(NAMESPACE)
+                  - --model
+                  - test-model
                 env:
                   - name: ENDPOINT
                     value: https://obs.test.com
                   - name: RUNTIME_PORT
                     value: "8900"
+                  - name: POD_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.name
+                  - name: NAMESPACE
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.namespace
+                  - name: VLLM_USE_V1
+                    value: "1"
                 envFrom:
                   - secretRef:
                       name: "test-secret"
@@ -64,7 +78,7 @@ spec:
                     port: 8900
                   initialDelaySeconds: 5
                   periodSeconds: 10
-                resources: {}
+                resources: { }
               - command:
                   - bash
                   - -c
@@ -74,6 +88,9 @@ spec:
                     --model /tmp/test/13a7c4d58031cdc502ca1bb4a592f2b9 --enable-lora --block-size 128
                     --gpu-memory-utilization 0.9 --max-model-len 32768 --served-model-name deepseek-v3
                     --tensor-parallel-size 2 --trust-remote-code --distributed_executor_backend ray
+                  - --kv-events-config
+                  - '{"enable_kv_cache_events":true,"publisher":"zmq","topic":"kv-events","endpoint":"tcp://*:5557"}'
+                  - --enforce-eager
                   - --enable-lora
                   - --lora-modules
                   - lora-sql=/tmp/test/11e9a15be1e19ff056520bf67eaeb688
@@ -102,6 +119,16 @@ spec:
                     value: "https://obs.test.com"
                   - name: RUNTIME_PORT
                     value: "8900"
+                  - name: POD_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.name
+                  - name: NAMESPACE
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.namespace
+                  - name: VLLM_USE_V1
+                    value: "1"
                 readinessProbe:
                   failureThreshold: 3
                   httpGet:
@@ -134,7 +161,7 @@ spec:
                   - secretRef:
                       name: "test-secret"
                 name: test-model-model-downloader
-                resources: {}
+                resources: { }
                 volumeMounts:
                   - mountPath: /tmp/test
                     name: backend1-weights
