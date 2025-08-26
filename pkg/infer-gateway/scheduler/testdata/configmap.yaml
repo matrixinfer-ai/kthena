@@ -1,7 +1,7 @@
 scheduler:
   pluginConfig:
   - name: least-request
-    args: 
+    args:
       maxWaitingRequests: 10
   - name: least-latency
     args:
@@ -21,7 +21,7 @@ scheduler:
       enabled:
         - name: least-request
           weight: 1
-        - name: kv-cache
+        - name: gpu-usage
           weight: 1
         - name: least-latency
           weight: 1

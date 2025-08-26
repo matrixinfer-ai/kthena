@@ -102,13 +102,14 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 
 		// step 2: Detection of rate limit
 		modelName := modelRequest["model"].(string)
-		prompt, err := utils.GetPrompt(modelRequest)
+		prompt, err := utils.ParsePrompt(modelRequest)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusNotFound, "prompt not found")
 			return
 		}
-		if err := r.loadRateLimiter.RateLimit(modelName, prompt); err != nil {
-			klog.Infof("request model: %s, prompt: %s, error: %v", modelName, prompt, err)
+		promptStr := utils.GetPromptString(prompt)
+		if err := r.loadRateLimiter.RateLimit(modelName, promptStr); err != nil {
+			klog.Infof("request model: %s, prompt: %s, error: %v", modelName, promptStr, err)
 			c.AbortWithStatusJSON(http.StatusTooManyRequests, err.Error())
 			return
 		}
@@ -156,7 +157,7 @@ func (r *Router) doLoadbalance(c *gin.Context, modelRequest ModelRequest) {
 	if modelServer.Spec.WorkloadSelector != nil {
 		pdGroup = modelServer.Spec.WorkloadSelector.PDGroup
 	}
-	prompt, err := utils.GetPrompt(modelRequest)
+	prompt, err := utils.ParsePrompt(modelRequest)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusNotFound, "prompt not found")
 		return

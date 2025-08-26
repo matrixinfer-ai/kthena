@@ -17,20 +17,11 @@ limitations under the License.
 package controller
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
-	"reflect"
-	"strconv"
-	"strings"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/equality"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -42,27 +33,22 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/env"
+	networkingv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
 	informersv1alpha1 "matrixinfer.ai/matrixinfer/client-go/informers/externalversions"
+	networkingLister "matrixinfer.ai/matrixinfer/client-go/listers/networking/v1alpha1"
 	registryLister "matrixinfer.ai/matrixinfer/client-go/listers/registry/v1alpha1"
 	workloadLister "matrixinfer.ai/matrixinfer/client-go/listers/workload/v1alpha1"
 	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
-	icUtils "matrixinfer.ai/matrixinfer/pkg/infer-controller/utils"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/config"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/convert"
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
 )
 
 const (
-	ModelInitsReason    = "ModelCreating"
-	ModelActiveReason   = "ModelAvailable"
-	ModelUpdatingReason = "ModelUpdating"
-	ModelFailedReason   = "ModelAbnormal"
-	ConfigMapName       = "model-controller-config"
+	ConfigMapName = "model-controller-config"
 )
 
 type ModelController struct {
@@ -78,6 +64,10 @@ type ModelController struct {
 	modelsInformer                    cache.Controller
 	modelInfersLister                 workloadLister.ModelInferLister
 	modelInfersInformer               cache.SharedIndexInformer
+	modelServersLister                networkingLister.ModelServerLister
+	modelServersInformer              cache.SharedIndexInformer
+	modelRoutesLister                 networkingLister.ModelRouteLister
+	modelRoutesInformer               cache.SharedIndexInformer
 	autoscalingPoliciesLister         registryLister.AutoscalingPolicyLister
 	autoscalingPoliciesInformer       cache.SharedIndexInformer
 	autoscalingPolicyBindingsLister   registryLister.AutoscalingPolicyBindingLister
@@ -101,6 +91,8 @@ func (mc *ModelController) Run(ctx context.Context, workers int) {
 	go mc.autoscalingPoliciesInformer.RunWithContext(ctx)
 	go mc.autoscalingPolicyBindingsInformer.RunWithContext(ctx)
 	go mc.podsInformer.RunWithContext(ctx)
+	go mc.modelServersInformer.RunWithContext(ctx)
+	go mc.modelRoutesInformer.RunWithContext(ctx)
 
 	// start Kubernetes informer factory
 	go mc.kubeInformerFactory.Start(ctx.Done())
@@ -111,6 +103,8 @@ func (mc *ModelController) Run(ctx context.Context, workers int) {
 		mc.autoscalingPoliciesInformer.HasSynced,
 		mc.autoscalingPolicyBindingsInformer.HasSynced,
 		mc.podsInformer.HasSynced,
+		mc.modelServersInformer.HasSynced,
+		mc.modelRoutesInformer.HasSynced,
 	)
 
 	klog.Info("start model controller")
@@ -203,76 +197,47 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 	if err != nil {
 		return client.IgnoreNotFound(err)
 	}
-	// TODO: Expect no distinction between create phase and update phase
 	klog.InfoS("Start to process model", "namespace", namespace, "model name", model.Name, "model status", model.Status)
 	if len(model.Status.Conditions) == 0 {
-		if err := mc.createModelInfer(ctx, model); err != nil {
-			mc.setModelFailedCondition(ctx, model, err)
-			return err
-		}
-		if err := mc.createModelServer(ctx, model); err != nil {
-			mc.setModelFailedCondition(ctx, model, err)
-			return err
-		}
-		if err := mc.createModelRoute(ctx, model); err != nil {
-			mc.setModelFailedCondition(ctx, model, err)
-			return err
-		}
-		if err := mc.createAutoscalingPolicyAndBinding(ctx, model); err != nil {
-			mc.setModelFailedCondition(ctx, model, err)
-			return err
-		}
-		meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeInitialized),
-			metav1.ConditionTrue, ModelInitsReason, "Model initialized"))
-		if err := mc.updateModelStatus(ctx, model); err != nil {
-			klog.Errorf("update model status failed: %v", err)
+		if err := mc.setModelInitCondition(ctx, model); err != nil {
 			return err
 		}
 	}
-	if model.Generation != model.Status.ObservedGeneration {
-		klog.Info("model generation is not equal to observed generation, checking for LoRA adapter changes")
-
-		// First, check if only LoRA adapters have changed for runtime update
-		if oldModel, err := mc.getPreviousModelVersion(model); err == nil && oldModel != nil {
-			if mc.hasOnlyLoraAdaptersChanged(oldModel, model) {
-				klog.Info("Detected only LoRA adapter changes, attempting runtime update")
-				if err := mc.handleLoraAdapterUpdate(oldModel, model); err != nil {
-					klog.Errorf("Failed to handle LoRA adapter update: %v, falling back to full reconciliation", err)
-					mc.setModelFailedCondition(ctx, model, err)
-					return err
-				} else {
-					// LoRA adapter update successful, update observed generation and return
-					if err := mc.updateModelStatus(ctx, model); err != nil {
-						klog.Errorf("Failed to update model status after LoRA adapter update: %v", err)
-						return err
-					}
-					klog.Info("LoRA adapter update completed successfully")
-					return nil
-				}
+	// check if only LoRA adapters have changed for runtime update
+	if oldModel, err := mc.getPreviousModelVersion(model); err == nil && oldModel != nil && mc.hasOnlyLoraAdaptersChanged(oldModel, model) {
+		klog.Info("Detected only LoRA adapter changes, attempting runtime update")
+		if err := mc.handleLoraAdapterUpdate(oldModel, model); err != nil {
+			klog.Errorf("Failed to handle LoRA adapter update: %v, falling back to full reconciliation", err)
+			mc.setModelFailedCondition(ctx, model, err)
+			return err
+		} else {
+			// LoRA adapter update successful, update observed generation and return
+			if err := mc.updateModelStatus(ctx, model); err != nil {
+				klog.Errorf("Failed to update model status after LoRA adapter update: %v", err)
+				return err
 			}
+			klog.Info("LoRA adapter update completed successfully")
+			return nil
 		}
-
-		// If not only LoRA adapters changed or LoRA update failed, proceed with full reconciliation
-		klog.Info("Proceeding with full reconciliation")
-		if err := mc.setModelUpdateCondition(ctx, model); err != nil {
-			return err
-		}
-		if err := mc.updateModelInfer(ctx, model); err != nil {
-			mc.setModelFailedCondition(ctx, model, err)
-			return err
-		}
-		if err := mc.updateModelServer(ctx, model); err != nil {
-			mc.setModelFailedCondition(ctx, model, err)
-			return err
-		}
-		if err := mc.updateModelRoute(ctx, model); err != nil {
-			mc.setModelFailedCondition(ctx, model, err)
-			return err
-		}
-		if err := mc.updateAutoscalingPolicyAndBinding(ctx, model); err != nil {
-			mc.setModelFailedCondition(ctx, model, err)
-			return err
-		}
+	}
+	if err := mc.setModelProcessingCondition(ctx, model); err != nil {
+		return err
+	}
+	if err := mc.createOrUpdateModelInfer(ctx, model); err != nil {
+		mc.setModelFailedCondition(ctx, model, err)
+		return err
+	}
+	if err := mc.createOrUpdateModelServer(ctx, model); err != nil {
+		mc.setModelFailedCondition(ctx, model, err)
+		return err
+	}
+	if err := mc.createOrUpdateModelRoute(ctx, model); err != nil {
+		mc.setModelFailedCondition(ctx, model, err)
+		return err
+	}
+	if err := mc.createOrUpdateAutoscalingPolicyAndBinding(ctx, model); err != nil {
+		mc.setModelFailedCondition(ctx, model, err)
+		return err
 	}
 	modelInferActive, err := mc.isModelInferActive(model)
 	if err != nil || !modelInferActive {
@@ -281,399 +246,6 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 	if err := mc.setModelActiveCondition(ctx, model); err != nil {
 		return err
 	}
-
-	return nil
-}
-
-// getPreviousModelVersion gets the previous version of the model from cache for comparison
-func (mc *ModelController) getPreviousModelVersion(model *registryv1alpha1.Model) (*registryv1alpha1.Model, error) {
-	cacheKey := fmt.Sprintf("%s/%s:%d", model.Namespace, model.Name, model.Generation)
-
-	// Get the previous model from cache
-	oldModel, exists := mc.loraUpdateCache[cacheKey]
-	if !exists {
-		return nil, nil
-	}
-
-	return oldModel, nil
-}
-
-// hasOnlyLoraAdaptersChanged checks if only LoRA adapters have changed between old and new model
-func (mc *ModelController) hasOnlyLoraAdaptersChanged(oldModel, newModel *registryv1alpha1.Model) bool {
-	if len(oldModel.Spec.Backends) != len(newModel.Spec.Backends) {
-		return false
-	}
-
-	hasLoraChanges := false
-
-	for i, newBackend := range newModel.Spec.Backends {
-		oldBackend := oldModel.Spec.Backends[i]
-
-		// Create copies without LoraAdapters for comparison
-		oldBackendCopy := oldBackend.DeepCopy()
-		newBackendCopy := newBackend.DeepCopy()
-		oldBackendCopy.LoraAdapters = nil
-		newBackendCopy.LoraAdapters = nil
-
-		// If anything other than LoraAdapters changed, return false
-		if !reflect.DeepEqual(oldBackendCopy, newBackendCopy) {
-			return false
-		}
-
-		// Check if LoraAdapters changed for VLLM backends
-		if newBackend.Type == registryv1alpha1.ModelBackendTypeVLLM {
-			if !reflect.DeepEqual(oldBackend.LoraAdapters, newBackend.LoraAdapters) {
-				hasLoraChanges = true
-			}
-		}
-	}
-
-	return hasLoraChanges
-}
-
-// handleLoraAdapterUpdate handles LoRA adapter updates for VLLM backends
-func (mc *ModelController) handleLoraAdapterUpdate(oldModel, newModel *registryv1alpha1.Model) error {
-	klog.Info("Detected LoRA adapter changes, attempting runtime update")
-
-	// Create a context with timeout for the whole LoRA adapter update operation
-	// The timeout should be sufficient to cover all adapter updates across all replicas
-	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
-	defer cancel()
-
-	for i, newBackend := range newModel.Spec.Backends {
-		if newBackend.Type != registryv1alpha1.ModelBackendTypeVLLM {
-			return fmt.Errorf("only VLLM backends are supported for LoRA adapter updates")
-		}
-
-		oldBackend := oldModel.Spec.Backends[i]
-
-		// Get ModelInfer for this backend using the correct naming convention
-		modelInferName := utils.GetBackendResourceName(newModel.Name, newBackend.Name)
-		modelInfer, err := mc.client.WorkloadV1alpha1().ModelInfers(newModel.Namespace).Get(ctx, modelInferName, metav1.GetOptions{})
-		if err != nil {
-			klog.Errorf("Failed to get ModelInfer %s: %v", modelInferName, err)
-			return err
-		}
-
-		// Check if ModelInfer is ready
-		if !mc.isModelInferReady(modelInfer) {
-			klog.Warningf("ModelInfer %s is not ready, skipping LoRA adapter update", modelInferName)
-			return fmt.Errorf("model infer %s is not ready", modelInferName)
-		}
-
-		// Handle LoRA adapter changes
-		if err := mc.updateLoraAdapters(ctx, &newBackend, &oldBackend, modelInfer); err != nil {
-			klog.Errorf("Failed to update LoRA adapters for backend %s: %v", newBackend.Name, err)
-			return err
-		}
-	}
-
-	return nil
-}
-
-// isModelInferReady checks if ModelInfer is ready for LoRA adapter updates
-func (mc *ModelController) isModelInferReady(modelInfer *workload.ModelInfer) bool {
-	return modelInfer.Status.AvailableReplicas > 0
-}
-
-// LoraUpdateResult tracks the result of LoRA adapter updates across multiple replicas
-type LoraUpdateResult struct {
-	TotalReplicas   int
-	SuccessReplicas int
-	FailedReplicas  int
-	PartialFailures []string // URLs that failed
-	Errors          []error  // Corresponding errors
-}
-
-// updateLoraAdapters updates LoRA adapters for a specific backend across all replicas
-func (mc *ModelController) updateLoraAdapters(ctx context.Context, newBackend, oldBackend *registryv1alpha1.ModelBackend, modelInfer *workload.ModelInfer) error {
-	// Get runtime service URLs for all replicas
-	runtimeURLs, err := mc.getModelInferRuntimeURLs(modelInfer, newBackend)
-	if err != nil {
-		return fmt.Errorf("failed to get runtime URLs for ModelInfer %s: %v", modelInfer.Name, err)
-	}
-
-	klog.Infof("Updating LoRA adapters for ModelInfer %s across %d replicas", modelInfer.Name, len(runtimeURLs))
-
-	// Prepare adapter maps for comparison
-	oldAdapterMap := make(map[string]registryv1alpha1.LoraAdapter)
-	for _, adapter := range oldBackend.LoraAdapters {
-		oldAdapterMap[adapter.Name] = adapter
-	}
-
-	newAdapterMap := make(map[string]registryv1alpha1.LoraAdapter)
-	for _, adapter := range newBackend.LoraAdapters {
-		newAdapterMap[adapter.Name] = adapter
-	}
-
-	// Track overall results
-	var overallResult LoraUpdateResult
-	overallResult.TotalReplicas = len(runtimeURLs)
-
-	// Phase 1: Unload adapters that are no longer needed
-	adaptersToUnload := make([]string, 0)
-	for adapterName := range oldAdapterMap {
-		if _, exists := newAdapterMap[adapterName]; !exists {
-			adaptersToUnload = append(adaptersToUnload, adapterName)
-		}
-	}
-
-	if len(adaptersToUnload) > 0 {
-		klog.Infof("Unloading %d LoRA adapters: %v", len(adaptersToUnload), adaptersToUnload)
-		unloadResult := mc.unloadLoraAdaptersFromAllReplicas(ctx, runtimeURLs, adaptersToUnload)
-		if unloadResult.FailedReplicas > 0 {
-			klog.Warningf("Failed to unload LoRA adapters from %d/%d replicas", unloadResult.FailedReplicas, unloadResult.TotalReplicas)
-			// Log errors but continue with loading new adapters
-			for i, failedURL := range unloadResult.PartialFailures {
-				klog.Errorf("Failed to unload from %s: %v", failedURL, unloadResult.Errors[i])
-			}
-		}
-	}
-
-	// Phase 2: Load new or updated adapters
-	adaptersToLoad := make([]registryv1alpha1.LoraAdapter, 0)
-	for _, adapter := range newBackend.LoraAdapters {
-		oldAdapter, existed := oldAdapterMap[adapter.Name]
-		// Load adapter if it's new or if the artifact URL changed
-		if !existed || oldAdapter.ArtifactURL != adapter.ArtifactURL {
-			adaptersToLoad = append(adaptersToLoad, adapter)
-		}
-	}
-
-	if len(adaptersToLoad) > 0 {
-		klog.Infof("Loading %d LoRA adapters", len(adaptersToLoad))
-		loadResult := mc.loadLoraAdaptersToAllReplicas(ctx, runtimeURLs, adaptersToLoad, newBackend)
-		overallResult = loadResult
-
-		// Check if we have critical failures
-		if loadResult.FailedReplicas > 0 {
-			// Log warnings for partial failures
-			klog.Warningf("Partial failure: LoRA adapter loading failed on %d/%d replicas",
-				loadResult.FailedReplicas, loadResult.TotalReplicas)
-			for i, failedURL := range loadResult.PartialFailures {
-				klog.Errorf("Failed to load to %s: %v", failedURL, loadResult.Errors[i])
-			}
-		}
-	}
-
-	klog.Infof("LoRA adapter update completed for ModelInfer %s: %d/%d replicas successful",
-		modelInfer.Name, overallResult.SuccessReplicas, overallResult.TotalReplicas)
-	return nil
-}
-
-// unloadLoraAdaptersFromAllReplicas unloads LoRA adapters from all replicas
-func (mc *ModelController) unloadLoraAdaptersFromAllReplicas(ctx context.Context, runtimeURLs []string, adapterNames []string) LoraUpdateResult {
-	result := LoraUpdateResult{
-		TotalReplicas:   len(runtimeURLs),
-		PartialFailures: make([]string, 0),
-		Errors:          make([]error, 0),
-	}
-
-	for _, runtimeURL := range runtimeURLs {
-		replicaSuccess := true
-		for _, adapterName := range adapterNames {
-			if err := mc.unloadLoraAdapter(ctx, runtimeURL, adapterName); err != nil {
-				klog.Errorf("Failed to unload LoRA adapter %s from %s: %v", adapterName, runtimeURL, err)
-				if replicaSuccess {
-					// Only record the replica as failed once
-					result.PartialFailures = append(result.PartialFailures, runtimeURL)
-					result.Errors = append(result.Errors, fmt.Errorf("failed to unload adapter %s: %v", adapterName, err))
-					replicaSuccess = false
-				}
-			}
-		}
-
-		if replicaSuccess {
-			result.SuccessReplicas++
-		} else {
-			result.FailedReplicas++
-		}
-	}
-
-	return result
-}
-
-// loadLoraAdaptersToAllReplicas loads LoRA adapters to all replicas
-func (mc *ModelController) loadLoraAdaptersToAllReplicas(ctx context.Context, runtimeURLs []string, adapters []registryv1alpha1.LoraAdapter, backend *registryv1alpha1.ModelBackend) LoraUpdateResult {
-	result := LoraUpdateResult{
-		TotalReplicas:   len(runtimeURLs),
-		PartialFailures: make([]string, 0),
-		Errors:          make([]error, 0),
-	}
-
-	for _, runtimeURL := range runtimeURLs {
-		replicaSuccess := true
-		for _, adapter := range adapters {
-			if err := mc.loadLoraAdapter(ctx, runtimeURL, adapter, backend); err != nil {
-				klog.Errorf("Failed to load LoRA adapter %s to %s: %v", adapter.Name, runtimeURL, err)
-				if replicaSuccess {
-					// Only record the replica as failed once
-					result.PartialFailures = append(result.PartialFailures, runtimeURL)
-					result.Errors = append(result.Errors, fmt.Errorf("failed to load adapter %s: %v", adapter.Name, err))
-					replicaSuccess = false
-				}
-			}
-		}
-
-		if replicaSuccess {
-			result.SuccessReplicas++
-		} else {
-			result.FailedReplicas++
-		}
-	}
-
-	return result
-}
-
-// getModelInferRuntimeURLs constructs the runtime service URLs for all ModelInfer pods
-func (mc *ModelController) getModelInferRuntimeURLs(modelInfer *workload.ModelInfer, backend *registryv1alpha1.ModelBackend) ([]string, error) {
-	// Get port from backend environment variables with default fallback to 8100
-	port := env.GetEnvValueOrDefault[int32](backend, env.RuntimePort, 8100)
-
-	// Get all available pod IPs for this ModelInfer
-	podIPs, err := mc.getModelInferPodIPs(modelInfer)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get pod IPs for ModelInfer %s: %v", modelInfer.Name, err)
-	}
-
-	var runtimeURLs []string
-	for _, podIP := range podIPs {
-		runtimeURLs = append(runtimeURLs, fmt.Sprintf("http://%s:%d", podIP, port))
-	}
-
-	return runtimeURLs, nil
-}
-
-// getModelInferPodIPs gets the IPs of all available pods for a ModelInfer
-func (mc *ModelController) getModelInferPodIPs(modelInfer *workload.ModelInfer) ([]string, error) {
-	// Use PodLister to get pods with the ModelInfer label
-	labelSelector := labels.SelectorFromSet(labels.Set{
-		workload.ModelInferNameLabelKey: modelInfer.Name,
-	})
-
-	podList, err := mc.podsLister.Pods(modelInfer.Namespace).List(labelSelector)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list pods: %v", err)
-	}
-
-	if len(podList) == 0 {
-		return nil, fmt.Errorf("no pods found for ModelInfer %s", modelInfer.Name)
-	}
-
-	// Collect all running pod IPs
-	var podIPs []string
-	for _, pod := range podList {
-		if pod.Status.Phase == corev1.PodRunning && pod.Status.PodIP != "" {
-			podIPs = append(podIPs, pod.Status.PodIP)
-		}
-	}
-
-	if len(podIPs) == 0 {
-		return nil, fmt.Errorf("no running pods with IP found for ModelInfer %s", modelInfer.Name)
-	}
-
-	return podIPs, nil
-}
-
-// loadLoraAdapter calls the load_lora_adapter API
-func (mc *ModelController) loadLoraAdapter(ctx context.Context, runtimeURL string, adapter registryv1alpha1.LoraAdapter, backend *registryv1alpha1.ModelBackend) error {
-	url := fmt.Sprintf("%s/v1/load_lora_adapter", runtimeURL)
-	outputDir := convert.GetCachePath(backend.CacheURI) + convert.GetMountPath(adapter.ArtifactURL)
-
-	requestBody := map[string]interface{}{
-		"lora_name":      adapter.Name,
-		"source":         adapter.ArtifactURL,
-		"output_dir":     outputDir,
-		"async_download": false, // Use synchronous download for better error handling
-	}
-
-	jsonBody, err := json.Marshal(requestBody)
-	if err != nil {
-		return fmt.Errorf("failed to marshal request body: %v", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonBody))
-	if err != nil {
-		return fmt.Errorf("failed to create HTTP request: %v", err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-
-	klog.Infof("Loading LoRA adapter %s from %s", adapter.Name, adapter.ArtifactURL)
-
-	resp, err := mc.httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to send HTTP request: %v", err)
-	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil {
-			klog.Errorf("Failed to close response body: %v", closeErr)
-		}
-	}()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		// Read response body to get detailed error message
-		bodyBytes, err := io.ReadAll(resp.Body)
-		if err != nil {
-			klog.Errorf("Failed to read response body: %v", err)
-			return fmt.Errorf("load LoRA adapter failed with status code: %d", resp.StatusCode)
-		}
-
-		errorDetail := string(bodyBytes)
-		klog.Errorf("Load LoRA adapter failed - Status: %d, Response: %s", resp.StatusCode, errorDetail)
-		return fmt.Errorf("load LoRA adapter failed with status code: %d, error: %s", resp.StatusCode, errorDetail)
-	}
-
-	klog.Infof("Successfully loaded LoRA adapter %s", adapter.Name)
-	return nil
-}
-
-// unloadLoraAdapter calls the unload_lora_adapter API
-func (mc *ModelController) unloadLoraAdapter(ctx context.Context, runtimeURL string, adapterName string) error {
-	url := fmt.Sprintf("%s/v1/unload_lora_adapter", runtimeURL)
-
-	requestBody := map[string]interface{}{
-		"lora_name": adapterName,
-	}
-
-	jsonBody, err := json.Marshal(requestBody)
-	if err != nil {
-		return fmt.Errorf("failed to marshal request body: %v", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonBody))
-	if err != nil {
-		return fmt.Errorf("failed to create HTTP request: %v", err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-
-	klog.Infof("Unloading LoRA adapter %s", adapterName)
-
-	resp, err := mc.httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to send HTTP request: %v", err)
-	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil {
-			klog.Errorf("Failed to close response body: %v", closeErr)
-		}
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		// Read response body to get detailed error message
-		bodyBytes, err := io.ReadAll(resp.Body)
-		if err != nil {
-			klog.Errorf("Failed to read response body: %v", err)
-			return fmt.Errorf("unload LoRA adapter failed with status code: %d", resp.StatusCode)
-		}
-
-		errorDetail := string(bodyBytes)
-		klog.Errorf("Unload LoRA adapter failed - Status: %d, Response: %s", resp.StatusCode, errorDetail)
-		return fmt.Errorf("unload LoRA adapter failed with status code: %d, error: %s", resp.StatusCode, errorDetail)
-	}
-
-	klog.Infof("Successfully unloaded LoRA adapter %s", adapterName)
 	return nil
 }
 
@@ -700,28 +272,6 @@ func (mc *ModelController) isModelInferActive(model *registryv1alpha1.Model) (bo
 	return true, nil
 }
 
-// setModelActiveCondition sets model conditions when all Model Infers are active.
-func (mc *ModelController) setModelActiveCondition(ctx context.Context, model *registryv1alpha1.Model) error {
-	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeActive),
-		metav1.ConditionTrue, ModelActiveReason, "Model is ready"))
-	if err := mc.updateModelStatus(ctx, model); err != nil {
-		klog.Errorf("update model status failed: %v", err)
-		return err
-	}
-	return nil
-}
-
-// newCondition returns a condition
-func newCondition(conditionType string, status metav1.ConditionStatus, reason string, message string) metav1.Condition {
-	return metav1.Condition{
-		Type:               conditionType,
-		Status:             status,
-		LastTransitionTime: metav1.Now(),
-		Reason:             reason,
-		Message:            message,
-	}
-}
-
 // updateModelStatus updates model status.
 func (mc *ModelController) updateModelStatus(ctx context.Context, model *registryv1alpha1.Model) error {
 	modelInfers, err := mc.listModelInferByLabel(model)
@@ -737,43 +287,18 @@ func (mc *ModelController) updateModelStatus(ctx context.Context, model *registr
 	}
 	model.Status.BackendStatuses = backendStatus
 	model.Status.ObservedGeneration = model.Generation
-	if _, err := mc.client.RegistryV1alpha1().Models(model.Namespace).UpdateStatus(ctx, model, metav1.UpdateOptions{}); err != nil {
-		klog.Errorf("update model status failed: %v", err)
+	patch := client.MergeFrom(model.DeepCopy())
+	data, err := patch.Data(model)
+	if err != nil {
+		return fmt.Errorf("failed to generate patch data: %w", err)
+	}
+	if _, err := mc.client.RegistryV1alpha1().Models(model.Namespace).Patch(ctx, model.Name, patch.Type(), data, metav1.PatchOptions{}); err != nil {
 		return err
 	}
 
 	// Clean up outdated cache entries for this model
 	mc.cleanupOutdatedLoraUpdateCache(model)
 	return nil
-}
-
-// cleanupOutdatedLoraUpdateCache removes all cache entries for the specified model
-// that have a generation less than the current model generation
-func (mc *ModelController) cleanupOutdatedLoraUpdateCache(model *registryv1alpha1.Model) {
-	modelPrefix := fmt.Sprintf("%s/%s:", model.Namespace, model.Name)
-	currentGeneration := model.Generation
-
-	keysToDelete := make([]string, 0)
-	for key := range mc.loraUpdateCache {
-		if strings.HasPrefix(key, modelPrefix) {
-			// Extract generation from the cache key
-			// Cache key format: "namespace/name:generation"
-			parts := strings.Split(key, ":")
-			if len(parts) >= 2 {
-				generationStr := parts[len(parts)-1]
-				if generation, err := strconv.ParseInt(generationStr, 10, 64); err == nil {
-					if generation < currentGeneration {
-						keysToDelete = append(keysToDelete, key)
-					}
-				}
-			}
-		}
-	}
-
-	for _, key := range keysToDelete {
-		delete(mc.loraUpdateCache, key)
-		klog.V(4).Infof("Cleaned up outdated LoRA update cache entry: %s", key)
-	}
 }
 
 func NewModelController(kubeClient kubernetes.Interface, client clientset.Interface) *ModelController {
@@ -794,6 +319,8 @@ func NewModelController(kubeClient kubernetes.Interface, client clientset.Interf
 	informerFactory := informersv1alpha1.NewSharedInformerFactory(client, 0)
 	modelInformer := informerFactory.Registry().V1alpha1().Models()
 	modelInferInformer := filterInformerFactory.Workload().V1alpha1().ModelInfers()
+	modelServerInformer := filterInformerFactory.Networking().V1alpha1().ModelServers()
+	modelRouteInformer := filterInformerFactory.Networking().V1alpha1().ModelRoutes()
 	autoscalingPoliciesInformer := filterInformerFactory.Registry().V1alpha1().AutoscalingPolicies()
 	autoscalingPolicyBindingsInformer := filterInformerFactory.Registry().V1alpha1().AutoscalingPolicyBindings()
 
@@ -821,6 +348,10 @@ func NewModelController(kubeClient kubernetes.Interface, client clientset.Interf
 		modelsInformer:                    modelInformer.Informer(),
 		modelInfersLister:                 modelInferInformer.Lister(),
 		modelInfersInformer:               modelInferInformer.Informer(),
+		modelServersLister:                modelServerInformer.Lister(),
+		modelServersInformer:              modelServerInformer.Informer(),
+		modelRoutesLister:                 modelRouteInformer.Lister(),
+		modelRoutesInformer:               modelRouteInformer.Informer(),
 		autoscalingPoliciesLister:         autoscalingPoliciesInformer.Lister(),
 		autoscalingPoliciesInformer:       autoscalingPoliciesInformer.Informer(),
 		autoscalingPolicyBindingsLister:   autoscalingPolicyBindingsInformer.Lister(),
@@ -845,96 +376,29 @@ func NewModelController(kubeClient kubernetes.Interface, client clientset.Interf
 	}
 	_, err = modelInferInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: mc.triggerModel,
+		DeleteFunc: mc.deleteModelInfer,
 	})
 	if err != nil {
 		klog.Fatal("Unable to add model infer event handler")
 		return nil
 	}
+	_, err = modelRouteInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: mc.deleteModelRoute,
+	})
+	if err != nil {
+		klog.Fatal("Unable to add model route event handler")
+		return nil
+	}
+	_, err = modelServerInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: mc.deleteModelServer,
+	})
+	if err != nil {
+		klog.Fatal("Unable to add model server event handler")
+		return nil
+	}
 	mc.syncHandler = mc.reconcile
 	mc.loadConfigFromConfigMap()
 	return mc
-}
-
-// listModelInferByLabel list all model infer which label key is "owner" and label value is model uid
-func (mc *ModelController) listModelInferByLabel(model *registryv1alpha1.Model) ([]*workload.ModelInfer, error) {
-	if modelInfers, err := mc.modelInfersLister.ModelInfers(model.Namespace).List(labels.SelectorFromSet(map[string]string{
-		utils.OwnerUIDKey: string(model.UID),
-	})); err != nil {
-		return nil, err
-	} else {
-		return modelInfers, nil
-	}
-}
-
-// updateModelInfer updates model infer when model changed
-func (mc *ModelController) updateModelInfer(ctx context.Context, model *registryv1alpha1.Model) error {
-	existingModelInfers, err := mc.listModelInferByLabel(model)
-	if err != nil {
-		return err
-	}
-	modelInfers, err := convert.CreateModelInferResources(model)
-	if err != nil {
-		klog.Errorf("failed to build model infer for model %s: %v", model.Name, err)
-		return err
-	}
-	modelInfersToKeep := make(map[string]struct{})
-	for _, modelInfer := range modelInfers {
-		modelInfersToKeep[modelInfer.Name] = struct{}{}
-		oldModelInfer, err := mc.modelInfersLister.ModelInfers(modelInfer.Namespace).Get(modelInfer.Name)
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				klog.V(4).Infof("Create Model Infer %s", modelInfer.Name)
-				if _, err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Create(ctx, modelInfer, metav1.CreateOptions{}); err != nil {
-					klog.Errorf("failed to create ModelInfer %s: %v", klog.KObj(modelInfer), err)
-					return err
-				}
-				continue
-			}
-			klog.Errorf("failed to get ModelInfer %s: %v", klog.KObj(modelInfer), err)
-			return err
-		}
-		if oldModelInfer.Labels[utils.RevisionLabelKey] == modelInfer.Labels[utils.RevisionLabelKey] {
-			klog.Infof("Model Infer %s of model %s does not need to update", modelInfer.Name, model.Name)
-			continue
-		}
-		modelInfer.ResourceVersion = oldModelInfer.ResourceVersion
-		if _, err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Update(ctx, modelInfer, metav1.UpdateOptions{}); err != nil {
-			klog.Errorf("failed to update ModelInfer %s: %v", klog.KObj(modelInfer), err)
-			return err
-		}
-		klog.V(4).Infof("Updated Model Infer %s for model %s", modelInfer.Name, model.Name)
-	}
-	for _, existingModelInfer := range existingModelInfers {
-		// if not exist in modelInfersToKeep, delete it
-		if _, ok := modelInfersToKeep[existingModelInfer.Name]; !ok {
-			if err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Delete(ctx, existingModelInfer.Name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
-				klog.Errorf("Failed to delete ModelInfer %s: %v", klog.KObj(existingModelInfer), err)
-				return err
-			}
-			klog.V(4).Infof("Delete ModelInfer %s", existingModelInfer.Name)
-		}
-	}
-	return nil
-}
-
-// setModelUpdateCondition sets model condition to updating
-func (mc *ModelController) setModelUpdateCondition(ctx context.Context, model *registryv1alpha1.Model) error {
-	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeActive),
-		metav1.ConditionFalse, ModelUpdatingReason, "Model is updating, not ready yet"))
-	if err := mc.updateModelStatus(ctx, model); err != nil {
-		klog.Errorf("update model status failed: %v", err)
-		return err
-	}
-	return nil
-}
-
-// setModelFailedCondition sets model condition to failed
-func (mc *ModelController) setModelFailedCondition(ctx context.Context, model *registryv1alpha1.Model, err error) {
-	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeFailed),
-		metav1.ConditionTrue, ModelFailedReason, err.Error()))
-	if err := mc.updateModelStatus(ctx, model); err != nil {
-		klog.Errorf("update model status failed: %v", err)
-	}
 }
 
 func (mc *ModelController) loadConfigFromConfigMap() {
@@ -974,7 +438,7 @@ func (mc *ModelController) triggerModel(old any, new any) {
 		klog.Error("failed to parse old ModelInfer")
 		return
 	}
-	if newModelInfer.OwnerReferences != nil {
+	if len(newModelInfer.OwnerReferences) > 0 {
 		// Find the owner of modelInfer and reconcile the owner to change its status
 		if model, err := mc.modelsLister.Models(newModelInfer.Namespace).Get(newModelInfer.OwnerReferences[0].Name); err == nil {
 			mc.enqueueModel(model)
@@ -982,239 +446,47 @@ func (mc *ModelController) triggerModel(old any, new any) {
 	}
 }
 
-// createModelServer creates model server
-func (mc *ModelController) createModelServer(ctx context.Context, model *registryv1alpha1.Model) error {
-	klog.V(4).Info("Start to create model server")
-	modelServers, err := convert.BuildModelServer(model)
-	if err != nil {
-		return err
+// deleteModelInfer is called when a ModelInfer is deleted. It will reconcile the Model. Recreate model infer.
+func (mc *ModelController) deleteModelInfer(obj any) {
+	modelInfer, ok := obj.(*workload.ModelInfer)
+	if !ok {
+		klog.Error("failed to parse ModelInfer when deleteModelInfer")
+		return
 	}
-	for _, modelServer := range modelServers {
-		if _, err := mc.client.NetworkingV1alpha1().ModelServers(model.Namespace).Create(ctx, modelServer, metav1.CreateOptions{}); err != nil {
-			if apierrors.IsAlreadyExists(err) {
-				klog.V(4).InfoS("ModelServer already exists, skipping creation", "modelServer", klog.KObj(modelServer))
-				continue
-			}
-			klog.Errorf("Create model server failed: %v", err)
-			return err
+	klog.V(4).Infof("model infer: %s is deleted", klog.KObj(modelInfer))
+	if len(modelInfer.OwnerReferences) > 0 {
+		if model, err := mc.modelsLister.Models(modelInfer.Namespace).Get(modelInfer.OwnerReferences[0].Name); err == nil {
+			mc.enqueueModel(model)
 		}
 	}
-	return nil
 }
 
-// updateModelServer updates model server
-func (mc *ModelController) updateModelServer(ctx context.Context, model *registryv1alpha1.Model) error {
-	modelServers, err := convert.BuildModelServer(model)
-	if err != nil {
-		return err
+// deleteModelRoute is called when a ModelRoute is deleted. It will reconcile the Model. Recreate model route.
+func (mc *ModelController) deleteModelRoute(obj any) {
+	modelRoute, ok := obj.(*networkingv1alpha1.ModelRoute)
+	if !ok {
+		klog.Error("failed to parse ModelRoute when deleteModelRoute")
+		return
 	}
-	for _, modelServer := range modelServers {
-		oldModelServer, err := mc.client.NetworkingV1alpha1().ModelServers(modelServer.Namespace).Get(ctx, modelServer.Name, metav1.GetOptions{})
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				// ModelServer doesn't exist, create it.
-				if _, err := mc.client.NetworkingV1alpha1().ModelServers(model.Namespace).Create(ctx, modelServer, metav1.CreateOptions{}); err != nil {
-					klog.Errorf("failed to create ModelServer %s: %v", klog.KObj(modelServer), err)
-					return err
-				}
-				continue
-			}
-			klog.Errorf("failed to get ModelServer %s: %v", klog.KObj(modelServer), err)
-			return err
-		}
-		if equality.Semantic.DeepEqual(oldModelServer.Spec, modelServer.Spec) {
-			klog.Infof("Model Server %s of model %s does not need to update", modelServer.Name, model.Name)
-			continue
-		}
-		modelServer.ResourceVersion = oldModelServer.ResourceVersion
-		if _, err := mc.client.NetworkingV1alpha1().ModelServers(model.Namespace).Update(ctx, modelServer, metav1.UpdateOptions{}); err != nil {
-			klog.Errorf("failed to update ModelServer %s: %v", klog.KObj(modelServer), err)
-			return err
+	klog.V(4).Infof("model route: %s is deleted", klog.KObj(modelRoute))
+	if len(modelRoute.OwnerReferences) > 0 {
+		if model, err := mc.modelsLister.Models(modelRoute.Namespace).Get(modelRoute.OwnerReferences[0].Name); err == nil {
+			mc.enqueueModel(model)
 		}
 	}
-	return nil
 }
 
-func (mc *ModelController) createAutoscalingPolicyAndBinding(ctx context.Context, model *registryv1alpha1.Model) error {
-	if model.Spec.AutoscalingPolicy != nil {
-		// Create autoscaling policy and optimize policy binding
-		modelAutoscalePolicy := convert.BuildAutoscalingPolicy(model.Spec.AutoscalingPolicy, model, "")
-		if _, err := mc.client.RegistryV1alpha1().AutoscalingPolicies(model.Namespace).Create(ctx, modelAutoscalePolicy, metav1.CreateOptions{}); err != nil {
-			klog.Errorf("Create autoscaling policy of model: [%s] failed: %v", model.Name, err)
-			return err
-		}
-		modelPolicyBinding := convert.BuildOptimizePolicyBinding(model, utils.GetBackendResourceName(model.Name, ""))
-		if _, err := mc.client.RegistryV1alpha1().AutoscalingPolicyBindings(model.Namespace).Create(ctx, modelPolicyBinding, metav1.CreateOptions{}); err != nil {
-			klog.Errorf("Create autoscaling policy binding of model: [%s] failed: %v", model.Name, err)
-			return err
-		}
-	} else {
-		// Create autoscaling policy and scaling policy binding
-		for _, backend := range model.Spec.Backends {
-			if backend.AutoscalingPolicy == nil {
-				continue
-			}
-			backendAutoscalePolicy := convert.BuildAutoscalingPolicy(backend.AutoscalingPolicy, model, backend.Name)
-			if _, err := mc.client.RegistryV1alpha1().AutoscalingPolicies(model.Namespace).Create(ctx, backendAutoscalePolicy, metav1.CreateOptions{}); err != nil {
-				klog.Errorf("Create autoscaling policy of backend: [%s] in model: [%s] failed: %v", backend.Name, model.Name, err)
-				return err
-			}
-			backendPolicyBinding := convert.BuildScalingPolicyBinding(model, &backend, utils.GetBackendResourceName(model.Name, backend.Name))
-			if _, err := mc.client.RegistryV1alpha1().AutoscalingPolicyBindings(model.Namespace).Create(ctx, backendPolicyBinding, metav1.CreateOptions{}); err != nil {
-				klog.Errorf("Create autoscaling policy binding of backend: [%s] in model: [%s] failed: %v", backend.Name, model.Name, err)
-				return err
-			}
+// deleteModelServer is called when a ModelServer is deleted. It will reconcile the Model. Recreate model server.
+func (mc *ModelController) deleteModelServer(obj any) {
+	modelServer, ok := obj.(*networkingv1alpha1.ModelServer)
+	if !ok {
+		klog.Error("failed to parse ModelServer when deleteModelServer")
+		return
+	}
+	klog.V(4).Infof("model server: %s is deleted", klog.KObj(modelServer))
+	if len(modelServer.OwnerReferences) > 0 {
+		if model, err := mc.modelsLister.Models(modelServer.Namespace).Get(modelServer.OwnerReferences[0].Name); err == nil {
+			mc.enqueueModel(model)
 		}
 	}
-	return nil
-}
-
-func (mc *ModelController) updateAutoscalingPolicyAndBinding(ctx context.Context, model *registryv1alpha1.Model) error {
-	if model.Spec.AutoscalingPolicy != nil {
-		name := utils.GetBackendResourceName(model.Name, "")
-		err := mc.tryUpdateAutoscalingPolicy(ctx, model, model.Spec.AutoscalingPolicy, name)
-		if err != nil {
-			return err
-		}
-		err = mc.tryUpdateAutoscalingPolicyBinding(ctx, model, nil)
-		if err != nil {
-			return err
-		}
-	} else {
-		for _, backend := range model.Spec.Backends {
-			if backend.AutoscalingPolicy == nil {
-				continue
-			}
-			err := mc.tryUpdateAutoscalingPolicy(ctx, model, backend.AutoscalingPolicy, utils.GetBackendResourceName(model.Name, backend.Name))
-			if err != nil {
-				return err
-			}
-			err = mc.tryUpdateAutoscalingPolicyBinding(ctx, model, &backend)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func (mc *ModelController) tryUpdateAutoscalingPolicyBinding(ctx context.Context, model *registryv1alpha1.Model, backend *registryv1alpha1.ModelBackend) error {
-	var targetAutoscalePolicyBinding *registryv1alpha1.AutoscalingPolicyBinding
-	if backend == nil {
-		targetAutoscalePolicyBinding = convert.BuildOptimizePolicyBinding(model, utils.GetBackendResourceName(model.Name, ""))
-	} else {
-		targetAutoscalePolicyBinding = convert.BuildScalingPolicyBinding(model, backend, utils.GetBackendResourceName(model.Name, backend.Name))
-	}
-	currentAutoscalePolicyBinding, err := mc.autoscalingPolicyBindingsLister.AutoscalingPolicyBindings(model.Namespace).Get(targetAutoscalePolicyBinding.Name)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			if _, err := mc.client.RegistryV1alpha1().AutoscalingPolicyBindings(model.Namespace).Create(ctx, targetAutoscalePolicyBinding, metav1.CreateOptions{}); err != nil {
-				klog.Errorf("Create autoscaling policy binding of model: [%s] failed: %v", model.Name, err)
-				return err
-			}
-			return nil
-		}
-		klog.Errorf("Failed to get autoscaling policy binding of model: [%s] failed: %v", model.Name, err)
-		return err
-	}
-	if utils.GetAutoscalingPolicyBindingRevision(currentAutoscalePolicyBinding) == icUtils.Revision(targetAutoscalePolicyBinding.Spec) {
-		klog.InfoS("Autoscaling policy binding [%s] of model: [%s] need not to update", currentAutoscalePolicyBinding.Name, model.Name)
-		return nil
-	}
-
-	_, err = mc.client.RegistryV1alpha1().AutoscalingPolicyBindings(model.Namespace).Update(ctx, targetAutoscalePolicyBinding, metav1.UpdateOptions{})
-	if err != nil {
-		klog.Errorf("Update autoscaling policy binding of model: [%s] failed: %v", model.Name, err)
-		return err
-	}
-	return nil
-}
-
-func (mc *ModelController) tryUpdateAutoscalingPolicy(ctx context.Context, model *registryv1alpha1.Model, policy *registryv1alpha1.AutoscalingPolicySpec, policyName string) error {
-	targetAutoscalePolicy := convert.BuildAutoscalingPolicy(policy, model, policyName)
-	currentAutoscalePolicy, err := mc.autoscalingPoliciesLister.AutoscalingPolicies(model.Namespace).Get(policyName)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			if _, err := mc.client.RegistryV1alpha1().AutoscalingPolicies(model.Namespace).Create(ctx, targetAutoscalePolicy, metav1.CreateOptions{}); err != nil {
-				klog.Errorf("Create autoscaling policy of model: [%s] failed: %v", model.Name, err)
-				return err
-			}
-			return nil
-		}
-		klog.Errorf("Failed to get autoscaling policy of model: [%s] failed: %v", model.Name, err)
-		return err
-	}
-	if utils.GetAutoscalingPolicyRevision(currentAutoscalePolicy) == icUtils.Revision(targetAutoscalePolicy.Spec) {
-		klog.InfoS("Autoscaling policy [%s] of model: [%s] need not to update", currentAutoscalePolicy.Name, model.Name)
-		return nil
-	}
-
-	_, err = mc.client.RegistryV1alpha1().AutoscalingPolicies(model.Namespace).Update(ctx, targetAutoscalePolicy, metav1.UpdateOptions{})
-	if err != nil {
-		klog.Errorf("Update autoscaling policy of model: [%s] failed: %v", model.Name, err)
-		return err
-	}
-	return nil
-}
-
-// createModelRoute creates model route
-func (mc *ModelController) createModelRoute(ctx context.Context, model *registryv1alpha1.Model) error {
-	klog.V(4).Info("Start to create model route")
-	modelRoute := convert.BuildModelRoute(model)
-	if _, err := mc.client.NetworkingV1alpha1().ModelRoutes(model.Namespace).Create(ctx, modelRoute, metav1.CreateOptions{}); err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			klog.V(4).InfoS("ModelRoute already exists, skipping creation", "modelRoute", klog.KObj(modelRoute))
-			return nil
-		}
-		klog.Errorf("create model route failed: %v", err)
-		return err
-	}
-	return nil
-}
-
-// updateModelRoute updates model route
-func (mc *ModelController) updateModelRoute(ctx context.Context, model *registryv1alpha1.Model) error {
-	modelRoute := convert.BuildModelRoute(model)
-	oldModelRoute, err := mc.client.NetworkingV1alpha1().ModelRoutes(modelRoute.Namespace).Get(ctx, modelRoute.Name, metav1.GetOptions{})
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			// ModelRoute doesn't exist, create it.
-			if _, err := mc.client.NetworkingV1alpha1().ModelRoutes(model.Namespace).Create(ctx, modelRoute, metav1.CreateOptions{}); err != nil {
-				klog.Errorf("failed to create ModelRoute %s: %v", klog.KObj(modelRoute), err)
-				return err
-			}
-			return nil
-		}
-		klog.Errorf("failed to get ModelRoute %s: %v", klog.KObj(modelRoute), err)
-		return err
-	}
-	if equality.Semantic.DeepEqual(oldModelRoute.Spec, modelRoute.Spec) {
-		klog.Infof("Model Route %s of model %s does not need to update", modelRoute.Name, model.Name)
-		return nil
-	}
-	modelRoute.ResourceVersion = oldModelRoute.ResourceVersion
-	if _, err := mc.client.NetworkingV1alpha1().ModelRoutes(model.Namespace).Update(ctx, modelRoute, metav1.UpdateOptions{}); err != nil {
-		klog.Errorf("failed to update ModelRoute %s: %v", klog.KObj(modelRoute), err)
-		return err
-	}
-	return nil
-}
-
-// createModelInfer creates model infer
-func (mc *ModelController) createModelInfer(ctx context.Context, model *registryv1alpha1.Model) error {
-	klog.V(4).Info("start to create model infer")
-	modelInfers, err := convert.CreateModelInferResources(model)
-	if err != nil {
-		klog.Errorf("failed to build model infer for model %s: %v", model.Name, err)
-		return err
-	}
-	for _, modelInfer := range modelInfers {
-		if _, err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Create(ctx, modelInfer, metav1.CreateOptions{}); err != nil {
-			if apierrors.IsAlreadyExists(err) {
-				continue
-			}
-			return err
-		}
-	}
-	return nil
 }

@@ -68,7 +68,6 @@ func BuildModelServer(model *registry.Model) ([]*networking.ModelServer, error) 
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      utils.GetBackendResourceName(model.Name, backend.Name),
 				Namespace: model.Namespace,
-				Labels:    utils.GetModelControllerLabels(model, backend.Name, icUtils.Revision(model.Spec)),
 				OwnerReferences: []metav1.OwnerReference{
 					utils.NewModelOwnerRef(model),
 				},
@@ -93,6 +92,7 @@ func BuildModelServer(model *registry.Model) ([]*networking.ModelServer, error) 
 				},
 			},
 		}
+		modelServer.Labels = utils.GetModelControllerLabels(model, backend.Name, icUtils.Revision(modelServer.Spec))
 		modelServers = append(modelServers, &modelServer)
 	}
 	return modelServers, nil

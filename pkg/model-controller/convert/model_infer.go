@@ -52,8 +52,8 @@ const (
 //go:embed templates/*
 var templateFS embed.FS
 
-// CreateModelInferResources creates ModelInfer objects based on the model's backends.
-func CreateModelInferResources(model *registry.Model) ([]*workload.ModelInfer, error) {
+// BuildModelInfer creates ModelInfer objects based on the model's backends.
+func BuildModelInfer(model *registry.Model) ([]*workload.ModelInfer, error) {
 	var infers []*workload.ModelInfer
 	for idx, backend := range model.Spec.Backends {
 		var infer *workload.ModelInfer
@@ -133,6 +133,21 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 		decodeCommand = append(decodeCommand, loraCommands...)
 		initContainers = append(initContainers, loraContainers...)
 	}
+
+	prefillEngineEnv := buildEngineEnvVars(backend,
+		corev1.EnvVar{Name: "HF_HUB_OFFLINE", Value: "1"},
+		corev1.EnvVar{Name: "HCCL_IF_IP", ValueFrom: &corev1.EnvVarSource{
+			FieldRef: &corev1.ObjectFieldSelector{FieldPath: "status.podIP"},
+		}},
+	)
+
+	decodeEngineEnv := buildEngineEnvVars(backend,
+		corev1.EnvVar{Name: "HF_HUB_OFFLINE", Value: "1"},
+		corev1.EnvVar{Name: "GLOO_SOCKET_IFNAME", Value: "eth0"},
+		corev1.EnvVar{Name: "TP_SOCKET_IFNAME", Value: "eth0"},
+		corev1.EnvVar{Name: "HCCL_SOCKET_IFNAME", Value: "eth0"},
+	)
+
 	data := map[string]interface{}{
 		"MODEL_INFER_TEMPLATE_METADATA": &metav1.ObjectMeta{
 			Name:      utils.GetBackendResourceName(model.Name, backend.Name),
@@ -164,7 +179,10 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 		"MODEL_INFER_RUNTIME_PORT":         env.GetEnvValueOrDefault[int32](backend, env.RuntimePort, 8100),
 		"MODEL_INFER_RUNTIME_URL":          env.GetEnvValueOrDefault[string](backend, env.RuntimeUrl, "http://localhost:8000"),
 		"MODEL_INFER_RUNTIME_METRICS_PATH": env.GetEnvValueOrDefault[string](backend, env.RuntimeMetricsPath, "/metrics"),
+		"ENGINE_PREFILL_ENV":               prefillEngineEnv,
+		"ENGINE_DECODE_ENV":                decodeEngineEnv,
 		"MODEL_INFER_RUNTIME_ENGINE":       strings.ToLower(string(backend.Type)),
+		"MODEL_INFER_RUNTIME_POD":          "$(POD_NAME).$(NAMESPACE)",
 		"PREFILL_REPLICAS":                 workersMap[registry.ModelWorkerTypePrefill].Replicas,
 		"DECODE_REPLICAS":                  workersMap[registry.ModelWorkerTypeDecode].Replicas,
 		"ENGINE_DECODE_RESOURCES":          workersMap[registry.ModelWorkerTypeDecode].Resources,
@@ -219,7 +237,7 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 		commands = append(commands, loraCommands...)
 		initContainers = append(initContainers, loraContainers...)
 	}
-
+	engineEnv := buildEngineEnvVars(backend)
 	data := map[string]interface{}{
 		"MODEL_INFER_TEMPLATE_METADATA": &metav1.ObjectMeta{
 			Name:      utils.GetBackendResourceName(model.Name, backend.Name),
@@ -239,7 +257,7 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 		"BACKEND_NAME":     strings.ToLower(backend.Name),
 		"BACKEND_REPLICAS": backend.MinReplicas, // todo: backend replicas
 		"BACKEND_TYPE":     strings.ToLower(string(backend.Type)),
-		"ENGINE_ENV":       backend.Env,
+		"ENGINE_ENV":       engineEnv,
 		"WORKER_ENV":       backend.Env,
 		"SERVER_REPLICAS":  workersMap[registry.ModelWorkerTypeServer].Replicas,
 		"SERVER_ENTRY_TEMPLATE_METADATA": &metav1.ObjectMeta{
@@ -260,6 +278,7 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 		"MODEL_INFER_RUNTIME_URL":          env.GetEnvValueOrDefault[string](backend, env.RuntimeUrl, "http://localhost:8000"),
 		"MODEL_INFER_RUNTIME_METRICS_PATH": env.GetEnvValueOrDefault[string](backend, env.RuntimeMetricsPath, "/metrics"),
 		"MODEL_INFER_RUNTIME_ENGINE":       strings.ToLower(string(backend.Type)),
+		"MODEL_INFER_RUNTIME_POD":          "$(POD_NAME).$(NAMESPACE)",
 		"ENGINE_SERVER_RESOURCES":          workersMap[registry.ModelWorkerTypeServer].Resources,
 		"ENGINE_SERVER_IMAGE":              workersMap[registry.ModelWorkerTypeServer].Image,
 		"ENGINE_SERVER_COMMAND":            commands,
@@ -278,15 +297,17 @@ func mapWorkers(workers []registry.ModelWorker) map[registry.ModelWorkerType]*re
 }
 
 // buildCommands constructs the command list for the backend.
-func buildCommands(config *apiextensionsv1.JSON, modelDownloadPath string,
+func buildCommands(workerConfig *apiextensionsv1.JSON, modelDownloadPath string,
 	workersMap map[registry.ModelWorkerType]*registry.ModelWorker) ([]string, error) {
 	commands := []string{"python", "-m", "vllm.entrypoints.openai.api_server", "--model", modelDownloadPath, "--enable-lora"}
-	args, err := utils.ParseArgs(config)
+	args, err := utils.ParseArgs(workerConfig)
 	commands = append(commands, args...)
 	if workersMap[registry.ModelWorkerTypeServer] != nil && workersMap[registry.ModelWorkerTypeServer].Pods > 1 {
 		commands = append(commands, "--distributed_executor_backend", "ray")
 		commands = []string{"bash", "-c", fmt.Sprintf("chmod u+x %s && %s leader --ray_cluster_size=%d --num-gpus=%d && %s", VllmMultiNodeServingScriptPath, VllmMultiNodeServingScriptPath, workersMap[registry.ModelWorkerTypeServer].Pods, utils.GetDeviceNum(workersMap[registry.ModelWorkerTypeServer]), strings.Join(commands, " "))}
 	}
+	commands = append(commands, "--kv-events-config", config.GetDefaultKVEventsConfig())
+	commands = append(commands, "--enforce-eager")
 	return commands, err
 }
 
@@ -389,6 +410,25 @@ func buildDownloaderContainer(name, image, source, outputDir string, backend *re
 			MountPath: GetCachePath(backend.CacheURI),
 		}},
 	}
+}
+
+func buildEngineEnvVars(backend *registry.ModelBackend, additionalEnvs ...corev1.EnvVar) []corev1.EnvVar {
+	standardEnvs := []corev1.EnvVar{
+		{
+			Name: "POD_NAME",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{FieldPath: "metadata.name"},
+			},
+		},
+		{
+			Name: "NAMESPACE",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{FieldPath: "metadata.namespace"},
+			},
+		},
+		{Name: "VLLM_USE_V1", Value: "1"},
+	}
+	return append(append(append([]corev1.EnvVar(nil), backend.Env...), standardEnvs...), additionalEnvs...)
 }
 
 // buildLoraComponents builds LoRA related commands and containers
