@@ -191,6 +191,16 @@ docker-buildx: ## Build docker image for cross-platform support
 	-$(CONTAINER_TOOL) buildx rm matrixinfer-builder
 	find docker -name "*.cross" -type f -delete
 
+.PHONY: docker-buildx-push
+docker-buildx-push: docker-buildx ## Build and push docker image for cross-platform support
+	$(CONTAINER_TOOL) push ${IMG_GATEWAY}
+	$(CONTAINER_TOOL) push ${IMG_MODELINFER}
+	$(CONTAINER_TOOL) push ${IMG_MODELCONTROLLER}
+	$(CONTAINER_TOOL) push ${IMG_AUTOSCALER}
+	$(CONTAINER_TOOL) push ${IMG_REGISTRY_WEBHOOK}
+	$(CONTAINER_TOOL) push ${IMG_MODELINFER_WEBHOOK}
+	$(CONTAINER_TOOL) push ${IMG_INFER_GATEWAY_WEBHOOK}
+
 ##@ Deployment
 
 ifndef ignore-not-found

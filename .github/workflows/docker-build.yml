@@ -8,11 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v5
 
       - name: Set up Docker Buildx

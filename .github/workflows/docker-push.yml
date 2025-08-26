@@ -12,7 +12,7 @@ jobs:
       contents: read
       packages: write
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v5
 
       - name: Set up Docker Buildx
@@ -20,26 +20,11 @@ jobs:
 
       # push to ghcr.io when merged to main.
       - name: Log in to Github Container Registry
-        if: github.event_name == 'push'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/matrixinfer-ai
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=sha
-            type=raw,value=latest,enable={{is_default_branch}}
-
       - name: Push Docker images
-        run: make docker-push
-        env:
-          TAG: ${{ github.sha }}
-          PLATFORMS: linux/amd64,linux/arm64
+        run: make docker-buildx-push
