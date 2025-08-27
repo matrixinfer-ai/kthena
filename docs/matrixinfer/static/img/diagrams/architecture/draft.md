@@ -102,7 +102,6 @@ rectangle "Control Plane" as control_plane {
 				rate_limiter --> fairness_scheduling
 				fairness_scheduling --> load_balance
 				load_balance --> router_proxy
-				
 				router_proxy --> scheduler : schedule inference pods
 				router_proxy --> connector : PD-Disaggregation mode
 			}
@@ -113,11 +112,12 @@ rectangle "Control Plane" as control_plane {
 
 			database "In-Memory Datastore" as network_datastore {
 				component "Model Route" as modelroute_data
-				component "Model Server"
+				component "Model Server" as modelserver_data
 				component "Pods"
 				component "RequestWaitingQueue" as request_waiting_queue
 			}
-			router_proxy --> request_waiting_queue : fairness
+			fairness_scheduling --> request_waiting_queue : fairness
+			load_balance --> modelserver_data
 		}
 		' layout
 		infergateway_webhook -[hidden]-> modelrouter
