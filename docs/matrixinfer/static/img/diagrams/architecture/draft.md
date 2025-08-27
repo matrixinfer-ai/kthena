@@ -1,5 +1,6 @@
+# Architecture diagrams
 
-
+## Reconcile
 ```plantuml
 ' Styling rules
 skinparam component {
@@ -9,26 +10,40 @@ skinparam component {
   BorderColor<<Controller>> Navy
 }
 
-' Style for CRs
-component "model_cr" <<CR>>
-component "autoscalingpolicy_cr" <<CR>>
-component "autoscalingpolicybinding_cr" <<CR>>
-component "modelinfer_cr" <<CR>>
-component "modelserver_cr" <<CR>>
-component "modelroute_cr" <<CR>>
+actor user
 
-' Style for Controllers
-component "model_controller" <<Controller>>
-component "autoscaler_controller" <<Controller>>
-component "modelinfer_controller" <<Controller>>
-component "modelserver_controller" <<Controller>>
-component "modelroute_controller" <<Controller>>
+rectangle "reconcile" {
+	' Style for CRs
+	component "model_cr" <<CR>>
+	component "autoscalingpolicy_cr" <<CR>>
+	component "autoscalingpolicybinding_cr" <<CR>>
+	component "modelinfer_cr" <<CR>>
+	component "modelserver_cr" <<CR>>
+	component "modelroute_cr" <<CR>>
+	
+	' Style for Controllers
+	component "model_controller" <<Controller>>
+	component "autoscaler_controller" <<Controller>>
+	component "modelinfer_controller" <<Controller>>
+	component "modelserver_controller" <<Controller>>
+	component "modelroute_controller" <<Controller>>
+}
+
+rectangle "infer" {
+	component "infer gateway" as infer_gateway
+	component "inference pods" as pods
+}
 
 
 ' Relationships
+
+user --> model_cr
+
 model_cr --> model_controller : inform
 autoscalingpolicy_cr --> autoscaler_controller : inform
 autoscalingpolicybinding_cr --> autoscaler_controller : inform
+model_controller --> autoscalingpolicy_cr : update
+model_controller --> autoscalingpolicybinding_cr : update
 model_controller --> modelserver_cr : update
 model_controller --> modelroute_cr : update
 autoscaler_controller --> modelinfer_cr : update
@@ -36,9 +51,12 @@ modelinfer_cr --> modelinfer_controller : inform
 modelserver_cr --> modelserver_controller : inform
 modelroute_cr --> modelroute_controller : inform
 
+modelserver_controller --> infer_gateway : update
+modelroute_controller --> infer_gateway : update
+modelinfer_controller --> pods : update
 ```
 
-
+## Component
 ```plantuml
 skinparam linetype polyline
 skinparam component<<dashed>> {
@@ -58,10 +76,10 @@ rectangle "Control Plane" as control_plane {
 			component "ModelServer" as modelserver_crd
 			component "ModelInfer" as modelinfer_crd
 			component "AutoScalingPolicy" as autoscalingpolicy_crd
-			model_crd --> modelroute_crd
-			model_crd --> modelinfer_crd
-			model_crd --> autoscalingpolicy_crd
-			modelroute_crd --> modelserver_crd
+			model_crd -[hidden]-> modelroute_crd
+			model_crd -[hidden]-> modelinfer_crd
+			model_crd -[hidden]-> autoscalingpolicy_crd
+			modelroute_crd -[hidden]-> modelserver_crd
 		}
 	}
 	
@@ -69,12 +87,10 @@ rectangle "Control Plane" as control_plane {
 		component "InferGateway Webhook (main.go)" as infergateway_webhook
 		rectangle "Infer Gateway (main.go)" {
 			component "Model Router" as modelrouter {
-				component "Filter" as router_filter {
-					component "Auth" as auth
-					component "Rate Limiter" as rate_limiter
-					auth --> rate_limiter
-				}
-				
+				component "Auth" as auth
+				component "Rate Limiter" as rate_limiter
+				component "Fairness scheduling" as fairness_scheduling
+				component "Load balance" as load_balance
 				component "Router Proxy" as router_proxy
 				component "Scheduler" as scheduler {
 					component "Filter Plugins"
@@ -82,8 +98,11 @@ rectangle "Control Plane" as control_plane {
 					component "Pod Selector"
 				}
 				component "KV connector" as connector
+				auth --> rate_limiter
+				rate_limiter --> fairness_scheduling
+				fairness_scheduling --> load_balance
+				load_balance --> router_proxy
 				
-				auth --> router_proxy
 				router_proxy --> scheduler : schedule inference pods
 				router_proxy --> connector : PD-Disaggregation mode
 			}
