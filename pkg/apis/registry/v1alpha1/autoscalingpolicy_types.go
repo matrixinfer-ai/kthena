@@ -25,7 +25,7 @@ import (
 type AutoscalingPolicySpec struct {
 	// TolerancePercent is the percentage of deviation tolerated before scaling actions are triggered.
 	// The current number of instances is current_replicas, and the expected number of instances inferred from monitoring metrics is target_replicas.
-	// The scaling operation will only be actually performed when |current_replicas - target_replicas| ≥ current_replicas × TolerancePercent.
+	// The scaling operation will only be actually performed when |current_replicas - target_replicas| >= current_replicas * TolerancePercent.
 	// +optional
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=100
@@ -62,7 +62,7 @@ type AutoscalingPolicyScaleUpPolicy struct {
 	// This mechanism is relatively stable, as it can smooth out short-term small fluctuations and avoid overly frequent and unnecessary Pod scaling.
 	// +optional
 	StablePolicy AutoscalingPolicyStablePolicy `json:"stablePolicy"`
-	// When the load surges sharply within tens of seconds (for example, encountering a sudden traffic peak or a rush of sudden computing tasks),
+	// When the load surges sharply within a short period (for example, encountering a sudden traffic peak or a rush of sudden computing tasks),
 	// using the average value over a long time window to calculate the required number of replicas will cause significant lag.
 	// If the system needs to scale out quickly to cope with such peaks, the ordinary scaling logic may fail to respond in time,
 	// resulting in delayed Pod startup, slower service response time or timeouts, and may even lead to service paralysis or data backlogs (for workloads such as message queues).
