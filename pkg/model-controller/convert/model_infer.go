@@ -299,7 +299,7 @@ func mapWorkers(workers []registry.ModelWorker) map[registry.ModelWorkerType]*re
 // buildCommands constructs the command list for the backend.
 func buildCommands(workerConfig *apiextensionsv1.JSON, modelDownloadPath string,
 	workersMap map[registry.ModelWorkerType]*registry.ModelWorker) ([]string, error) {
-	commands := []string{"python", "-m", "vllm.entrypoints.openai.api_server", "--model", modelDownloadPath, "--enable-lora"}
+	commands := []string{"python", "-m", "vllm.entrypoints.openai.api_server", "--model", modelDownloadPath}
 	args, err := utils.ParseArgs(workerConfig)
 	commands = append(commands, args...)
 	if workersMap[registry.ModelWorkerTypeServer] != nil && workersMap[registry.ModelWorkerTypeServer].Pods > 1 {
@@ -458,7 +458,7 @@ func buildLoraComponents(model *registry.Model, backend *registry.ModelBackend, 
 	}
 
 	// Build LoRA command arguments
-	loraCommands := []string{"--enable-lora", "--lora-modules", strings.Join(loras, " ")}
+	loraCommands := append([]string{"--enable-lora", "--lora-modules"}, loras...)
 
 	return loraCommands, loraContainers
 }

@@ -61,6 +61,23 @@ spec:
                   Rate limit for the LLM request based on prompt tokens or output tokens.
                   There is no limitation if this field is not set.
                 properties:
+                  global:
+                    description: |-
+                      Global contains configuration for global rate limiting using distributed storage.
+                      If this field is set, global rate limiting will be used; otherwise, local rate limiting will be used.
+                    properties:
+                      redis:
+                        description: Redis contains configuration for Redis-based
+                          global rate limiting.
+                        properties:
+                          address:
+                            description: Address is the Redis server address in the
+                              format "host:port".
+                            type: string
+                        required:
+                        - address
+                        type: object
+                    type: object
                   inputTokensPerUnit:
                     description: |-
                       InputTokensPerUnit is the maximum number of input tokens allowed per unit of time.

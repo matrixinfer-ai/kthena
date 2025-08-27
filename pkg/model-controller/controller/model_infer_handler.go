@@ -31,12 +31,35 @@ import (
 
 // createOrUpdateModelInfer attempts to create model infer if model infer does not exist, or update it if it is different from model.
 // Meanwhile, delete model infer if it is not in the model spec anymore.
-func (mc *ModelController) createOrUpdateModelInfer(ctx context.Context, model *registryv1alpha1.Model) error {
+func (mc *ModelController) createOrUpdateModelInfer(ctx context.Context, model *registryv1alpha1.Model, excludedBackends []string) error {
 	existingModelInfers, err := mc.listModelInferByLabel(model)
 	if err != nil {
 		return err
 	}
-	modelInfers, err := convert.BuildModelInfer(model)
+
+	excludedSet := make(map[string]bool)
+	for _, backendName := range excludedBackends {
+		excludedSet[backendName] = true
+	}
+
+	var filteredBackends []registryv1alpha1.ModelBackend
+	for _, backend := range model.Spec.Backends {
+		if !excludedSet[backend.Name] {
+			filteredBackends = append(filteredBackends, backend)
+		}
+	}
+
+	// If all backends are excluded, skip ModelInfer updates
+	if len(filteredBackends) == 0 {
+		klog.Infof("All backends excluded from ModelInfer update for model %s", model.Name)
+		return nil
+	}
+
+	// Create a temporary model with filtered backends for ModelInfer creation
+	tempModel := model.DeepCopy()
+	tempModel.Spec.Backends = filteredBackends
+
+	modelInfers, err := convert.BuildModelInfer(tempModel)
 	if err != nil {
 		klog.Errorf("failed to build model infer for model %s: %v", model.Name, err)
 		return err
