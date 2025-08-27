@@ -83,6 +83,7 @@ func (v *ModelValidator) validateModel(model *registryv1alpha1.Model) (bool, str
 	allErrs = append(allErrs, validateWorkerImages(model)...)
 	allErrs = append(allErrs, validateAutoScalingPolicyScope(model)...)
 	allErrs = append(allErrs, validateBackendWorkerTypes(model)...)
+	allErrs = append(allErrs, validateLoraAdapterName(model)...)
 
 	if len(allErrs) > 0 {
 		// Convert field errors to a formatted multi-line error message
@@ -356,5 +357,37 @@ func validateAutoScalingPolicyScope(model *registryv1alpha1.Model) field.ErrorLi
 			))
 		}
 	}
+	return allErrs
+}
+
+func validateLoraAdapterName(model *registryv1alpha1.Model) field.ErrorList {
+	var allErrs field.ErrorList
+	modelName := model.Name
+	spec := model.Spec
+
+	for i, backend := range spec.Backends {
+		if backend.LoraAdapters != nil {
+			loraName := make(map[string]struct{})
+			for j, lora := range backend.LoraAdapters {
+				loraPath := field.NewPath("spec").Child("backends").Index(i).Child("loraAdapters").Index(j)
+				if lora.Name == modelName {
+					allErrs = append(allErrs, field.Invalid(
+						loraPath.Child("name"),
+						lora.Name,
+						"lora name cannot be the same as model name"))
+				}
+				if _, exists := loraName[lora.Name]; exists {
+					allErrs = append(allErrs, field.Invalid(
+						loraPath.Child("name"),
+						lora.Name,
+						"lora name must be unique within the backend",
+					))
+				} else {
+					loraName[lora.Name] = struct{}{}
+				}
+			}
+		}
+	}
+
 	return allErrs
 }

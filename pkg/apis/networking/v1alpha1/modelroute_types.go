@@ -115,6 +115,24 @@ type RateLimit struct {
 	// +kubebuilder:default=second
 	// +kubebuilder:validation:Enum=second;minute;hour;day;month
 	Unit RateLimitUnit `json:"unit"`
+	// Global contains configuration for global rate limiting using distributed storage.
+	// If this field is set, global rate limiting will be used; otherwise, local rate limiting will be used.
+	// +optional
+	Global *GlobalRateLimit `json:"global,omitempty"`
+}
+
+// GlobalRateLimit contains configuration for global rate limiting
+type GlobalRateLimit struct {
+	// Redis contains configuration for Redis-based global rate limiting.
+	// +optional
+	Redis *RedisConfig `json:"redis,omitempty"`
+}
+
+// RedisConfig contains Redis connection configuration
+type RedisConfig struct {
+	// Address is the Redis server address in the format "host:port".
+	// +kubebuilder:validation:Required
+	Address string `json:"address"`
 }
 
 // +kubebuilder:validation:Enum=second;minute;hour;day;month
