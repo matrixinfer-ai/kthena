@@ -9,108 +9,33 @@ MatrixInfer Gateway provides sophisticated traffic routing capabilities that ena
 - **ModelServer**: Defines backend inference service instances with their associated pods, models, and traffic policies
 - **ModelRoute**: Defines routing rules based on request characteristics such as model name, LoRA adapters, HTTP headers, and weight distribution
 
+For a detailed definition of the ModelServer and ModelRoute CRs, please refer to the [ModelRoute and ModelRoute Reference](../reference/crd/networking.matrixinfer.ai.v1alpha1.md) pages.
+
 The gateway supports various routing strategies, from simple model-based forwarding to complex weighted distribution and header-based routing. This flexibility allows for advanced deployment patterns including canary releases, A/B testing, and load balancing across heterogeneous model deployments.
 
-## Routing Rules
+## Preparation
 
-### ModelRoute Configuration
+Before diving into the routing configurations, let's set up the environment and understand the prerequisites. All the configuration examples in this document can be found in the [examples/infer-gateway](https://github.com/matrixinfer-ai/matrixinfer/tree/main/examples/infer-gateway) directory of the MatrixInfer repository.
 
-ModelRoute defines the routing logic that determines which ModelServer should handle incoming requests:
+### Environment Setup
 
-```yaml
-apiVersion: networking.matrixinfer.ai/v1alpha1
-kind: ModelRoute
-metadata:
-  name: deepseek-simple
-  namespace: default
-spec:
-  modelName: "deepseek-r1"
-  rules:
-  - name: "default"
-    targetModels:
-    - modelServerName: "deepseek-r1-1-5b"
-```
+To simplify deployment and reduce the requirements for demonstration environments, we use a **mock LLM server** instead of deploying real models. This mock server implements the vLLM standard interface and returns mock data, making it perfect for testing and learning purposes.
 
-### ModelServer Configuration
+### Prerequisites
 
-ModelServer defines the backend inference service and specifies how traffic should be handled:
+- Kubernetes cluster with MatrixInfer installed
+- Access to the MatrixInfer examples repository
+- Basic understanding of gateway CRDs (ModelServer and ModelRoute)
 
-```yaml
-apiVersion: networking.matrixinfer.ai/v1alpha1
-kind: ModelServer
-metadata:
-  name: deepseek-r1-1-5b
-  namespace: default
-spec:
-  workloadSelector:
-    matchLabels:
-      app: deepseek-r1-1-5b
-  workloadPort:
-    port: 8000
-  model: "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
-  inferenceEngine: "vLLM"
-  trafficPolicy:
-    timeout: 10s
-```
+### Getting Started
 
-## Configuration
+1. Deploy mock [deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B](https://github.com/matrixinfer-ai/matrixinfer/tree/main/examples/infer-gateway/llm-mock-ds1.5b.yaml) and [deepseek-ai/DeepSeek-R1-Distill-Qwen-7B](https://github.com/matrixinfer-ai/matrixinfer/tree/main/examples/infer-gateway/llm-mock-ds7b.yaml)
 
-### ModelRoute Fields
+2. Deploy all kinds of ModelServer, such as `deepseek-r1-1-5b`, `deepseek-r1-7b`, etc., as backends of different routing strategies.
 
-- **modelName**: The logical model name that clients will request
-- **loraAdapters**: Optional list of supported LoRA adapters
-- **rules**: List of routing rules with match criteria and target models
-- **targetModels**: Backend ModelServers with optional weights
+3. All routing examples in this guide use these mock services, so you can experiment with different routing strategies without the overhead of real model deployment.
 
-### ModelServer Fields
-
-- **workloadSelector**: Selects pods that will serve the model using Kubernetes label selectors
-- **workloadPort**: Specifies the port where the inference service is listening
-- **model**: The actual model identifier or path
-- **inferenceEngine**: The inference framework (vLLM, SGLang, etc.)
-- **trafficPolicy**: Defines timeout and other traffic management policies
-
-## ModelServer Definitions
-
-First, let's define the ModelServers that will be reused across different routing scenarios:
-
-```yaml
-# 1.5B Parameter Model using vLLM
-apiVersion: networking.matrixinfer.ai/v1alpha1
-kind: ModelServer
-metadata:
-  name: deepseek-r1-1-5b
-  namespace: default
-spec:
-  workloadSelector:
-    matchLabels:
-      app: deepseek-r1-1-5b
-  workloadPort:
-    port: 8000
-  model: "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
-  inferenceEngine: "vLLM"
-  trafficPolicy:
-    timeout: 10s
----
-# 7B Parameter Model using SGLang
-apiVersion: networking.matrixinfer.ai/v1alpha1
-kind: ModelServer
-metadata:
-  name: deepseek-r1-7b
-  namespace: default
-spec:
-  workloadSelector:
-    matchLabels:
-      app: deepseek-r1-7b
-  workloadPort:
-    port: 8000
-  model: "deepseek-r1:7b"
-  inferenceEngine: "SGLang"
-  trafficPolicy:
-    timeout: 10s
-```
-
-## Routing Examples
+## Routing Scenarios
 
 ### 1. Simple Model-Based Routing
 
