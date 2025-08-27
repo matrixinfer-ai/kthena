@@ -1,3 +1,44 @@
+
+
+```plantuml
+' Styling rules
+skinparam component {
+  BackgroundColor<<CR>> LightYellow
+  BorderColor<<CR>> DarkGoldenRod
+  BackgroundColor<<Controller>> LightBlue
+  BorderColor<<Controller>> Navy
+}
+
+' Style for CRs
+component "model_cr" <<CR>>
+component "autoscalingpolicy_cr" <<CR>>
+component "autoscalingpolicybinding_cr" <<CR>>
+component "modelinfer_cr" <<CR>>
+component "modelserver_cr" <<CR>>
+component "modelroute_cr" <<CR>>
+
+' Style for Controllers
+component "model_controller" <<Controller>>
+component "autoscaler_controller" <<Controller>>
+component "modelinfer_controller" <<Controller>>
+component "modelserver_controller" <<Controller>>
+component "modelroute_controller" <<Controller>>
+
+
+' Relationships
+model_cr --> model_controller : inform
+autoscalingpolicy_cr --> autoscaler_controller : inform
+autoscalingpolicybinding_cr --> autoscaler_controller : inform
+model_controller --> modelserver_cr : update
+model_controller --> modelroute_cr : update
+autoscaler_controller --> modelinfer_cr : update
+modelinfer_cr --> modelinfer_controller : inform
+modelserver_cr --> modelserver_controller : inform
+modelroute_cr --> modelroute_controller : inform
+
+```
+
+
 ```plantuml
 skinparam linetype polyline
 skinparam component<<dashed>> {
