@@ -15,6 +15,9 @@ jobs:
   build:
     if: github.repository == 'matrixinfer-ai/matrixinfer'
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [ downloader, runtime ]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,7 +26,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}
+          images: ghcr.io/${{ github.repository_owner }}/${{matrix.target}}
 
       - name: Log in to Github Container Registry
         uses: docker/login-action@v3
