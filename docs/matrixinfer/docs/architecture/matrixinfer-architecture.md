@@ -1,216 +1,157 @@
 # Architecture Overview
 
-MatrixInfer is a Kubernetes-native AI inference platform designed for scalable, efficient, and intelligent model serving. This document provides an overview of the system architecture and core components.
+MatrixInfer is a Kubernetes-native AI inference platform designed for scalable, efficient, and intelligent model serving.
+The system is logically separated into three planes to decouple management, orchestration, and actual inference execution.
 
 ## High-Level Architecture
+
+---
+
+The MatrixInfer architecture consists of three main planes:
+
+- **Management Plane**: Defines models, routes, servers, and autoscaling policies as Kubernetes Custom Resources (CRDs).
+- **Control Plane**: Responsible for lifecycle management, orchestration, routing, auth, scheduling, and scaling controllers.
+- **Data Plane**: Executes inference workloads using groups of inference pods integrated with KV connectors.
+
 ![architecture_overview.svg](../../static/img/diagrams/architecture/architecture_overview.svg)
+
 
 ## Core Components
 
-### 1. Inference Gateway (`infer-gateway`)
+---
 
-The inference gateway serves as the entry point for all inference requests and provides:
+### 1. Management Plane
 
-- **Request Routing**: Intelligent routing based on model versions, A/B testing rules, and traffic policies
-- **Load Balancing**: Distributes requests across multiple model instances using various algorithms
-- **Rate Limiting**: Protects models from overload with configurable rate limiting policies
-- **Authentication & Authorization**: Secures access to models with various auth mechanisms
-- **Request/Response Transformation**: Handles protocol translation and data format conversion
+The management plane extends Kubernetes with the following **Custom Resources (CRDs):**
 
-**Key Features:**
-- Protocol support: HTTP/REST, gRPC
-- Routing strategies: Round-robin, weighted, least-connections
-- Circuit breaker patterns for fault tolerance
-- Request/response caching
+- **Model** – Represents metadata and specs for models
+- **ModelRoute** – Configures routing rules and traffic management
+- **ModelServer** – Defines model serving endpoints and security rules
+- **ModelInfer** – Describes inference deployments (replicas, resources)
+- **AutoScalingPolicy** – Defines scaling policies
+- **AutoScalingPolicyBinding** – Binds models to scaling policies
 
-### 2. Model Controller (`model-controller`)
+These CRs provide the declarative configuration, which is reconciled by the Control Plane controllers.
 
-Manages the lifecycle of AI models in the registry:
 
-- **Model Registration**: Handles model metadata, versioning, and storage references
-- **Model Validation**: Validates model specifications and compatibility
-- **Lifecycle Management**: Manages model states (registered, validated, deprecated)
-- **Dependency Resolution**: Resolves model dependencies and runtime requirements
+### 2. Control Plane
 
-**Responsibilities:**
-- Reconciles `Model` custom resources
-- Validates model specifications against schemas
-- Manages model storage and retrieval
-- Handles model versioning and rollback
+The control plane manages orchestration and ensures that user requests, CRDs, and system state are consistent.
+It consists of three major modules:
 
-### 3. Inference Controller (`infer-controller`)
+#### **Inference Gateway**
 
-Orchestrates the deployment and scaling of inference workloads:
+Entry for user requests. Components:
 
-- **Workload Management**: Creates and manages inference deployments
-- **Resource Allocation**: Optimizes resource usage based on model requirements
-- **Health Monitoring**: Monitors inference pod health and performance
-- **Scaling Decisions**: Works with autoscaler for intelligent scaling
+- **Auth** – Authentication and authorization for requests
+- **Rate Limiting** – Protects pods from overload
+- **Fairness Scheduling** – Ensures fair queueing and scheduling of requests
+- **Load Balancing** – Balances requests across inference pods
+- **Proxy** – Forwards requests into the Data Plane
 
-**Key Functions:**
-- Reconciles `ModelInfer` custom resources
-- Manages inference pod lifecycle
-- Handles rolling updates and rollbacks
-- Integrates with Kubernetes HPA/VPA
+Request Path (per diagram):
+`User → Auth → Rate Limiting → Fairness Scheduling → Load Balancing → Proxy → Inference Pods`
 
-### 4. Autoscaler (`autoscaler`)
+#### **Scheduler**
 
-Provides intelligent auto-scaling capabilities:
+Implements advanced pod scheduling strategies. Plugins visualized in the diagram:
 
-- **Predictive Scaling**: Uses historical data and ML models for proactive scaling
-- **Multi-metric Scaling**: Scales based on CPU, memory, GPU, and custom metrics
-- **Cost Optimization**: Balances performance and cost through intelligent scaling
-- **Cold Start Mitigation**: Maintains warm pools to reduce cold start latency
+- **Least Requests** (traffic balance)
+- **LoRA Affinity**
+- **KV Cache Awareness**
+- **Least Latency (TTFT & TPOT)**
+- **Prefix Cache**
+- **GPU Cache**
+- **PD Group Scheduling (Prefill/Decode disaggregation)**
 
-**Scaling Strategies:**
-- Reactive scaling based on current metrics
-- Predictive scaling using time-series forecasting
-- Schedule-based scaling for known traffic patterns
-- Custom metric scaling (queue depth, response time)
+The scheduler integrates tightly with the load balancer and fairness scheduling in the gateway.
 
-### 5. Registry Webhook (`registry-webhook`)
+#### **Controllers**
 
-Provides admission control for model registry operations:
+Operators or automation modify CRDs, and controllers reconcile that intent:
 
-- **Validation**: Validates model specifications before admission
-- **Mutation**: Applies default values and transformations
-- **Policy Enforcement**: Enforces organizational policies and constraints
-- **Security Scanning**: Integrates with security scanners for model validation
+- **Model Controller** → Manages models
+- **ModelRoute Controller** → Syncs routing configs
+- **ModelServer Controller** → Manages serving endpoints
+- **ModelInfer Controller** → Manages inference replicas and InferGroups
+- **Autoscaler Controller** → Monitors pod metrics, enforces AutoScalingPolicies
 
-### 6. ModelInfer Webhook (`modelinfer-webhook`)
+Each controller reads CRDs from the Management Plane and materializes resources in the Data Plane.
 
-Handles admission control for inference workloads:
 
-- **Resource Validation**: Validates resource requests and limits
-- **Scheduling Constraints**: Applies node affinity and scheduling rules
-- **Security Policies**: Enforces security contexts and policies
-- **Configuration Injection**: Injects runtime configurations and secrets
+### 3. Data Plane
 
-## Custom Resource Definitions (CRDs)
+Executes AI model inference with high efficiency.
 
-MatrixInfer extends Kubernetes with several custom resources:
+#### **Inference Pods**
 
-### Registry API Group (`registry.matrixinfer.ai/v1alpha1`)
+Organized into **Inference Groups (Group 0, Group 1, …)** with multiple **Replicas**. Each replica may play a specific role:
 
-- **Model**: Represents an AI model with metadata, specifications, and runtime requirements
-- **AutoscalingPolicy**: Defines scaling policies and strategies for models
+- **Role A – Prefill** (handles sequence initialization)
+- **Role B – Decode** (handles incremental token generation)
 
-### Workload API Group (`workload.matrixinfer.ai/v1alpha1`)
+Each Pod Replica typically includes:
 
-- **ModelInfer**: Represents an inference deployment with scaling and resource specifications
+- **Entry Pod** – handles request ingress into the group
+- **Worker Pod(s)** – execute model inference workloads
+- **Init Container** – initializes environment and artifacts
+- **Sidecar Container** – auxiliary processes for observability/networking
+- **Downloader** – pulls model weights/artifacts at startup
+- **Runtime Agent** – collects metrics, manages local lifecycle
+- **Model Engines** – `vLLM`, `SGLang` integrations
 
-### Networking API Group (`networking.matrixinfer.ai/v1alpha1`)
+This design enables **PD-disaggregation** (separating Prefill and Decode roles) and supports dynamic scaling.
 
-- **ModelServer**: Exposes models through network services with routing and security policies
-- **ModelRoute**: Defines advanced routing rules for traffic management and A/B testing
+#### **KV Connector**
 
-## Data Flow
+Provides fast access to external key-value systems for caching. Supports:
 
-### 1. Model Registration Flow
+- **Nixl** – High-performance KV store
+- **MoonCake** – Distributed caching cluster
+- **LMCache** – Large model caching support
+- **HTTP-based stores** – Generic KV backend
+
+KV Connector enables **prefix cache re-use** and **GPU cache integration** for acceleration.
+
+
+## Data Flows
+
+---
+
+### 1. Model & Scaling Flow
 
 ```
-Developer → Model CRD → Registry Webhook → Model Controller → Model Registry
+Operator → Model CRDs → Controllers → AutoScalingPolicy/Binding → ModelServer/Route CRDs
 ```
-
-1. Developer creates a `Model` resource
-2. Registry webhook validates the specification
-3. Model controller processes the registration
-4. Model metadata is stored in the registry
 
 ### 2. Inference Deployment Flow
 
 ```
-Model CRD → ModelInfer CRD → Infer Controller → Kubernetes Deployment → Pods
+Autoscaler Controller → ModelInfer CRD → ModelInfer Controller → Inference Pods
 ```
 
-1. `ModelInfer` resource references a registered model
-2. Inference controller creates Kubernetes deployments
-3. Pods are scheduled and started with model runtime
-4. Health checks ensure pods are ready for traffic
-
-### 3. Request Processing Flow
+### 3. Request Serving Flow
 
 ```
-Client → Inference Gateway → Load Balancer → Model Pod → Response
+User → Auth → Rate Limiter → Fairness Scheduling → Load Balancer → Proxy → Inference Pods (Prefill / Decode)
 ```
 
-1. Client sends inference request to gateway
-2. Gateway applies routing, rate limiting, and security policies
-3. Request is load-balanced to available model instances
-4. Model pod processes request and returns response
+### 4. Data Synchronization Flow
 
-## Scalability and Performance
+```
+Controllers → In-Memory Datastores ← Model Router/Scheduler
+Autoscaler → Inference Pods (metrics collection)
+```
 
-### Horizontal Scaling
 
-- **Controller Scaling**: Multiple controller replicas for high availability
-- **Gateway Scaling**: Horizontal scaling of gateway instances
-- **Model Scaling**: Independent scaling of each model deployment
+## Key Features
 
-### Performance Optimizations
+---
 
-- **Connection Pooling**: Efficient connection management between components
-- **Request Batching**: Automatic batching of inference requests
-- **Caching**: Multi-level caching for models and responses
-- **GPU Optimization**: Efficient GPU resource sharing and scheduling
-
-## Security Architecture
-
-### Authentication & Authorization
-
-- **RBAC Integration**: Kubernetes RBAC for resource access control
-- **Service Mesh**: Optional integration with Istio/Linkerd for mTLS
-- **API Keys**: Support for API key-based authentication
-- **JWT Tokens**: JWT-based authentication for external clients
-
-### Network Security
-
-- **Network Policies**: Kubernetes network policies for traffic isolation
-- **TLS Encryption**: End-to-end TLS encryption for all communications
-- **Admission Control**: Webhook-based admission control for security policies
-
-## Observability
-
-### Monitoring
-
-- **Metrics**: Prometheus metrics for all components
-- **Distributed Tracing**: OpenTelemetry integration for request tracing
-- **Logging**: Structured logging with correlation IDs
-
-### Key Metrics
-
-- Request latency and throughput
-- Model accuracy and drift detection
-- Resource utilization (CPU, memory, GPU)
-- Error rates and availability
-
-## High Availability
-
-### Component Redundancy
-
-- Multiple replicas of all control plane components
-- Leader election for controllers
-- Graceful failover and recovery
-
-### Data Persistence
-
-- Model registry backed by persistent storage
-- Configuration stored in Kubernetes etcd
-- Stateless design for easy recovery
-
-## Integration Points
-
-### Kubernetes Integration
-
-- Native Kubernetes resources and APIs
-- Integration with Kubernetes scheduler
-- Support for Kubernetes networking and storage
-
-### External Integrations
-
-- **Model Stores**: S3, GCS, Azure Blob, Hugging Face Hub
-- **Monitoring**: Prometheus, Grafana, DataDog
-- **Security**: OPA/Gatekeeper, Falco, Twistlock
-- **Service Mesh**: Istio, Linkerd, Consul Connect
-
-This architecture provides a robust, scalable, and secure foundation for AI inference workloads in Kubernetes environments.
+- **Three-plane design**: Management Plane (CRDs), Control Plane (controllers/schedulers), Data Plane (pods & caches)
+- **Fairness + Advanced Scheduling**: Supports fairness scheduling, cache-aware, latency-aware, lora-affinity filters
+- **Scalable Pod Architecture**: Entry vs Worker pods, Prefill/Decode roles, multiple replicas per group
+- **Rich KV Cache Integration**: Multi-backend connectivity (LMCache, MoonCake, Nixl, HTTP)
+- **Metric-driven autoscaling** with user-defined policies
+- **PD-Disaggregation**: Prefill/Decode group separation
+- **Extensible with sidecars, init containers, runtime agents for observability & reliability**
