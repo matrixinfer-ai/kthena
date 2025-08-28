@@ -3,44 +3,7 @@
 MatrixInfer is a Kubernetes-native AI inference platform designed for scalable, efficient, and intelligent model serving. This document provides an overview of the system architecture and core components.
 
 ## High-Level Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    MatrixInfer Platform                     │
-├─────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │   Client    │  │  External   │  │    Monitoring &     │  │
-│  │ Applications│  │   APIs      │  │     Observability   │  │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Inference Gateway                        │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │   Routing   │  │ Rate Limit  │  │   Load Balancing    │  │
-│  │ & Filtering │  │ & Security  │  │   & Scheduling      │  │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                   Control Plane                            │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │   Model     │  │   Infer     │  │     Registry        │  │
-│  │ Controller  │  │ Controller  │  │    & Webhooks       │  │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Data Plane                              │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │   Model     │  │  Inference  │  │     Auto-scaler     │  │
-│  │  Registry   │  │   Workloads │  │                     │  │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-```
+![architecture_overview.svg](../../static/img/diagrams/architecture/architecture_overview.svg)
 
 ## Core Components
 
