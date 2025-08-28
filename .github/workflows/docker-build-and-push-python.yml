@@ -1,7 +1,6 @@
 name: Build and Push Docker Image for Python
 
 on:
-  workflow_dispatch: # manual trigger
   push:
     branches:
       - main
