@@ -4,7 +4,7 @@ metadata:
   name: deepseek-subset
   namespace: default
 spec:
-  modelName: "deepseek-r1"
+  modelName: "deepseek-subset"
   rules:
   - name: "deepseek-r1-route"
     targetModels:
