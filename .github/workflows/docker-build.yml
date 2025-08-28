@@ -4,9 +4,12 @@ on:
   pull_request:
     branches:
       - main
-    paths-ignore:
-      - 'docs/**'
-      - 'examples/**'
+    paths:
+      - '**.go'
+      - "pkg/**"
+      - "cmd/**"
+      - "go.mod"
+      - "go.sum"
 
 jobs:
   build:
