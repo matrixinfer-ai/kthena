@@ -528,7 +528,7 @@ func (s *store) DeleteModelRoute(namespacedName string) error {
 	}
 	delete(s.routeInfo, namespacedName)
 	s.routeMutex.Unlock()
-	if modelName == "" {
+	if modelName != "" {
 		// Clean up associated waiting queue if exists
 		val, _ := s.requestWaitingQueue.LoadAndDelete(modelName)
 		if val != nil {

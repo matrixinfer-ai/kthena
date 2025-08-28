@@ -17,8 +17,11 @@ limitations under the License.
 package datastore
 
 import (
+	"fmt"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/agiledragon/gomonkey/v2"
 	dto "github.com/prometheus/client_model/go"
@@ -449,4 +452,285 @@ func TestStoreGetPodsByModelServer(t *testing.T) {
 
 	_, err = s.GetPodsByModelServer(types.NamespacedName{Namespace: "default", Name: "notfound"})
 	assert.Error(t, err)
+}
+
+// TestStoreDeleteModelRoute tests various scenarios for DeleteModelRoute method
+// TestStoreDeleteModelRoute tests various scenarios for DeleteModelRoute method
+func TestStoreDeleteModelRoute(t *testing.T) {
+	t.Run("delete route with model name", func(t *testing.T) {
+		s := &store{
+			routeInfo:           make(map[string]*modelRouteInfo),
+			routes:              make(map[string]*aiv1alpha1.ModelRoute),
+			loraRoutes:          make(map[string]*aiv1alpha1.ModelRoute),
+			callbacks:           make(map[string][]CallbackFunc),
+			requestWaitingQueue: sync.Map{},
+		}
+
+		// Create and add a model route
+		mr := &aiv1alpha1.ModelRoute{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "default",
+				Name:      "test-route",
+			},
+			Spec: aiv1alpha1.ModelRouteSpec{
+				ModelName:    "test-model",
+				LoraAdapters: []string{"lora1", "lora2"},
+			},
+		}
+
+		err := s.AddOrUpdateModelRoute(mr)
+		assert.NoError(t, err)
+
+		// Add a request queue
+		s.requestWaitingQueue.Store("test-model", NewRequestPriorityQueue())
+
+		// Track delete callbacks
+		var deleteCallbackCalled atomic.Bool
+		s.RegisterCallback("ModelRoute", func(data EventData) {
+			if data.EventType == EventDelete {
+				deleteCallbackCalled.Store(true)
+			}
+		})
+
+		// Delete the route
+		err = s.DeleteModelRoute("default/test-route")
+		assert.NoError(t, err)
+
+		// Verify state
+		s.routeMutex.RLock()
+		assert.Nil(t, s.routeInfo["default/test-route"])
+		assert.Nil(t, s.routes["test-model"])
+		assert.Nil(t, s.loraRoutes["lora1"])
+		assert.Nil(t, s.loraRoutes["lora2"])
+		s.routeMutex.RUnlock()
+
+		// Verify queue is deleted
+		_, exists := s.requestWaitingQueue.Load("test-model")
+		assert.False(t, exists)
+
+		// Verify callback was called
+		assert.Eventually(t, func() bool {
+			return deleteCallbackCalled.Load()
+		}, time.Second, 10*time.Millisecond)
+	})
+
+	t.Run("delete route with only lora adapters", func(t *testing.T) {
+		s := &store{
+			routeInfo:           make(map[string]*modelRouteInfo),
+			routes:              make(map[string]*aiv1alpha1.ModelRoute),
+			loraRoutes:          make(map[string]*aiv1alpha1.ModelRoute),
+			callbacks:           make(map[string][]CallbackFunc),
+			requestWaitingQueue: sync.Map{},
+		}
+
+		// Create and add a route with only lora adapters
+		mr := &aiv1alpha1.ModelRoute{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "test-ns",
+				Name:      "lora-route",
+			},
+			Spec: aiv1alpha1.ModelRouteSpec{
+				ModelName:    "", // No base model
+				LoraAdapters: []string{"lora3", "lora4"},
+			},
+		}
+
+		err := s.AddOrUpdateModelRoute(mr)
+		assert.NoError(t, err)
+
+		// Delete the route
+		err = s.DeleteModelRoute("test-ns/lora-route")
+		assert.NoError(t, err)
+
+		// Verify state
+		s.routeMutex.RLock()
+		assert.Nil(t, s.routeInfo["test-ns/lora-route"])
+		assert.Nil(t, s.loraRoutes["lora3"])
+		assert.Nil(t, s.loraRoutes["lora4"])
+		s.routeMutex.RUnlock()
+	})
+
+	t.Run("delete non-existent route", func(t *testing.T) {
+		s := &store{
+			routeInfo:           make(map[string]*modelRouteInfo),
+			routes:              make(map[string]*aiv1alpha1.ModelRoute),
+			loraRoutes:          make(map[string]*aiv1alpha1.ModelRoute),
+			callbacks:           make(map[string][]CallbackFunc),
+			requestWaitingQueue: sync.Map{},
+		}
+
+		// Track callbacks
+		var deleteCallbackCalled atomic.Bool
+		s.RegisterCallback("ModelRoute", func(data EventData) {
+			if data.EventType == EventDelete {
+				deleteCallbackCalled.Store(true)
+			}
+		})
+
+		// Delete non-existent route should not error
+		err := s.DeleteModelRoute("default/non-existent")
+		assert.NoError(t, err)
+
+		// Callback should still be called
+		assert.Eventually(t, func() bool {
+			return deleteCallbackCalled.Load()
+		}, time.Second, 10*time.Millisecond)
+	})
+
+	t.Run("delete route while preserving others", func(t *testing.T) {
+		s := &store{
+			routeInfo:           make(map[string]*modelRouteInfo),
+			routes:              make(map[string]*aiv1alpha1.ModelRoute),
+			loraRoutes:          make(map[string]*aiv1alpha1.ModelRoute),
+			callbacks:           make(map[string][]CallbackFunc),
+			requestWaitingQueue: sync.Map{},
+		}
+
+		// Add multiple routes
+		mr1 := &aiv1alpha1.ModelRoute{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "default",
+				Name:      "route1",
+			},
+			Spec: aiv1alpha1.ModelRouteSpec{
+				ModelName:    "model1",
+				LoraAdapters: []string{"lora1"},
+			},
+		}
+		mr2 := &aiv1alpha1.ModelRoute{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "default",
+				Name:      "route2",
+			},
+			Spec: aiv1alpha1.ModelRouteSpec{
+				ModelName:    "model2",
+				LoraAdapters: []string{"lora2"},
+			},
+		}
+
+		err := s.AddOrUpdateModelRoute(mr1)
+		assert.NoError(t, err)
+		err = s.AddOrUpdateModelRoute(mr2)
+		assert.NoError(t, err)
+
+		s.requestWaitingQueue.Store("model1", NewRequestPriorityQueue())
+		s.requestWaitingQueue.Store("model2", NewRequestPriorityQueue())
+
+		// Delete route1
+		err = s.DeleteModelRoute("default/route1")
+		assert.NoError(t, err)
+
+		// Verify route1 is deleted but route2 remains
+		s.routeMutex.RLock()
+		assert.Nil(t, s.routeInfo["default/route1"])
+		assert.NotNil(t, s.routeInfo["default/route2"])
+		assert.Nil(t, s.routes["model1"])
+		assert.NotNil(t, s.routes["model2"])
+		assert.Nil(t, s.loraRoutes["lora1"])
+		assert.NotNil(t, s.loraRoutes["lora2"])
+		s.routeMutex.RUnlock()
+
+		// Check queues
+		_, exists1 := s.requestWaitingQueue.Load("model1")
+		assert.False(t, exists1)
+		_, exists2 := s.requestWaitingQueue.Load("model2")
+		assert.True(t, exists2)
+	})
+}
+
+// TestStoreDeleteModelRoute_RequestQueueCleanup specifically tests the cleanup of request queues
+func TestStoreDeleteModelRoute_RequestQueueCleanup(t *testing.T) {
+	s := &store{
+		routeInfo:           make(map[string]*modelRouteInfo),
+		routes:              make(map[string]*aiv1alpha1.ModelRoute),
+		loraRoutes:          make(map[string]*aiv1alpha1.ModelRoute),
+		callbacks:           make(map[string][]CallbackFunc),
+		requestWaitingQueue: sync.Map{},
+	}
+
+	// Create a model route
+	mr := &aiv1alpha1.ModelRoute{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "default",
+			Name:      "cleanup-test",
+		},
+		Spec: aiv1alpha1.ModelRouteSpec{
+			ModelName: "cleanup-model",
+		},
+	}
+
+	// Add the route
+	err := s.AddOrUpdateModelRoute(mr)
+	assert.NoError(t, err)
+
+	// Create and setup a request queue
+	queue := NewRequestPriorityQueue()
+	s.requestWaitingQueue.Store("cleanup-model", queue)
+
+	// Verify queue exists
+	val, exists := s.requestWaitingQueue.Load("cleanup-model")
+	assert.True(t, exists)
+	assert.NotNil(t, val)
+
+	// Delete the model route
+	err = s.DeleteModelRoute("default/cleanup-test")
+	assert.NoError(t, err)
+
+	// Verify queue is deleted
+	_, exists = s.requestWaitingQueue.Load("cleanup-model")
+	assert.False(t, exists)
+}
+
+// TestStoreDeleteModelRoute_ConcurrentAccess tests thread safety of DeleteModelRoute
+func TestStoreDeleteModelRoute_ConcurrentAccess(t *testing.T) {
+	s := &store{
+		routeInfo:           make(map[string]*modelRouteInfo),
+		routes:              make(map[string]*aiv1alpha1.ModelRoute),
+		loraRoutes:          make(map[string]*aiv1alpha1.ModelRoute),
+		callbacks:           make(map[string][]CallbackFunc),
+		requestWaitingQueue: sync.Map{},
+	}
+
+	// Add multiple routes
+	for i := 0; i < 10; i++ {
+		mr := &aiv1alpha1.ModelRoute{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "default",
+				Name:      fmt.Sprintf("route%d", i),
+			},
+			Spec: aiv1alpha1.ModelRouteSpec{
+				ModelName: fmt.Sprintf("model%d", i),
+			},
+		}
+		err := s.AddOrUpdateModelRoute(mr)
+		assert.NoError(t, err)
+
+		s.requestWaitingQueue.Store(fmt.Sprintf("model%d", i), NewRequestPriorityQueue())
+	}
+
+	// Concurrently delete routes
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func(index int) {
+			defer wg.Done()
+			err := s.DeleteModelRoute(fmt.Sprintf("default/route%d", index))
+			assert.NoError(t, err)
+		}(i)
+	}
+
+	wg.Wait()
+
+	// Verify all routes and queues are deleted
+	s.routeMutex.RLock()
+	assert.Empty(t, s.routeInfo)
+	assert.Empty(t, s.routes)
+	assert.Empty(t, s.loraRoutes)
+	s.routeMutex.RUnlock()
+
+	// Verify all queues are deleted
+	s.requestWaitingQueue.Range(func(key, value interface{}) bool {
+		t.Errorf("Queue should not exist for key: %v", key)
+		return true
+	})
 }
