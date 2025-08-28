@@ -167,9 +167,6 @@ docker-push: docker-build-gateway docker-build-modelinfer docker-build-modelcont
 	$(CONTAINER_TOOL) push ${IMG_MODELINFER_WEBHOOK}
 	$(CONTAINER_TOOL) push ${IMG_INFER_GATEWAY_WEBHOOK}
 
-.PHONY: docker-build-all
-docker-build-all: docker-build-gateway docker-build-modelinfer docker-build-modelcontroller docker-build-registry-webhook docker-build-modelinfer-webhook docker-build-autoscaler docker-build-infer-gateway-webhook
-
 # PLATFORMS defines the target platforms for the images be built to provide support to multiple
 # architectures.
 PLATFORMS ?= linux/arm64,linux/amd64
