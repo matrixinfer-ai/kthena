@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: [ downloader, runtime ]
+        service: [ downloader, runtime ]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,7 +27,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           # image name will be ghcr.io/matrixinfer-ai/downloader and ghcr.io/matrixinfer-ai/runtime
-          images: ghcr.io/${{ github.repository_owner }}/${{matrix.target}}
+          images: ghcr.io/${{ github.repository_owner }}/${{matrix.service}}
           # tags based on git refs and semver, push to default branch will also get "latest" tag
           tags: |
             type=ref,event=branch
