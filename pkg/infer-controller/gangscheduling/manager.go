@@ -25,7 +25,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
-	listerv1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/klog/v2"
 
 	schedulingv1beta1 "volcano.sh/apis/pkg/apis/scheduling/v1beta1"
@@ -51,15 +50,13 @@ const (
 type Manager struct {
 	kubeClient    kubernetes.Interface
 	volcanoClient volcanoclient.Interface
-	podsLister    listerv1.PodLister
 }
 
 // NewManager creates a new gang scheduling manager
-func NewManager(kubeClient kubernetes.Interface, volcanoClient volcanoclient.Interface, podsLister listerv1.PodLister) *Manager {
-	return &Manager{
+func NewManager(kubeClient kubernetes.Interface, volcanoClient volcanoclient.Interface) Manager {
+	return Manager{
 		kubeClient:    kubeClient,
 		volcanoClient: volcanoClient,
-		podsLister:    podsLister,
 	}
 }
 
