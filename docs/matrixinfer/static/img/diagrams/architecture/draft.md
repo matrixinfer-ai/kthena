@@ -92,18 +92,26 @@ rectangle "Control Plane" as control_plane {
 				component "Fairness scheduling" as fairness_scheduling
 				component "Load balance" as load_balance
 				component "Router Proxy" as router_proxy
-				component "Scheduler" as scheduler {
-					component "Filter Plugins"
-					component "Score Plugins"
-					component "Pod Selector"
+				component "Scheduler (schedule Pods)" as scheduler {
+					component "Filter Plugins" {
+						component "least-request"
+						component "lora-affinity"
+					}
+					component "Score Plugins" {
+						component "least-request"
+						component "kv-cache"
+						component "least-latency (TTFT & TPOT)"
+						database "prefix-cache"
+						component "gpu-cache"
+						component "random"
+					}
+					component "PDGroup Scheduling"
 				}
-				component "KV connector" as connector
 				auth --> rate_limiter
 				rate_limiter --> fairness_scheduling
 				fairness_scheduling --> load_balance
 				load_balance --> router_proxy
-				router_proxy --> scheduler : schedule inference pods
-				router_proxy --> connector : PD-Disaggregation mode
+				load_balance --> scheduler : schedule inference pods
 			}
 			rectangle "Network Controllers" {
 				component "ModelRouteController" as modelroute_controller
@@ -113,11 +121,13 @@ rectangle "Control Plane" as control_plane {
 			database "In-Memory Datastore" as network_datastore {
 				component "Model Route" as modelroute_data
 				component "Model Server" as modelserver_data
-				component "Pods"
+				component "Pods" as network_datastore_pods
 				component "RequestWaitingQueue" as request_waiting_queue
 			}
 			fairness_scheduling --> request_waiting_queue : fairness
-			load_balance --> modelserver_data
+			router_proxy --> modelserver_data
+			scheduler --> modelserver_data
+			scheduler --> network_datastore_pods
 		}
 		' layout
 		infergateway_webhook -[hidden]-> modelrouter
@@ -162,7 +172,12 @@ rectangle "Control Plane" as control_plane {
 }
 
 rectangle "Data Plane" as data_plane {
-	
+	component "KV connector" as connector {
+		component "HTTP"
+		component "LMCache"
+		component "MoonCake"
+		component "Nixl"
+	}
 	component "Inference Pods" as inference_pods {
 		component "Group 0" as g0 {
 			node "Role A " as g0ra {
@@ -210,6 +225,8 @@ rectangle "Data Plane" as data_plane {
 operator ----> crd : create/update/delete
 user ----> auth : infer request
 router_proxy ----down---> inference_pods
+router_proxy --down--> connector : PD-Disaggregation mode
+connector ----down---> inference_pods
 network_datastore ------> inference_pods : periodically get metrics from backend (vLLM, sglang)
 autoscaling_controller ------> inference_pods : periodically get metrics
 
