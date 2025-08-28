@@ -119,20 +119,6 @@ spec:
                   gangSchedule:
                     description: GangSchedule defines the GangSchedule config.
                     properties:
-                      enable:
-                        default: true
-                        description: |-
-                          Enable indicates whether users want to enforce gang-scheduling,
-                          default true
-                        type: boolean
-                      level:
-                        default: group
-                        description: Level defines the level at which gang scheduling
-                          should be applied
-                        enum:
-                        - role
-                        - group
-                        type: string
                       minRoleReplicas:
                         additionalProperties:
                           format: int32
@@ -142,7 +128,25 @@ spec:
                           in role-level gang scheduling. This map allows users to specify different
                           minimum replica requirements for different roles.
                           Key: role name, Value: minimum number of replicas required for that role
-                          Only used when Level is "role"
+                        type: object
+                      networkTopology:
+                        description: |-
+                          NetworkTopology defines the NetworkTopology config, this field works in conjunction with network topology feature and hyperNode CRD.
+                          Fields can only be configured if enable=true
+                        properties:
+                          highestTierAllowed:
+                            default: 1
+                            description: HighestTierAllowed specifies the highest
+                              tier that a job allowed to cross when scheduling.
+                            type: integer
+                          mode:
+                            default: hard
+                            description: Mode specifies the mode of the network topology
+                              constrain.
+                            enum:
+                            - hard
+                            - soft
+                            type: string
                         type: object
                     type: object
                   networkTopology:

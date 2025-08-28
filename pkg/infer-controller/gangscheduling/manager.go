@@ -27,6 +27,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
+	batchv1alpha1 "volcano.sh/apis/pkg/apis/batch/v1alpha1"
 	schedulingv1beta1 "volcano.sh/apis/pkg/apis/scheduling/v1beta1"
 	volcanoclient "volcano.sh/apis/pkg/client/clientset/versioned"
 
@@ -34,14 +35,6 @@ import (
 )
 
 const (
-	// VolcanoGroupNameAnnotation is the annotation key for volcano group name
-	VolcanoGroupNameAnnotation = "volcano.sh/group-name"
-	// GangLevelLabelKey is the label key for gang scheduling level
-	GangLevelLabelKey = "modelinfer.matrixinfer.ai/gang-level"
-	// CreatedByAnnotation is the annotation key for created by
-	CreatedByAnnotation = "modelinfer.matrixinfer.ai/created-by"
-	// CreatedByValue is the annotation value for created by modelinfer controller
-	CreatedByValue = "modelinfer-controller"
 	// DefaultTTLSecondsAfterFinished is the default TTL for PodGroup after finished
 	DefaultTTLSecondsAfterFinished = 3600 // 1 hour
 )
@@ -66,28 +59,19 @@ func (m *Manager) ManagePodGroups(ctx context.Context, mi *workloadv1alpha1.Mode
 		// Gang scheduling is disabled, clean up any existing PodGroups
 		return m.cleanupPodGroups(ctx, mi)
 	}
-
-	switch mi.Spec.Template.GangSchedule.Level {
-	case workloadv1alpha1.GangScheduleLevelGroup:
-		return m.manageGroupLevelPodGroups(ctx, mi)
-	case workloadv1alpha1.GangScheduleLevelRole:
-		return m.manageRoleLevelPodGroups(ctx, mi)
-	default:
-		// Default to group level
-		return m.manageGroupLevelPodGroups(ctx, mi)
-	}
+	return m.managePodGroups(ctx, mi)
 }
 
 // isGangSchedulingEnabled checks if gang scheduling is enabled for the ModelInfer
 func (m *Manager) isGangSchedulingEnabled(mi *workloadv1alpha1.ModelInfer) bool {
-	if mi.Spec.Template.GangSchedule.Enable == nil {
-		return true // Default is true
+	if mi.Spec.Template.GangSchedule == nil {
+		return false
 	}
-	return *mi.Spec.Template.GangSchedule.Enable
+	return true
 }
 
-// manageGroupLevelPodGroups manages PodGroups for group-level gang scheduling
-func (m *Manager) manageGroupLevelPodGroups(ctx context.Context, mi *workloadv1alpha1.ModelInfer) error {
+// managePodGroups manages PodGroups for group-level gang scheduling
+func (m *Manager) managePodGroups(ctx context.Context, mi *workloadv1alpha1.ModelInfer) error {
 	expectedReplicas := int(*mi.Spec.Replicas)
 
 	// Get existing PodGroups
@@ -98,7 +82,7 @@ func (m *Manager) manageGroupLevelPodGroups(ctx context.Context, mi *workloadv1a
 
 	// Create or update PodGroups for each InferGroup
 	for i := 0; i < expectedReplicas; i++ {
-		podGroupName := m.generateGroupLevelPodGroupName(mi.Name, i)
+		podGroupName := m.generatePodGroupName(mi.Name, i)
 
 		if existingPG, exists := existingPodGroups[podGroupName]; exists {
 			// Update existing PodGroup if needed
@@ -107,7 +91,7 @@ func (m *Manager) manageGroupLevelPodGroups(ctx context.Context, mi *workloadv1a
 			}
 		} else {
 			// Create new PodGroup
-			if err := m.createGroupLevelPodGroup(ctx, mi, i); err != nil {
+			if err := m.createPodGroup(ctx, mi, i); err != nil {
 				return fmt.Errorf("failed to create PodGroup %s: %v", podGroupName, err)
 			}
 		}
@@ -117,43 +101,12 @@ func (m *Manager) manageGroupLevelPodGroups(ctx context.Context, mi *workloadv1a
 	return m.cleanupExcessPodGroups(ctx, mi, existingPodGroups, expectedReplicas)
 }
 
-// manageRoleLevelPodGroups manages PodGroups for role-level gang scheduling
-func (m *Manager) manageRoleLevelPodGroups(ctx context.Context, mi *workloadv1alpha1.ModelInfer) error {
-	expectedReplicas := int(*mi.Spec.Replicas)
-
-	// Get existing PodGroups
-	existingPodGroups, err := m.getExistingPodGroups(ctx, mi)
-	if err != nil {
-		return fmt.Errorf("failed to get existing PodGroups: %v", err)
-	}
-
-	// Create or update PodGroups for each InferGroup (same naming as group level)
-	for i := 0; i < expectedReplicas; i++ {
-		podGroupName := m.generateGroupLevelPodGroupName(mi.Name, i)
-
-		if existingPG, exists := existingPodGroups[podGroupName]; exists {
-			// Update existing PodGroup if needed
-			if err := m.updateRoleLevelPodGroupIfNeeded(ctx, existingPG, mi, i); err != nil {
-				return fmt.Errorf("failed to update PodGroup %s: %v", podGroupName, err)
-			}
-		} else {
-			// Create new PodGroup
-			if err := m.createRoleLevelPodGroup(ctx, mi, i); err != nil {
-				return fmt.Errorf("failed to create PodGroup %s: %v", podGroupName, err)
-			}
-		}
-	}
-
-	// Clean up excess PodGroups
-	return m.cleanupExcessPodGroups(ctx, mi, existingPodGroups, expectedReplicas)
-}
-
-// createGroupLevelPodGroup creates a PodGroup for group-level gang scheduling
-func (m *Manager) createGroupLevelPodGroup(ctx context.Context, mi *workloadv1alpha1.ModelInfer, inferGroupIndex int) error {
-	podGroupName := m.generateGroupLevelPodGroupName(mi.Name, inferGroupIndex)
+// createPodGroup creates a PodGroup for group-level gang scheduling
+func (m *Manager) createPodGroup(ctx context.Context, mi *workloadv1alpha1.ModelInfer, inferGroupIndex int) error {
+	podGroupName := m.generatePodGroupName(mi.Name, inferGroupIndex)
 
 	// Calculate total pods and resources for this InferGroup
-	minMember, minTaskMember, minResources := m.calculateGroupLevelRequirements(mi)
+	minMember, minTaskMember, minResources := m.calculateRequirements(mi)
 
 	podGroup := &schedulingv1beta1.PodGroup{
 		ObjectMeta: metav1.ObjectMeta{
@@ -162,26 +115,17 @@ func (m *Manager) createGroupLevelPodGroup(ctx context.Context, mi *workloadv1al
 			Labels: map[string]string{
 				workloadv1alpha1.ModelInferNameLabelKey: mi.Name,
 				workloadv1alpha1.GroupNameLabelKey:      podGroupName,
-				GangLevelLabelKey:                       string(workloadv1alpha1.GangScheduleLevelGroup),
 			},
 			Annotations: map[string]string{
-				VolcanoGroupNameAnnotation: podGroupName,
-				CreatedByAnnotation:        CreatedByValue,
+				schedulingv1beta1.KubeGroupNameAnnotationKey: podGroupName,
 			},
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion: mi.APIVersion,
-					Kind:       mi.Kind,
-					Name:       mi.Name,
-					UID:        mi.UID,
-					Controller: &[]bool{true}[0],
-				},
-			},
+			OwnerReferences: m.buildOwnerReference(mi),
 		},
 		Spec: schedulingv1beta1.PodGroupSpec{
-			MinMember:     int32(minMember),
-			MinTaskMember: minTaskMember,
-			MinResources:  &minResources,
+			MinMember:       int32(minMember),
+			MinTaskMember:   minTaskMember,
+			MinResources:    &minResources,
+			NetworkTopology: mi.Spec.Template.GangSchedule.NetworkTopology,
 		},
 	}
 
@@ -194,82 +138,21 @@ func (m *Manager) createGroupLevelPodGroup(ctx context.Context, mi *workloadv1al
 	return nil
 }
 
-// createRoleLevelPodGroup creates a PodGroup for role-level gang scheduling
-func (m *Manager) createRoleLevelPodGroup(ctx context.Context, mi *workloadv1alpha1.ModelInfer, inferGroupIndex int) error {
-	podGroupName := m.generateGroupLevelPodGroupName(mi.Name, inferGroupIndex)
-
-	// Calculate requirements based on MinRoleReplicas
-	minMember, minTaskMember, minResources := m.calculateRoleLevelRequirements(mi)
-
-	podGroup := &schedulingv1beta1.PodGroup{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      podGroupName,
-			Namespace: mi.Namespace,
-			Labels: map[string]string{
-				workloadv1alpha1.ModelInferNameLabelKey: mi.Name,
-				workloadv1alpha1.GroupNameLabelKey:      podGroupName,
-				GangLevelLabelKey:                       string(workloadv1alpha1.GangScheduleLevelRole),
-			},
-			Annotations: map[string]string{
-				VolcanoGroupNameAnnotation: podGroupName,
-				CreatedByAnnotation:        CreatedByValue,
-			},
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion: mi.APIVersion,
-					Kind:       mi.Kind,
-					Name:       mi.Name,
-					UID:        mi.UID,
-					Controller: &[]bool{true}[0],
-				},
-			},
-		},
-		Spec: schedulingv1beta1.PodGroupSpec{
-			MinMember:     int32(minMember),
-			MinTaskMember: minTaskMember,
-			MinResources:  &minResources,
+// To build ownerReferences of PodGroup
+func (m *Manager) buildOwnerReference(mi *workloadv1alpha1.ModelInfer) []metav1.OwnerReference {
+	return []metav1.OwnerReference{
+		{
+			APIVersion: mi.APIVersion,
+			Kind:       mi.Kind,
+			Name:       mi.Name,
+			UID:        mi.UID,
+			Controller: &[]bool{true}[0],
 		},
 	}
-
-	_, err := m.volcanoClient.SchedulingV1beta1().PodGroups(mi.Namespace).Create(ctx, podGroup, metav1.CreateOptions{})
-	if err != nil && !apierrors.IsAlreadyExists(err) {
-		return err
-	}
-
-	klog.V(2).Infof("Created PodGroup %s for role-level gang scheduling", podGroupName)
-	return nil
 }
 
-// calculateGroupLevelRequirements calculates requirements for group-level gang scheduling
-func (m *Manager) calculateGroupLevelRequirements(mi *workloadv1alpha1.ModelInfer) (int, map[string]int32, corev1.ResourceList) {
-	minMember := 0
-	minTaskMember := make(map[string]int32)
-	minResources := corev1.ResourceList{}
-
-	// For group-level, include all role instances
-	for _, role := range mi.Spec.Template.Roles {
-		roleReplicas := int(*role.Replicas)
-		for roleIndex := 0; roleIndex < roleReplicas; roleIndex++ {
-			taskName := m.generateTaskName(role.Name, roleIndex)
-			podsPerTask := 1 + int(role.WorkerReplicas) // entry + workers
-			minTaskMember[taskName] = int32(podsPerTask)
-			minMember += podsPerTask
-
-			// Aggregate resources
-			m.aggregateResources(&minResources, &role.EntryTemplate.Spec)
-			if role.WorkerTemplate != nil {
-				for i := 0; i < int(role.WorkerReplicas); i++ {
-					m.aggregateResources(&minResources, &role.WorkerTemplate.Spec)
-				}
-			}
-		}
-	}
-
-	return minMember, minTaskMember, minResources
-}
-
-// calculateRoleLevelRequirements calculates requirements for role-level gang scheduling
-func (m *Manager) calculateRoleLevelRequirements(mi *workloadv1alpha1.ModelInfer) (int, map[string]int32, corev1.ResourceList) {
+// calculateRequirements calculates requirements for role-level gang scheduling
+func (m *Manager) calculateRequirements(mi *workloadv1alpha1.ModelInfer) (int, map[string]int32, corev1.ResourceList) {
 	minMember := 0
 	minTaskMember := make(map[string]int32)
 	minResources := corev1.ResourceList{}
@@ -287,7 +170,7 @@ func (m *Manager) calculateRoleLevelRequirements(mi *workloadv1alpha1.ModelInfer
 
 		// Only include role replicas up to the minimum required
 		for roleIndex := 0; roleIndex < minRoleReplicas && roleIndex < roleReplicas; roleIndex++ {
-			taskName := m.generateTaskName(role.Name, roleIndex)
+			taskName := m.GenerateTaskName(role.Name, roleIndex)
 			podsPerTask := 1 + int(role.WorkerReplicas) // entry + workers
 			minTaskMember[taskName] = int32(podsPerTask)
 			minMember += podsPerTask
@@ -323,13 +206,13 @@ func (m *Manager) aggregateResources(total *corev1.ResourceList, podSpec *corev1
 	}
 }
 
-// generateGroupLevelPodGroupName generates PodGroup name for group-level scheduling
-func (m *Manager) generateGroupLevelPodGroupName(modelInferName string, inferGroupIndex int) string {
+// generatePodGroupName generates PodGroup name for group-level scheduling
+func (m *Manager) generatePodGroupName(modelInferName string, inferGroupIndex int) string {
 	return fmt.Sprintf("%s-%d", modelInferName, inferGroupIndex)
 }
 
-// generateTaskName generates task name for MinTaskMember
-func (m *Manager) generateTaskName(roleName string, roleIndex int) string {
+// GenerateTaskName generates task name for MinTaskMember
+func (m *Manager) GenerateTaskName(roleName string, roleIndex int) string {
 	return fmt.Sprintf("%s-%d", roleName, roleIndex)
 }
 
@@ -358,7 +241,7 @@ func (m *Manager) getExistingPodGroups(ctx context.Context, mi *workloadv1alpha1
 // updatePodGroupIfNeeded updates a PodGroup if needed for group-level scheduling
 func (m *Manager) updatePodGroupIfNeeded(ctx context.Context, existing *schedulingv1beta1.PodGroup, mi *workloadv1alpha1.ModelInfer, inferGroupIndex int) error {
 	// Calculate current requirements
-	minMember, minTaskMember, minResources := m.calculateGroupLevelRequirements(mi)
+	minMember, minTaskMember, minResources := m.calculateRequirements(mi)
 
 	needsUpdate := false
 	updated := existing.DeepCopy()
@@ -370,14 +253,19 @@ func (m *Manager) updatePodGroupIfNeeded(ctx context.Context, existing *scheduli
 	}
 
 	// Check if MinTaskMember needs update
-	if !m.equalMinTaskMember(updated.Spec.MinTaskMember, minTaskMember) {
+	if !equalMinTaskMember(updated.Spec.MinTaskMember, minTaskMember) {
 		updated.Spec.MinTaskMember = minTaskMember
 		needsUpdate = true
 	}
 
 	// Check if MinResources needs update
-	if !m.equalResourceList(updated.Spec.MinResources, &minResources) {
+	if !equalResourceList(updated.Spec.MinResources, &minResources) {
 		updated.Spec.MinResources = &minResources
+		needsUpdate = true
+	}
+
+	if !equalVolcanoNetworkTopology(updated.Spec.NetworkTopology, mi.Spec.Template.GangSchedule.NetworkTopology) {
+		updated.Spec.NetworkTopology = mi.Spec.Template.GangSchedule.NetworkTopology
 		needsUpdate = true
 	}
 
@@ -392,50 +280,13 @@ func (m *Manager) updatePodGroupIfNeeded(ctx context.Context, existing *scheduli
 	return nil
 }
 
-// updateRoleLevelPodGroupIfNeeded updates a PodGroup if needed for role-level scheduling
-func (m *Manager) updateRoleLevelPodGroupIfNeeded(ctx context.Context, existing *schedulingv1beta1.PodGroup, mi *workloadv1alpha1.ModelInfer, inferGroupIndex int) error {
-	// Calculate current requirements
-	minMember, minTaskMember, minResources := m.calculateRoleLevelRequirements(mi)
-
-	needsUpdate := false
-	updated := existing.DeepCopy()
-
-	// Check if MinMember needs update
-	if updated.Spec.MinMember != int32(minMember) {
-		updated.Spec.MinMember = int32(minMember)
-		needsUpdate = true
-	}
-
-	// Check if MinTaskMember needs update
-	if !m.equalMinTaskMember(updated.Spec.MinTaskMember, minTaskMember) {
-		updated.Spec.MinTaskMember = minTaskMember
-		needsUpdate = true
-	}
-
-	// Check if MinResources needs update
-	if !m.equalResourceList(updated.Spec.MinResources, &minResources) {
-		updated.Spec.MinResources = &minResources
-		needsUpdate = true
-	}
-
-	if needsUpdate {
-		_, err := m.volcanoClient.SchedulingV1beta1().PodGroups(mi.Namespace).Update(ctx, updated, metav1.UpdateOptions{})
-		if err != nil {
-			return err
-		}
-		klog.V(2).Infof("Updated PodGroup %s for role-level gang scheduling", existing.Name)
-	}
-
-	return nil
-}
-
 // cleanupExcessPodGroups cleans up excess PodGroups
 func (m *Manager) cleanupExcessPodGroups(ctx context.Context, mi *workloadv1alpha1.ModelInfer, existingPodGroups map[string]*schedulingv1beta1.PodGroup, expectedReplicas int) error {
 	for podGroupName, podGroup := range existingPodGroups {
 		// Check if this PodGroup is still needed
 		isNeeded := false
 		for i := 0; i < expectedReplicas; i++ {
-			expectedName := m.generateGroupLevelPodGroupName(mi.Name, i)
+			expectedName := m.generatePodGroupName(mi.Name, i)
 			if podGroupName == expectedName {
 				isNeeded = true
 				break
@@ -473,22 +324,22 @@ func (m *Manager) cleanupPodGroups(ctx context.Context, mi *workloadv1alpha1.Mod
 }
 
 // AnnotatePodWithPodGroup annotates a pod with the appropriate PodGroup information
-func (m *Manager) AnnotatePodWithPodGroup(pod *corev1.Pod, mi *workloadv1alpha1.ModelInfer, inferGroupIndex int) {
+func (m *Manager) AnnotatePodWithPodGroup(pod *corev1.Pod, mi *workloadv1alpha1.ModelInfer, minMember int, groupName, taskName string) {
 	if !m.isGangSchedulingEnabled(mi) {
 		return
 	}
-
-	podGroupName := m.generateGroupLevelPodGroupName(mi.Name, inferGroupIndex)
 
 	if pod.Annotations == nil {
 		pod.Annotations = make(map[string]string)
 	}
 
-	pod.Annotations[VolcanoGroupNameAnnotation] = podGroupName
+	// Add volcano annotation
+	pod.Annotations[schedulingv1beta1.KubeGroupNameAnnotationKey] = groupName
+	pod.Annotations[batchv1alpha1.TaskSpecKey] = taskName
 }
 
 // equalMinTaskMember compares two MinTaskMember maps
-func (m *Manager) equalMinTaskMember(a, b map[string]int32) bool {
+func equalMinTaskMember(a, b map[string]int32) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -503,7 +354,7 @@ func (m *Manager) equalMinTaskMember(a, b map[string]int32) bool {
 }
 
 // equalResourceList compares two ResourceList
-func (m *Manager) equalResourceList(a, b *corev1.ResourceList) bool {
+func equalResourceList(a, b *corev1.ResourceList) bool {
 	if a == nil && b == nil {
 		return true
 	}
@@ -525,4 +376,21 @@ func (m *Manager) equalResourceList(a, b *corev1.ResourceList) bool {
 	}
 
 	return true
+}
+
+// equalVolcanoNetworkTopology compares two volcano NetworkTopologySpec pointers for equality
+func equalVolcanoNetworkTopology(a, b *schedulingv1beta1.NetworkTopologySpec) bool {
+	// If both are nil, they are equal
+	if a == nil && b == nil {
+		return true
+	}
+
+	// If one is nil and the other is not, they are not equal
+	if a == nil || b == nil {
+		return false
+	}
+
+	// Both are non-nil, compare their values
+	return a.Mode == b.Mode &&
+		a.HighestTierAllowed == b.HighestTierAllowed
 }

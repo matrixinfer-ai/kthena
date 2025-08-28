@@ -26,26 +26,8 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `enable` _boolean_ | Enable indicates whether users want to enforce gang-scheduling,<br />default true | true |  |
-| `level` _[GangScheduleLevel](#gangschedulelevel)_ | Level defines the level at which gang scheduling should be applied | group | Enum: [role group] <br /> |
-| `minRoleReplicas` _object (keys:string, values:integer)_ | MinRoleReplicas defines the minimum number of replicas required for each role<br />in role-level gang scheduling. This map allows users to specify different<br />minimum replica requirements for different roles.<br />Key: role name, Value: minimum number of replicas required for that role<br />Only used when Level is "role" |  |  |
-
-
-#### GangScheduleLevel
-
-_Underlying type:_ _string_
-
-GangScheduleLevel defines the level at which gang scheduling should be applied
-
-
-
-_Appears in:_
-- [GangSchedule](#gangschedule)
-
-| Field | Description |
-| --- | --- |
-| `role` | GangScheduleLevelRole enables gang scheduling at the role level within each InferGroup<br /> |
-| `group` | GangScheduleLevelGroup enables gang scheduling at the ModelInfer group level, creating podgroup for each modelinfer replica<br /> |
+| `networkTopology` _[NetworkTopologySpec](#networktopologyspec)_ | NetworkTopology defines the NetworkTopology config, this field works in conjunction with network topology feature and hyperNode CRD.<br />Fields can only be configured if enable=true |  |  |
+| `minRoleReplicas` _object (keys:string, values:integer)_ | MinRoleReplicas defines the minimum number of replicas required for each role<br />in role-level gang scheduling. This map allows users to specify different<br />minimum replica requirements for different roles.<br />Key: role name, Value: minimum number of replicas required for that role |  |  |
 
 
 #### InferGroup

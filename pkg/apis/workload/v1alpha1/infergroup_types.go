@@ -18,36 +18,20 @@ package v1alpha1
 
 import (
 	corev1 "k8s.io/api/core/v1"
-)
-
-// GangScheduleLevel defines the level at which gang scheduling should be applied
-type GangScheduleLevel string
-
-const (
-	// GangScheduleLevelRole enables gang scheduling at the role level within each InferGroup
-	GangScheduleLevelRole GangScheduleLevel = "role"
-	// GangScheduleLevelGroup enables gang scheduling at the ModelInfer group level, creating podgroup for each modelinfer replica
-	GangScheduleLevelGroup GangScheduleLevel = "group"
+	volcanoV1Beta1 "volcano.sh/apis/pkg/apis/scheduling/v1beta1"
 )
 
 // GangSchedule defines the gang scheduling configuration.
 type GangSchedule struct {
-	// Enable indicates whether users want to enforce gang-scheduling,
-	// default true
-	// +kubebuilder:default=true
-	Enable *bool `json:"enable,omitempty"`
-
-	// Level defines the level at which gang scheduling should be applied
+	// NetworkTopology defines the NetworkTopology config, this field works in conjunction with network topology feature and hyperNode CRD.
+	// Fields can only be configured if enable=true
 	// +optional
-	// +kubebuilder:default="group"
-	// +kubebuilder:validation:Enum={role,group}
-	Level GangScheduleLevel `json:"level,omitempty"`
+	NetworkTopology *volcanoV1Beta1.NetworkTopologySpec `json:"networkTopology,omitempty" protobuf:"bytes,5,opt,name=networkTopology"`
 
 	// MinRoleReplicas defines the minimum number of replicas required for each role
 	// in role-level gang scheduling. This map allows users to specify different
 	// minimum replica requirements for different roles.
 	// Key: role name, Value: minimum number of replicas required for that role
-	// Only used when Level is "role"
 	// +optional
 	MinRoleReplicas map[string]int32 `json:"minRoleReplicas,omitempty"`
 }
@@ -147,7 +131,7 @@ type InferGroup struct {
 
 	// GangSchedule defines the GangSchedule config.
 	// +optional
-	GangSchedule GangSchedule `json:"gangSchedule,omitempty"`
+	GangSchedule *GangSchedule `json:"gangSchedule,omitempty"`
 	// +kubebuilder:validation:MaxItems=4
 	// +kubebuilder:validation:MinItems=1
 	// +kubebuilder:validation:XValidation:rule="self.all(x, self.exists_one(y, y.name == x.name))", message="roles name must be unique"

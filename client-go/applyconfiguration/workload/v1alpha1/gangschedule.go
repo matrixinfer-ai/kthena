@@ -19,15 +19,14 @@ limitations under the License.
 package v1alpha1
 
 import (
-	workloadv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
+	v1beta1 "volcano.sh/apis/pkg/apis/scheduling/v1beta1"
 )
 
 // GangScheduleApplyConfiguration represents a declarative configuration of the GangSchedule type for use
 // with apply.
 type GangScheduleApplyConfiguration struct {
-	Enable          *bool                               `json:"enable,omitempty"`
-	Level           *workloadv1alpha1.GangScheduleLevel `json:"level,omitempty"`
-	MinRoleReplicas map[string]int32                    `json:"minRoleReplicas,omitempty"`
+	NetworkTopology *v1beta1.NetworkTopologySpec `json:"networkTopology,omitempty"`
+	MinRoleReplicas map[string]int32             `json:"minRoleReplicas,omitempty"`
 }
 
 // GangScheduleApplyConfiguration constructs a declarative configuration of the GangSchedule type for use with
@@ -36,19 +35,11 @@ func GangSchedule() *GangScheduleApplyConfiguration {
 	return &GangScheduleApplyConfiguration{}
 }
 
-// WithEnable sets the Enable field in the declarative configuration to the given value
+// WithNetworkTopology sets the NetworkTopology field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the Enable field is set to the value of the last call.
-func (b *GangScheduleApplyConfiguration) WithEnable(value bool) *GangScheduleApplyConfiguration {
-	b.Enable = &value
-	return b
-}
-
-// WithLevel sets the Level field in the declarative configuration to the given value
-// and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the Level field is set to the value of the last call.
-func (b *GangScheduleApplyConfiguration) WithLevel(value workloadv1alpha1.GangScheduleLevel) *GangScheduleApplyConfiguration {
-	b.Level = &value
+// If called multiple times, the NetworkTopology field is set to the value of the last call.
+func (b *GangScheduleApplyConfiguration) WithNetworkTopology(value v1beta1.NetworkTopologySpec) *GangScheduleApplyConfiguration {
+	b.NetworkTopology = &value
 	return b
 }
 

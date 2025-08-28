@@ -649,10 +649,11 @@ func (c *ModelInferController) DeleteInferGroup(mi *workloadv1alpha1.ModelInfer,
 
 func (c *ModelInferController) CreatePodByRole(ctx context.Context, role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, roleIndex, groupIndex int, newHash string) error {
 	groupName := utils.GenerateInferGroupName(mi.Name, groupIndex)
+	taskName := c.gangManager.GenerateTaskName(role.Name, roleIndex)
 	// Create entry pod
 	entryPod := utils.GenerateEntryPod(role, mi, groupName, roleIndex, newHash)
 
-	c.gangManager.AnnotatePodWithPodGroup(entryPod, mi, groupIndex)
+	c.gangManager.AnnotatePodWithPodGroup(entryPod, mi, 1+int(role.WorkerReplicas), groupName, taskName)
 
 	_, err := c.kubeClientSet.CoreV1().Pods(mi.Namespace).Create(ctx, entryPod, metav1.CreateOptions{})
 	if err != nil {
@@ -676,7 +677,7 @@ func (c *ModelInferController) CreatePodByRole(ctx context.Context, role workloa
 	// Create worker pods
 	for podIndex := range int(role.WorkerReplicas) {
 		workerPod := utils.GenerateWorkerPod(role, mi, entryPod, groupName, roleIndex, podIndex+1, newHash) // worker-pod sequence number starts from 1, so we use index+1 here.
-		c.gangManager.AnnotatePodWithPodGroup(workerPod, mi, groupIndex)
+		c.gangManager.AnnotatePodWithPodGroup(workerPod, mi, 1+int(role.WorkerReplicas), groupName, taskName)
 		_, err = c.kubeClientSet.CoreV1().Pods(mi.Namespace).Create(ctx, workerPod, metav1.CreateOptions{})
 		if err != nil {
 			if !apierrors.IsAlreadyExists(err) {

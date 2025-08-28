@@ -28,6 +28,7 @@ import (
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/utils/ptr"
+	volcanofake "volcano.sh/apis/pkg/client/clientset/versioned/fake"
 
 	matrixinferfake "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/fake"
 	informersv1alpha1 "matrixinfer.ai/matrixinfer/client-go/informers/externalversions"
@@ -730,13 +731,14 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 	// Create fake clients
 	kubeClient := kubefake.NewSimpleClientset()
 	matrixinferClient := matrixinferfake.NewSimpleClientset()
+	volcanoClient := volcanofake.NewSimpleClientset()
 
 	// Create informer factories
 	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, 0)
 	matrixinferInformerFactory := informersv1alpha1.NewSharedInformerFactory(matrixinferClient, 0)
 
 	// Create controller
-	controller, err := NewModelInferController(kubeClient, matrixinferClient)
+	controller, err := NewModelInferController(kubeClient, matrixinferClient, volcanoClient)
 	assert.NoError(t, err)
 
 	stop := make(chan struct{})
