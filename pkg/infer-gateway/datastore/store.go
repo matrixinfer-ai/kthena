@@ -528,7 +528,17 @@ func (s *store) DeleteModelRoute(namespacedName string) error {
 	}
 	delete(s.routeInfo, namespacedName)
 	s.routeMutex.Unlock()
+	if modelName != "" {
+		// Clean up associated waiting queue if exists
+		val, _ := s.requestWaitingQueue.LoadAndDelete(modelName)
+		if val != nil {
+			queue, _ := val.(*RequestPriorityQueue)
+			queue.Close()
+			klog.Infof("deleted waiting queue for model %s", modelName)
+		}
+	}
 
+	// Trigger callbacks outside the lock to avoid potential deadlocks
 	s.triggerCallbacks("ModelRoute", EventData{
 		EventType:  EventDelete,
 		ModelName:  modelName,

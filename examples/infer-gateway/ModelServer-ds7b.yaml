@@ -9,7 +9,7 @@ spec:
       app: deepseek-r1-7b
   workloadPort:
     port: 8000
-  model: "deepseek-r1:7b"
-  inferenceEngine: "SGLang"
+  model: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
+  inferenceEngine: "vLLM"
   trafficPolicy:
     timeout: 10s
