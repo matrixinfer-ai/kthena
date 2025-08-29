@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import Lightbox from 'yet-another-react-lightbox';
-import Zoom from 'yet-another-react-lightbox/plugins/zoom';
-import 'yet-another-react-lightbox/styles.css';
+import React, { useState } from "react";
+import Lightbox from "yet-another-react-lightbox";
+import Zoom from "yet-another-react-lightbox/plugins/zoom";
+import "yet-another-react-lightbox/styles.css";
 
 interface LightboxImageProps {
   src: string;
@@ -10,7 +10,12 @@ interface LightboxImageProps {
   className?: string;
 }
 
-const LightboxImage: React.FC<LightboxImageProps> = ({ src, alt, title, className }) => {
+const LightboxImage: React.FC<LightboxImageProps> = ({
+  src,
+  alt,
+  title,
+  className,
+}) => {
   const [open, setOpen] = useState(false);
 
   return (
@@ -21,7 +26,7 @@ const LightboxImage: React.FC<LightboxImageProps> = ({ src, alt, title, classNam
         title={title}
         className={className}
         onClick={() => setOpen(true)}
-        style={{ cursor: 'pointer' }}
+        style={{ cursor: "pointer" }}
       />
       <Lightbox
         open={open}
@@ -31,13 +36,13 @@ const LightboxImage: React.FC<LightboxImageProps> = ({ src, alt, title, classNam
         zoom={{
           scrollToZoom: true,
           maxZoomPixelRatio: 2, // Increased zoom level to 8x
-          doubleTapDelay: 0
+          doubleTapDelay: 0,
         }}
         styles={{
-            container: {
-                // Example: semi-transparent black
-                '--yarl__color_backdrop': 'rgba(0,0,0,0.8)',
-            },
+          container: {
+            // Example: semi-transparent black
+            "--yarl__color_backdrop": "rgba(0,0,0,0.8)",
+          },
         }}
       />
     </>

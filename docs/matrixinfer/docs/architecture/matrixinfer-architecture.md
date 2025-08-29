@@ -1,9 +1,9 @@
+import LightboxImage from '@site/src/components/LightboxImage';
+
 # Architecture Overview
 
 MatrixInfer is a Kubernetes-native AI inference platform designed for scalable, efficient, and intelligent model serving.
 The system is logically separated into three planes to decouple management, orchestration, and actual inference execution.
-
-import LightboxImage from '@site/src/components/LightboxImage';
 
 ## High-Level Architecture
 
