@@ -1,0 +1,41 @@
+import React, { useState } from 'react';
+import Lightbox from 'yet-another-react-lightbox';
+import Zoom from 'yet-another-react-lightbox/plugins/zoom';
+import 'yet-another-react-lightbox/styles.css';
+
+interface LightboxImageProps {
+  src: string;
+  alt?: string;
+  title?: string;
+  className?: string;
+}
+
+const LightboxImage: React.FC<LightboxImageProps> = ({ src, alt, title, className }) => {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <img
+        src={src}
+        alt={alt}
+        title={title}
+        className={className}
+        onClick={() => setOpen(true)}
+        style={{ cursor: 'pointer' }}
+      />
+      <Lightbox
+        open={open}
+        close={() => setOpen(false)}
+        slides={[{ src, alt, title }]}
+        plugins={[Zoom]}
+        zoom={{
+          scrollToZoom: true,
+          maxZoomPixelRatio: 2, // Increased zoom level to 8x
+          doubleTapDelay: 0
+        }}
+      />
+    </>
+  );
+};
+
+export default LightboxImage;

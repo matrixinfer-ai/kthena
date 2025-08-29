@@ -3,6 +3,8 @@
 MatrixInfer is a Kubernetes-native AI inference platform designed for scalable, efficient, and intelligent model serving.
 The system is logically separated into three planes to decouple management, orchestration, and actual inference execution.
 
+import LightboxImage from '@site/src/components/LightboxImage';
+
 ## High-Level Architecture
 
 ---
@@ -13,7 +15,7 @@ The MatrixInfer architecture consists of three main planes:
 - **Control Plane**: Responsible for lifecycle management, orchestration, routing, auth, scheduling, and scaling controllers.
 - **Data Plane**: Executes inference workloads using groups of inference pods integrated with KV connectors.
 
-![architecture_overview.svg](../../static/img/diagrams/architecture/architecture_overview.svg)
+<LightboxImage src="/img/diagrams/architecture/architecture_overview.svg" alt="Architecture Overview" />
 
 
 ## Core Components
