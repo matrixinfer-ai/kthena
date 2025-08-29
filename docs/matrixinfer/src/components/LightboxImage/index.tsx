@@ -26,7 +26,7 @@ const LightboxImage: React.FC<LightboxImageProps> = ({ src, alt, title, classNam
       <Lightbox
         open={open}
         close={() => setOpen(false)}
-        slides={[{ src, alt, title }]}
+        slides={[{ src, alt }]}
         plugins={[Zoom]}
         zoom={{
           scrollToZoom: true,
@@ -37,7 +37,7 @@ const LightboxImage: React.FC<LightboxImageProps> = ({ src, alt, title, classNam
             container: {
                 // Example: semi-transparent black
                 '--yarl__color_backdrop': 'rgba(0,0,0,0.8)',
-            } as React.CSSProperties,
+            },
         }}
       />
     </>
