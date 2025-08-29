@@ -33,6 +33,12 @@ const LightboxImage: React.FC<LightboxImageProps> = ({ src, alt, title, classNam
           maxZoomPixelRatio: 2, // Increased zoom level to 8x
           doubleTapDelay: 0
         }}
+        styles={{
+            container: {
+                // Example: semi-transparent black
+                '--yarl__color_backdrop': 'rgba(0,0,0,0.8)',
+            } as React.CSSProperties,
+        }}
       />
     </>
   );
