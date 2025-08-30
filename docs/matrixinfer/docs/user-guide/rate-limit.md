@@ -1,6 +1,6 @@
 # Gateway Rate Limiting
 
-This page describes the gateway rate-limiting features and capabilities in MatrixInfer, based on real-world examples and configurations.
+Unlike traditional microservices that use request count or connection-based rate limiting, AI inference scenarios require **token-based rate limiting**. This is because AI requests can vary dramatically in computational cost - a single request with 10,000 tokens consumes far more GPU resources than 100 requests with 10 tokens each. Token-based limits ensure fair resource allocation based on actual computational consumption rather than simple request counts.
 
 ## Overview
 
@@ -10,11 +10,11 @@ The gateway supports two main types of rate limiting:
 - **Local Rate Limiting**: Enforces limits on a per-gateway-instance basis. It\'s simple to configure and effective for basic load protection.
 - **Global Rate Limiting**: Enforces a shared limit across all gateway instances, using a central store like Redis. This is ideal for providing consistent limits in a scaled-out environment.
 
-Limits can be based on the number of requests or the number of input/output tokens over a specific time window (second, minute, or hour).
+Limits are based on the number of input/output tokens over a specific time window (second, minute, hour, day, or month).
 
 ## Preparation
 
-Before diving into the rate-limiting configurations, let\'s set up the environment. All the configuration examples in this document can be found in the [examples/infer-gateway](https://github.com/matrixinfer-ai/matrixinfer/tree/main/examples/infer-gateway) directory of the MatrixInfer repository.
+Before diving into the rate-limiting configurations, let's set up the environment. All the configuration examples in this document can be found in the [examples/infer-gateway](https://github.com/matrixinfer-ai/matrixinfer/tree/main/examples/infer-gateway) directory of the MatrixInfer repository.
 
 ### Prerequisites
 
@@ -24,7 +24,7 @@ Before diving into the rate-limiting configurations, let\'s set up the environme
 
 ### Getting Started
 
-1.  Deploy a mock LLM inference engine, such as [LLM-Mock-ds1.5b.yaml](../../../../examples/infer-gateway/LLM-Mock-ds1.5b.yaml), if you don\'t have a real GPU/NPU environment.
+1.  Deploy a mock LLM inference engine, such as [LLM-Mock-ds1.5b.yaml](../../../../examples/infer-gateway/LLM-Mock-ds1.5b.yaml), if you don't have a real GPU/NPU environment.
 2.  Deploy the corresponding ModelServer, [ModelServer-ds1.5b.yaml](../../../../examples/infer-gateway/ModelServer-ds1.5b.yaml).
 3.  All rate-limiting examples in this guide use this mock service.
 
@@ -120,7 +120,7 @@ spec:
     unit: minute
     global:
       redis:
-        address: "redis.default.svc.cluster.local:6379"
+        address: "redis-server.matrixinfer-system.svc.cluster.local:6379"
 ```
 
 **Flow Description**:
@@ -130,7 +130,7 @@ spec:
 4.  If the global limit is not exceeded, the request is forwarded.
 5.  If the limit is exceeded, the gateway returns an `HTTP 429` error. All other gateway pods will now also enforce this limit until the time window resets.
 
-**NOTE**: Before applying this configuration, ensure you have a Redis service running and accessible at the specified address (`redis.default.svc.cluster.local:6379`). You can use the provided [redis-standalone.yaml](../../../../examples/redis/redis-standalone.yaml) to deploy one.
+**NOTE**: Before applying this configuration, ensure you have a Redis service running and accessible at the specified address (`redis-server.matrixinfer-system.svc.cluster.local:6379`). You can use the provided [redis-standalone.yaml](../../../../examples/redis/redis-standalone.yaml) to deploy one. And make sure you have deployed multiple gateway pods.
 
 **Try it out**:
 The test process is similar to local rate limiting. Even if your requests are handled by different gateway pods, the global limit will be consistently enforced.
