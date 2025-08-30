@@ -17,7 +17,7 @@
 
 **MatrixInfer** is a Kubernetes-native LLM inference platform that provides declarative model lifecycle management and intelligent request routing for production deployments.
 
-The platform extends Kubernetes with CRD for managing LLM workloads, supporting multiple inference engines (vLLM, SGLang) and advanced serving patterns like prefill-decode disaggregation. MatrixInfer's architecture separates control plane operations (model lifecycle, autoscaling policies) from data plane traffic routing through an intelligent gateway.
+The platform extends Kubernetes with Custom Resource Definitions (CRDs) for managing LLM workloads, supporting multiple inference engines (vLLM, SGLang) and advanced serving patterns like prefill-decode disaggregation. MatrixInfer's architecture separates control plane operations (model lifecycle, autoscaling policies) from data plane traffic routing through an intelligent gateway.
 
 ## Key Features
 
@@ -48,62 +48,20 @@ The platform extends Kubernetes with CRD for managing LLM workloads, supporting 
 
 MatrixInfer implements a Kubernetes-native architecture with separate control plane and data plane components. The platform manages LLM inference workloads through CRD and provides intelligent request routing through a dedicated gateway.
 
-### Control Plane Components
+For more details, please refer to [MatrixcInfer Architecture](./docs/matrixinfer/docs/architecture/architecture.md)
 
-**Model Controller** (`model-controller`)
-- Manages `Model` CRDs and orchestrates them into `ModelInfer`, `ModelServer`, and `ModelRoute` resources
-- Handles model lifecycle operations including creation, updates, and deletion
-- Supports multiple inference engine types: vLLM, SGLang
-- Dynamic LoRA adapter management capabilities
-- Integrates with autoscaling policies for dynamic resource management
 
-**Inference Controller** (`infer-controller`)
-- Manages `ModelInfer` workloads and instantialize them into Kubernetes Pods and Services
-- Handles pod lifecycle management with support for different recovery policies (InferGroupRecreate, RoleRecreate, None)
-- Implements rolling update strategies for zero-downtime model updates
-- Manages multi-role deployments for prefill-decode disaggregation patterns
-- Provides workload scheduling and resource allocation
+## Performance and Benchmarks
 
-**Autoscaler** (`autoscaler`)
-- Implements autoscaling based on `AutoscalingPolicy` and `AutoscalingPolicyBinding` resources
-- Supports multiple metrics including custom metrics for scaling decisions
-- Provides configurable scaling behaviors with panic mode and stable scaling policies
-- Manages scale-to-zero capabilities with grace periods
-- Integrates with Prometheus for metrics collection
+MatrixInfer delivers significant performance improvements and cost savings compared to traditional LLM serving approaches. Here are key performance characteristics and benchmark results:
 
-**Admission Webhooks**
-- **Registry Webhook** (`registry-webhook`): Validates and mutates `Model`, `AutoscalingPolicy`, and `AutoscalingPolicyBinding` resources
-- **ModelInfer Webhook** (`modelinfer-webhook`): Validates `ModelInfer` resource specifications
-- **Infer Gateway Webhook** (`infer-gateway-webhook`): Validates `ModelServer` and `ModelRoute` configurations
+// TODO: Add some perf stats
 
-### Data Plane Component
-**Inference Gateway** (`infer-gateway`)
-- HTTP gateway that routes inference requests to appropriate model servers efficiently
-- Implements pluggable scheduling algorithms (least request, least latency, random, LoRA affinity, prefix-based)
-- Supports multiple KV connector types for prefill-decode disaggregation: HTTP, NIXL, LMCache, MooncakeStore
-- Implements token-based rate limiting and failover traffic policies
-- Supports multiple inference engines: vLLM and SGLang
-
-### Supported Serving Patterns
-
-**Standard Serving**
-- Single-instance model serving with standard vLLM or SGLang backends
-- Automatic load balancing across multiple replicas
-- Support for LoRA adapter management
-
-**Prefill-Decode Disaggregation**
-- Separate prefill and decode workloads for enhanced performance
-- KV cache coordination through configurable connectors (NIXL, LMCache, MooncakeStore)
-- Optimized resource allocation for different workload types
-
-**Multi-Backend Deployments**
-- Support for multiple backends within a single `model` deployment
-- Weighted traffic distribution across different backend versions
-- Canary deployments and A/B testing capabilities
+> **Note**: Benchmark results may vary based on model size, hardware configuration, and workload patterns. Contact us for environment-specific performance testing.
 
 ## Getting Started
 
-// TODO add a link
+Get up and running with MatrixInfer in minutes. This [guide](./docs/matrixinfer/docs/getting-started/quick-start.md) will walk you through installing the platform and deploying your first LLM model.
 
 ## Community
 
