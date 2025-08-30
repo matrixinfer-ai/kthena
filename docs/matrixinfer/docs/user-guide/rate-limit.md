@@ -48,10 +48,8 @@ spec:
   - name: "default"
     targetModels:
     - modelServerName: "deepseek-r1-1-5b"
-  # Rate limit configuration:
-  # - 10000 input tokens per minute
-  # - 5000 output tokens per minute
   # This configuration applies to all rules in this ModelRoute
+  # - 10 input tokens per minute to be convenient to test
   rateLimit:
     inputTokensPerUnit: 10000
     outputTokensPerUnit: 5000
@@ -70,27 +68,16 @@ To test this, you can set a low limit (e.g., `inputTokensPerUnit: 10`) and send 
 ```bash
 export MODEL="deepseek-r1-with-rate-limit"
 
-# This request should succeed
-curl http://$GATEWAY_IP/v1/completions \
+# Request **SAME** gateway pod three times, the final request will be rejected
+curl http://$GATEWAY_POD_IP/v1/completions \
     -H "Content-Type: application/json" \
     -d "{
         \"model\": \"$MODEL\",
         \"prompt\": \"San Francisco is a\",
         \"temperature\": 0
     }"
-
-# Subsequent requests within the same minute may fail if the token limit is breached
-curl http://$GATEWAY_IP/v1/completions \
-    -H "Content-Type: application/json" \
-    -d "{
-        \"model\": \"$MODEL\",
-        \"prompt\": \"Another request to test the limit\",
-        \"temperature\": 0
-    }"
 # Expected output for rejected request:
-# {
-#   "error": "rate limit exceeded"
-# }
+"input token rate limit exceeded
 ```
 
 ### 2. Global Rate Limiting
@@ -111,9 +98,8 @@ spec:
   - name: "default"
     targetModels:
     - modelServerName: "deepseek-r1-1-5b"
-  # Global rate limit configuration:
-  # - 10 input tokens per minute
-  # - 5000 output tokens per minute
+  # This configuration applies to all rules in this ModelRoute
+  # - 10 input tokens per minute to be convenient to test
   rateLimit:
     inputTokensPerUnit: 10
     outputTokensPerUnit: 5000
@@ -138,20 +124,16 @@ The test process is similar to local rate limiting. Even if your requests are ha
 ```bash
 export MODEL="deepseek-r1-with-global-rate-limit"
 
-# Send requests from multiple terminals or in a loop
-for i in $(seq 1 5);
-do
-    curl http://$GATEWAY_IP/v1/completions \
-        -H "Content-Type: application/json" \
-        -d "{
-            \"model\": \"$MODEL\",
-            \"prompt\": \"This is a test prompt\",
-            \"temperature\": 0
-        }" &
-done
-# You will observe that only a certain number of requests succeed
-# before others start failing with a 429 error, regardless of
-# which gateway pod they hit.
+# Request **DIFFERENT** gateway pods three times, the final request will be rejected
+curl http://$GATEWAY_POD_IP/v1/completions \
+    -H "Content-Type: application/json" \
+    -d "{
+        \"model\": \"$MODEL\",
+        \"prompt\": \"San Francisco is a\",
+        \"temperature\": 0
+    }"
+# Expected output for rejected request:
+"input token rate limit exceeded"
 ```
 
 By leveraging local and global rate limiting, MatrixInfer gives you fine-grained control over your AI service traffic, enabling robust, scalable, and cost-effective model deployments.
