@@ -28,11 +28,8 @@ type AutoscalingPolicyBindingSpec struct {
 	PolicyRef corev1.LocalObjectReference `json:"policyRef"`
 
 	// It dynamically schedules replicas across different Model Infer groups based on overall computing power requirements - referred to as "optimize" behavior in the code.
-	//
 	// For example:
-	//
 	// When dealing with two types of Model Infer instances corresponding to heterogeneous hardware resources with different computing capabilities (e.g., H100/A100), the "optimize" behavior aims to:
-	//
 	// Dynamically adjust the deployment ratio of H100/A100 instances based on real-time computing power demands
 	// Use integer programming and similar methods to precisely meet computing requirements
 	// Maximize hardware utilization efficiency
@@ -56,13 +53,13 @@ type MetricEndpoint struct {
 }
 
 type ScalingConfiguration struct {
-	// The scaling instance configuration
+	// Target represents the objects be monitored and scaled.
 	Target Target `json:"target,omitempty"`
-	// MinReplicas is the minimum number of replicas for the backend.
+	// MinReplicas is the minimum number of replicas.
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=1000000
 	MinReplicas int32 `json:"minReplicas"`
-	// MaxReplicas is the maximum number of replicas for the backend.
+	// MaxReplicas is the maximum number of replicas.
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=1000000
 	MaxReplicas int32 `json:"maxReplicas"`
@@ -71,7 +68,7 @@ type ScalingConfiguration struct {
 type OptimizerConfiguration struct {
 	// Parameters of multiple Model Infer Groups to be optimized.
 	// +kubebuilder:validation:MinItems=1
-	Params []OptimizerParam `json:"params"`
+	Params []OptimizerParam `json:"params,omitempty"`
 	// CostExpansionRatePercent is the percentage rate at which the cost expands.
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:default=200

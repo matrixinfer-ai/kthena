@@ -198,8 +198,8 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `stablePolicy` _[AutoscalingPolicyStablePolicy](#autoscalingpolicystablepolicy)_ |  |  |  |
-| `panicPolicy` _[AutoscalingPolicyPanicPolicy](#autoscalingpolicypanicpolicy)_ |  |  |  |
+| `stablePolicy` _[AutoscalingPolicyStablePolicy](#autoscalingpolicystablepolicy)_ | Stable policy usually makes decisions based on the average value of metrics calculated over the past few minutes and introduces a scaling-down cool-down period/delay.<br />This mechanism is relatively stable, as it can smooth out short-term small fluctuations and avoid overly frequent and unnecessary Pod scaling. |  |  |
+| `panicPolicy` _[AutoscalingPolicyPanicPolicy](#autoscalingpolicypanicpolicy)_ | When the load surges sharply within tens of seconds (for example, encountering a sudden traffic peak or a rush of sudden computing tasks),<br />using the average value over a long time window to calculate the required number of replicas will cause significant lag.<br />If the system needs to scale out quickly to cope with such peaks, the ordinary scaling logic may fail to respond in time,<br />resulting in delayed Pod startup, slower service response time or timeouts, and may even lead to service paralysis or data backlogs (for workloads such as message queues). |  |  |
 
 
 #### AutoscalingPolicySpec
@@ -217,7 +217,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `tolerancePercent` _integer_ | TolerancePercent is the percentage of deviation tolerated before scaling actions are triggered. | 10 | Maximum: 100 <br />Minimum: 0 <br /> |
+| `tolerancePercent` _integer_ | TolerancePercent is the percentage of deviation tolerated before scaling actions are triggered.<br />The current number of instances is current_replicas, and the expected number of instances inferred from monitoring metrics is target_replicas.<br />The scaling operation will only be actually performed when \|current_replicas - target_replicas\| ≥ current_replicas × TolerancePercent. | 10 | Maximum: 100 <br />Minimum: 0 <br /> |
 | `metrics` _[AutoscalingPolicyMetric](#autoscalingpolicymetric) array_ | Metrics is the list of metrics used to evaluate scaling decisions. |  | MinItems: 1 <br /> |
 | `behavior` _[AutoscalingPolicyBehavior](#autoscalingpolicybehavior)_ | Behavior defines the scaling behavior for both scale up and scale down. |  |  |
 
@@ -239,7 +239,7 @@ _Appears in:_
 | `instances` _integer_ | Instances is the maximum number of instances to scale. | 1 | Minimum: 0 <br /> |
 | `percent` _integer_ | Percent is the maximum percentage of instances to scaling. | 100 | Maximum: 1000 <br />Minimum: 0 <br /> |
 | `period` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#duration-v1-meta)_ | Period is the duration over which scaling is evaluated. | 15s |  |
-| `selectPolicy` _[SelectPolicyType](#selectpolicytype)_ | SelectPolicy determines the selection strategy for scaling up (e.g., Or, And). | Or | Enum: [Or And] <br /> |
+| `selectPolicy` _[SelectPolicyType](#selectpolicytype)_ | SelectPolicy determines the selection strategy for scaling up (e.g., Or, And).<br />'Or' represents the scaling operation will be performed as long as either the Percent requirement or the Instances requirement is met.<br />'And' represents the scaling operation will be performed as long as both the Percent requirement and the Instances requirement is met. | Or | Enum: [Or And] <br /> |
 | `stabilizationWindow` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#duration-v1-meta)_ | StabilizationWindow is the time window to stabilize scaling up actions. |  |  |
 
 
@@ -534,9 +534,9 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `target` _[Target](#target)_ | The scaling instance configuration |  |  |
-| `minReplicas` _integer_ | MinReplicas is the minimum number of replicas for the backend. |  | Maximum: 1e+06 <br />Minimum: 0 <br /> |
-| `maxReplicas` _integer_ | MaxReplicas is the maximum number of replicas for the backend. |  | Maximum: 1e+06 <br />Minimum: 1 <br /> |
+| `target` _[Target](#target)_ | Target represents the objects be monitored and scaled. |  |  |
+| `minReplicas` _integer_ | MinReplicas is the minimum number of replicas. |  | Maximum: 1e+06 <br />Minimum: 0 <br /> |
+| `maxReplicas` _integer_ | MaxReplicas is the maximum number of replicas. |  | Maximum: 1e+06 <br />Minimum: 1 <br /> |
 
 
 #### SelectPolicyType
