@@ -580,10 +580,10 @@ func (s *store) selectRule(modelName string, req *http.Request, rules []*aiv1alp
 			return rule, nil
 		}
 
-		// Check ModelName match if specified
-		if rule.ModelMatch.Body != nil && rule.ModelMatch.Body.ModelName != nil {
-			// Perform exact match on ModelName
-			if modelName != *rule.ModelMatch.Body.ModelName {
+		// Check Model match if specified
+		if rule.ModelMatch.Body != nil && rule.ModelMatch.Body.Model != nil {
+			// Perform exact match on Model
+			if modelName != *rule.ModelMatch.Body.Model {
 				continue // Skip this rule if model name doesn't match
 			}
 		}

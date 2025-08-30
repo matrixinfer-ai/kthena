@@ -82,10 +82,10 @@ type ModelMatch struct {
 
 // BodyMatch defines the predicate used to match request body content
 type BodyMatch struct {
-	// ModelName is the name of the model or lora adapter to match.
+	// Model is the name of the model or lora adapter to match.
 	// If this field is not specified, any model or lora adapter will be matched.
 	// +optional
-	ModelName *string `json:"modelName,omitempty"`
+	Model *string `json:"model,omitempty"`
 }
 
 // StringMatch defines the matching conditions for string fields.

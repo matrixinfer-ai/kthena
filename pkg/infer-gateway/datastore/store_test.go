@@ -756,7 +756,7 @@ func createComplexModelRoute() *aiv1alpha1.ModelRoute {
 					Name: "base-model-rule",
 					ModelMatch: &aiv1alpha1.ModelMatch{
 						Body: &aiv1alpha1.BodyMatch{
-							ModelName: ptr("llama2-7b"),
+							Model: ptr("llama2-7b"),
 						},
 					},
 					TargetModels: []*aiv1alpha1.TargetModel{
@@ -769,7 +769,7 @@ func createComplexModelRoute() *aiv1alpha1.ModelRoute {
 					Name: "math-lora-rule",
 					ModelMatch: &aiv1alpha1.ModelMatch{
 						Body: &aiv1alpha1.BodyMatch{
-							ModelName: ptr("math-lora"),
+							Model: ptr("math-lora"),
 						},
 					},
 					TargetModels: []*aiv1alpha1.TargetModel{
@@ -782,7 +782,7 @@ func createComplexModelRoute() *aiv1alpha1.ModelRoute {
 					Name: "code-lora-rule",
 					ModelMatch: &aiv1alpha1.ModelMatch{
 						Body: &aiv1alpha1.BodyMatch{
-							ModelName: ptr("code-lora"),
+							Model: ptr("code-lora"),
 						},
 					},
 					TargetModels: []*aiv1alpha1.TargetModel{
@@ -795,7 +795,7 @@ func createComplexModelRoute() *aiv1alpha1.ModelRoute {
 					Name: "science-lora-rule",
 					ModelMatch: &aiv1alpha1.ModelMatch{
 						Body: &aiv1alpha1.BodyMatch{
-							ModelName: ptr("science-lora"),
+							Model: ptr("science-lora"),
 						},
 					},
 					TargetModels: []*aiv1alpha1.TargetModel{
