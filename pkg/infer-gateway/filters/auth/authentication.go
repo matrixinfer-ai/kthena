@@ -29,6 +29,7 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jwt"
 	"k8s.io/klog/v2"
 
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/common"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 )
@@ -55,7 +56,6 @@ func NewJWTValidator(store datastore.Store, gatewayConfig *conf.GatewayConfigura
 		enable: false,
 	}
 	if gatewayConfig != nil && gatewayConfig.Auth.JwksUri != "" {
-		store.RotateJwks(gatewayConfig.Auth)
 		defaultValidator.enable = true
 		defaultValidator.cache = store
 	}
@@ -63,21 +63,20 @@ func NewJWTValidator(store datastore.Store, gatewayConfig *conf.GatewayConfigura
 	return defaultValidator
 }
 
-// parseAndValidateToken validates the token
-func (j *JWTValidator) parseAndValidateToken(tokenStr string) error {
+// validateToken validates the token and returns the subject if
+func (j *JWTValidator) authenticate(tokenStr string) (string, error) {
 	key := j.cache.GetJwks()
-	var token jwt.Token
 	token, err := jwt.Parse([]byte(tokenStr), jwt.WithKeySet(key.Jwks, jws.WithInferAlgorithmFromKey(true)))
 	if err != nil {
-		return fmt.Errorf("failed to parse jwt: %w", err)
+		return "", fmt.Errorf("failed to parse jwt: %w", err)
 	}
 
 	// Validate the claims in the token
 	if err := j.validateClaims(token); err != nil {
-		return fmt.Errorf("failed to validate claims: %w", err)
+		return "", fmt.Errorf("failed to validate claims: %w", err)
 	}
-
-	return nil
+	sub, _ := token.Subject()
+	return sub, nil
 }
 
 func (j *JWTValidator) validateClaims(token jwt.Token) error {
@@ -278,11 +277,12 @@ func (j *JWTValidator) Authenticate() gin.HandlerFunc {
 			// validate the token about the jwtRules
 			token := extractTokenFromHeader(c.Request)
 			klog.V(4).Infof("Extracted token: %s", token)
-			err := j.parseAndValidateToken(token)
+			sub, err := j.authenticate(token)
 			if err != nil {
 				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": fmt.Sprintf("Unauthorized: %v", err)})
 				return
 			}
+			c.Set(common.UserIdKey, sub)
 		}
 		// TODO: add Authorization handler
 		c.Next()

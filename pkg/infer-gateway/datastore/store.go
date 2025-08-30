@@ -63,7 +63,6 @@ const (
 	EventAdd    EventType = "add"
 	EventUpdate EventType = "update"
 	EventDelete EventType = "delete"
-	// Add more event types here as needed
 )
 
 // EventData contains information about the event that triggered the callback
@@ -73,7 +72,6 @@ type EventData struct {
 
 	ModelName  string
 	ModelRoute *aiv1alpha1.ModelRoute
-	// Add more fields as needed for other event types
 }
 
 // CallbackFunc is the type of function that can be registered as a callback
@@ -120,6 +118,8 @@ type Store interface {
 	GetTokenCount(userId, modelName string) (float64, error)
 	// UpdateTokenCount updates token usage for a user and model
 	UpdateTokenCount(userId, modelName string, inputTokens, outputTokens float64) error
+
+	// Enqueue adds a request to the fair queue
 	Enqueue(*Request) error
 
 	// GetRequestWaitingQueueStats returns per-model queue lengths
@@ -127,6 +127,8 @@ type Store interface {
 
 	// jwks cache methods
 	GetJwks() Jwks
+	// rotate jwks
+	// TODO: make this as a private method
 	RotateJwks(config conf.AuthenticationConfig)
 }
 
@@ -233,8 +235,6 @@ func (s *store) GetTokenCount(userID, model string) (float64, error) {
 func (s *store) UpdateTokenCount(userID, model string, inputTokens, outputTokens float64) error {
 	return s.tokenTracker.UpdateTokenCount(userID, model, inputTokens, outputTokens)
 }
-
-type ModelRequest map[string]interface{}
 
 func (s *store) Enqueue(req *Request) error {
 	modelName := req.ModelName

@@ -102,6 +102,9 @@ func (s *store) jwksRefresher(ctx context.Context) {
 		config.JwksUri = jwks.Uri
 	}
 
+	// Initial fetch jwks
+	s.RotateJwks(config)
+
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 

@@ -27,6 +27,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/common"
 )
 
 func TestIsTokenUsageEnabled(t *testing.T) {
@@ -357,7 +358,7 @@ func TestBuildDecodeRequest(t *testing.T) {
 
 				// Context should have token usage key set
 				if tt.expectUsage {
-					value, exists := c.Get(tokenUsageKey)
+					value, exists := c.Get(common.TokenUsageKey)
 					assert.True(t, exists)
 					assert.Equal(t, true, value)
 				}
@@ -475,7 +476,7 @@ func TestHandleStreamingResponse(t *testing.T) {
 			c.Request = req
 
 			if tt.tokenUsage {
-				c.Set(tokenUsageKey, true)
+				c.Set(common.TokenUsageKey, true)
 			}
 
 			// Create mock HTTP response
