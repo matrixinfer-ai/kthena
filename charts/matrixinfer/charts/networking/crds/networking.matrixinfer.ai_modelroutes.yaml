@@ -124,6 +124,16 @@ spec:
                         Match conditions to be satisfied for the rule to be activated.
                         Empty `modelMatch` means matching all requests.
                       properties:
+                        body:
+                          description: Body contains conditions to match request body
+                            content
+                          properties:
+                            model:
+                              description: |-
+                                Model is the name of the model or lora adapter to match.
+                                If this field is not specified, any model or lora adapter will be matched.
+                              type: string
+                          type: object
                         headers:
                           additionalProperties:
                             description: |-

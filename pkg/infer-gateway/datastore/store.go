@@ -561,7 +561,7 @@ func (s *store) MatchModelServer(model string, req *http.Request) (types.Namespa
 		isLora = true
 	}
 
-	rule, err := s.selectRule(req, mr.Spec.Rules)
+	rule, err := s.selectRule(model, req, mr.Spec.Rules)
 	if err != nil {
 		return types.NamespacedName{}, false, fmt.Errorf("failed to select route rule: %v", err)
 	}
@@ -574,10 +574,18 @@ func (s *store) MatchModelServer(model string, req *http.Request) (types.Namespa
 	return types.NamespacedName{Namespace: mr.Namespace, Name: dst.ModelServerName}, isLora, nil
 }
 
-func (s *store) selectRule(req *http.Request, rules []*aiv1alpha1.Rule) (*aiv1alpha1.Rule, error) {
+func (s *store) selectRule(modelName string, req *http.Request, rules []*aiv1alpha1.Rule) (*aiv1alpha1.Rule, error) {
 	for _, rule := range rules {
 		if rule.ModelMatch == nil {
 			return rule, nil
+		}
+
+		// Check Model match if specified
+		if rule.ModelMatch.Body != nil && rule.ModelMatch.Body.Model != nil {
+			// Perform exact match on Model
+			if modelName != *rule.ModelMatch.Body.Model {
+				continue // Skip this rule if model name doesn't match
+			}
 		}
 
 		headersMatched := true
