@@ -63,7 +63,7 @@ func NewJWTValidator(store datastore.Store, gatewayConfig *conf.GatewayConfigura
 	return defaultValidator
 }
 
-// validateToken validates the token and returns the subject if
+// authenticate validates the token and returns the subject
 func (j *JWTValidator) authenticate(tokenStr string) (string, error) {
 	key := j.cache.GetJwks()
 	token, err := jwt.Parse([]byte(tokenStr), jwt.WithKeySet(key.Jwks, jws.WithInferAlgorithmFromKey(true)))
