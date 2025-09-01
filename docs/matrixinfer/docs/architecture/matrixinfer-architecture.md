@@ -2,158 +2,140 @@ import LightboxImage from '@site/src/components/LightboxImage';
 
 # Architecture Overview
 
-MatrixInfer is a Kubernetes-native AI inference platform designed for scalable, efficient, and intelligent model serving.
-The system is logically separated into three planes to decouple management, orchestration, and actual inference execution.
+MatrixInfer is a Kubernetes‑native AI inference platform built on a **three‑plane architecture** for scalability, observability, and efficiency.
+The system separates **declarative configuration**, **controller orchestration**, and **inference execution** into distinct planes.
 
 ## High-Level Architecture
 
 ---
 
-The MatrixInfer architecture consists of three main planes:
+The platform is composed of:
 
-- **Management Plane**: Defines models, routes, servers, and autoscaling policies as Kubernetes Custom Resources (CRDs).
-- **Control Plane**: Responsible for lifecycle management, orchestration, routing, auth, scheduling, and scaling controllers.
-- **Data Plane**: Executes inference workloads using groups of inference pods integrated with KV connectors.
+- **Control Plane**: Models, Routes, Servers, Inference configs, and AutoScaling policies expressed as Kubernetes CRDs. Controllers reconcile CRDs into runtime resources.
+- **Data Plane**: The Gateway/Scheduler orchestrates request routing and scheduling. Inference Pods execute AI model requests with **role-based replica groups** (Prefill/Decode).
 
 <LightboxImage src="/img/diagrams/architecture/architecture_overview.svg" alt="Architecture Overview"></LightboxImage>
 
+---
 
 ## Core Components
 
+### 1. **CRDs**
+
+MatrixInfer extends Kubernetes with **custom resources**:
+
+- **Model** – Defines model specification (weights, checkpoints, metadata).
+- **ModelRoute** – Routing and traffic control configuration.
+- **ModelServer** – Serves REST/gRPC endpoints and specifies exposure/auth rules.
+- **ModelInfer** – Defines inference groups, replicas, and runtime configuration.
+- **AutoScalingPolicy** – Policy definition for autoscaling triggers/metrics.
+- **AutoScalingPolicyBinding** – Connects Models with AutoscalingPolicies.
+
+Operators update these CRDs, which are reconciled by Control Plane controllers.
+
 ---
 
-### 1. Management Plane
+### 2. **Control Plane**
 
-The management plane extends Kubernetes with the following **Custom Resources (CRDs):**
-
-- **Model** – Represents metadata and specs for models
-- **ModelRoute** – Configures routing rules and traffic management
-- **ModelServer** – Defines model serving endpoints and security rules
-- **ModelInfer** – Describes inference deployments (replicas, resources)
-- **AutoScalingPolicy** – Defines scaling policies
-- **AutoScalingPolicyBinding** – Binds models to scaling policies
-
-These CRs provide the declarative configuration, which is reconciled by the Control Plane controllers.
-
-
-### 2. Control Plane
-
-The control plane manages orchestration and ensures that user requests, CRDs, and system state are consistent.
-It consists of three major modules:
-
-#### **Inference Gateway**
-
-Entry for user requests. Components:
-
-- **Auth** – Authentication and authorization for requests
-- **Rate Limiting** – Protects pods from overload
-- **Fairness Scheduling** – Ensures fair queueing and scheduling of requests
-- **Load Balancing** – Balances requests across inference pods
-- **Proxy** – Forwards requests into the Data Plane
-
-Request Path (per diagram):
-`User → Auth → Rate Limiting → Fairness Scheduling → Load Balancing → Proxy → Inference Pods`
-
-#### **Scheduler**
-
-Implements advanced pod scheduling strategies. Plugins visualized in the diagram:
-
-- **Least Requests** (traffic balance)
-- **LoRA Affinity**
-- **KV Cache Awareness**
-- **Least Latency (TTFT & TPOT)**
-- **Prefix Cache**
-- **GPU Cache**
-- **PD Group Scheduling (Prefill/Decode disaggregation)**
-
-The scheduler integrates tightly with the load balancer and fairness scheduling in the gateway.
+The control plane ensures declarative configs are realized and user requests are orchestrated through the data plane.
 
 #### **Controllers**
 
-Operators or automation modify CRDs, and controllers reconcile that intent:
+- **Model Controller** → Watches `Model` CRDs and configures model state.
+- **ModelRoute Controller** → Syncs routes into the inference gateway.
+- **ModelServer Controller** → Manages serving surfaces and connectivity.
+- **ModelInfer Controller** → Manages inference groups, roles, Replica definitions.
+- **Autoscaler Controller** → Collects metrics from Pods, evaluates scaling via attached policies.
 
-- **Model Controller** → Manages models
-- **ModelRoute Controller** → Syncs routing configs
-- **ModelServer Controller** → Manages serving endpoints
-- **ModelInfer Controller** → Manages inference replicas and InferGroups
-- **Autoscaler Controller** → Monitors pod metrics, enforces AutoScalingPolicies
+#### **Infer Gateway**
 
-Each controller reads CRDs from the Management Plane and materializes resources in the Data Plane.
+Handles user requests with the following pipeline:
 
+`User → Auth → Rate Limiting → Fairness Scheduling → Load Balancing → Proxy → Inference Pods`
 
-### 3. Data Plane
+- **Auth** → Authentication and authorization.
+- **Rate Limiting** → Ensures request throughput safety.
+- **Fairness Scheduling** → Queueing and fair allocation.
+- **Load Balancing** → Balances to the optimal backend.
+- **Proxy** → Dispatches into data plane groups.
 
-Executes AI model inference with high efficiency.
+#### **Scheduler**
+
+Applies **advanced scheduling plugins** to optimize request placement:
+
+- **Filter Plugins:**
+    - *Least Requests*
+    - *LoRA Affinity*
+
+- **Score Plugins:**
+    - *KV Cache Aware*
+    - *Least Latency (TTFT & TPOT)*
+    - *Prefix Cache*
+    - *GPU Cache*
+
+The scheduler integrates with Load Balancing and Fairness Scheduling.
+
+---
+
+### 3. **Data Plane**
+
+Executes inference with optimized, role-based pods.
 
 #### **Inference Pods**
 
-Organized into **Inference Groups (Group 0, Group 1, …)** with multiple **Replicas**. Each replica may play a specific role:
+Organized as **Groups** with **multiple Replicas**. Each replica may assume a **role**:
 
-- **Role A – Prefill** (handles sequence initialization)
-- **Role B – Decode** (handles incremental token generation)
+- **Role A – Prefill**: Handles prompt initialization / warm‑up.
+- **Role B – Decode**: Handles incremental token generation.
 
-Each Pod Replica typically includes:
+Each Replica may include:
 
-- **Entry Pod** – handles request ingress into the group
-- **Worker Pod(s)** – execute model inference workloads
-- **Init Container** – initializes environment and artifacts
-- **Sidecar Container** – auxiliary processes for observability/networking
-- **Downloader** – pulls model weights/artifacts at startup
-- **Runtime Agent** – collects metrics, manages local lifecycle
-- **Model Engines** – `vLLM`, `SGLang` integrations
+- **Entry Pod** – Ingress for requests into its role.
+- **Worker Pod(s)** – Execute model inference.
+- **Init Container** – Dependency/artifact setup before execution.
+- **Sidecar Container** – Logging, observability, or networking side processes.
+- **Downloader** – Fetches weights and model artifacts.
+- **Runtime Agent** – Health / metrics collector.
+- **LLM Engines** – Integrations with backends (e.g., **vLLM**, **SGLang**).
 
-This design enables **PD-disaggregation** (separating Prefill and Decode roles) and supports dynamic scaling.
-
-#### **KV Connector**
-
-Provides fast access to external key-value systems for caching. Supports:
-
-- **Nixl** – High-performance KV store
-- **MoonCake** – Distributed caching cluster
-- **LMCache** – Large model caching support
-- **HTTP-based stores** – Generic KV backend
-
-KV Connector enables **prefix cache re-use** and **GPU cache integration** for acceleration.
-
-
-## Data Flows
+This design supports **Prefill/Decode Disaggregation (PD mode)** for efficient scaling across stages of inference.
 
 ---
 
-### 1. Model & Scaling Flow
+## How it Works (The Flow)
 
-```
-Operator → Model CRDs → Controllers → AutoScalingPolicy/Binding → ModelServer/Route CRDs
-```
-
-### 2. Inference Deployment Flow
-
-```
-Autoscaler Controller → ModelInfer CRD → ModelInfer Controller → Inference Pods
-```
-
-### 3. Request Serving Flow
-
-```
-User → Auth → Rate Limiter → Fairness Scheduling → Load Balancer → Proxy → Inference Pods (Prefill / Decode)
-```
-
-### 4. Data Synchronization Flow
-
-```
-Controllers → In-Memory Datastores ← Model Router/Scheduler
-Autoscaler → Inference Pods (metrics collection)
-```
-
+1.  **Someone wants an AI to do something (User Request):**
+    *   A **User** sends a request to the **Infer Gateway**.
+2.  **The Gateway checks things (Infer Gateway):**
+    *   It first checks who you are (**Auth**) and if you're sending too many requests (**Rate Limiting**).
+3.  **Making sure everyone gets a turn (Fairness Scheduling & Queue):**
+    *   If many requests come in at once, a **Fairness Scheduler** makes sure everyone gets a fair chance, sometimes putting requests in a **Queue** to wait.
+4.  **Sending the request to the right AI worker (Load Balancing & Proxy):**
+    *   A **Load Balancer** then directs the request to a healthy "worker" based on model information (from the Control Plane).
+    *   A **Proxy** acts as the delivery service, taking the request to the specific AI "worker."
+5.  **The AI Workers do the thinking (Inference Pods):**
+    *   These are called **Inference Pods**. Each pod is like a small AI expert.
+    *   For LLMs, there might be two types of experts:
+        *   **Prefill Pods (Role A):** Handle the initial understanding of your request.
+        *   **Decode Pods (Role B):** Generate the actual answer, token by token.
+    *   Each pod has special **LLM engines** (like vLLM or SGLang) that are good at LLM tasks.
+    *   They also have helpers: an **Init Container** to download the model (like getting the right tools) and a **Sidecar Container** with a **Runtime Agent** to keep an eye on how well the worker is doing.
+6.  **Managing the Workers (Control Plane in Action):**
+    *   **Operators** can tell the **Model Controller** to add new AI models or change existing ones.
+    *   The **Model Controller** then tells other parts, like the **Model Route Controller** (how to find the new model), the **Model Server Controller** (how to set up the new model's home), and the **Model Infer Controller** (how to manage its workers).
+    *   It also sets **Autoscaling Policies** (how many workers to have based on demand) and binds them to the model.
+    *   The **Autoscaler Controller** watches the **Inference Pods** for performance (using "get metrics") and tells the **Model Infer Controller** to create more or fewer workers as needed.
+7.  **Smartly Placing Workers (Scheduler):**
+    *   A **Scheduler** decides *where* new **Inference Pods** should run (e.g., on which powerful computer).
+    *   It uses **Filter Plugins** to rule out unsuitable places and **Score Plugins** to pick the best spot, considering things like available memory (**KV Cache Aware**, **GPU Cache**) and how quickly it can start responding (**Least Latency**).
 
 ## Key Features
 
----
-
-- **Three-plane design**: Management Plane (CRDs), Control Plane (controllers/schedulers), Data Plane (pods & caches)
-- **Fairness + Advanced Scheduling**: Supports fairness scheduling, cache-aware, latency-aware, lora-affinity filters
-- **Scalable Pod Architecture**: Entry vs Worker pods, Prefill/Decode roles, multiple replicas per group
-- **Rich KV Cache Integration**: Multi-backend connectivity (LMCache, MoonCake, Nixl, HTTP)
-- **Metric-driven autoscaling** with user-defined policies
-- **PD-Disaggregation**: Prefill/Decode group separation
-- **Extensible with sidecars, init containers, runtime agents for observability & reliability**
+- **CRD-driven management** for models, routes, and scaling.
+- **Control Plane Orchestration** with dedicated controllers and automation.
+- **Infer Gateway** with full request pipeline including fairness scheduling and queue integration.
+- **Advanced Scheduling Plugins** (latency-aware, cache-aware, LoRA affinity).
+- **PD Disaggregation**: Distinction of Prefill vs Decode workloads.
+- **Inference Groups & Role-Based Replicas** enabling scaling granularity.
+- **Observability & Reliability via Init, Sidecar, Runtime Agent containers**.
+- **Flexible Scaling** via metric-driven autoscaler policies.
