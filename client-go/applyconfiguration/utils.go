@@ -36,6 +36,8 @@ import (
 func ForKind(kind schema.GroupVersionKind) interface{} {
 	switch kind {
 	// Group=networking.matrixinfer.ai, Version=v1alpha1
+	case v1alpha1.SchemeGroupVersion.WithKind("BodyMatch"):
+		return &networkingv1alpha1.BodyMatchApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("GlobalRateLimit"):
 		return &networkingv1alpha1.GlobalRateLimitApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("KVConnectorSpec"):

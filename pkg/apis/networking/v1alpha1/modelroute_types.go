@@ -74,6 +74,18 @@ type ModelMatch struct {
 	// If this field is not specified, a default prefix match on the "/" path is provided.
 	// +optional
 	Uri *StringMatch `json:"uri,omitempty"`
+
+	// Body contains conditions to match request body content
+	// +optional
+	Body *BodyMatch `json:"body,omitempty"`
+}
+
+// BodyMatch defines the predicate used to match request body content
+type BodyMatch struct {
+	// Model is the name of the model or lora adapter to match.
+	// If this field is not specified, any model or lora adapter will be matched.
+	// +optional
+	Model *string `json:"model,omitempty"`
 }
 
 // StringMatch defines the matching conditions for string fields.

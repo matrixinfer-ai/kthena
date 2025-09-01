@@ -2,7 +2,7 @@ apiVersion: workload.matrixinfer.ai/v1alpha1
 kind: modelinfer
 metadata: ${MODEL_INFER_TEMPLATE_METADATA}
 spec:
-  recoveryPolicy: InferGroupRestart
+  recoveryPolicy: InferGroupRecreate
   rolloutStrategy:
     rollingUpdate:
       maxSurge: 25%
