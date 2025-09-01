@@ -48,27 +48,28 @@ The Data Plane executes inference workloads and handles request processing throu
 
 The Infer Gateway processes user requests through a comprehensive pipeline that ensures security, fairness, and optimal resource utilization:
 
-**Request Pipeline:** `User → Auth → Rate Limiting → Fairness Scheduling → Load Balancing → Proxy → Inference Pods`
+**Request Pipeline:**
 
 - **Authentication & Authorization** – Validates user identity and permissions
 - **Rate Limiting** – Enforces request throughput limits to prevent system overload
 - **Fairness Scheduling** – Implements queuing mechanisms and fair resource allocation
+- **Scheduling** – Selects optimal pods using filter and score plugins for intelligent request routing
 - **Load Balancing** – Routes requests to optimal backend instances based on health and capacity
 - **Proxy** – Dispatches requests to appropriate data plane inference groups
 
 #### **Scheduler**
 
-The Scheduler employs **advanced scheduling plugins** to optimize request placement and resource utilization:
+The Scheduler employs **advanced scheduling plugins** to optimize request routing and resource utilization:
 
 **Filter Plugins:**
-- *Least Requests* – Filters nodes based on current request load
-- *LoRA Affinity* – Ensures requests requiring specific LoRA adapters are routed to compatible nodes
+- *Least Requests* – Filters pods based on current request load
+- *LoRA Affinity* – Ensures requests requiring specific LoRA adapters are routed to compatible pods
 
 **Score Plugins:**
-- *KV Cache Aware* – Optimizes placement based on key-value cache availability and utilization
+- *KV Cache Aware* – Optimizes routing based on key-value cache availability and utilization
 - *Least Latency* – Minimizes Time to First Token (TTFT) and Time Per Output Token (TPOT)
 - *Prefix Cache* – Leverages shared prefix caching for improved performance
-- *GPU Cache* – Considers GPU memory cache status for optimal placement
+- *GPU Cache* – Considers GPU memory cache status for optimal routing
 
 The scheduler seamlessly integrates with Load Balancing and Fairness Scheduling components to ensure optimal request distribution.
 
@@ -101,24 +102,24 @@ This architecture enables **Prefill/Decode Disaggregation (PD mode)**, allowing 
     *   It first checks who you are (**Auth**) and if you're sending too many requests (**Rate Limiting**).
 3.  **Making sure everyone gets a turn (Fairness Scheduling & Queue):**
     *   If many requests come in at once, a **Fairness Scheduler** makes sure everyone gets a fair chance, sometimes putting requests in a **Queue** to wait.
-4.  **Sending the request to the right AI worker (Load Balancing & Proxy):**
+4.  **Smartly Routing Requests (Scheduler):**
+    *   A **Scheduler** decides *which* existing **Inference Pods** should receive incoming requests for optimal performance.
+    *   It uses **Filter Plugins** to rule out unsuitable pods and **Score Plugins** to select the best pods, considering factors like current request load (**Least Request**), available memory caches (**KV Cache Aware**, **GPU Cache**), response latency (**Least Latency**), and cache optimizations (**Prefix Cache**).
+5.  **Sending the request to the right AI worker (Load Balancing & Proxy):**
     *   A **Load Balancer** then directs the request to a healthy "worker" based on model information (from the Control Plane).
     *   A **Proxy** acts as the delivery service, taking the request to the specific AI "worker."
-5.  **The AI Workers do the thinking (Inference Pods):**
+6.  **The AI Workers do the thinking (Inference Pods):**
     *   These are called **Inference Pods**. Each pod is like a small AI expert.
     *   For LLMs, there might be two types of experts:
     *   **Prefill Pods (Role A):** Handle the initial understanding of your request.
     *   **Decode Pods (Role B):** Generate the actual answer, token by token.
     *   Each pod has special **LLM engines** (like vLLM or SGLang) that are good at LLM tasks.
     *   They also have helpers: an **Init Container** to download the model (like getting the right tools) and a **Sidecar Container** with a **Runtime Agent** to keep an eye on how well the worker is doing.
-6.  **Managing the Workers (Control Plane in Action):**
+7.  **Managing the Workers (Control Plane in Action):**
     *   **Operators** can tell the **Model Controller** to add new AI models or change existing ones.
     *   The **Model Controller** then tells other parts, like the **Model Route Controller** (how to find the new model), the **Model Server Controller** (how to set up the new model's home), and the **Model Infer Controller** (how to manage its workers).
     *   It also sets **Autoscaling Policies** (how many workers to have based on demand) and binds them to the model.
     *   The **Autoscaler Controller** watches the **Inference Pods** for performance (using "get metrics") and tells the **Model Infer Controller** to create more or fewer workers as needed.
-7.  **Smartly Placing Workers (Scheduler):**
-    *   A **Scheduler** decides *where* new **Inference Pods** should run (e.g., on which powerful computer).
-    *   It uses **Filter Plugins** to rule out unsuitable places and **Score Plugins** to pick the best spot, considering things like available memory (**KV Cache Aware**, **GPU Cache**) and how quickly it can start responding (**Least Latency**).
 
 ## Key Features
 
