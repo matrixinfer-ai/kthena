@@ -5,11 +5,7 @@ on:
     branches:
       - main
     paths:
-      - '**.go'
-      - "pkg/**"
-      - "cmd/**"
-      - "go.mod"
-      - "go.sum"
+      - "docker/**"
   push:
     branches:
       - main
