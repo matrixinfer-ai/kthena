@@ -6,7 +6,7 @@ Our goal is to deliver a lightweight, user-friendly, and extensible LLM inferenc
 
 ## Overview
 
-![arch](../../images/infer-gateway-arch.png)
+![arch](../../static/img/infer-gateway-arch.svg)
 
 MatrixInfer Gateway is deployed as a standalone binary that can seamlessly integrate with existing gateway infrastructure or serve as a direct traffic entry point for handling AI workloads independently.
 
@@ -16,7 +16,7 @@ For privately deployed models in particular, the gateway supports mainstream inf
 
 ## Core Components
 
-![components](../../images/infer-gateway-components.png)
+![components](../../static/img/infer-gateway-components.svg)
 
 
 
