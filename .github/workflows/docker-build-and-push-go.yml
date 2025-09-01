@@ -38,16 +38,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      # arm64 builds are slow on PRs, so only build amd64 for PRs
-      - name: Set platforms
-        id: platforms
-        run: |
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            echo "platforms=linux/amd64" >> $GITHUB_OUTPUT
-          else
-            echo "platforms=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
-          fi
-
       - name: Extract Docker image metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -79,7 +69,7 @@ jobs:
         with:
           context: .
           file: ./docker/Dockerfile.${{ matrix.service }}
-          platforms: ${{ steps.platforms.outputs.platforms }}
+          platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           annotations: ${{ steps.meta.outputs.annotations }}
