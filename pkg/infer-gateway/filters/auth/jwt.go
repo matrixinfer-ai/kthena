@@ -14,9 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package auth provides JWT authentication and JWKS rotation functionality.
-// This file contains the JWKS rotation logic that was moved from the datastore
-// to provide better separation of concerns and more robust JWT key management.
 package auth
 
 import (
@@ -45,34 +42,6 @@ type Jwks struct {
 	ExpiredTime time.Duration
 }
 
-// NewJwks creates a new Jwks instance by fetching from the configured URI
-func NewJwks(config conf.AuthenticationConfig) *Jwks {
-	if config.JwksUri == "" {
-		klog.V(4).Info("JWKS URI is empty, skipping JWKS initialization")
-		return nil
-	}
-
-	var keySet jwk.Set
-	var err error
-	for i := 0; i < maxRetryAttempts; i++ {
-		keySet, err = jwk.Fetch(context.Background(), config.JwksUri)
-		if err != nil {
-			klog.V(4).Infof("failed to fetch JWKS from %s: %v", config.JwksUri, err)
-		} else {
-			return &Jwks{
-				Jwks:      keySet,
-				Audiences: config.Audiences,
-				Issuer:    config.Issuer,
-				Uri:       config.JwksUri,
-				// Default expiration time is set to 7 days
-				ExpiredTime: time.Hour * 24 * 7, // Default to 7 days
-			}
-		}
-	}
-
-	return nil
-}
-
 // JWKSRotator handles the rotation and caching of JWKS
 type JWKSRotator struct {
 	config          conf.AuthenticationConfig
@@ -84,11 +53,15 @@ type JWKSRotator struct {
 
 // NewJWKSRotator creates a new JWKS rotator
 func NewJWKSRotator(config conf.AuthenticationConfig) *JWKSRotator {
+	if config.JwksUri == "" {
+		klog.V(4).Info("JWKS URI not configured, skipping JWKS rotator initialization")
+		return nil
+	}
+
 	return &JWKSRotator{
 		config:          config,
 		refreshInterval: defaultRefreshInterval,
 		stopCh:          make(chan struct{}),
-		jwks:            &Jwks{}, // Initialize with empty JWKS
 	}
 }
 
@@ -140,7 +113,7 @@ func (jr *JWKSRotator) rotateJWKS() {
 	klog.V(4).Infof("Rotating JWKS from URI: %s", jr.config.JwksUri)
 
 	// Fetch new JWKS
-	newJwks := NewJwks(jr.config)
+	newJwks := rebuildJwks(jr.config)
 	if newJwks != nil {
 		jr.mu.Lock()
 		jr.jwks = newJwks
@@ -149,4 +122,27 @@ func (jr *JWKSRotator) rotateJWKS() {
 	} else {
 		klog.Error("Failed to rotate JWKS")
 	}
+}
+
+// rebuildJwks creates a new Jwks instance by fetching from the configured URI
+func rebuildJwks(config conf.AuthenticationConfig) *Jwks {
+	var keySet jwk.Set
+	var err error
+	for i := 0; i < maxRetryAttempts; i++ {
+		keySet, err = jwk.Fetch(context.Background(), config.JwksUri)
+		if err != nil {
+			klog.V(4).Infof("failed to fetch JWKS from %s: %v", config.JwksUri, err)
+		} else {
+			return &Jwks{
+				Jwks:      keySet,
+				Audiences: config.Audiences,
+				Issuer:    config.Issuer,
+				Uri:       config.JwksUri,
+				// Default expiration time is set to 7 days
+				ExpiredTime: time.Hour * 24 * 7, // Default to 7 days
+			}
+		}
+	}
+
+	return nil
 }

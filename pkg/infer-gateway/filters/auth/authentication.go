@@ -62,7 +62,9 @@ func NewJWTAuthenticator(gatewayConfig *conf.GatewayConfiguration) *JWTAuthentic
 
 	// Create and configure the JWKS rotator
 	rotator := NewJWKSRotator(gatewayConfig.Auth)
-	rotator.Start(context.TODO())
+	if rotator != nil {
+		rotator.Start(context.TODO())
+	}
 
 	return &JWTAuthenticator{
 		enabled: true,
@@ -91,7 +93,7 @@ func (j *JWTAuthenticator) authenticate(tokenStr string) (string, error) {
 	}
 
 	// Validate the claims in the token
-	if err := j.validateClaims(token, &jwksValue); err != nil {
+	if err := j.validateClaims(token, jwksValue); err != nil {
 		return "", fmt.Errorf("failed to validate claims: %w", err)
 	}
 
@@ -303,13 +305,6 @@ func (j *JWTAuthenticator) ValidateToken(ctx context.Context, c *gin.Context, to
 // IsEnabled returns whether JWT authentication is enabled
 func (j *JWTAuthenticator) IsEnabled() bool {
 	return j.enabled
-}
-
-// SetRefreshInterval sets the JWKS refresh interval
-func (j *JWTAuthenticator) SetRefreshInterval(interval time.Duration) {
-	if j.rotator != nil {
-		j.rotator.SetRefreshInterval(interval)
-	}
 }
 
 // Authenticate returns a Gin middleware for JWT token validation

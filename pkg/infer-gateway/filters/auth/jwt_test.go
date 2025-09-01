@@ -48,18 +48,6 @@ func TestNewJWTAuthenticator(t *testing.T) {
 			expectEnabled: false,
 			expectRotator: false,
 		},
-		{
-			name: "invalid JWKS URI",
-			config: &conf.GatewayConfiguration{
-				Auth: conf.AuthenticationConfig{
-					JwksUri:   "invalid-url",
-					Issuer:    "test-issuer",
-					Audiences: []string{"test-audience"},
-				},
-			},
-			expectEnabled: false,
-			expectRotator: false,
-		},
 	}
 
 	for _, tt := range tests {
@@ -70,6 +58,7 @@ func TestNewJWTAuthenticator(t *testing.T) {
 
 			if tt.expectRotator {
 				assert.NotNil(t, validator.rotator)
+				validator.rotator.Stop()
 			} else {
 				assert.Nil(t, validator.rotator)
 			}
@@ -77,7 +66,7 @@ func TestNewJWTAuthenticator(t *testing.T) {
 	}
 }
 
-func TestNewJwks(t *testing.T) {
+func TestRebuildJwks(t *testing.T) {
 	tests := []struct {
 		name      string
 		config    conf.AuthenticationConfig
@@ -111,7 +100,7 @@ func TestNewJwks(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			jwks := NewJwks(tt.config)
+			jwks := rebuildJwks(tt.config)
 
 			if tt.expectNil {
 				assert.Nil(t, jwks)
