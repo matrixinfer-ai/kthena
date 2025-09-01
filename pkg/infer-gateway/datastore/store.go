@@ -35,7 +35,6 @@ import (
 
 	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/backend"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
@@ -124,12 +123,6 @@ type Store interface {
 
 	// GetRequestWaitingQueueStats returns per-model queue lengths
 	GetRequestWaitingQueueStats() []QueueStat
-
-	// jwks cache methods
-	GetJwks() Jwks
-	// rotate jwks
-	// TODO: make this as a private method
-	RotateJwks(config conf.AuthenticationConfig)
 }
 
 // QueueStat holds per-model queue metrics to aid scheduling decisions
@@ -171,7 +164,6 @@ type modelRouteInfo struct {
 }
 
 type store struct {
-	jwksCache   *Jwks
 	modelServer sync.Map // map[types.NamespacedName]*modelServer
 	pods        sync.Map // map[types.NamespacedName]*PodInfo
 
@@ -193,7 +185,6 @@ type store struct {
 
 func New() Store {
 	return &store{
-		jwksCache:           &Jwks{},
 		modelServer:         sync.Map{},
 		pods:                sync.Map{},
 		routeInfo:           make(map[string]*modelRouteInfo),
@@ -226,7 +217,6 @@ func (s *store) Run(ctx context.Context) {
 			}
 		}
 	}()
-	go s.jwksRefresher(ctx)
 }
 func (s *store) GetTokenCount(userID, model string) (float64, error) {
 	return s.tokenTracker.GetTokenCount(userID, model)

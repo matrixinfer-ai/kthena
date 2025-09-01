@@ -48,7 +48,7 @@ var EnableFairnessScheduling = env.RegisterBoolVar("ENABLE_FAIRNESS_SCHEDULING",
 
 type Router struct {
 	scheduler       scheduler.Scheduler
-	authValidator   auth.JWTValidator
+	authenticator   *auth.JWTAuthenticator
 	store           datastore.Store
 	loadRateLimiter *ratelimit.TokenRateLimiter
 
@@ -87,7 +87,7 @@ func NewRouter(store datastore.Store, gatewayConfigPath string) *Router {
 	return &Router{
 		store:            store,
 		scheduler:        scheduler.NewScheduler(store, gatewayConfig),
-		authValidator:    *auth.NewJWTValidator(store, gatewayConfig),
+		authenticator:    auth.NewJWTAuthenticator(gatewayConfig),
 		loadRateLimiter:  loadRateLimiter,
 		connectorFactory: connectors.NewDefaultFactory(),
 	}
@@ -310,7 +310,7 @@ func (r *Router) GetModelServer(modelName string, req *http.Request) (*v1alpha1.
 }
 
 func (r *Router) Auth() gin.HandlerFunc {
-	return r.authValidator.Authenticate()
+	return r.authenticator.Authenticate()
 }
 
 // proxyRequest proxies the request to the model server pods, returns response to downstream.
