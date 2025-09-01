@@ -64,10 +64,7 @@ func (m *Manager) ManagePodGroups(ctx context.Context, mi *workloadv1alpha1.Mode
 
 // isGangSchedulingEnabled checks if gang scheduling is enabled for the ModelInfer
 func (m *Manager) isGangSchedulingEnabled(mi *workloadv1alpha1.ModelInfer) bool {
-	if mi.Spec.Template.GangSchedule == nil {
-		return false
-	}
-	return true
+	return mi.Spec.Template.GangSchedule != nil
 }
 
 // managePodGroups manages PodGroups for group-level gang scheduling

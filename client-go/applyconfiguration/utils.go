@@ -124,8 +124,6 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &applyconfigurationworkloadv1alpha1.ModelInferSpecApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelInferStatus"):
 		return &applyconfigurationworkloadv1alpha1.ModelInferStatusApplyConfiguration{}
-	case workloadv1alpha1.SchemeGroupVersion.WithKind("NetworkTopologySpec"):
-		return &applyconfigurationworkloadv1alpha1.NetworkTopologySpecApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("PodTemplateSpec"):
 		return &applyconfigurationworkloadv1alpha1.PodTemplateSpecApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("Role"):

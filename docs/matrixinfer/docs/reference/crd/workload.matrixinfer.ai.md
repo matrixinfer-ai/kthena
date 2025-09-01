@@ -44,7 +44,6 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `restartGracePeriodSeconds` _integer_ | RestartGracePeriodSeconds defines the grace time for the controller to rebuild the infergroup when an error occurs<br />Defaults to 0 (infergroup will be rebuilt immediately after an error) | 0 |  |
-| `networkTopology` _[NetworkTopologySpec](#networktopologyspec)_ | NetworkTopology defines the NetworkTopology config, this field works in conjunction with network topology feature and hyperNode CRD. |  |  |
 | `gangSchedule` _[GangSchedule](#gangschedule)_ | GangSchedule defines the GangSchedule config. |  |  |
 | `roles` _[Role](#role) array_ |  |  | MaxItems: 4 <br />MinItems: 1 <br /> |
 
@@ -152,41 +151,6 @@ _Appears in:_
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#condition-v1-meta) array_ | Conditions track the condition of the ModelInfer. |  |  |
 
 
-#### NetworkTopologyMode
-
-_Underlying type:_ _string_
-
-
-
-
-
-_Appears in:_
-- [NetworkTopologySpec](#networktopologyspec)
-
-| Field | Description |
-| --- | --- |
-| `hard` | HardNetworkTopologyMode represents a strict network topology constraint that jobs must adhere to.<br /> |
-| `soft` | SoftNetworkTopologyMode represents a flexible network topology constraint that<br />allows jobs to cross network boundaries under certain conditions.<br /> |
-
-
-#### NetworkTopologySpec
-
-
-
-
-
-
-
-_Appears in:_
-- [InferGroup](#infergroup)
-- [Role](#role)
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `mode` _[NetworkTopologyMode](#networktopologymode)_ | Mode specifies the mode of the network topology constrain. | hard |  |
-| `highestTierAllowed` _integer_ | HighestTierAllowed specifies the highest tier that a job allowed to cross when scheduling. | 1 |  |
-
-
 #### PodTemplateSpec
 
 
@@ -237,7 +201,6 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `name` _string_ | The name of a role. Name must be unique within an infergroup |  | MaxLength: 12 <br />Pattern: `^[a-zA-Z0-9]([-a-zA-Z0-9]*[a-zA-Z0-9])?$` <br /> |
 | `replicas` _integer_ | The number of a certain role.<br />For example, in Disaggregated Prefilling, setting the replica count for both the P and D roles to 1 results in 1P1D deployment configuration.<br />This approach can similarly be applied to configure a xPyD deployment scenario.<br />Default to 1. | 1 |  |
-| `networkTopology` _[NetworkTopologySpec](#networktopologyspec)_ | NetworkTopology defines the NetworkTopology config, this field works in conjunction with network topology feature and hyperNode CRD. |  |  |
 | `entryTemplate` _[PodTemplateSpec](#podtemplatespec)_ | EntryTemplate defines the template for the entry pod of a role.<br />Required: Currently, a role must have only one entry-pod. |  |  |
 | `workerReplicas` _integer_ | WorkerReplicas defines the number for the worker pod of a role.<br />Required: Need to set the number of worker-pod replicas. |  |  |
 | `workerTemplate` _[PodTemplateSpec](#podtemplatespec)_ | WorkerTemplate defines the template for the worker pod of a role. |  |  |

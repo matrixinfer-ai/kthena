@@ -51,10 +51,6 @@ type Role struct {
 	// +kubebuilder:default=1
 	Replicas *int32 `json:"replicas,omitempty"`
 
-	// NetworkTopology defines the NetworkTopology config, this field works in conjunction with network topology feature and hyperNode CRD.
-	// +optional
-	NetworkTopology *NetworkTopologySpec `json:"networkTopology,omitempty"`
-
 	// EntryTemplate defines the template for the entry pod of a role.
 	// Required: Currently, a role must have only one entry-pod.
 	EntryTemplate PodTemplateSpec `json:"entryTemplate"`
@@ -94,29 +90,6 @@ type Metadata struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
-type NetworkTopologySpec struct {
-	// Mode specifies the mode of the network topology constrain.
-	// +kubebuilder:default=hard
-	// +optional
-	Mode NetworkTopologyMode `json:"mode,omitempty"`
-
-	// HighestTierAllowed specifies the highest tier that a job allowed to cross when scheduling.
-	// +kubebuilder:default=1
-	// +optional
-	HighestTierAllowed *int `json:"highestTierAllowed,omitempty"`
-}
-
-type NetworkTopologyMode string
-
-const (
-	// HardNetworkTopologyMode represents a strict network topology constraint that jobs must adhere to.
-	HardNetworkTopologyMode NetworkTopologyMode = "hard"
-
-	// SoftNetworkTopologyMode represents a flexible network topology constraint that
-	// allows jobs to cross network boundaries under certain conditions.
-	SoftNetworkTopologyMode NetworkTopologyMode = "soft"
-)
-
 // InferGroup is the smallest unit to complete the inference task
 type InferGroup struct {
 	// RestartGracePeriodSeconds defines the grace time for the controller to rebuild the infergroup when an error occurs
@@ -124,10 +97,6 @@ type InferGroup struct {
 	// +optional
 	// +kubebuilder:default=0
 	RestartGracePeriodSeconds *int64 `json:"restartGracePeriodSeconds,omitempty"`
-
-	// NetworkTopology defines the NetworkTopology config, this field works in conjunction with network topology feature and hyperNode CRD.
-	// +optional
-	NetworkTopology *NetworkTopologySpec `json:"networkTopology,omitempty"`
 
 	// GangSchedule defines the GangSchedule config.
 	// +optional

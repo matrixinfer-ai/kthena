@@ -21,10 +21,6 @@ spec:
     type: InferGroupRollingUpdate
   schedulerName: ""
   template:
-    gangSchedule: { }
-    networkTopology:
-      highestTierAllowed: 2
-      mode: hard
     restartGracePeriodSeconds: 60
     roles:
       - entryTemplate:

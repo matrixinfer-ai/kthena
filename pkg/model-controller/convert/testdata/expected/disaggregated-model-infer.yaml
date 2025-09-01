@@ -21,7 +21,6 @@ spec:
     type: InferGroupRollingUpdate
   schedulerName: volcano
   template:
-    gangSchedule: {}
     restartGracePeriodSeconds: 60
     roles:
       - entryTemplate:
