@@ -2,140 +2,157 @@ import LightboxImage from '@site/src/components/LightboxImage';
 
 # Architecture Overview
 
-MatrixInfer is a Kubernetes‑native AI inference platform built on a **three‑plane architecture** for scalability, observability, and efficiency.
-The system separates **declarative configuration**, **controller orchestration**, and **inference execution** into distinct planes.
+MatrixInfer is a Kubernetes-native AI inference platform built on a **two-plane architecture** designed for scalability, observability, and efficiency. The system separates **control plane operations** and **data plane execution** into distinct architectural planes.
 
 ## High-Level Architecture
 
----
+The platform comprises two primary planes:
 
-The platform is composed of:
-
-- **Control Plane**: Models, Routes, Servers, Inference configs, and AutoScaling policies expressed as Kubernetes CRDs. Controllers reconcile CRDs into runtime resources.
-- **Data Plane**: The Gateway/Scheduler orchestrates request routing and scheduling. Inference Pods execute AI model requests with **role-based replica groups** (Prefill/Decode).
+- **Control Plane**: Manages models, routes, servers, inference configurations, and autoscaling policies through Kubernetes Custom Resource Definitions (CRDs) and Controllers. Controllers continuously reconcile these CRDs into runtime resources.
+- **Data Plane**: Executes inference workloads through the Gateway and Scheduler, which orchestrate request routing and scheduling. Inference Pods execute AI model requests using **role-based replica groups** supporting Prefill/Decode disaggregation.
 
 <LightboxImage src="/img/diagrams/architecture/architecture_overview.svg" alt="Architecture Overview"></LightboxImage>
 
----
-
 ## Core Components
 
-### 1. **CRDs**
+### 1. **Custom Resource Definitions (CRDs)**
 
-MatrixInfer extends Kubernetes with **custom resources**:
+MatrixInfer extends Kubernetes with custom resources that provide declarative configuration for AI inference workloads:
 
-- **Model** – Defines model specification (weights, checkpoints, metadata).
-- **ModelRoute** – Routing and traffic control configuration.
-- **ModelServer** – Serves REST/gRPC endpoints and specifies exposure/auth rules.
-- **ModelInfer** – Defines inference groups, replicas, and runtime configuration.
-- **AutoScalingPolicy** – Policy definition for autoscaling triggers/metrics.
-- **AutoScalingPolicyBinding** – Connects Models with AutoscalingPolicies.
+- **Model** – Defines model specifications including weights, checkpoints, and metadata
+- **ModelRoute** – Configures routing rules and traffic control policies
+- **ModelServer** – Manages REST/gRPC endpoints with exposure and authentication rules
+- **ModelInfer** – Specifies inference groups, replica configurations, and runtime parameters
+- **AutoScalingPolicy** – Defines autoscaling triggers, metrics, and scaling behaviors
+- **AutoScalingPolicyBinding** – Associates models with specific autoscaling policies
 
-Operators update these CRDs, which are reconciled by Control Plane controllers.
-
----
+Platform operators manage these CRDs declaratively, and Control Plane controllers continuously reconcile them into runtime resources.
 
 ### 2. **Control Plane**
 
-The control plane ensures declarative configs are realized and user requests are orchestrated through the data plane.
+The Control Plane ensures that declarative configurations are realized into operational resources through continuous reconciliation of CRDs into runtime resources.
 
 #### **Controllers**
 
-- **Model Controller** → Watches `Model` CRDs and configures model state.
-- **ModelRoute Controller** → Syncs routes into the inference gateway.
-- **ModelServer Controller** → Manages serving surfaces and connectivity.
-- **ModelInfer Controller** → Manages inference groups, roles, Replica definitions.
-- **Autoscaler Controller** → Collects metrics from Pods, evaluates scaling via attached policies.
-
-#### **Infer Gateway**
-
-Handles user requests with the following pipeline:
-
-`User → Auth → Rate Limiting → Fairness Scheduling → Load Balancing → Proxy → Inference Pods`
-
-- **Auth** → Authentication and authorization.
-- **Rate Limiting** → Ensures request throughput safety.
-- **Fairness Scheduling** → Queueing and fair allocation.
-- **Load Balancing** → Balances to the optimal backend.
-- **Proxy** → Dispatches into data plane groups.
-
-#### **Scheduler**
-
-Applies **advanced scheduling plugins** to optimize request placement:
-
-- **Filter Plugins:**
-    - *Least Requests*
-    - *LoRA Affinity*
-
-- **Score Plugins:**
-    - *KV Cache Aware*
-    - *Least Latency (TTFT & TPOT)*
-    - *Prefix Cache*
-    - *GPU Cache*
-
-The scheduler integrates with Load Balancing and Fairness Scheduling.
-
----
+- **Model Controller** – Watches `Model` CRDs and manages model lifecycle and state transitions
+- **ModelRoute Controller** – Synchronizes routing configurations into the inference gateway
+- **ModelServer Controller** – Manages serving endpoints, connectivity, and exposure policies
+- **ModelInfer Controller** – Orchestrates inference groups, role assignments, and replica management
+- **Autoscaler Controller** – Collects runtime metrics from pods and evaluates scaling decisions based on configured policies
 
 ### 3. **Data Plane**
 
-Executes inference with optimized, role-based pods.
+The Data Plane executes inference workloads and handles request processing through the Gateway and Scheduler, using optimized, role-based pod architectures that support both homogeneous and heterogeneous scaling strategies.
+
+#### **Infer Gateway**
+
+The Infer Gateway processes user requests through a comprehensive pipeline that ensures security, fairness, and optimal resource utilization:
+
+**Request Pipeline:** `User → Auth → Rate Limiting → Fairness Scheduling → Load Balancing → Proxy → Inference Pods`
+
+- **Authentication & Authorization** – Validates user identity and permissions
+- **Rate Limiting** – Enforces request throughput limits to prevent system overload
+- **Fairness Scheduling** – Implements queuing mechanisms and fair resource allocation
+- **Load Balancing** – Routes requests to optimal backend instances based on health and capacity
+- **Proxy** – Dispatches requests to appropriate data plane inference groups
+
+#### **Scheduler**
+
+The Scheduler employs **advanced scheduling plugins** to optimize request placement and resource utilization:
+
+**Filter Plugins:**
+- *Least Requests* – Filters nodes based on current request load
+- *LoRA Affinity* – Ensures requests requiring specific LoRA adapters are routed to compatible nodes
+
+**Score Plugins:**
+- *KV Cache Aware* – Optimizes placement based on key-value cache availability and utilization
+- *Least Latency* – Minimizes Time to First Token (TTFT) and Time Per Output Token (TPOT)
+- *Prefix Cache* – Leverages shared prefix caching for improved performance
+- *GPU Cache* – Considers GPU memory cache status for optimal placement
+
+The scheduler seamlessly integrates with Load Balancing and Fairness Scheduling components to ensure optimal request distribution.
 
 #### **Inference Pods**
 
-Organized as **Groups** with **multiple Replicas**. Each replica may assume a **role**:
+Inference workloads are organized into **Groups** containing **multiple Replicas**. Each replica can assume specialized **roles** to optimize different phases of the inference process:
 
-- **Role A – Prefill**: Handles prompt initialization / warm‑up.
-- **Role B – Decode**: Handles incremental token generation.
+**Role-Based Architecture:**
+- **Prefill Role** – Handles prompt initialization and context processing
+- **Decode Role** – Manages incremental token generation and output streaming
 
-Each Replica may include:
+**Pod Components:**
+Each replica deployment may include the following components:
 
-- **Entry Pod** – Ingress for requests into its role.
-- **Worker Pod(s)** – Execute model inference.
-- **Init Container** – Dependency/artifact setup before execution.
-- **Sidecar Container** – Logging, observability, or networking side processes.
-- **Downloader** – Fetches weights and model artifacts.
-- **Runtime Agent** – Health / metrics collector.
-- **LLM Engines** – Integrations with backends (e.g., **vLLM**, **SGLang**).
+- **Entry Pod** – Provides ingress endpoints for role-specific requests
+- **Worker Pod(s)** – Execute actual model inference computations
+- **Init Container** – Handles dependency resolution and artifact setup prior to execution
+- **Sidecar Container** – Manages logging, observability, and networking auxiliary processes
+- **Downloader** – Fetches model weights and artifacts from storage
+- **Runtime Agent** – Collects health metrics and performance telemetry
+- **LLM Engines** – Integrates with specialized backends (e.g., **vLLM**, **SGLang**)
 
-This design supports **Prefill/Decode Disaggregation (PD mode)** for efficient scaling across stages of inference.
+This architecture enables **Prefill/Decode Disaggregation (PD mode)**, allowing independent scaling of different inference stages for optimal resource utilization and performance.
 
----
+## Request Processing Flow
 
-## How it Works (The Flow)
+The following describes the end-to-end flow of an inference request through the MatrixInfer platform:
 
-1.  **Someone wants an AI to do something (User Request):**
-    *   A **User** sends a request to the **Infer Gateway**.
-2.  **The Gateway checks things (Infer Gateway):**
-    *   It first checks who you are (**Auth**) and if you're sending too many requests (**Rate Limiting**).
-3.  **Making sure everyone gets a turn (Fairness Scheduling & Queue):**
-    *   If many requests come in at once, a **Fairness Scheduler** makes sure everyone gets a fair chance, sometimes putting requests in a **Queue** to wait.
-4.  **Sending the request to the right AI worker (Load Balancing & Proxy):**
-    *   A **Load Balancer** then directs the request to a healthy "worker" based on model information (from the Control Plane).
-    *   A **Proxy** acts as the delivery service, taking the request to the specific AI "worker."
-5.  **The AI Workers do the thinking (Inference Pods):**
-    *   These are called **Inference Pods**. Each pod is like a small AI expert.
-    *   For LLMs, there might be two types of experts:
-        *   **Prefill Pods (Role A):** Handle the initial understanding of your request.
-        *   **Decode Pods (Role B):** Generate the actual answer, token by token.
-    *   Each pod has special **LLM engines** (like vLLM or SGLang) that are good at LLM tasks.
-    *   They also have helpers: an **Init Container** to download the model (like getting the right tools) and a **Sidecar Container** with a **Runtime Agent** to keep an eye on how well the worker is doing.
-6.  **Managing the Workers (Control Plane in Action):**
-    *   **Operators** can tell the **Model Controller** to add new AI models or change existing ones.
-    *   The **Model Controller** then tells other parts, like the **Model Route Controller** (how to find the new model), the **Model Server Controller** (how to set up the new model's home), and the **Model Infer Controller** (how to manage its workers).
-    *   It also sets **Autoscaling Policies** (how many workers to have based on demand) and binds them to the model.
-    *   The **Autoscaler Controller** watches the **Inference Pods** for performance (using "get metrics") and tells the **Model Infer Controller** to create more or fewer workers as needed.
-7.  **Smartly Placing Workers (Scheduler):**
-    *   A **Scheduler** decides *where* new **Inference Pods** should run (e.g., on which powerful computer).
-    *   It uses **Filter Plugins** to rule out unsuitable places and **Score Plugins** to pick the best spot, considering things like available memory (**KV Cache Aware**, **GPU Cache**) and how quickly it can start responding (**Least Latency**).
+### 1. **Request Initiation**
+Users submit inference requests to the **Infer Gateway**, which serves as the primary entry point for all AI inference operations.
+
+### 2. **Gateway Processing**
+The Infer Gateway processes incoming requests through multiple stages:
+- **Authentication & Authorization**: Validates user credentials and permissions
+- **Rate Limiting**: Applies configured throughput limits to prevent system overload
+
+### 3. **Request Scheduling & Queuing**
+The **Fairness Scheduler** manages request distribution:
+- Implements fair resource allocation algorithms
+- Queues requests during high-load periods to ensure equitable access
+- Maintains service quality across multiple concurrent users
+
+### 4. **Load Balancing & Routing**
+- **Load Balancer** selects optimal backend instances based on health status, capacity, and model requirements
+- **Proxy** component routes requests to the appropriate data plane inference groups
+- Routing decisions leverage model information from the Control Plane
+
+### 5. **Inference Execution**
+**Inference Pods** execute the actual model inference:
+- **Role-based Processing**: For Large Language Models (LLMs), workloads may be distributed across specialized roles:
+  - **Prefill Pods**: Handle initial prompt processing and context initialization
+  - **Decode Pods**: Manage token generation and output streaming
+- **LLM Engine Integration**: Pods utilize optimized inference engines (vLLM, SGLang) for efficient computation
+- **Supporting Components**: Init Containers handle model downloading, while Sidecar Containers with Runtime Agents provide monitoring and observability
+
+### 6. **Resource Management**
+The **Control Plane** continuously manages system resources:
+- **Operators** define and update model configurations via CRDs
+- **Model Controller** orchestrates model lifecycle and coordinates with other controllers:
+  - **Model Route Controller**: Manages routing configuration updates
+  - **Model Server Controller**: Handles endpoint management and connectivity
+  - **Model Infer Controller**: Controls inference group scaling and management
+- **Autoscaling**: The **Autoscaler Controller** monitors pod metrics and dynamically adjusts replica counts based on configured policies
+
+### 7. **Intelligent Pod Placement**
+The **Scheduler** optimizes pod placement across the cluster:
+- **Filter Plugins** eliminate unsuitable nodes based on resource constraints and requirements
+- **Score Plugins** rank remaining options considering factors such as:
+  - Memory availability (KV Cache Aware, GPU Cache)
+  - Latency optimization (Least Latency)
+  - Cache efficiency (Prefix Cache)
+  - Load distribution (Least Requests)
 
 ## Key Features
 
-- **CRD-driven management** for models, routes, and scaling.
-- **Control Plane Orchestration** with dedicated controllers and automation.
-- **Infer Gateway** with full request pipeline including fairness scheduling and queue integration.
-- **Advanced Scheduling Plugins** (latency-aware, cache-aware, LoRA affinity).
-- **PD Disaggregation**: Distinction of Prefill vs Decode workloads.
-- **Inference Groups & Role-Based Replicas** enabling scaling granularity.
-- **Observability & Reliability via Init, Sidecar, Runtime Agent containers**.
-- **Flexible Scaling** via metric-driven autoscaler policies.
+MatrixInfer provides comprehensive capabilities for enterprise-grade AI inference deployment:
+
+- **Declarative Management**: Complete CRD-driven configuration for models, routes, servers, and scaling policies
+- **Control Plane Orchestration**: Automated resource management with dedicated controllers and continuous reconciliation
+- **Advanced Gateway Pipeline**: Full request processing pipeline with authentication, rate limiting, fairness scheduling, and intelligent routing
+- **Intelligent Scheduling**: Pluggable scheduling framework with latency-aware, cache-aware, and LoRA affinity optimizations
+- **Prefill/Decode Disaggregation**: Specialized workload separation enabling independent scaling of inference stages
+- **Role-Based Architecture**: Flexible inference groups with granular replica management and role assignments
+- **Enterprise Observability**: Comprehensive monitoring through Init Containers, Sidecar Containers, and Runtime Agents
+- **Dynamic Scaling**: Metric-driven autoscaling with support for both homogeneous and heterogeneous instance types
+- **Multi-Engine Support**: Native integration with leading LLM inference engines (vLLM, SGLang)
+- **Kubernetes-Native**: Full integration with Kubernetes ecosystem including RBAC, networking, and storage
