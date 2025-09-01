@@ -91,6 +91,19 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 	modelDownloadPath := GetCachePath(backend.CacheURI) + GetMountPath(backend.ModelURI)
 
 	// Build an initial container list including model downloader container
+	var envVars []corev1.EnvVar
+	endpointEnvVars := env.GetEnvValueOrDefault[[]corev1.EnvVar](backend, env.Endpoint, []corev1.EnvVar{
+		{Name: env.Endpoint},
+	})
+	if len(endpointEnvVars) > 0 && endpointEnvVars[0].Value != "" {
+		envVars = append(envVars, endpointEnvVars[0])
+	}
+	hfEndpointEnvVars := env.GetEnvValueOrDefault[[]corev1.EnvVar](backend, env.HfEndpoint, []corev1.EnvVar{
+		{Name: env.HfEndpoint},
+	})
+	if len(hfEndpointEnvVars) > 0 && hfEndpointEnvVars[0].Value != "" {
+		envVars = append(envVars, hfEndpointEnvVars[0])
+	}
 	initContainers := []corev1.Container{
 		{
 			Name:  model.Name + "-model-downloader",
@@ -99,10 +112,7 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 				"--source", backend.ModelURI,
 				"--output-dir", modelDownloadPath,
 			},
-			Env: env.GetEnvValueOrDefault[[]corev1.EnvVar](backend, env.Endpoint, []corev1.EnvVar{
-				{Name: env.Endpoint, Value: ""},
-				{Name: env.HfEndpoint, Value: "https://huggingface.co/"},
-			}),
+			Env:     envVars,
 			EnvFrom: backend.EnvFrom,
 			VolumeMounts: []corev1.VolumeMount{{
 				Name:      cacheVolume.Name,
@@ -213,6 +223,19 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 	}
 
 	// Build an initial container list including model downloader container
+	var envVars []corev1.EnvVar
+	endpointEnvVars := env.GetEnvValueOrDefault[[]corev1.EnvVar](backend, env.Endpoint, []corev1.EnvVar{
+		{Name: env.Endpoint},
+	})
+	if len(endpointEnvVars) > 0 && endpointEnvVars[0].Value != "" {
+		envVars = append(envVars, endpointEnvVars[0])
+	}
+	hfEndpointEnvVars := env.GetEnvValueOrDefault[[]corev1.EnvVar](backend, env.HfEndpoint, []corev1.EnvVar{
+		{Name: env.HfEndpoint},
+	})
+	if len(hfEndpointEnvVars) > 0 && hfEndpointEnvVars[0].Value != "" {
+		envVars = append(envVars, hfEndpointEnvVars[0])
+	}
 	initContainers := []corev1.Container{
 		{
 			Name:  model.Name + "-model-downloader",
@@ -221,10 +244,7 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 				"--source", backend.ModelURI,
 				"--output-dir", modelDownloadPath,
 			},
-			Env: env.GetEnvValueOrDefault[[]corev1.EnvVar](backend, env.Endpoint, []corev1.EnvVar{
-				{Name: env.Endpoint, Value: ""},
-				{Name: env.HfEndpoint, Value: "https://huggingface.co/"},
-			}),
+			Env:     envVars,
 			EnvFrom: backend.EnvFrom,
 			VolumeMounts: []corev1.VolumeMount{{
 				Name:      cacheVolume.Name,
