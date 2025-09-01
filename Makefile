@@ -176,20 +176,42 @@ PLATFORMS ?= linux/arm64,linux/amd64
 #   docker buildx inspect --bootstrap
 
 .PHONY: docker-buildx
-docker-buildx: ## Build docker image for cross-platform support
-	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
-	find docker -name "Dockerfile.*" -type f -exec sh -c 'sed "s/^FROM /FROM --platform=\$$BUILDPLATFORM /" "$$1" > "$$1.cross"' _ {} \;
-	-$(CONTAINER_TOOL) buildx create --name matrixinfer-builder
-	$(CONTAINER_TOOL) buildx use matrixinfer-builder
-	-$(CONTAINER_TOOL) buildx build --platform ${PLATFORMS} --tag ${IMG_GATEWAY} -f docker/Dockerfile.infer-gateway.cross --push .
-	-$(CONTAINER_TOOL) buildx build --platform ${PLATFORMS} --tag ${IMG_MODELINFER} -f docker/Dockerfile.infer-controller.cross --push .
-	-$(CONTAINER_TOOL) buildx build --platform ${PLATFORMS} --tag ${IMG_MODELCONTROLLER} -f docker/Dockerfile.model-controller.cross --push .
-	-$(CONTAINER_TOOL) buildx build --platform ${PLATFORMS} --tag ${IMG_AUTOSCALER} -f docker/Dockerfile.autoscaler.cross --push .
-	-$(CONTAINER_TOOL) buildx build --platform ${PLATFORMS} --tag ${IMG_REGISTRY_WEBHOOK} -f docker/Dockerfile.registry-webhook.cross --push .
-	-$(CONTAINER_TOOL) buildx build --platform ${PLATFORMS} --tag ${IMG_MODELINFER_WEBHOOK} -f docker/Dockerfile.modelinfer-webhook.cross --push .
-	-$(CONTAINER_TOOL) buildx build --platform ${PLATFORMS} --tag ${IMG_INFER_GATEWAY_WEBHOOK} -f docker/Dockerfile.infer-gateway-webhook.cross --push .
-	-$(CONTAINER_TOOL) buildx rm matrixinfer-builder
-	find docker -name "*.cross" -type f -delete
+docker-buildx: ## Build and push docker image for cross-platform support
+	$(CONTAINER_TOOL) buildx build \
+		--platform ${PLATFORMS} \
+		-t ${IMG_GATEWAY} \
+		-f docker/Dockerfile.gateway \
+		--push .
+	$(CONTAINER_TOOL) buildx build \
+		--platform ${PLATFORMS}\
+		-t ${IMG_MODELINFER} \
+		-f docker/Dockerfile.modelinfer \
+		--push .
+	$(CONTAINER_TOOL) buildx build \
+		--platform ${PLATFORMS} \
+		-t ${IMG_MODELCONTROLLER} \
+		-f docker/Dockerfile.modelcontroller \
+		--push .
+	$(CONTAINER_TOOL) buildx build \
+		--platform ${PLATFORMS} \
+		-t ${IMG_AUTOSCALER} \
+		-f docker/Dockerfile.autoscaler \
+		--push .
+	$(CONTAINER_TOOL) buildx build \
+		--platform ${PLATFORMS} \
+		-t ${IMG_REGISTRY_WEBHOOK} \
+		-f docker/Dockerfile.registry.webhook \
+		--push .
+	$(CONTAINER_TOOL) buildx build \
+		--platform ${PLATFORMS} \
+		-t ${IMG_MODELINFER_WEBHOOK} \
+		-f docker/Dockerfile.modelinfer.webhook \
+		--push .
+	$(CONTAINER_TOOL) buildx build \
+		--platform ${PLATFORMS} \
+		-t ${IMG_INFER_GATEWAY_WEBHOOK} \
+		-f docker/Dockerfile.infergateway.webhook \
+		--push .
 
 ##@ Deployment
 
