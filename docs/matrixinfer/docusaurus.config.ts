@@ -1,5 +1,5 @@
-import {themes as prismThemes} from 'prism-react-renderer';
-import type {Config} from '@docusaurus/types';
+import { themes as prismThemes } from 'prism-react-renderer';
+import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
@@ -7,7 +7,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
   title: 'MatrixInfer',
   tagline: 'Kubernetes-native AI inference platform for scalable model serving',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/volcano-logo.png',
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
   future: {
@@ -76,7 +76,7 @@ const config: Config = {
       title: 'MatrixInfer',
       logo: {
         alt: 'MatrixInfer Logo',
-        src: 'img/logo.svg',
+        src: 'img/volcano-logo.png',
       },
       items: [
         {
@@ -85,7 +85,7 @@ const config: Config = {
           position: 'left',
           label: 'Tutorial',
         },
-        {to: '/blog', label: 'Blog', position: 'left'},
+        { to: '/blog', label: 'Blog', position: 'left' },
         {
           href: 'https://github.com/matrixinfer-ai/matrixinfer',
           label: 'GitHub',
