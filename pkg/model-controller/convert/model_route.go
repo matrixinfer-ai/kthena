@@ -58,7 +58,6 @@ func BuildModelRoute(model *registry.Model) *networking.ModelRoute {
 
 // getRulesAndLoraAdapters generates routing rules and LoRA adapter names based on the model's backends and LoRA adapters.
 func getRulesAndLoraAdapters(model *registry.Model) ([]*networking.Rule, []string) {
-
 	targetModels, loraMap, loraMapNum := getTargetModelAndLoraMap(model)
 
 	var rules []*networking.Rule
@@ -75,17 +74,17 @@ func getRulesAndLoraAdapters(model *registry.Model) ([]*networking.Rule, []strin
 		})
 	} else {
 		loraTarget := make(map[string][]*networking.TargetModel)
-		modelMatchDefault := getModelMatchWithHeader(model, model.Name)
+		modelMatchWithBody := getModelMatchWithBody(model, model.Name)
 		rules = append(rules, &networking.Rule{
 			Name:         modelRouteRuleName,
-			ModelMatch:   modelMatchDefault,
+			ModelMatch:   modelMatchWithBody,
 			TargetModels: targetModels,
 		})
 		for _, loraName := range loraAdapters {
 			for _, loraNum := range loraMapNum[loraName] {
 				loraTarget[loraName] = append(loraTarget[loraName], targetModels[loraNum])
 			}
-			modelMatchLora := getModelMatchWithHeader(model, loraName)
+			modelMatchLora := getModelMatchWithBody(model, loraName)
 			rules = append(rules, &networking.Rule{
 				Name:         loraName,
 				ModelMatch:   modelMatchLora,
@@ -96,19 +95,17 @@ func getRulesAndLoraAdapters(model *registry.Model) ([]*networking.Rule, []strin
 	return rules, loraAdapters
 }
 
-// getModelMatchWithHeader returns a ModelMatch with the "name" header set to the model name or lora adapter name.
-func getModelMatchWithHeader(model *registry.Model, name string) *networking.ModelMatch {
+// getModelMatchWithBody ensures that the ModelMatch has a Body field with the model/lora name set.
+func getModelMatchWithBody(model *registry.Model, name string) *networking.ModelMatch {
 	var modelMatch *networking.ModelMatch
 	modelMatch = model.Spec.ModelMatch.DeepCopy()
 	if modelMatch == nil {
 		modelMatch = &networking.ModelMatch{}
 	}
-	if modelMatch.Headers == nil {
-		modelMatch.Headers = make(map[string]*networking.StringMatch)
+	if modelMatch.Body == nil {
+		modelMatch.Body = &networking.BodyMatch{}
 	}
-	modelMatch.Headers["name"] = &networking.StringMatch{
-		Exact: &name,
-	}
+	modelMatch.Body.Model = &name
 	return modelMatch
 }
 

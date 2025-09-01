@@ -8,7 +8,7 @@ metadata:
     registry.matrixinfer.ai/managed-by: registry.matrixinfer.ai
     registry.matrixinfer.ai/model-name: multi-backend-model
     registry.matrixinfer.ai/model-uid: randomUID
-    registry.matrixinfer.ai/revision: 64945bd6f4
+    registry.matrixinfer.ai/revision: 7f95f7679c
   ownerReferences:
     - apiVersion: registry.matrixinfer.ai/v1alpha1
       kind: Model
@@ -24,6 +24,20 @@ spec:
         headers:
           users:
             exact: "john"
+        body:
+          model: "multi-backend-model"
+      targetModels:
+        - modelServerName: "multi-backend-model-backend1"
+          weight: 40
+        - modelServerName: "multi-backend-model-backend2"
+          weight: 60
+    - name: "lora-sql"
+      modelMatch:
+        headers:
+          users:
+            exact: "john"
+        body:
+          model: "lora-sql"
       targetModels:
         - modelServerName: "multi-backend-model-backend1"
           weight: 40
