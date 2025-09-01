@@ -72,6 +72,11 @@ func (meta *OptimizerMeta) RestoreReplicasOfEachBackend(replicas int32) map[stri
 }
 
 func NewOptimizerMeta(binding *v1alpha1.AutoscalingPolicyBinding) *OptimizerMeta {
+	if binding.Spec.OptimizerConfiguration == nil {
+		klog.Warningf("OptimizerConfig not configured in binding: %s", binding.Name)
+		return nil
+	}
+	costExpansionRatePercent := binding.Spec.OptimizerConfiguration.CostExpansionRatePercent
 	minReplicas := int32(0)
 	maxReplicas := int32(0)
 	var scalingOrder []*ReplicaBlock
@@ -82,7 +87,7 @@ func NewOptimizerMeta(binding *v1alpha1.AutoscalingPolicyBinding) *OptimizerMeta
 		if replicas <= 0 {
 			continue
 		}
-		if binding.Spec.OptimizerConfiguration.CostExpansionRatePercent == 100 {
+		if costExpansionRatePercent == 100 {
 			scalingOrder = append(scalingOrder, &ReplicaBlock{
 				index:    int32(index),
 				name:     param.Target.TargetRef.Name,
@@ -101,7 +106,7 @@ func NewOptimizerMeta(binding *v1alpha1.AutoscalingPolicyBinding) *OptimizerMeta
 				cost:     int64(param.Cost) * int64(currentLen),
 			})
 			replicas -= currentLen
-			packageLen = packageLen * float64(binding.Spec.OptimizerConfiguration.CostExpansionRatePercent) / 100
+			packageLen = packageLen * float64(costExpansionRatePercent) / 100
 		}
 	}
 	sort.Slice(scalingOrder, func(i, j int) bool {

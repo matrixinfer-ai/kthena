@@ -1,19 +1,62 @@
 # Autoscaler
 
-This page describes the Autoscaler component and its role in automatic scaling of inference workloads.
+Facing real-time changing inference requests, the required hardware resources also fluctuate dynamically. MatrixInfer Autoscaler, as an optional component of the MatrixInfer project running in a Kubernetes environment, dynamically adjusts the number of deployed inference instances based on their real-time load. It ensures healthy business metrics (such as SLO indicators) while reducing the consumption of computational resources.
 
-## Overview
+## Feature Description
 
-<!-- Add overview here -->
+MatrixInfer Autoscaler periodically collects runtime metrics from the Pods of managed inference instances. Based on one or more monitoring metrics specified by the user and their corresponding target values, it estimates the required number of inference instances. Finally, it performs scaling operations according to the configured scaling policies.
 
-## Scaling Policies
+<div style="text-align:center">
+  <img src="../../static/img/architecture-autoscaler.svg" alt="architecture-autoscaler">
+</div>
 
-<!-- Add scaling policies here -->
+MatrixInfer Autoscaler provides two granularities of scaling methods: **Homogeneous Instances Autoscale** and **Heterogeneous Instances Autoscale**.
 
-## Metrics
+### Homogeneous Instances Autoscale
 
-<!-- Add metrics details here -->
+`Homogeneous Instances Autoscale` targets scaling a single type of inference instance: This method is similar to the behavior of [KPA](https://knative.dev/docs/serving/autoscaling/kpa-specific/), supporting both `Stable` and `Panic` modes. It scales a single type of deployment (engines deployed via the same Deployment or Model Infer CR) based on business metrics.
 
-## Configuration
+### Heterogeneous Instances Autoscale
 
-<!-- Add configuration details here -->
+For the same model, inference instances can be deployed in multiple different ways: such as heterogeneous resource types (GPU/NPU), types of inference engines (vLLM / Sglang), or even different runtime parameters (e.g., TP/DP configuration parameters). While these differently deployed inference instances can all provide normal inference services and expose consistent business functionality externally, they differ in required hardware resources and provided business capabilities.The figure below shows a sample of the running effect.
+
+<div style="text-align:center">
+  <img src="../../static/img/architecture-autoscaler-optimize-example.svg" alt="architecture-autoscaler-optimize-example">
+</div>
+
+The functionality of `Heterogeneous Instances Autoscale` can be divided into two parts: predicting instance count and scheduling instances.
+
+**Predicting instances** follows the same logic as Homogeneous Instances Autoscale: dynamically calculating the total desired number of instances for the group of inference instances in each scheduling cycle based on runtime metrics.
+
+**The scheduling phase** primarily dynamically adjusts the proportion of these functionally identical but differently deployed inference instances to achieve the optimization goal of maximizing hardware resource utilization. From a problem modeling perspective, the scheduling phase can be viewed as an integer programming problem. Considering the significant state transitions between scheduling cycles (due to the overhead of model cold starts).
+
+Heterogeneous Instances Autoscale adopts a greedy algorithm with a doubling strategy. It first treats the sum of the differences between the maximum instance count `maxReplicas` and the minimum instance count `minReplicas` for each type of instance as the available `capacity`, meaning there are capacity manageable instances. Each time, it selects to scale up a portion of them.
+
+Based on the idea of multiplication, the `capacity` is divided into multiple chunks according to the power of `costExpansionRate`. These chunks serve as batches during scaling. Then, at the batch level, the batches of various inference instances are mixed and sorted by cost in ascending order. The sorted batches are then expanded into corresponding multiple instance combinations. Finally, a sequence `seq` with a length of capacity is obtained as the scaling order.
+
+$$
+seq = sorted(\bigcup_{i=1}^{N}​{P^k · c_i​∣k∈({0,1,…,Mi​})} \cup {(C_i​−∑_{k=0}^{M_i}​​P^k)⋅c_i​})​
+$$
+
+- $N$: Number of types of inference instances
+
+- $P$: `costExpansionRate` for inference instances
+    
+- $c_i$​: Cost of the i-th type of inference instance
+
+- $M_i$​: Number of explicit power terms of the i-th type of inference instance
+
+- $C_i​$: Capacity of the i-th type of inference instance (maxReplicas - minReplicas)
+
+Thus, `costExpansionRate` can be considered as the "cost expansion ratio for the next batch" within each type of inference instance.
+
+When the prediction result requires K instances, the first K instances in the seq order will be retained. This strategy can ensure to a certain extent that previously launched instances can be reused during scaling, thereby reducing the cold start overhead.
+
+
+## Constraints
+
+When using `MatrixInfer Autoscaler`, note the following:
+
+- The same type of inference instance cannot have both Homogeneous Autoscale and Heterogeneous Autoscale enabled simultaneously. In other words, from an operational perspective, do not bind the same Deployment or MatrixInfer CR to different Binding CRs at the same time.
+
+- Before using Heterogeneous Autoscale, you need to configure the cost for each type of inference instance. It is recommended to set the cost parameter to the computational power of each instance. Operators can run the script in the MatrixInfer project to obtain this value.

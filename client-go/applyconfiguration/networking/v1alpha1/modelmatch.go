@@ -27,6 +27,7 @@ import (
 type ModelMatchApplyConfiguration struct {
 	Headers map[string]*networkingv1alpha1.StringMatch `json:"headers,omitempty"`
 	Uri     *StringMatchApplyConfiguration             `json:"uri,omitempty"`
+	Body    *BodyMatchApplyConfiguration               `json:"body,omitempty"`
 }
 
 // ModelMatchApplyConfiguration constructs a declarative configuration of the ModelMatch type for use with
@@ -54,5 +55,13 @@ func (b *ModelMatchApplyConfiguration) WithHeaders(entries map[string]*networkin
 // If called multiple times, the Uri field is set to the value of the last call.
 func (b *ModelMatchApplyConfiguration) WithUri(value *StringMatchApplyConfiguration) *ModelMatchApplyConfiguration {
 	b.Uri = value
+	return b
+}
+
+// WithBody sets the Body field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the Body field is set to the value of the last call.
+func (b *ModelMatchApplyConfiguration) WithBody(value *BodyMatchApplyConfiguration) *ModelMatchApplyConfiguration {
+	b.Body = value
 	return b
 }

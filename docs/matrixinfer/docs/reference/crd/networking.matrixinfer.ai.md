@@ -15,6 +15,22 @@
 
 
 
+#### BodyMatch
+
+
+
+BodyMatch defines the predicate used to match request body content
+
+
+
+_Appears in:_
+- [ModelMatch](#modelmatch)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `model` _string_ | Model is the name of the model or lora adapter to match.<br />If this field is not specified, any model or lora adapter will be matched. |  |  |
+
+
 #### GlobalRateLimit
 
 
@@ -102,6 +118,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `headers` _object (keys:string, values:[StringMatch](#stringmatch))_ | Header to match: prefix, exact, regex<br />If unset, any header will be matched. |  |  |
 | `uri` _[StringMatch](#stringmatch)_ | URI to match: prefix, exact, regex<br />If this field is not specified, a default prefix match on the "/" path is provided. |  |  |
+| `body` _[BodyMatch](#bodymatch)_ | Body contains conditions to match request body content |  |  |
 
 
 #### ModelRoute

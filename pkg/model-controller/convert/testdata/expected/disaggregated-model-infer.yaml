@@ -15,7 +15,7 @@ metadata:
       name: ds-r1-qwen-7b-pd
       uid: randomUID
 spec:
-  recoveryPolicy: InferGroupRestart
+  recoveryPolicy: InferGroupRecreate
   replicas: 1
   rolloutStrategy:
     type: InferGroupRollingUpdate
@@ -60,7 +60,6 @@ spec:
                   - vllm.entrypoints.openai.api_server
                   - --model
                   - /cache/568a486051fd302c338d84946c4f3d48
-                  - --enable-lora
                   - --disable-frontend-multiprocessing
                   - --gpu-memory-utilization
                   - "0.99"
@@ -194,7 +193,6 @@ spec:
                   - vllm.entrypoints.openai.api_server
                   - --model
                   - /cache/568a486051fd302c338d84946c4f3d48
-                  - --enable-lora
                   - --disable-frontend-multiprocessing
                   - --gpu-memory-utilization
                   - "0.95"
