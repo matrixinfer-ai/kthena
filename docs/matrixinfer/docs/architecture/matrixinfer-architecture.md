@@ -15,7 +15,7 @@ The MatrixInfer architecture consists of three main planes:
 - **Control Plane**: Responsible for lifecycle management, orchestration, routing, auth, scheduling, and scaling controllers.
 - **Data Plane**: Executes inference workloads using groups of inference pods integrated with KV connectors.
 
-<LightboxImage src="/img/diagrams/architecture/architecture_overview.svg" alt="Architecture Overview" />
+<LightboxImage src="/img/diagrams/architecture/architecture_overview.svg" alt="Architecture Overview"></LightboxImage>
 
 
 ## Core Components

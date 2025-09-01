@@ -2,7 +2,7 @@
 
 ## Overview
 
-![model-controller.png](../../static/img/model-controller-architecture.svg)
+<LightboxImage src="/img/model-controller-architecture.svg" alt="Model controller architecture diagram"></LightboxImage>
 
 The Model Controller is a component designed to help you manage `Model Infer`, `Model Server`, `Model Route`,
 `AutoscalingPolicy`,
