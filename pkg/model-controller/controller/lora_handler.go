@@ -543,8 +543,6 @@ func (mc *ModelController) handleDynamicLoraUpdates(oldModel, newModel *registry
 		}
 
 		successfullyUpdated = append(successfullyUpdated, backendName)
-
 	}
-
 	return successfullyUpdated
 }
