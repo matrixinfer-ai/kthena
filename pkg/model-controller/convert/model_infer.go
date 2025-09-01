@@ -101,6 +101,7 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 			},
 			Env: env.GetEnvValueOrDefault[[]corev1.EnvVar](backend, env.Endpoint, []corev1.EnvVar{
 				{Name: env.Endpoint, Value: ""},
+				{Name: env.HfEndpoint, Value: "https://huggingface.co/"},
 			}),
 			EnvFrom: backend.EnvFrom,
 			VolumeMounts: []corev1.VolumeMount{{
@@ -222,6 +223,7 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 			},
 			Env: env.GetEnvValueOrDefault[[]corev1.EnvVar](backend, env.Endpoint, []corev1.EnvVar{
 				{Name: env.Endpoint, Value: ""},
+				{Name: env.HfEndpoint, Value: "https://huggingface.co/"},
 			}),
 			EnvFrom: backend.EnvFrom,
 			VolumeMounts: []corev1.VolumeMount{{

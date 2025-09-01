@@ -80,7 +80,12 @@ type ModelBackend struct {
 	// +listType=atomic
 	EnvFrom []corev1.EnvFromSource `json:"envFrom,omitempty" protobuf:"bytes,19,rep,name=envFrom"`
 	// List of environment variables to set in the container.
-	// Support "ENDPOINT", "RUNTIME_URL"(default http://localhost:8000), "RUNTIME_PORT"(default 8100)
+	// Supported names:
+	// "ENDPOINT": When you download model from s3, you have to specify it.
+	// "RUNTIME_URL": default is http://localhost:8000
+	// "RUNTIME_PORT": default is 8100
+	// "RUNTIME_METRICS_PATH": default is /metrics
+	// "HF_ENDPOINT":The url of hugging face. Default is https://huggingface.co/
 	// Cannot be updated.
 	// +optional
 	// +patchMergeKey=name
