@@ -56,9 +56,6 @@ type Router struct {
 	store           datastore.Store
 	loadRateLimiter *ratelimit.TokenRateLimiter
 
-	// Unified rate limiter for all models
-	rateLimiter *ratelimit.TokenRateLimiter
-
 	// KV Connector management
 	connectorFactory *connectors.Factory
 }
