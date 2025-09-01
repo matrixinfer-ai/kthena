@@ -205,7 +205,7 @@ docker-buildx: ## Build and push docker image for cross-platform support
 	$(CONTAINER_TOOL) buildx build \
 		--platform ${PLATFORMS} \
 		-t ${IMG_MODELINFER_WEBHOOK} \
-		-f Dockerfile.modelinfer.webhook \
+		-f docker/Dockerfile.modelinfer.webhook \
 		--push .
 	$(CONTAINER_TOOL) buildx build \
 		--platform ${PLATFORMS} \

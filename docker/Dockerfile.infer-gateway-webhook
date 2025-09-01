@@ -5,8 +5,15 @@ ARG TARGETARCH
 
 WORKDIR /workspace
 
+COPY go.mod go.mod
+COPY go.sum go.sum
+# Cache deps before build
+RUN go mod download
+
 # Copy the go source
-COPY . .
+COPY cmd/ cmd/
+COPY pkg/ pkg/
+COPY client-go/ client-go/
 
 # Build
 # the GOARCH has not a default value to allow the binary be built according to the host where the command
