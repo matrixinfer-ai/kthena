@@ -26,14 +26,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"k8s.io/klog/v2"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/common"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/handlers"
 )
 
-const (
-	tokenUsageKey = "token_usage"
-)
-
-func prefillerProxy(c *gin.Context, req *http.Request) error {
+func prefillerProxy(_ *gin.Context, req *http.Request) error {
 	resp, err := http.DefaultTransport.RoundTrip(req)
 	if err != nil {
 		return fmt.Errorf("prefill request failed: %w", err)
@@ -136,7 +133,7 @@ func addTokenUsage(c *gin.Context, reqBody map[string]interface{}) map[string]in
 				"include_usage": true,
 			}
 			// add stream token usage to context
-			c.Set(tokenUsageKey, true)
+			c.Set(common.TokenUsageKey, true)
 		}
 	} else {
 		// For non-streaming requests, ensure we request usage information
@@ -189,7 +186,7 @@ func handleStreamingResponse(c *gin.Context, resp *http.Response) (int, error) {
 				// Accumulate output tokens
 				totalOutputTokens += parsed.Usage.CompletionTokens
 				// Check if token usage should be filtered
-				if v, ok := c.Get(tokenUsageKey); ok && v.(bool) {
+				if v, ok := c.Get(common.TokenUsageKey); ok && v.(bool) {
 					return true
 				}
 			}

@@ -26,6 +26,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/common"
 )
 
 func TestHTTPConnector(t *testing.T) {
@@ -227,7 +228,7 @@ func TestHTTPConnectorProxy(t *testing.T) {
 		}
 
 		// For streaming requests, verify that token usage context was set
-		if val, exists := c.Get("token_usage"); !exists || val != true {
+		if val, exists := c.Get(common.TokenUsageKey); !exists || val != true {
 			t.Error("Expected token usage to be set in context for streaming request")
 		}
 
@@ -321,7 +322,7 @@ func TestHTTPConnectorProxy(t *testing.T) {
 		}
 
 		// For streaming requests with existing stream_options, token usage should not be added to context
-		if val, exists := c.Get("token_usage"); exists && val == true {
+		if val, exists := c.Get(common.TokenUsageKey); exists && val == true {
 			t.Error("Did not expect token usage to be set in context when stream_options already exists")
 		}
 

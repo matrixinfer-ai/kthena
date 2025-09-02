@@ -35,7 +35,6 @@ import (
 
 	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/backend"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
@@ -63,7 +62,6 @@ const (
 	EventAdd    EventType = "add"
 	EventUpdate EventType = "update"
 	EventDelete EventType = "delete"
-	// Add more event types here as needed
 )
 
 // EventData contains information about the event that triggered the callback
@@ -73,7 +71,6 @@ type EventData struct {
 
 	ModelName  string
 	ModelRoute *aiv1alpha1.ModelRoute
-	// Add more fields as needed for other event types
 }
 
 // CallbackFunc is the type of function that can be registered as a callback
@@ -120,14 +117,12 @@ type Store interface {
 	GetTokenCount(userId, modelName string) (float64, error)
 	// UpdateTokenCount updates token usage for a user and model
 	UpdateTokenCount(userId, modelName string, inputTokens, outputTokens float64) error
+
+	// Enqueue adds a request to the fair queue
 	Enqueue(*Request) error
 
 	// GetRequestWaitingQueueStats returns per-model queue lengths
 	GetRequestWaitingQueueStats() []QueueStat
-
-	// jwks cache methods
-	GetJwks() Jwks
-	RotateJwks(config conf.AuthenticationConfig)
 }
 
 // QueueStat holds per-model queue metrics to aid scheduling decisions
@@ -169,7 +164,6 @@ type modelRouteInfo struct {
 }
 
 type store struct {
-	jwksCache   *Jwks
 	modelServer sync.Map // map[types.NamespacedName]*modelServer
 	pods        sync.Map // map[types.NamespacedName]*PodInfo
 
@@ -191,7 +185,6 @@ type store struct {
 
 func New() Store {
 	return &store{
-		jwksCache:           &Jwks{},
 		modelServer:         sync.Map{},
 		pods:                sync.Map{},
 		routeInfo:           make(map[string]*modelRouteInfo),
@@ -224,7 +217,6 @@ func (s *store) Run(ctx context.Context) {
 			}
 		}
 	}()
-	go s.jwksRefresher(ctx)
 }
 func (s *store) GetTokenCount(userID, model string) (float64, error) {
 	return s.tokenTracker.GetTokenCount(userID, model)
@@ -233,8 +225,6 @@ func (s *store) GetTokenCount(userID, model string) (float64, error) {
 func (s *store) UpdateTokenCount(userID, model string, inputTokens, outputTokens float64) error {
 	return s.tokenTracker.UpdateTokenCount(userID, model, inputTokens, outputTokens)
 }
-
-type ModelRequest map[string]interface{}
 
 func (s *store) Enqueue(req *Request) error {
 	modelName := req.ModelName
