@@ -12,7 +12,7 @@ MatrixInfer Runtime is a lightweight sidecar service designed to standardize Pro
 
 - Runtime does not require separate installation. As part of ModelInfer, it will be automatically deployed in the ModelInfer Pod.
 - When deploying via the Model CR (one-stop deployment), no additional configuration is needed; ModelInfer will automatically enable the runtime feature.
-- For standalone deployment using ModelInfer YAML, you can add the following configuration to start Runtime:
+- For standalone deployment using ModelInfer YAML, you can add the following configuration to start Runtime sidecar container:
 
   ```
   - name: runtime
@@ -69,7 +69,7 @@ Startup arguments:
 - `-I, --pod` (required): current instance/Pod identifier, used for events and Redis keys
 - `-N, --model` (required): model name
 
-In the Model CR, you can control Runtime startup values via `spec.backends.env`:
+In the Model YAML, you can control Runtime startup values via `spec.backends.env`:
 
 ```
 apiVersion: registry.matrixinfer.ai/v1alpha1
@@ -97,7 +97,7 @@ spec:
         - name: "RUNTIME_METRICS_PATH" # default /metrics
           value: "/metrics"
       minReplicas: 1
-      maxReplicas: 2
+      maxReplicas: 1
       workers:
         - type: server
           image: openeuler/vllm-ascend:latest
@@ -126,146 +126,63 @@ Runtime renames key metrics from different engines to unified names prefixed wit
 
 Notes:
 
-- When `engine=vllm` or `engine=sglang`, key metrics from vLLM/SGLang are renamed to the standard names above.
-- Only metrics covered by built-in mappings are standardized, and the original metrics are preserved. You can obtain all raw engine metrics plus the standardized metrics.
+1. When `engine=vllm` or `engine=sglang`, key metrics from vLLM/SGLang are renamed to the standard names above.
+2. Only metrics covered by built-in mappings are standardized, and the original metrics are preserved. You can obtain all raw engine metrics plus the standardized metrics.
 
-## Model Downloading
+## Dynamic Lora configuration
 
-- `POST /v1/download_model`: download a model from multiple sources to a local directory.
-    - body fields:
-        - `source` (required): model source, supports `s3://`, `obs://`, `pvc://`, or a Hugging Face repository name in the format `<namespace>/<repo_name>`
-        - `output_dir` (required): local output directory
-        - `config` (optional, JSON string): download configuration (e.g., `hf_token`, `hf_endpoint`, `hf_revision`, `access_key`, `secret_key`, `endpoint`, etc.). Note: this field must be a JSON string. These values can also be provided via container environment variables (see below); Runtime will read them automatically.
-        - `max_workers` (optional, default 8): number of concurrent download workers
-        - `async_download` (optional, default false): whether to download in background
+You can use Model YAML to configure LoRA adapters for automatic download and loading during the model startup. 
+If you only change loraAdapters in model YAML, Runtime will dynamically download and load/unload the adapters without restarting the Pod.
 
-### Sources and Formats
-
-- Hugging Face: `<namespace>/<repo_name>`, e.g., `microsoft/phi-2`
-- S3: `s3://bucket/path`
-- OBS: `obs://bucket/path`
-- PVC: `pvc://path`
-
-### Environment Variables and Parameter Configuration
-
-You can provide authentication and download parameters via container environment variables or the `config` JSON string:
-
-- Hugging Face:
-  - `HF_AUTH_TOKEN` (optional): token for accessing private models
-  - `HF_ENDPOINT` (optional): custom HF API endpoint
-  - `HF_REVISION` (optional): model branch/revision (e.g., `main`)
-- S3/OBS:
-  - `ACCESS_KEY`, `SECRET_KEY`: access credentials (recommended to store in a Secret and load via `envFrom.secretRef.name`)
-  - `ENDPOINT`: object storage service endpoint (e.g., `https://s3.us-east-1.amazonaws.com` or `https://obs.test.com`)
-
-Equivalent `config` JSON (as a string) example:
-
-```json
-{
-  "hf_token": "your_huggingface_token",
-  "hf_endpoint": "custom_endpoint",
-  "hf_revision": "main",
-  "access_key": "your_access_key",
-  "secret_key": "your_secret_key",
-  "endpoint": "your_endpoint_url"
-}
+```
+apiVersion: registry.matrixinfer.ai/v1alpha1
+kind: Model
+metadata:
+  annotations:
+    api.kubernetes.io/name: example
+  name: deepseek-r1-distill-llama-8b
+spec:
+  name: deepseek-r1-distill-llama-8b
+  owner: example
+  backends:
+    - name: "deepseek-r1-distill-llama-8b-vllm"
+      type: "vLLM"
+      modelURI: "s3://model-bucket/deepseek-r1-distill-llama-8b"
+      cacheURI: hostpath:///cache/
+      envFrom:
+        - secretRef:
+            name: your-secrets  # AccessKey/SecretKey for S3/OBS or HF_AUTH_TOKEN for HuggingFace
+      env:
+        - name: "ENDPOINT"
+          value: "https://obs.test.com"
+        - name: "VLLM_ALLOW_RUNTIME_LORA_UPDATING"
+          value: "True"  # Enable dynamic LoRA load/unload
+      minReplicas: 1
+      maxReplicas: 1
+      workers:
+        - type: server
+          image: openeuler/vllm-ascend:latest
+          replicase: 1
+          pods: 1
+      loraAdapters:
+        - name: lora-sql
+          artifactURL: s3://aios_models/deepseek-ai/DeepSeek-V3-W8A8/vllm-ascend-lora
 ```
 
-> Tip: If the above parameters are already provided via container environment variables, you can omit the `config` field in the request body.
+Notes:
 
-### curl Examples
+1. To enable dynamic LoRA configuration, ensure that the environment variable `VLLM_ALLOW_RUNTIME_LORA_UPDATING` is set to `True`.
+2. `loraAdapters.artifactURL` supports the same sources and formats as modelURI in the Model CR, including:
+   - Hugging Face: `<namespace>/<repo_name>`, e.g., `microsoft/phi-2`
+   - S3: `s3://bucket/path`
+   - OBS: `obs://bucket/path`
+   - PVC: `pvc://path`
+3. You can configure the following environment variables for Runtime to access private models or object storage services:
+   - Hugging Face:
+     - `HF_AUTH_TOKEN` (optional): token for accessing private models
+     - `HF_ENDPOINT` (optional): custom HF API endpoint
+     - `HF_REVISION` (optional): model branch/revision (e.g., `main`)
+   - S3/OBS:
+     - `ACCESS_KEY`, `SECRET_KEY`: access credentials (recommended to store in a Secret and load via `envFrom.secretRef.name`)
+     - `ENDPOINT`: object storage service endpoint (e.g., `https://s3.us-east-1.amazonaws.com` or `https://obs.test.com`)
 
-- Hugging Face model download:
-
-```bash
-curl -X POST "http://localhost:8900/v1/download_model" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "source": "microsoft/phi-2",
-    "output_dir": "/models/phi-2",
-    "config": "{\"hf_token\":\"$HF_AUTH_TOKEN\",\"hf_revision\":\"main\"}",
-    "max_workers": 8,
-    "async_download": false
-  }'
-```
-
-- S3 model download (private bucket example):
-
-```bash
-curl -X POST "http://localhost:8900/v1/download_model" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "source": "s3://my-bucket/models/llama3",
-    "output_dir": "/models/llama3",
-    "config": "{\"access_key\":\"YOUR_KEY\",\"secret_key\":\"YOUR_SECRET\",\"endpoint\":\"https://s3.us-east-1.amazonaws.com\"}",
-    "max_workers": 8
-  }'
-```
-
-- OBS model download:
-
-```bash
-curl -X POST "http://localhost:8900/v1/download_model" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "source": "obs://my-bucket/qwen",
-    "output_dir": "/models/qwen",
-    "config": "{\"access_key\":\"YOUR_KEY\",\"secret_key\":\"YOUR_SECRET\",\"endpoint\":\"https://obs.test.com\"}"
-  }'
-```
-
-- PVC path download (no authentication required):
-
-```bash
-curl -X POST "http://localhost:8900/v1/download_model" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "source": "pvc://models",
-    "output_dir": "/models/local"
-  }'
-```
-
-## Model Configuration APIs (LoRA) 
-
-After the base model and Runtime are ready, you can dynamically download, load, and unload LoRA adapters via Runtime APIs.
-
-### curl Request Examples
-
-- Download and load a LoRA (Hugging Face source, synchronous):
-
-```bash
-curl -X POST "http://localhost:8900/v1/load_lora_adapter" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "lora_name": "qwen-lora",
-    "source": "your-org/your-lora-repo",
-    "output_dir": "/models/lora/qwen",
-    "config": "{\"hf_token\":\"$HF_AUTH_TOKEN\",\"hf_revision\":\"main\"}",
-    "max_workers": 8,
-    "async_download": false
-  }'
-```
-
-- Download and load a LoRA (S3 source, asynchronous/background):
-
-```bash
-curl -X POST "http://localhost:8900/v1/load_lora_adapter" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "lora_name": "qwen-lora",
-    "source": "s3://my-bucket/lora/qwen",
-    "output_dir": "/models/lora/qwen",
-    "config": "{\"access_key\":\"YOUR_KEY\",\"secret_key\":\"YOUR_SECRET\",\"endpoint\":\"https://s3.us-east-1.amazonaws.com\"}",
-    "async_download": true
-  }'
-```
-
-- Unload a LoRA (example for vLLM; pass through the fields required by your engine):
-
-```bash
-curl -X POST "http://localhost:8900/v1/unload_lora_adapter" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "lora_name": "qwen-lora"
-  }'
-```
