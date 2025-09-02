@@ -9,11 +9,9 @@ spec:
   - name: "default"
     targetModels:
     - modelServerName: "deepseek-r1-1-5b"
-  # Advanced rate limit configuration:
-  # - 10000 input tokens per minute (suitable for heavy usage)
-  # - 5000 output tokens per minute (controls generation cost)
   # This configuration applies to all rules in this ModelRoute
+  # - 10 input tokens per minute to be convenient to test
   rateLimit:
-    inputTokensPerUnit: 10000
+    inputTokensPerUnit: 10
     outputTokensPerUnit: 5000
     unit: minute

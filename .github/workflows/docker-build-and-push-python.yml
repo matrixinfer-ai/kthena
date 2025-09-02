@@ -8,7 +8,7 @@ on:
       - '/python/**'
   pull_request:
     paths:
-      - '/python/**'
+      - '/python/Dockerfile'
 
 jobs:
   build:
