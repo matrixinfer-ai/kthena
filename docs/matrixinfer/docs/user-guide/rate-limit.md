@@ -66,20 +66,16 @@ spec:
 To test this, you can set a low limit (e.g., `inputTokensPerUnit: 10`) and send multiple requests.
 
 ```bash
-# 1. Clone the MatrixInfer repository
-git clone https://github.com/matrixinfer-ai/matrixinfer.git
-cd matrixinfer
+# 1. Apply the ModelRoute yaml above
+kubectl apply -f https://github.com/matrixinfer-ai/matrixinfer/blob/main/examples/infer-gateway/ModelRouteWithRateLimit.yaml
 
-# 2. Apply the ModelRoute yaml above
-kubectl apply -f examples/infer-gateway/ModelRouteWithRateLimit.yaml
-
-# 3. Scale down the replicas of the gateway to 1 to demonstrate local rate limiting
+# 2. Scale down the replicas of the gateway to 1 to demonstrate local rate limiting
 kubectl scale deployment networking-infer-gateway -n matrixinfer-system --replicas=1
 
-# 4. Get public ip of the gateway pod
+# 3. Get public ip of the gateway pod
 export GATEWAY_IP=$(kubectl get svc networking-infer-gateway -n matrixinfer-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 
-# 5. Request gateway three times, the final request will be rejected
+# 4. Request gateway three times, the final request will be rejected
 export MODEL="deepseek-r1-with-rate-limit"
 
 curl http://$GATEWAY_IP/v1/completions \
@@ -92,8 +88,8 @@ curl http://$GATEWAY_IP/v1/completions \
 # Expected output for rejected request:
 "input token rate limit exceeded"
 
-# 6. Clean up
-kubectl delete -f examples/infer-gateway/ModelRouteWithRateLimit.yaml
+# 5. Clean up
+kubectl delete -f https://github.com/matrixinfer-ai/matrixinfer/blob/main/examples/infer-gateway/ModelRouteWithRateLimit.yaml
 ```
 
 ### 2. Global Rate Limiting
@@ -138,23 +134,19 @@ spec:
 The test process is similar to local rate limiting. Even if your requests are handled by different gateway pods, the global limit will be consistently enforced.
 
 ```bash
-# 1. Clone the MatrixInfer repository (skip if already done)
-git clone https://github.com/matrixinfer-ai/matrixinfer.git
-cd matrixinfer
+# 1. Deploy Redis service
+kubectl apply -f https://github.com/matrixinfer-ai/matrixinfer/blob/main/examples/redis/redis-standalone.yaml
 
-# 2. Deploy Redis service
-kubectl apply -f examples/redis/redis-standalone.yaml
+# 2. Apply the ModelRoute yaml above
+kubectl apply -f https://github.com/matrixinfer-ai/matrixinfer/blob/main/examples/infer-gateway/ModelRouteWithGlobalRateLimit.yaml
 
-# 3. Apply the ModelRoute yaml above
-kubectl apply -f examples/infer-gateway/ModelRouteWithGlobalRateLimit.yaml
-
-# 4. Scale up the replicas of the gateway to 3 to demonstrate global rate limiting
+# 3. Scale up the replicas of the gateway to 3 to demonstrate global rate limiting
 kubectl scale deployment networking-infer-gateway -n matrixinfer-system --replicas=3
 
-# 5. Get public ip of the gateway pod
+# 4. Get public ip of the gateway pod
 export GATEWAY_IP=$(kubectl get svc networking-infer-gateway -n matrixinfer-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 
-# 6. Request gateway three times, the final request will be rejected
+# 5. Request gateway three times, the final request will be rejected
 export MODEL="deepseek-r1-with-global-rate-limit"
 
 curl http://$GATEWAY_IP/v1/completions \
@@ -167,8 +159,8 @@ curl http://$GATEWAY_IP/v1/completions \
 # Expected output for rejected request:
 "input token rate limit exceeded"
 
-# 7. Clean up
-kubectl delete -f examples/infer-gateway/ModelRouteWithGlobalRateLimit.yaml
+# 6. Clean up
+kubectl delete -f https://github.com/matrixinfer-ai/matrixinfer/blob/main/examples/infer-gateway/ModelRouteWithGlobalRateLimit.yaml
 ```
 
 By leveraging local and global rate limiting, MatrixInfer gives you fine-grained control over your AI service traffic, enabling robust, scalable, and cost-effective model deployments.
