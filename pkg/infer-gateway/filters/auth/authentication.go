@@ -14,9 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package auth provides JWT authentication and authorization functionality for the MatrixInfer gateway.
+// This package handles JWT token validation, JWKS rotation, and provides middleware for Gin HTTP framework.
 package auth
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -24,68 +27,86 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/lestrrat-go/jwx/v3/jws"
 	"github.com/lestrrat-go/jwx/v3/jwt"
 	"k8s.io/klog/v2"
 
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/common"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 )
 
-// For the time being, the JWT is extracted directly from the fixed header name, and the configurable items are added later.
+// JWT token extraction constants
 const (
 	header = "Authorization"
 	prefix = "Bearer "
 )
 
+// extractTokenFromHeader extracts the Bearer token from the Authorization header
 func extractTokenFromHeader(req *http.Request) string {
 	value := req.Header.Get(header)
 	return strings.TrimPrefix(value, prefix)
 }
 
-type JWTValidator struct {
-	enable bool
-	cache  datastore.Store
+// JWTAuthenticator provides JWT token validation with automatic JWKS rotation support
+type JWTAuthenticator struct {
+	enabled bool         // Whether JWT authentication is enabled
+	rotator *JWKSRotator // JWKS rotator for automatic key updates
 }
 
-// NewJWTValidator creates a new JWTValidator
-func NewJWTValidator(store datastore.Store, gatewayConfig *conf.GatewayConfiguration) *JWTValidator {
-	defaultValidator := &JWTValidator{
-		enable: false,
-	}
-	if gatewayConfig != nil && gatewayConfig.Auth.JwksUri != "" {
-		store.RotateJwks(gatewayConfig.Auth)
-		defaultValidator.enable = true
-		defaultValidator.cache = store
+// NewJWTAuthenticator creates a new JWTAuthenticator with JWKS rotation support
+func NewJWTAuthenticator(gatewayConfig *conf.GatewayConfiguration) *JWTAuthenticator {
+	if gatewayConfig == nil || gatewayConfig.Auth.JwksUri == "" {
+		klog.V(4).Info("JWKS URI not configured, authentication disabled")
+		return &JWTAuthenticator{enabled: false}
 	}
 
-	return defaultValidator
+	// Create and configure the JWKS rotator
+	rotator := NewJWKSRotator(gatewayConfig.Auth)
+	if rotator != nil {
+		rotator.Start(context.TODO())
+	}
+
+	return &JWTAuthenticator{
+		enabled: true,
+		rotator: rotator,
+	}
 }
 
-// parseAndValidateToken validates the token
-func (j *JWTValidator) parseAndValidateToken(tokenStr string) error {
-	key := j.cache.GetJwks()
-	var token jwt.Token
-	token, err := jwt.Parse([]byte(tokenStr), jwt.WithKeySet(key.Jwks, jws.WithInferAlgorithmFromKey(true)))
+// Close gracefully closes the JWTAuthenticator and its resources
+func (j *JWTAuthenticator) Close() {
+	if j.rotator != nil {
+		j.rotator.Stop()
+	}
+}
+
+// authenticate validates the token and returns the subject
+func (j *JWTAuthenticator) authenticate(tokenStr string) (string, error) {
+	// Get current JWKS from rotator
+	jwksValue := j.rotator.GetJwks()
+	if jwksValue.Jwks == nil {
+		return "", fmt.Errorf("no JWKS available for token validation")
+	}
+
+	token, err := jwt.Parse([]byte(tokenStr), jwt.WithKeySet(jwksValue.Jwks, jws.WithInferAlgorithmFromKey(true)))
 	if err != nil {
-		return fmt.Errorf("failed to parse jwt: %w", err)
+		return "", fmt.Errorf("failed to parse jwt: %w", err)
 	}
 
 	// Validate the claims in the token
-	if err := j.validateClaims(token); err != nil {
-		return fmt.Errorf("failed to validate claims: %w", err)
+	if err := j.validateClaims(token, jwksValue); err != nil {
+		return "", fmt.Errorf("failed to validate claims: %w", err)
 	}
 
-	return nil
+	sub, _ := token.Subject()
+	return sub, nil
 }
 
-func (j *JWTValidator) validateClaims(token jwt.Token) error {
-	if err := j.validateIssuer(token); err != nil {
+func (j *JWTAuthenticator) validateClaims(token jwt.Token, jwks *Jwks) error {
+	if err := j.validateIssuer(token, jwks); err != nil {
 		return fmt.Errorf("issuer validation failed: %w", err)
 	}
 
-	if err := j.validateAudiences(token); err != nil {
+	if err := j.validateAudiences(token, jwks); err != nil {
 		return fmt.Errorf("audience validation failed: %w", err)
 	}
 
@@ -96,18 +117,17 @@ func (j *JWTValidator) validateClaims(token jwt.Token) error {
 	return nil
 }
 
-func (j *JWTValidator) validateIssuer(token jwt.Token) error {
+func (j *JWTAuthenticator) validateIssuer(token jwt.Token, jwks *Jwks) error {
 	var iss string
-	jwks := j.cache.GetJwks()
 	if err := token.Get("iss", &iss); err != nil || iss != jwks.Issuer {
 		return fmt.Errorf("invalid issuer: expected %s, got %v", jwks.Issuer, iss)
 	}
 	return nil
 }
 
-func (j *JWTValidator) validateAudiences(token jwt.Token) error {
+func (j *JWTAuthenticator) validateAudiences(token jwt.Token, jwks *Jwks) error {
 	var aud interface{}
-	audinecesCache := j.cache.GetJwks().Audiences
+	audinecesCache := jwks.Audiences
 	if len(audinecesCache) == 0 {
 		// If audiences are not configured, we skip audience validation
 		return nil
@@ -154,7 +174,7 @@ func (j *JWTValidator) validateAudiences(token jwt.Token) error {
 // For nbf and iat it's a little more lenient.
 // If token doesn't have nbf, we assume it's valid.
 // As same for iat.
-func (j *JWTValidator) validateTimeClaims(token jwt.Token) error {
+func (j *JWTAuthenticator) validateTimeClaims(token jwt.Token) error {
 	now := time.Now()
 	var exp, nbf, iat interface{}
 	// Validate Token expiration(exp)
@@ -183,7 +203,7 @@ func (j *JWTValidator) validateTimeClaims(token jwt.Token) error {
 	return nil
 }
 
-func (j *JWTValidator) validateExpiration(exp interface{}, now time.Time) error {
+func (j *JWTAuthenticator) validateExpiration(exp interface{}, now time.Time) error {
 	switch expVal := exp.(type) {
 	case time.Time:
 		if now.After(expVal) {
@@ -209,7 +229,7 @@ func (j *JWTValidator) validateExpiration(exp interface{}, now time.Time) error 
 	return nil
 }
 
-func (j *JWTValidator) validateNotBefore(nbf interface{}, now time.Time) error {
+func (j *JWTAuthenticator) validateNotBefore(nbf interface{}, now time.Time) error {
 	switch nbfVal := nbf.(type) {
 	case time.Time:
 		if now.Before(nbfVal) {
@@ -235,7 +255,7 @@ func (j *JWTValidator) validateNotBefore(nbf interface{}, now time.Time) error {
 	return nil
 }
 
-func (j *JWTValidator) validateIssuedAt(iat interface{}, now time.Time) error {
+func (j *JWTAuthenticator) validateIssuedAt(iat interface{}, now time.Time) error {
 	switch iatVal := iat.(type) {
 	case time.Time:
 		// iat should be before or equal to the current time
@@ -263,28 +283,48 @@ func (j *JWTValidator) validateIssuedAt(iat interface{}, now time.Time) error {
 	return nil
 }
 
-// parseJWKS parse the jwks string
-func (j *JWTValidator) parseJWKS(jwksStr string) (*jwk.Set, error) {
-	keySet, err := jwk.Parse([]byte(jwksStr))
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse inline JWKS: %w", err)
+// ValidateToken validates a JWT token and sets user information in the context
+func (j *JWTAuthenticator) ValidateToken(ctx context.Context, c *gin.Context, token string) error {
+	if !j.enabled {
+		return nil
 	}
-	return &keySet, nil
+
+	if token == "" {
+		return fmt.Errorf("authorization header missing or empty")
+	}
+
+	sub, err := j.authenticate(token)
+	if err != nil {
+		return fmt.Errorf("authentication failed: %w", err)
+	}
+
+	c.Set(common.UserIdKey, sub)
+	return nil
 }
 
-func (j *JWTValidator) Authenticate() gin.HandlerFunc {
+// IsEnabled returns whether JWT authentication is enabled
+func (j *JWTAuthenticator) IsEnabled() bool {
+	return j.enabled
+}
+
+// Authenticate returns a Gin middleware for JWT token validation
+func (j *JWTAuthenticator) Authenticate() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if j.enable {
-			// validate the token about the jwtRules
+		if j.enabled {
+			// Extract and validate the JWT token
 			token := extractTokenFromHeader(c.Request)
-			klog.V(4).Infof("Extracted token: %s", token)
-			err := j.parseAndValidateToken(token)
+			if token == "" {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Authorization header missing or invalid"})
+				return
+			}
+
+			sub, err := j.authenticate(token)
 			if err != nil {
 				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": fmt.Sprintf("Unauthorized: %v", err)})
 				return
 			}
+			c.Set(common.UserIdKey, sub)
 		}
-		// TODO: add Authorization handler
 		c.Next()
 	}
 }

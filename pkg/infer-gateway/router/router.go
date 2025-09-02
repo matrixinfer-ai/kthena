@@ -32,6 +32,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/common"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/connectors"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/filters/auth"
@@ -43,16 +44,11 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
-const (
-	tokenUsageKey = "token_usage"
-	userIdKey     = "user_id"
-)
-
 var EnableFairnessScheduling = env.RegisterBoolVar("ENABLE_FAIRNESS_SCHEDULING", false, "Enable fairness scheduling for inference requests").Get()
 
 type Router struct {
 	scheduler       scheduler.Scheduler
-	authValidator   auth.JWTValidator
+	authenticator   *auth.JWTAuthenticator
 	store           datastore.Store
 	loadRateLimiter *ratelimit.TokenRateLimiter
 
@@ -91,7 +87,7 @@ func NewRouter(store datastore.Store, gatewayConfigPath string) *Router {
 	return &Router{
 		store:            store,
 		scheduler:        scheduler.NewScheduler(store, gatewayConfig),
-		authValidator:    *auth.NewJWTValidator(store, gatewayConfig),
+		authenticator:    auth.NewJWTAuthenticator(gatewayConfig),
 		loadRateLimiter:  loadRateLimiter,
 		connectorFactory: connectors.NewDefaultFactory(),
 	}
@@ -314,7 +310,7 @@ func (r *Router) GetModelServer(modelName string, req *http.Request) (*v1alpha1.
 }
 
 func (r *Router) Auth() gin.HandlerFunc {
-	return r.authValidator.Authenticate()
+	return r.authenticator.Authenticate()
 }
 
 // proxyRequest proxies the request to the model server pods, returns response to downstream.
@@ -353,7 +349,7 @@ func proxyRequest(
 					klog.V(4).Infof("Parsed usage: %+v", parsed.Usage)
 
 					// The token usage is set by gateway, so remove it before sending to downstream
-					if v, ok := c.Get(tokenUsageKey); ok && v.(bool) {
+					if v, ok := c.Get(common.TokenUsageKey); ok && v.(bool) {
 						return true
 					}
 					if onUsage != nil {
@@ -499,7 +495,7 @@ func (r *Router) proxyToPDDisaggregated(
 
 // handleFairnessScheduling handles the fairness scheduling flow for requests
 func (r *Router) handleFairnessScheduling(c *gin.Context, modelRequest ModelRequest, requestID string, modelName string) error {
-	userIdVal, ok := c.Get(userIdKey)
+	userIdVal, ok := c.Get(common.UserIdKey)
 	if !ok {
 		c.AbortWithStatusJSON(http.StatusBadRequest, "missing userId in request body")
 		return fmt.Errorf("missing userId in request body")
