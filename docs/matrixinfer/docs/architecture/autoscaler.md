@@ -1,3 +1,5 @@
+import LightboxImage from '@site/src/components/LightboxImage';
+
 # Autoscaler
 
 Facing real-time changing inference requests, the required hardware resources also fluctuate dynamically. MatrixInfer Autoscaler, as an optional component of the MatrixInfer project running in a Kubernetes environment, dynamically adjusts the number of deployed inference instances based on their real-time load. It ensures healthy business metrics (such as SLO indicators) while reducing the consumption of computational resources.
@@ -6,7 +8,7 @@ Facing real-time changing inference requests, the required hardware resources al
 
 MatrixInfer Autoscaler periodically collects runtime metrics from the Pods of managed inference instances. Based on one or more monitoring metrics specified by the user and their corresponding target values, it estimates the required number of inference instances. Finally, it performs scaling operations according to the configured scaling policies.
 
-![architecture-autoscaler](../../static/img/architecture-autoscaler.svg)
+<LightboxImage src="/img/architecture-autoscaler.svg" alt="architecture-autoscaler"></LightboxImage>
 
 MatrixInfer Autoscaler provides two granularities of scaling methods: **Homogeneous Instances Autoscale** and **Heterogeneous Instances Autoscale**.
 
@@ -18,8 +20,7 @@ MatrixInfer Autoscaler provides two granularities of scaling methods: **Homogene
 
 For the same model, inference instances can be deployed in multiple different ways: such as heterogeneous resource types (GPU/NPU), types of inference engines (vLLM / Sglang), or even different runtime parameters (e.g., TP/DP configuration parameters). While these differently deployed inference instances can all provide normal inference services and expose consistent business functionality externally, they differ in required hardware resources and provided business capabilities.The figure below shows a sample of the running effect.
 
-![architecture-autoscaler-optimize-example.svg](../../static/img/architecture-autoscaler-optimize-example.svg)
-
+<LightboxImage src="/img/architecture-autoscaler-optimize-example.svg" alt="architecture-autoscaler-optimize-example"></LightboxImage>
 
 The functionality of `Heterogeneous Instances Autoscale` can be divided into two parts: predicting instance count and scheduling instances.
 

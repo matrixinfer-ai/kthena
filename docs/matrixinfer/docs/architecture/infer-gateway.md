@@ -1,3 +1,5 @@
+import LightboxImage from '@site/src/components/LightboxImage';
+
 # Infer Gateway
 
 MatrixInfer Gateway is a standalone gateway component designed to provide unified access to Large Language Models (LLMs). It supports both privately deployed LLMs and public AI service providers such as OpenAI, DeepSeek, HuggingFace, and others.
@@ -6,7 +8,7 @@ Our goal is to deliver a lightweight, user-friendly, and extensible LLM inferenc
 
 ## Overview
 
-![arch](../../static/img/infer-gateway-arch.svg)
+<LightboxImage src="/img/infer-gateway-arch.svg" alt="arch"></LightboxImage>
 
 MatrixInfer Gateway is deployed as a standalone binary that can seamlessly integrate with existing gateway infrastructure or serve as a direct traffic entry point for handling AI workloads independently.
 
@@ -16,9 +18,7 @@ For privately deployed models in particular, the gateway supports mainstream inf
 
 ## Core Components
 
-![components](../../static/img/infer-gateway-components.svg)
-
-
+<LightboxImage src="/img/infer-gateway-components.svg" alt="arch"></LightboxImage>
 
 **Router**: The core execution framework responsible for request reception, processing, and forwarding.
 
