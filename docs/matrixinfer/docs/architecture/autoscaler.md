@@ -33,18 +33,18 @@ Heterogeneous Instances Autoscale adopts a greedy algorithm with a doubling stra
 Based on the idea of multiplication, the `capacity` is divided into multiple chunks according to the power of `costExpansionRate`. These chunks serve as batches during scaling. Then, at the batch level, the batches of various inference instances are mixed and sorted by cost in ascending order. The sorted batches are then expanded into corresponding multiple instance combinations. Finally, a sequence `seq` with a length of capacity is obtained as the scaling order.
 
 $$
-seq = sorted(\bigcup_{i=1}^{N}​{P^k · c_i​∣k∈({0,1,…,Mi​})} \cup {(C_i​−∑_{k=0}^{M_i}​​P^k)⋅c_i​})​
+seq = sorted(\bigcup_{i=1}^{N} P^k \cdot c_i \mid k \in (0,1,\ldots,M_i) \cup (C_i - \sum_{k=0}^{M_i} P^k) \cdot c_i)
 $$
 
 - $N$: Number of types of inference instances
 
 - $P$: `costExpansionRate` for inference instances
-    
-- $c_i$​: Cost of the i-th type of inference instance
 
-- $M_i$​: Number of explicit power terms of the i-th type of inference instance
+- $c_i$: Cost of the i-th type of inference instance
 
-- $C_i​$: Capacity of the i-th type of inference instance (maxReplicas - minReplicas)
+- $M_i$: Number of explicit power terms of the i-th type of inference instance
+
+- $C_i$: Capacity of the i-th type of inference instance (maxReplicas - minReplicas)
 
 Thus, `costExpansionRate` can be considered as the "cost expansion ratio for the next batch" within each type of inference instance.
 
