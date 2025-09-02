@@ -60,8 +60,6 @@ spec:
               value: {{ .Values.inferGateway.fairness.inputTokenWeight | quote }}
             - name: FAIRNESS_OUTPUT_TOKEN_WEIGHT
               value: {{ .Values.inferGateway.fairness.outputTokenWeight | quote }}
-            - name: FAIRNESS_QUEUE_QPS
-              value: {{ .Values.inferGateway.fairness.queueQPS | quote }}
             {{- end }}
           resources: {{- toYaml .Values.inferGateway.resource | nindent 12 }}
           livenessProbe:

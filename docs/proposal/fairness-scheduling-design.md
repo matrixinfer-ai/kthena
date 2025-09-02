@@ -8,6 +8,44 @@ This document describes the design and implementation of the fairness scheduling
 
 In multi-tenant AI inference environments, different users may have varying request patterns and resource consumption. Without proper fairness mechanisms, heavy users can starve lighter users of resources, leading to poor user experience and unfair resource distribution. The fairness scheduling system addresses this by implementing a token-usage-based priority queue that ensures fair access to inference resources.
 
+## Goals and Non-Goals
+
+### Goals
+
+1. **Fair Resource Allocation**
+   - Prevent any single user from monopolizing inference resources
+   - Ensure equitable access based on historical token usage patterns
+
+2. **Multi-Tenant Support**
+   - Support concurrent requests from multiple users with different usage patterns
+   - Maintain fairness across different models and inference endpoints
+   - Scale efficiently with increasing number of users and requests
+
+### Non-Goals
+
+1. **Cross-Gateway Coordination**
+   - The initial implementation will not coordinate fairness state across multiple gateway instances
+   - Each gateway maintains independent fairness state and scheduling decisions
+
+2. **Persistent State Management**
+   - Token usage history will not persist across gateway restarts
+   - The system prioritizes performance over state durability for the initial version
+
+3. **Advanced Queuing Algorithms**
+   - Will not implement user priority based fairness
+   - Focus on simple, effective token-usage-based priority scheduling
+
+4. **Model-Specific Optimization**
+   - Will not implement model-specific scheduling optimizations
+   - The system treats all models uniformly for fairness calculations
+
+5. **Guaranteed SLA Enforcement**
+   - While improving fairness, the system will not guarantee specific latency SLAs
+   - Performance depends on overall system capacity and load
+
+6. **Adaptive QPS Control per Model Server**
+   - This can be implemented in future
+
 ## Architecture
 
 ### Core Components
@@ -84,7 +122,6 @@ The fairness system uses historical token consumption as the priority metric:
 Each model maintains its own priority queue:
 
 - **Per-Model Queues**: Separate queues prevent cross-model interference
-- **QPS Control**: Configurable requests-per-second processing rate
 - **Timeout Protection**: Configurable timeout prevents indefinite blocking
 - **Automatic Cleanup**: Queues are cleaned up when models are deleted
 

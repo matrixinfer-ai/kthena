@@ -51,7 +51,6 @@ inferGateway:
 | `inferGateway.fairness.windowSize` | string | `"5m"` | Sliding window duration (1m-1h) |
 | `inferGateway.fairness.inputTokenWeight` | float | `1.0` | Weight for input tokens (≥0) |
 | `inferGateway.fairness.outputTokenWeight` | float | `2.0` | Weight for output tokens (≥0) |
-| `inferGateway.fairness.queueQPS` | integer | `100` | Queue processing rate (>0) |
 
 #### Configuration Scenarios
 
@@ -63,7 +62,6 @@ inferGateway:
     windowSize: "2m"          # Short window for quick feedback
     inputTokenWeight: 1.0     # Equal weights for simplicity
     outputTokenWeight: 1.0
-    queueQPS: 50             # Lower rate for resource conservation
 ```
 
 ##### Production Environment
@@ -74,7 +72,6 @@ inferGateway:
     windowSize: "10m"         # Balanced window size
     inputTokenWeight: 1.0     # Realistic cost ratios
     outputTokenWeight: 2.5
-    queueQPS: 150            # Higher rate for performance
 ```
 
 ##### Cost-Sensitive Environment
@@ -85,7 +82,6 @@ inferGateway:
     windowSize: "30m"         # Longer window for stability
     inputTokenWeight: 1.0     # High output weight for cost control
     outputTokenWeight: 4.0
-    queueQPS: 75             # Conservative processing rate
 ```
 
 ### TLS Configuration
