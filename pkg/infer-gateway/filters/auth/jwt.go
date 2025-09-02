@@ -53,11 +53,6 @@ type JWKSRotator struct {
 
 // NewJWKSRotator creates a new JWKS rotator
 func NewJWKSRotator(config conf.AuthenticationConfig) *JWKSRotator {
-	if config.JwksUri == "" {
-		klog.V(4).Info("JWKS URI not configured, skipping JWKS rotator initialization")
-		return nil
-	}
-
 	return &JWKSRotator{
 		config:          config,
 		refreshInterval: defaultRefreshInterval,
