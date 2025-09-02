@@ -383,8 +383,7 @@ func (c *ModelInferController) syncModelInfer(ctx context.Context, key string) e
 
 	// PodGroup Manager
 	if err := c.gangManager.ManagePodGroups(ctx, mi); err != nil {
-		// Not return error to above blocking the handle of modelinfer
-		klog.Errorf("Failed to manage PodGroups for ModelInfer %s/%s: %v", mi.Namespace, mi.Name, err)
+		return fmt.Errorf("Failed to manage PodGroups for ModelInfer %s/%s: %v", mi.Namespace, mi.Name, err)
 	}
 
 	err = c.manageInferGroupReplicas(ctx, mi, revision)

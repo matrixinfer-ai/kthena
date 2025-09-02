@@ -26,17 +26,13 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 
 	batchv1alpha1 "volcano.sh/apis/pkg/apis/batch/v1alpha1"
 	schedulingv1beta1 "volcano.sh/apis/pkg/apis/scheduling/v1beta1"
 	volcanoclient "volcano.sh/apis/pkg/client/clientset/versioned"
 
 	workloadv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
-)
-
-const (
-	// DefaultTTLSecondsAfterFinished is the default TTL for PodGroup after finished
-	DefaultTTLSecondsAfterFinished = 3600 // 1 hour
 )
 
 // Manager manages PodGroups for gang scheduling
@@ -143,7 +139,7 @@ func (m *Manager) buildOwnerReference(mi *workloadv1alpha1.ModelInfer) []metav1.
 			Kind:       mi.Kind,
 			Name:       mi.Name,
 			UID:        mi.UID,
-			Controller: &[]bool{true}[0],
+			Controller: ptr.To(true),
 		},
 	}
 }

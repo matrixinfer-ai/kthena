@@ -24,14 +24,14 @@ import (
 // GangSchedule defines the gang scheduling configuration.
 type GangSchedule struct {
 	// NetworkTopology defines the NetworkTopology config, this field works in conjunction with network topology feature and hyperNode CRD.
-	// Fields can only be configured if enable=true
 	// +optional
 	NetworkTopology *volcanoV1Beta1.NetworkTopologySpec `json:"networkTopology,omitempty" protobuf:"bytes,5,opt,name=networkTopology"`
 
 	// MinRoleReplicas defines the minimum number of replicas required for each role
 	// in role-level gang scheduling. This map allows users to specify different
 	// minimum replica requirements for different roles.
-	// Key: role name, Value: minimum number of replicas required for that role
+	// Key: role name
+	// Value: minimum number of replicas required for that role
 	// +optional
 	MinRoleReplicas map[string]int32 `json:"minRoleReplicas,omitempty"`
 }
