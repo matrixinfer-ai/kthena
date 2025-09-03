@@ -51,12 +51,14 @@ package scheduler
 import (
 	"fmt"
 	"sort"
+	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 
 	"github.com/volcano-sh/kthena/pkg/infer-router/datastore"
+	"github.com/volcano-sh/kthena/pkg/infer-router/metrics"
 	"github.com/volcano-sh/kthena/pkg/infer-router/scheduler/framework"
 	"github.com/volcano-sh/kthena/pkg/infer-router/scheduler/plugins"
 	"github.com/volcano-sh/kthena/pkg/infer-router/scheduler/plugins/conf"
@@ -186,7 +188,16 @@ func (s *SchedulerImpl) Schedule(ctx *framework.Context, pods []*datastore.PodIn
 
 func (s *SchedulerImpl) RunFilterPlugins(pods []*datastore.PodInfo, ctx *framework.Context) ([]*datastore.PodInfo, error) {
 	for _, filterPlugin := range s.filterPlugins {
+		// Record filter plugin execution time
+		startTime := time.Now()
 		pods = filterPlugin.Filter(ctx, pods)
+		duration := time.Since(startTime)
+
+		// Use the MetricsRecorder from context to record plugin duration
+		if ctx.MetricsRecorder != nil {
+			ctx.MetricsRecorder.RecordSchedulerPluginDuration(filterPlugin.Name(), metrics.PluginTypeFilter, duration)
+		}
+
 		if len(pods) == 0 {
 			return nil, fmt.Errorf("pods have all been filtered out by %q", filterPlugin.Name())
 		}
@@ -198,7 +209,16 @@ func (s *SchedulerImpl) RunFilterPlugins(pods []*datastore.PodInfo, ctx *framewo
 func (s *SchedulerImpl) RunScorePlugins(pods []*datastore.PodInfo, ctx *framework.Context) map[*datastore.PodInfo]int {
 	res := make(map[*datastore.PodInfo]int)
 	for _, scorePlugin := range s.scorePlugins {
+		// Record score plugin execution time
+		startTime := time.Now()
 		scores := scorePlugin.plugin.Score(ctx, pods)
+		duration := time.Since(startTime)
+
+		// Use the MetricsRecorder from context to record plugin duration
+		if ctx.MetricsRecorder != nil {
+			ctx.MetricsRecorder.RecordSchedulerPluginDuration(scorePlugin.plugin.Name(), metrics.PluginTypeScore, duration)
+		}
+
 		klog.V(4).Infof("ScorePlugin: %s", scorePlugin.plugin.Name())
 		for k, v := range scores {
 			if k.Pod != nil {

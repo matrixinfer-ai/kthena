@@ -109,15 +109,15 @@ The router exposes the following metrics to monitor request processing:
     - `path`: Request path (/v1/chat/completions, /v1/completions, etc.)
 
 **Connection and Scheduling Metrics**
-- `infer_router_active_downstream_connections{model="<model_name>",model_route="<route_name>"}` (Gauge)
+- `infer_router_active_downstream_connections{model="<model_name>"}` (Gauge)
   - Current number of active downstream connections (from clients to router)
   - Labels:
     - `model`: AI model name
-    - `model_route`: ModelRoute name handling the connections
 
-- `infer_router_active_upstream_connections{model_server="<server_name>"}` (Gauge)
+- `infer_router_active_upstream_connections{model_route="<route_name>",model_server="<server_name>"}` (Gauge)
   - Current number of active upstream connections (from router to backend pods)
   - Labels:
+    - `model_route`: ModelRoute name handling the connections
     - `model_server`: ModelServer name processing the connections
   
 - `infer_router_fairness_queue_size{model="<model_name>",user_id="<user_id>"}` (Gauge)

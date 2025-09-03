@@ -288,7 +288,7 @@ func (s *store) Enqueue(req *Request) error {
 	if ok {
 		queue, _ = val.(*RequestPriorityQueue)
 	} else {
-		newQueue := NewRequestPriorityQueue()
+		newQueue := NewRequestPriorityQueue(nil)
 		val, ok = s.requestWaitingQueue.LoadOrStore(modelName, newQueue)
 		if !ok {
 			go newQueue.Run(context.TODO(), defaultQueueQPS)

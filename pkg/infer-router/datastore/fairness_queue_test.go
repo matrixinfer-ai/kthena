@@ -24,9 +24,9 @@ import (
 )
 
 func TestNewRequestPriorityQueue(t *testing.T) {
-	pq := NewRequestPriorityQueue()
+	pq := NewRequestPriorityQueue(nil)
 	if pq == nil {
-		t.Fatal("NewRequestPriorityQueue() returned nil")
+		t.Fatal("NewRequestPriorityQueue(nil) returned nil")
 	}
 	if pq.Len() != 0 {
 		t.Errorf("Expected empty queue, got length %d", pq.Len())
@@ -40,7 +40,7 @@ func TestNewRequestPriorityQueue(t *testing.T) {
 }
 
 func TestPushAndPopRequest(t *testing.T) {
-	pq := NewRequestPriorityQueue()
+	pq := NewRequestPriorityQueue(nil)
 	defer pq.Close()
 
 	req := &Request{
@@ -74,7 +74,7 @@ func TestPushAndPopRequest(t *testing.T) {
 }
 
 func TestPriorityOrdering(t *testing.T) {
-	pq := NewRequestPriorityQueue()
+	pq := NewRequestPriorityQueue(nil)
 	defer pq.Close()
 
 	now := time.Now()
@@ -106,7 +106,7 @@ func TestPriorityOrdering(t *testing.T) {
 }
 
 func TestFairnessSameUser(t *testing.T) {
-	pq := NewRequestPriorityQueue()
+	pq := NewRequestPriorityQueue(nil)
 	defer pq.Close()
 
 	now := time.Now()
@@ -138,7 +138,7 @@ func TestFairnessSameUser(t *testing.T) {
 }
 
 func TestPopWhenAvailable(t *testing.T) {
-	pq := NewRequestPriorityQueue()
+	pq := NewRequestPriorityQueue(nil)
 	defer pq.Close()
 
 	ctx := context.Background()
@@ -184,7 +184,7 @@ func TestPopWhenAvailable(t *testing.T) {
 }
 
 func TestPopWhenAvailableContextCancellation(t *testing.T) {
-	pq := NewRequestPriorityQueue()
+	pq := NewRequestPriorityQueue(nil)
 	defer pq.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -213,7 +213,7 @@ func TestPopWhenAvailableContextCancellation(t *testing.T) {
 }
 
 func TestPopWhenAvailableStopChannel(t *testing.T) {
-	pq := NewRequestPriorityQueue()
+	pq := NewRequestPriorityQueue(nil)
 
 	ctx := context.Background()
 
@@ -240,7 +240,7 @@ func TestPopWhenAvailableStopChannel(t *testing.T) {
 }
 
 func TestRunMethod(t *testing.T) {
-	pq := NewRequestPriorityQueue()
+	pq := NewRequestPriorityQueue(nil)
 	defer pq.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
@@ -305,7 +305,7 @@ func TestRunMethod(t *testing.T) {
 }
 
 func TestConcurrentPushPop(t *testing.T) {
-	pq := NewRequestPriorityQueue()
+	pq := NewRequestPriorityQueue(nil)
 	defer pq.Close()
 
 	numGoroutines := 10
@@ -371,7 +371,7 @@ func TestConcurrentPushPop(t *testing.T) {
 }
 
 func TestClose(t *testing.T) {
-	pq := NewRequestPriorityQueue()
+	pq := NewRequestPriorityQueue(nil)
 
 	// Close should be idempotent
 	pq.Close()

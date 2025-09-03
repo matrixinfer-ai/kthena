@@ -40,7 +40,9 @@ import (
 	"github.com/volcano-sh/kthena/pkg/infer-router/datastore"
 	"github.com/volcano-sh/kthena/pkg/infer-router/filters/auth"
 	"github.com/volcano-sh/kthena/pkg/infer-router/filters/ratelimit"
+	"github.com/volcano-sh/kthena/pkg/infer-router/filters/tokenizer"
 	"github.com/volcano-sh/kthena/pkg/infer-router/handlers"
+	"github.com/volcano-sh/kthena/pkg/infer-router/metrics"
 	"github.com/volcano-sh/kthena/pkg/infer-router/scheduler"
 	"github.com/volcano-sh/kthena/pkg/infer-router/scheduler/framework"
 	"github.com/volcano-sh/kthena/pkg/infer-router/scheduler/plugins/conf"
@@ -55,6 +57,8 @@ type Router struct {
 	store           datastore.Store
 	loadRateLimiter *ratelimit.TokenRateLimiter
 	accessLogger    accesslog.AccessLogger
+	metrics         *metrics.Metrics
+	tokenizer       tokenizer.Tokenizer
 
 	// KV Connector management
 	connectorFactory *connectors.Factory
@@ -63,6 +67,12 @@ type Router struct {
 func NewRouter(store datastore.Store, routerConfigPath string) *Router {
 	// Create a unified rate limiter for all models
 	loadRateLimiter := ratelimit.NewTokenRateLimiter()
+
+	// Use global metrics instance
+	metricsInstance := metrics.DefaultMetrics
+
+	// Initialize tokenizer
+	tokenizerInstance := tokenizer.NewSimpleEstimateTokenizer()
 
 	store.RegisterCallback("ModelRoute", func(data datastore.EventData) {
 		switch data.EventType {
@@ -125,6 +135,8 @@ func NewRouter(store datastore.Store, routerConfigPath string) *Router {
 		authenticator:    auth.NewJWTAuthenticator(routerConfig),
 		loadRateLimiter:  loadRateLimiter,
 		accessLogger:     accessLogger,
+		metrics:          metricsInstance,
+		tokenizer:        tokenizerInstance,
 		connectorFactory: connectors.NewDefaultFactory(),
 	}
 }
@@ -146,38 +158,70 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 		// Set model name in access log
 		accesslog.SetModelName(c, modelName)
 
+		// Store model name in context for metrics middleware
+		c.Set("model", modelName)
+
+		// Create metrics recorder for this request
+		path := c.Request.URL.Path
+		metricsRecorder := metrics.NewRequestMetricsRecorder(r.metrics, modelName, path)
+
+		// Increment downstream connection count at request start
+		r.metrics.IncActiveDownstreamConnections(modelName)
+		defer func() {
+			// Decrement downstream connection count when request completes
+			r.metrics.DecActiveDownstreamConnections(modelName)
+		}()
+
 		prompt, err := utils.ParsePrompt(modelRequest)
 		if err != nil {
 			accesslog.SetError(c, "prompt_parsing", "prompt not found")
 			c.AbortWithStatusJSON(http.StatusNotFound, "prompt not found")
+			metricsRecorder.Finish(strconv.Itoa(http.StatusNotFound), "prompt_parsing")
 			return
 		}
 		promptStr := utils.GetPromptString(prompt)
 
+		// Calculate input tokens for metrics using tokenizer
+		inputTokens, err := r.tokenizer.CalculateTokenNum(promptStr)
+		if err != nil {
+			klog.Errorf("failed to calculate token number: %v", err)
+			inputTokens = len(promptStr) / 4 // fallback estimation
+		}
+
 		// Calculate and set input tokens for access log
-		inputTokens := len(promptStr) / 4 // Simple estimation
 		accesslog.SetTokenCounts(c, inputTokens, 0)
 
 		// Mark end of request processing phase
 		accesslog.MarkRequestProcessingEnd(c)
 
+		// Record input tokens immediately
+		metricsRecorder.RecordInputTokens(inputTokens)
+
 		// Apply rate limiting using the unified rate limiter
 		if err := r.loadRateLimiter.RateLimit(modelName, promptStr); err != nil {
 			var errorMsg string
 			var errorType string
+			var tokenType string
 			switch err.(type) {
 			case *ratelimit.InputRateLimitExceededError:
 				errorMsg = "input token rate limit exceeded"
 				errorType = "input_rate_limit"
+				tokenType = metrics.LimitTypeInputTokens
 			case *ratelimit.OutputRateLimitExceededError:
 				errorMsg = "output token rate limit exceeded"
 				errorType = "output_rate_limit"
+				tokenType = metrics.LimitTypeOutputTokens
 			default:
 				errorMsg = "token usage exceeds rate limit"
 				errorType = "rate_limit"
+				tokenType = metrics.LimitTypeRequests
 			}
 			accesslog.SetError(c, errorType, errorMsg)
+
+			// Record rate limit exceeded
+			metricsRecorder.RecordRateLimitExceeded(tokenType)
 			c.AbortWithStatusJSON(http.StatusTooManyRequests, errorMsg)
+			metricsRecorder.Finish(strconv.Itoa(http.StatusTooManyRequests), "rate_limit")
 			return
 		}
 
@@ -185,6 +229,9 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 		if c.Request.Header.Get("x-request-id") == "" {
 			c.Request.Header.Set("x-request-id", requestID)
 		}
+
+		// Store metrics recorder in context for use in other functions
+		c.Set("metricsRecorder", metricsRecorder)
 
 		// step 3.1: load balancing
 		if !EnableFairnessScheduling {
@@ -195,6 +242,7 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 		// step 3.2: load balancing for Fairness scheduling enabled case
 		if err := r.handleFairnessScheduling(c, modelRequest, requestID, modelName); err != nil {
 			accesslog.SetError(c, "scheduling", err.Error())
+			metricsRecorder.Finish(strconv.Itoa(c.Writer.Status()), "scheduling")
 			return
 		}
 	}
@@ -233,11 +281,20 @@ func (r *Router) doLoadbalance(c *gin.Context, modelRequest ModelRequest) {
 		c.AbortWithStatusJSON(http.StatusNotFound, "prompt not found")
 		return
 	}
+	// Get metrics recorder from gin context
+	var metricsRecorder *metrics.RequestMetricsRecorder
+	if recorder, exists := c.Get("metricsRecorder"); exists {
+		if rec, ok := recorder.(*metrics.RequestMetricsRecorder); ok {
+			metricsRecorder = rec
+		}
+	}
+
 	ctx := &framework.Context{
 		Model:           modelName,
 		Prompt:          prompt,
 		ModelServerName: modelServerName,
 		PDGroup:         pdGroup,
+		MetricsRecorder: metricsRecorder,
 	}
 
 	err = r.scheduler.Schedule(ctx, pods)
@@ -252,6 +309,8 @@ func (r *Router) doLoadbalance(c *gin.Context, modelRequest ModelRequest) {
 	modelRouteName := ""
 	if modelRoute != nil {
 		modelRouteName = fmt.Sprintf("%s/%s", modelRoute.Namespace, modelRoute.Name)
+		// Set the model route name in context for upstream connections
+		c.Set("modelRouteName", modelRouteName)
 	}
 
 	if len(ctx.BestPods) > 0 && ctx.BestPods[0].Pod != nil {
@@ -312,9 +371,27 @@ func (r *Router) proxy(
 	port int32,
 	onUsage func(u handlers.OpenAIResponse),
 ) error {
+	modelServerName := fmt.Sprintf("%s/%s", ctx.ModelServerName.Namespace, ctx.ModelServerName.Name)
+
+	// Get model route name from context
+	var modelRouteName string
+	if routeName, exists := c.Get("modelRouteName"); exists {
+		if name, ok := routeName.(string); ok {
+			modelRouteName = name
+		}
+	}
+
 	for i := 0; i < len(ctx.BestPods); i++ {
+		// Increment upstream connection count with both modelServer and modelRoute
+		r.metrics.IncActiveUpstreamConnections(modelServerName, modelRouteName)
+
 		// Request dispatched to the pod.
-		if err := proxyRequest(c, req, ctx.BestPods[i].Pod.Status.PodIP, port, stream, onUsage); err != nil {
+		err := proxyRequest(c, req, ctx.BestPods[i].Pod.Status.PodIP, port, stream, onUsage)
+
+		// Decrement upstream connection count when request completes
+		r.metrics.DecActiveUpstreamConnections(modelServerName, modelRouteName)
+
+		if err != nil {
 			klog.Errorf(" pod request error: %v", err)
 			continue
 		}
@@ -335,6 +412,14 @@ func (r *Router) proxyModelEndpoint(
 ) error {
 	// Mark start of upstream processing
 	accesslog.MarkUpstreamStart(c)
+
+	// Get metrics recorder from context
+	var metricsRecorder *metrics.RequestMetricsRecorder
+	if recorder, exists := c.Get("metricsRecorder"); exists {
+		if rec, ok := recorder.(*metrics.RequestMetricsRecorder); ok {
+			metricsRecorder = rec
+		}
+	}
 
 	// proxy to pd aggregated pod
 	if ctx.BestPods != nil {
@@ -357,6 +442,12 @@ func (r *Router) proxyModelEndpoint(
 			// Update access log with output tokens
 			if accessCtx := accesslog.GetAccessLogContext(c); accessCtx != nil {
 				accessCtx.SetTokenCounts(accessCtx.InputTokens, resp.Usage.CompletionTokens)
+			}
+
+			// Record output token metrics
+			if metricsRecorder != nil {
+				// Record output tokens
+				metricsRecorder.RecordOutputTokens(resp.Usage.CompletionTokens)
 			}
 			if userID == "" || modelName == "" {
 				return
@@ -542,6 +633,29 @@ func (r *Router) proxyToPDDisaggregated(
 	modelRequest ModelRequest,
 	port int32,
 ) error {
+	// Get metrics recorder from context
+	var metricsRecorder *metrics.RequestMetricsRecorder
+	if recorder, exists := c.Get("metricsRecorder"); exists {
+		if rec, ok := recorder.(*metrics.RequestMetricsRecorder); ok {
+			metricsRecorder = rec
+		}
+	}
+
+	modelServerName := fmt.Sprintf("%s/%s", ctx.ModelServerName.Namespace, ctx.ModelServerName.Name)
+
+	// Get model route name from context
+	var modelRouteName string
+	if routeName, exists := c.Get("modelRouteName"); exists {
+		if name, ok := routeName.(string); ok {
+			modelRouteName = name
+		}
+	}
+
+	// Set upstream connection info in metrics recorder
+	if metricsRecorder != nil {
+		metricsRecorder.SetUpstreamConnectionInfo(modelServerName, modelRouteName)
+	}
+
 	// Try multiple prefill/decode pairs
 	maxRetry := len(ctx.DecodePods)
 	if len(ctx.PrefillPods) < maxRetry {
@@ -559,7 +673,9 @@ func (r *Router) proxyToPDDisaggregated(
 
 		klog.V(4).Infof("Attempting PD disaggregated request: prefill=%s, decode=%s", prefillAddr, decodeAddr)
 
+		// Execute the PD disaggregated proxy operation
 		outputTokens, err := kvConnector.Proxy(c, modelRequest, prefillAddr, decodeAddr)
+
 		if err != nil {
 			klog.Errorf("proxy failed for prefill pod %s, decode pod %s: %v",
 				ctx.PrefillPods[i].Pod.Name, ctx.DecodePods[i].Pod.Name, err)
@@ -569,6 +685,11 @@ func (r *Router) proxyToPDDisaggregated(
 		// Record output tokens for rate limiting
 		if outputTokens > 0 && r.loadRateLimiter != nil {
 			r.loadRateLimiter.RecordOutputTokens(ctx.Model, outputTokens)
+		}
+
+		// Record output token metrics
+		if metricsRecorder != nil {
+			metricsRecorder.RecordOutputTokens(outputTokens)
 		}
 
 		// Record successful operation in cache

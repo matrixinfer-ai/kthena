@@ -22,6 +22,7 @@ import (
 	aiv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
 	"github.com/volcano-sh/kthena/pkg/infer-router/common"
 	"github.com/volcano-sh/kthena/pkg/infer-router/datastore"
+	"github.com/volcano-sh/kthena/pkg/infer-router/metrics"
 )
 
 // Context stores information which maybe useful in Filter or Score plugins.
@@ -40,6 +41,9 @@ type Context struct {
 
 	// 2. PD aggregated mode, BestPods is selected for inference.
 	BestPods []*datastore.PodInfo
+
+	// MetricsRecorder for recording scheduler plugin metrics
+	MetricsRecorder *metrics.RequestMetricsRecorder
 }
 
 type ScorePlugin interface {
