@@ -49,6 +49,43 @@ spec:
                   - $(POD_NAME).$(NAMESPACE)
                   - --model
                   - ds-r1-qwen-7b-pd
+                env:
+                  - name: ENDPOINT
+                    value: https://obs.test.com
+                  - name: POD_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.name
+                  - name: NAMESPACE
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.namespace
+                  - name: VLLM_USE_V1
+                    value: "1"
+                  - name: REDIS_HOST
+                    valueFrom:
+                      configMapKeyRef:
+                        key: REDIS_HOST
+                        name: redis-config
+                        optional: true
+                  - name: REDIS_PORT
+                    valueFrom:
+                      configMapKeyRef:
+                        key: REDIS_PORT
+                        name: redis-config
+                        optional: true
+                  - name: REDIS_PASSWORD
+                    valueFrom:
+                      secretKeyRef:
+                        key: REDIS_PASSWORD
+                        name: redis-secret
+                        optional: true
+                  - name: HF_HUB_OFFLINE
+                    value: "1"
+                  - name: HCCL_IF_IP
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: status.podIP
                 image: matrixinfer/runtime:latest
                 name: runtime
                 ports:
@@ -88,6 +125,24 @@ spec:
                         fieldPath: metadata.namespace
                   - name: VLLM_USE_V1
                     value: "1"
+                  - name: REDIS_HOST
+                    valueFrom:
+                      configMapKeyRef:
+                        key: REDIS_HOST
+                        name: redis-config
+                        optional: true
+                  - name: REDIS_PORT
+                    valueFrom:
+                      configMapKeyRef:
+                        key: REDIS_PORT
+                        name: redis-config
+                        optional: true
+                  - name: REDIS_PASSWORD
+                    valueFrom:
+                      secretKeyRef:
+                        key: REDIS_PASSWORD
+                        name: redis-secret
+                        optional: true
                   - name: HF_HUB_OFFLINE
                     value: "1"
                   - name: HCCL_IF_IP
@@ -179,6 +234,45 @@ spec:
                   - $(POD_NAME).$(NAMESPACE)
                   - --model
                   - ds-r1-qwen-7b-pd
+                env:
+                  - name: ENDPOINT
+                    value: https://obs.test.com
+                  - name: POD_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.name
+                  - name: NAMESPACE
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.namespace
+                  - name: VLLM_USE_V1
+                    value: "1"
+                  - name: REDIS_HOST
+                    valueFrom:
+                      configMapKeyRef:
+                        key: REDIS_HOST
+                        name: redis-config
+                        optional: true
+                  - name: REDIS_PORT
+                    valueFrom:
+                      configMapKeyRef:
+                        key: REDIS_PORT
+                        name: redis-config
+                        optional: true
+                  - name: REDIS_PASSWORD
+                    valueFrom:
+                      secretKeyRef:
+                        key: REDIS_PASSWORD
+                        name: redis-secret
+                        optional: true
+                  - name: HF_HUB_OFFLINE
+                    value: "1"
+                  - name: GLOO_SOCKET_IFNAME
+                    value: eth0
+                  - name: TP_SOCKET_IFNAME
+                    value: eth0
+                  - name: HCCL_SOCKET_IFNAME
+                    value: eth0
                 envFrom:
                 - secretRef:
                     name: downloader-secrets
@@ -221,6 +315,24 @@ spec:
                         fieldPath: metadata.namespace
                   - name: VLLM_USE_V1
                     value: "1"
+                  - name: REDIS_HOST
+                    valueFrom:
+                      configMapKeyRef:
+                        key: REDIS_HOST
+                        name: redis-config
+                        optional: true
+                  - name: REDIS_PORT
+                    valueFrom:
+                      configMapKeyRef:
+                        key: REDIS_PORT
+                        name: redis-config
+                        optional: true
+                  - name: REDIS_PASSWORD
+                    valueFrom:
+                      secretKeyRef:
+                        key: REDIS_PASSWORD
+                        name: redis-secret
+                        optional: true
                   - name: HF_HUB_OFFLINE
                     value: "1"
                   - name: GLOO_SOCKET_IFNAME

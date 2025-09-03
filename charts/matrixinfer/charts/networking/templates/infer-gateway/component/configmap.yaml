@@ -22,7 +22,7 @@ data:
         args:
           blockSizeToHash: 128
           maxBlocksToMatch: 128
-          redis: {{.Values.redis.enabled}}
+          redis: false
       plugins:
         Filter:
           enabled:
@@ -38,6 +38,4 @@ data:
             - name: least-latency
               weight: 1
             - name: prefix-cache
-              weight: 1
-            - name: kvcache-aware
               weight: 1

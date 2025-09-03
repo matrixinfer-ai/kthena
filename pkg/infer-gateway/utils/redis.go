@@ -31,7 +31,7 @@ var (
 
 func GetRedisClient() *redis.Client {
 	redisOnce.Do(func() {
-		redisHost := LoadEnv("REDIS_HOST", "localhost")
+		redisHost := LoadEnv("REDIS_HOST", "redis-server")
 		redisPort := LoadEnv("REDIS_PORT", "6379")
 		redisPassword := LoadEnv("REDIS_PASSWORD", "")
 		redisClient = redis.NewClient(&redis.Options{

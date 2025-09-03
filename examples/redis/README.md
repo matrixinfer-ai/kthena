@@ -13,11 +13,10 @@ Redis is required when using the following MatrixInfer features:
 Deploy Redis using the provided configuration:
 
 ```bash
-kubectl apply -f redis-standalone.yaml
+kubectl apply -f redis-standalone.yaml -n <namespace>
 ```
 
 This will create:
-- `matrixinfer-system` namespace
 - Redis server deployment
 - Redis service
 - Required ConfigMap and Secret for MatrixInfer integration
@@ -27,7 +26,7 @@ This will create:
 The deployment creates the following resources that MatrixInfer components automatically use:
 
 - **ConfigMap** (`redis-config`): Contains Redis connection information
-  - `REDIS_HOST`: `redis-server.matrixinfer-system.svc.cluster.local`
+  - `REDIS_HOST`: `redis-server`
   - `REDIS_PORT`: `6379`
 
 - **Secret** (`redis-secret`): Contains Redis authentication (empty password by default)
@@ -49,15 +48,15 @@ The provided configuration is suitable for development and testing. For producti
 
 If you have an existing Redis deployment or prefer a different configuration:
 
-1. Ensure Redis is accessible from the `matrixinfer-system` namespace
-2. Create the required ConfigMap and Secret:
+1. Ensure Redis is accessible from the MatrixInfer namespace
+2. Create the required ConfigMap and Secret in the same namespace as MatrixInfer:
 
 ```yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: redis-config
-  namespace: matrixinfer-system
+  namespace: <your-namespace>  # Same namespace as MatrixInfer
 data:
   REDIS_HOST: "your-redis-host"
   REDIS_PORT: "6379"
@@ -66,8 +65,8 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: redis-secret
-  namespace: matrixinfer-system
+  namespace: <your-namespace>  # Same namespace as MatrixInfer
 type: Opaque
 data:
-  password: "base64-encoded-password"  # Use empty string "" for no password
+  REDIS_PASSWORD: "base64-encoded-password"  # Use empty string "" for no password
 ```
