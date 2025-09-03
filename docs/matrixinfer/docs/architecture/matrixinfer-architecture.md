@@ -94,32 +94,32 @@ Each replica deployment may include the following components:
 
 This architecture enables **Prefill/Decode Disaggregation (PD mode)**, allowing independent scaling of different inference stages for optimal resource utilization and performance.
 
-## How it Works (The Flow)
+## Request Processing Pipeline
 
-1.  **Someone wants an AI to do something (User Request):**
-    *   A **User** sends a request to the **Infer Gateway**.
-2.  **The Gateway checks things (Infer Gateway):**
-    *   It first checks who you are (**Auth**) and if you're sending too many requests (**Rate Limiting**).
-3.  **Making sure everyone gets a turn (Fairness Scheduling & Queue):**
-    *   If many requests come in at once, a **Fairness Scheduler** makes sure everyone gets a fair chance, sometimes putting requests in a **Queue** to wait.
-4.  **Smartly Routing Requests (Scheduler):**
-    *   A **Scheduler** decides *which* existing **Inference Pods** should receive incoming requests for optimal performance.
-    *   It uses **Filter Plugins** to rule out unsuitable pods and **Score Plugins** to select the best pods, considering factors like current request load (**Least Request**), available memory caches (**KV Cache Aware**, **GPU Cache**), response latency (**Least Latency**), and cache optimizations (**Prefix Cache**).
-5.  **Sending the request to the right AI worker (Load Balancing & Proxy):**
-    *   A **Load Balancer** then directs the request to a healthy "worker" based on model information (from the Control Plane).
-    *   A **Proxy** acts as the delivery service, taking the request to the specific AI "worker."
-6.  **The AI Workers do the thinking (Inference Pods):**
-    *   These are called **Inference Pods**. Each pod is like a small AI expert.
-    *   For LLMs, there might be two types of experts:
-    *   **Prefill Pods (Role A):** Handle the initial understanding of your request.
-    *   **Decode Pods (Role B):** Generate the actual answer, token by token.
-    *   Each pod has special **LLM engines** (like vLLM or SGLang) that are good at LLM tasks.
-    *   They also have helpers: an **Init Container** to download the model (like getting the right tools) and a **Sidecar Container** with a **Runtime Agent** to keep an eye on how well the worker is doing.
-7.  **Managing the Workers (Control Plane in Action):**
-    *   **Operators** can tell the **Model Controller** to add new AI models or change existing ones.
-    *   The **Model Controller** then tells other parts, like the **Model Route Controller** (how to find the new model), the **Model Server Controller** (how to set up the new model's home), and the **Model Infer Controller** (how to manage its workers).
-    *   It also sets **Autoscaling Policies** (how many workers to have based on demand) and binds them to the model.
-    *   The **Autoscaler Controller** watches the **Inference Pods** for performance (using "get metrics") and tells the **Model Infer Controller** to create more or fewer workers as needed.
+1.  **Request Ingress (Client Request Initiation):**
+    *   Client applications submit inference requests to the **Infer Gateway** via REST/gRPC endpoints.
+2.  **Gateway Request Processing (Authentication & Rate Control):**
+    *   The **Infer Gateway** validates client credentials through **Authentication & Authorization** middleware and enforces **Rate Limiting** policies to prevent system overload.
+3.  **Fairness Scheduling & Queue Management:**
+    *   When request volume exceeds processing capacity, the **Fairness Scheduler** implements queue-based resource allocation mechanisms to ensure equitable request distribution and prevent resource starvation.
+4.  **Intelligent Request Routing (Scheduler Optimization):**
+    *   The **Scheduler** evaluates available **Inference Pods** using a multi-stage selection algorithm:
+    *   **Filter Plugins** eliminate unsuitable pods based on resource constraints and compatibility requirements.
+    *   **Score Plugins** rank candidate pods using optimization criteria including current request load (**Least Requests**), cache utilization (**KV Cache Aware**, **GPU Cache**), latency minimization (**Least Latency**), and prefix caching efficiency (**Prefix Cache**).
+5.  **Load Balancing & Request Dispatching:**
+    *   The **Load Balancer** routes requests to optimal backend instances based on health checks and capacity metrics derived from Control Plane metadata.
+    *   The **Proxy** component handles request forwarding and maintains connection pooling to target inference groups.
+6.  **Inference Pod Execution:**
+    *   **Inference Pods** execute model computations within specialized role-based architectures:
+    *   **Prefill Pods:** Process input tokenization, context encoding, and KV cache initialization for prompt understanding.
+    *   **Decode Pods:** Perform autoregressive token generation and output streaming for response completion.
+    *   Each pod integrates **LLM Engines** (vLLM, SGLang) for optimized inference execution.
+    *   Supporting components include **Init Containers** for model artifact retrieval, **Sidecar Containers** with **Runtime Agents** for telemetry collection and health monitoring.
+7.  **Control Plane Orchestration (Resource Lifecycle Management):**
+    *   **Platform Operators** manage model deployments through CRD manipulation of **Model** resources.
+    *   The **Model Controller** propagates configuration changes to downstream controllers: **ModelRoute Controller** (routing rule synchronization), **ModelServer Controller** (endpoint configuration), and **ModelInfer Controller** (replica group orchestration).
+    *   **AutoScaling Policies** define scaling triggers and behaviors, bound to models through **AutoScalingPolicyBinding** resources.
+    *   The **Autoscaler Controller** continuously monitors pod metrics and executes scaling decisions by instructing the **ModelInfer Controller** to adjust replica counts based on configured policies.
 
 ## Key Features
 
