@@ -1,7 +1,8 @@
-import React, { useState } from "react";
-import Lightbox from "yet-another-react-lightbox";
-import Zoom from "yet-another-react-lightbox/plugins/zoom";
-import "yet-another-react-lightbox/styles.css";
+import React, { useState } from 'react';
+import Lightbox from 'yet-another-react-lightbox';
+import Zoom from 'yet-another-react-lightbox/plugins/zoom';
+import 'yet-another-react-lightbox/styles.css';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 
 interface LightboxImageProps {
   src: string;
@@ -17,21 +18,22 @@ const LightboxImage: React.FC<LightboxImageProps> = ({
   className,
 }) => {
   const [open, setOpen] = useState(false);
+  const imageSrc = useBaseUrl(src);
 
   return (
     <>
       <img
-        src={src}
+        src={imageSrc}
         alt={alt}
         title={title}
         className={className}
         onClick={() => setOpen(true)}
-        style={{ cursor: "pointer" }}
+        style={{ cursor: 'pointer' }}
       />
       <Lightbox
         open={open}
         close={() => setOpen(false)}
-        slides={[{ src, alt }]}
+        slides={[{ src: imageSrc, alt }]}
         plugins={[Zoom]}
         zoom={{
           scrollToZoom: true,
@@ -41,7 +43,7 @@ const LightboxImage: React.FC<LightboxImageProps> = ({
         styles={{
           container: {
             // Example: semi-transparent black
-            "--yarl__color_backdrop": "rgba(0,0,0,0.8)",
+            '--yarl__color_backdrop': 'rgba(0,0,0,0.8)',
           },
         }}
       />
