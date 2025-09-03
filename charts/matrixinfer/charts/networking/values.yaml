@@ -23,6 +23,17 @@ inferGateway:
     requests:
       cpu: 100m
       memory: 128Mi
+  # fairness configuration for request scheduling
+  fairness:
+    # enabled controls whether fairness scheduling is active
+    enabled: false
+    # windowSize is the sliding window duration for token usage tracking
+    # Valid formats: 1m, 5m, 10m, 30m, 1h (default: 1h)
+    windowSize: "1h"
+    # inputTokenWeight is the weight multiplier for input tokens in priority calculation (default: 1.0)
+    inputTokenWeight: 1.0
+    # outputTokenWeight is the weight multiplier for output tokens in priority calculation (default: 2.0)
+    outputTokenWeight: 2.0
 
 redis:
   # Redis is deployed separately using examples in examples/redis/

@@ -21,7 +21,9 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -51,9 +53,56 @@ var (
 		utils.TPOT,
 		utils.TTFT,
 	}
+)
 
+const (
+	// Configuration constants for fairness scheduling
+	defaultQueueQPS = 100
 	uppdateInterval = 1 * time.Second
 )
+
+// createTokenTracker creates a token tracker with configuration from environment variables
+func createTokenTracker() TokenTracker {
+	var opts []TokenTrackerOption
+
+	// Parse window size from environment
+	if windowSizeStr := os.Getenv("FAIRNESS_WINDOW_SIZE"); windowSizeStr != "" {
+		if windowSize, err := time.ParseDuration(windowSizeStr); err == nil {
+			opts = append(opts, WithWindowSize(windowSize))
+		} else {
+			klog.Warningf("Invalid FAIRNESS_WINDOW_SIZE: %v, using default", err)
+		}
+	}
+
+	// Parse token weights from environment
+	inputWeightStr := os.Getenv("FAIRNESS_INPUT_TOKEN_WEIGHT")
+	outputWeightStr := os.Getenv("FAIRNESS_OUTPUT_TOKEN_WEIGHT")
+
+	if inputWeightStr != "" || outputWeightStr != "" {
+		inputWeight := defaultInputTokenWeight
+		outputWeight := defaultOutputTokenWeight
+
+		if inputWeightStr != "" {
+			if w, err := strconv.ParseFloat(inputWeightStr, 64); err == nil {
+				inputWeight = w
+			} else {
+				klog.Warningf("Invalid FAIRNESS_INPUT_TOKEN_WEIGHT: %v, using default", err)
+			}
+		}
+
+		if outputWeightStr != "" {
+			if w, err := strconv.ParseFloat(outputWeightStr, 64); err == nil {
+				outputWeight = w
+			} else {
+				klog.Warningf("Invalid FAIRNESS_OUTPUT_TOKEN_WEIGHT: %v, using default", err)
+			}
+		}
+
+		opts = append(opts, WithTokenWeights(inputWeight, outputWeight))
+	}
+
+	return NewInMemorySlidingWindowTokenTracker(opts...)
+}
 
 // EventType represents different types of events that can trigger callbacks
 type EventType string
@@ -193,8 +242,8 @@ func New() Store {
 		callbacks:           make(map[string][]CallbackFunc),
 		initialSynced:       &atomic.Bool{},
 		requestWaitingQueue: sync.Map{},
-		// Make options explicit; tweak as needed or wire to config
-		tokenTracker: NewInMemorySlidingWindowTokenTracker(),
+		// Create token tracker with environment-based configuration
+		tokenTracker: createTokenTracker(),
 	}
 }
 
@@ -236,7 +285,7 @@ func (s *store) Enqueue(req *Request) error {
 		newQueue := NewRequestPriorityQueue()
 		val, ok = s.requestWaitingQueue.LoadOrStore(modelName, newQueue)
 		if !ok {
-			go newQueue.Run(context.TODO(), 100)
+			go newQueue.Run(context.TODO(), defaultQueueQPS)
 		}
 		queue, _ = val.(*RequestPriorityQueue)
 	}
