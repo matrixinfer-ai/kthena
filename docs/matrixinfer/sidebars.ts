@@ -63,6 +63,7 @@ const sidebars: SidebarsConfig = {
         'developer-guide/release',
         'developer-guide/modelinfer-rolling-update',
         'developer-guide/ci',
+        'deceloper-guide/modelinfer-scaling'
       ],
     },
     {
