@@ -21,7 +21,7 @@ You can find the example YAML
 file [here](https://github.com/matrixinfer-ai/matrixinfer/tree/main/examples/model/Qwen2.5-0.5B-Instruct.yaml).
 
 ```bash
-kubectl apply -f /examples/model/Qwen2.5-0.5B-Instruct.yaml -n <your-namespace>
+kubectl apply -f https://raw.githubusercontent.com/matrixinfer-ai/matrixinfer/refs/heads/main/examples/model/Qwen2.5-0.5B-Instruct.yaml -n <your-namespace>
 ```
 
 ## Step 2: Wait for Model to be Ready
