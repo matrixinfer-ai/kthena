@@ -37,7 +37,7 @@ inferGateway:
 
 redis:
   # Redis is deployed separately using examples in examples/redis/
-  # Set enabled to true when using KV cache plugin
+  # Set enabled to true when using KV Cache Aware plugin
   enabled: false
   # Redis connection configuration will be read from redis-config ConfigMap
   # Deploy Redis using examples/redis/redis-standalone.yaml when needed

@@ -5,7 +5,7 @@ This directory contains Redis deployment configuration for MatrixInfer.
 ## When to Deploy Redis
 
 Redis is required when using the following MatrixInfer features:
-- **KV Cache Plugin** - For caching key-value pairs to improve performance
+- **KV Cache Aware Plugin** - For caching key-value pairs to improve performance
 - **Global Rate Limit** - To share and synchronize the token counts across all gateway pods
 
 ## Quick Start

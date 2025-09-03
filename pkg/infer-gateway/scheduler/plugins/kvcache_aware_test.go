@@ -39,16 +39,16 @@ import (
 
 // Test core functions that don't require external dependencies
 
-func TestKVCacheBlock_String_Core(t *testing.T) {
+func TestKVCacheAwareBlock_String_Core(t *testing.T) {
 	tests := []struct {
 		name     string
-		block    KVCacheBlock
+		block    KVCacheAwareBlock
 		prefix   string
 		expected string
 	}{
 		{
 			name: "Basic block string generation",
-			block: KVCacheBlock{
+			block: KVCacheAwareBlock{
 				ModelName: "test-model",
 				ChunkHash: 12345,
 			},
@@ -57,7 +57,7 @@ func TestKVCacheBlock_String_Core(t *testing.T) {
 		},
 		{
 			name: "Complex model name",
-			block: KVCacheBlock{
+			block: KVCacheAwareBlock{
 				ModelName: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
 				ChunkHash: 9876543210,
 			},
@@ -66,7 +66,7 @@ func TestKVCacheBlock_String_Core(t *testing.T) {
 		},
 		{
 			name: "Zero hash",
-			block: KVCacheBlock{
+			block: KVCacheAwareBlock{
 				ModelName: "model",
 				ChunkHash: 0,
 			},
@@ -312,8 +312,8 @@ func TestTokenBlockProcessor_TokensToBlockHashes_Core(t *testing.T) {
 	}
 }
 
-func TestKVCache_CalculatePodScores_Core(t *testing.T) {
-	plugin := &KVCache{}
+func TestKVCacheAware_CalculatePodScores_Core(t *testing.T) {
+	plugin := &KVCacheAware{}
 
 	tests := []struct {
 		name        string
@@ -405,7 +405,7 @@ func createTestPods(names ...string) []*datastore.PodInfo {
 	return pods
 }
 
-func TestNewKVCache_Core(t *testing.T) {
+func TestNewKVCacheAware_Core(t *testing.T) {
 	tests := []struct {
 		name              string
 		pluginArg         runtime.RawExtension
@@ -419,7 +419,7 @@ func TestNewKVCache_Core(t *testing.T) {
 			pluginArg:         runtime.RawExtension{},
 			expectedBlockSize: defaultBlockSizeToHash,
 			expectedMaxBlocks: defaultMaxBlocksToMatch,
-			expectedName:      KVCachePluginName,
+			expectedName:      KVCacheAwarePluginName,
 			expectedKeyPrefix: kvCacheKeyPrefix,
 		},
 		{
@@ -429,7 +429,7 @@ func TestNewKVCache_Core(t *testing.T) {
 			},
 			expectedBlockSize: 64,
 			expectedMaxBlocks: 256,
-			expectedName:      KVCachePluginName,
+			expectedName:      KVCacheAwarePluginName,
 			expectedKeyPrefix: kvCacheKeyPrefix,
 		},
 		{
@@ -439,7 +439,7 @@ func TestNewKVCache_Core(t *testing.T) {
 			},
 			expectedBlockSize: defaultBlockSizeToHash,
 			expectedMaxBlocks: defaultMaxBlocksToMatch,
-			expectedName:      KVCachePluginName,
+			expectedName:      KVCacheAwarePluginName,
 			expectedKeyPrefix: kvCacheKeyPrefix,
 		},
 		{
@@ -449,7 +449,7 @@ func TestNewKVCache_Core(t *testing.T) {
 			},
 			expectedBlockSize: defaultBlockSizeToHash,
 			expectedMaxBlocks: defaultMaxBlocksToMatch,
-			expectedName:      KVCachePluginName,
+			expectedName:      KVCacheAwarePluginName,
 			expectedKeyPrefix: kvCacheKeyPrefix,
 		},
 		{
@@ -459,7 +459,7 @@ func TestNewKVCache_Core(t *testing.T) {
 			},
 			expectedBlockSize: defaultBlockSizeToHash,
 			expectedMaxBlocks: defaultMaxBlocksToMatch,
-			expectedName:      KVCachePluginName,
+			expectedName:      KVCacheAwarePluginName,
 			expectedKeyPrefix: kvCacheKeyPrefix,
 		},
 	}
@@ -467,7 +467,7 @@ func TestNewKVCache_Core(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test configuration parsing without Redis connection
-			var args KVCacheArgs
+			var args KVCacheAwareArgs
 			if len(tt.pluginArg.Raw) > 0 {
 				err := yaml.Unmarshal(tt.pluginArg.Raw, &args)
 				if tt.name != "Invalid YAML configuration falls back to defaults" && err != nil {
@@ -500,8 +500,8 @@ func TestNewKVCache_Core(t *testing.T) {
 			}
 
 			// Test constants
-			if KVCachePluginName != tt.expectedName {
-				t.Errorf("Expected name %s, got %s", tt.expectedName, KVCachePluginName)
+			if KVCacheAwarePluginName != tt.expectedName {
+				t.Errorf("Expected name %s, got %s", tt.expectedName, KVCacheAwarePluginName)
 			}
 
 			if kvCacheKeyPrefix != tt.expectedKeyPrefix {
@@ -511,7 +511,7 @@ func TestNewKVCache_Core(t *testing.T) {
 	}
 }
 
-func TestKVCache_Score_Core(t *testing.T) {
+func TestKVCacheAware_Score_Core(t *testing.T) {
 	pods := createTestPods("pod1", "pod2", "pod3")
 
 	tests := []struct {
@@ -567,8 +567,8 @@ func TestKVCache_Score_Core(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			plugin := &KVCache{
-				name:             KVCachePluginName,
+			plugin := &KVCacheAware{
+				name:             KVCacheAwarePluginName,
 				maxBlocksToMatch: 128,
 				keyPrefix:        kvCacheKeyPrefix,
 				processor:        &TokenBlockProcessor{blockSize: 128},
@@ -590,11 +590,11 @@ func TestKVCache_Score_Core(t *testing.T) {
 	}
 }
 
-// TestKVCache_TokenizeWithChatTemplate_Core has been removed as the tokenizeWithChatTemplate
+// TestKVCacheAware_TokenizeWithChatTemplate_Core has been removed as the tokenizeWithChatTemplate
 // method has been moved to the tokenization package. The functionality is now tested
 // in the tokenization package tests.
 
-func TestKVCache_MaxBlocksToMatch_Core(t *testing.T) {
+func TestKVCacheAware_MaxBlocksToMatch_Core(t *testing.T) {
 	tests := []struct {
 		name           string
 		maxBlocks      int
@@ -638,7 +638,7 @@ func TestKVCache_MaxBlocksToMatch_Core(t *testing.T) {
 	}
 }
 
-func TestKVCache_EdgeCases_Core(t *testing.T) {
+func TestKVCacheAware_EdgeCases_Core(t *testing.T) {
 	tests := []struct {
 		name        string
 		description string
@@ -696,7 +696,7 @@ func TestKVCache_EdgeCases_Core(t *testing.T) {
 	}
 }
 
-func TestKVCache_QueryRedisForBlocks_Core(t *testing.T) {
+func TestKVCacheAware_QueryRedisForBlocks_Core(t *testing.T) {
 	// Note: This test focuses on the core logic without actual Redis dependency
 	// In a real integration test, you would use a Redis test container
 
@@ -749,7 +749,7 @@ func TestKVCache_QueryRedisForBlocks_Core(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test Redis key generation
 			for _, hash := range tt.blockHashes {
-				block := KVCacheBlock{ModelName: tt.modelName, ChunkHash: hash}
+				block := KVCacheAwareBlock{ModelName: tt.modelName, ChunkHash: hash}
 				key := block.String(kvCacheKeyPrefix)
 				expectedKey := kvCacheKeyPrefix + tt.modelName + "@" + fmt.Sprintf("%d", hash)
 				if key != expectedKey {
@@ -775,8 +775,8 @@ func TestKVCache_QueryRedisForBlocks_Core(t *testing.T) {
 	}
 }
 
-func TestKVCache_CalculatePodScores_AdvancedCases_Core(t *testing.T) {
-	plugin := &KVCache{}
+func TestKVCacheAware_CalculatePodScores_AdvancedCases_Core(t *testing.T) {
+	plugin := &KVCacheAware{}
 
 	tests := []struct {
 		name        string
@@ -866,7 +866,7 @@ func TestKVCache_CalculatePodScores_AdvancedCases_Core(t *testing.T) {
 	}
 }
 
-func TestKVCache_NormalizeAndTokenizePrompt_Core(t *testing.T) {
+func TestKVCacheAware_NormalizeAndTokenizePrompt_Core(t *testing.T) {
 	// Note: This test focuses on the core logic that can be tested without external dependencies
 	// Full integration tests would require actual tokenizer setup
 
@@ -879,7 +879,7 @@ func TestKVCache_NormalizeAndTokenizePrompt_Core(t *testing.T) {
 			name:        "Empty prompt text and messages",
 			description: "Test behavior with empty prompt",
 			testFunc: func(t *testing.T) {
-				plugin := &KVCache{}
+				plugin := &KVCacheAware{}
 				ctx := &framework.Context{
 					Model: "test-model",
 					Prompt: common.ChatMessage{
@@ -959,7 +959,7 @@ func TestKVCache_NormalizeAndTokenizePrompt_Core(t *testing.T) {
 	}
 }
 
-func TestKVCache_Performance_Core(t *testing.T) {
+func TestKVCacheAware_Performance_Core(t *testing.T) {
 	tests := []struct {
 		name        string
 		description string
@@ -1058,7 +1058,7 @@ func TestKVCache_Performance_Core(t *testing.T) {
 	}
 }
 
-func TestKVCache_Integration_Core(t *testing.T) {
+func TestKVCacheAware_Integration_Core(t *testing.T) {
 	// Integration-style tests that test multiple components together
 
 	tests := []struct {
@@ -1070,8 +1070,8 @@ func TestKVCache_Integration_Core(t *testing.T) {
 			name:        "End-to-end token processing",
 			description: "Test complete flow from tokens to scores",
 			testFunc: func(t *testing.T) {
-				plugin := &KVCache{
-					name:             KVCachePluginName,
+				plugin := &KVCacheAware{
+					name:             KVCacheAwarePluginName,
 					maxBlocksToMatch: 10,
 					keyPrefix:        kvCacheKeyPrefix,
 					processor:        &TokenBlockProcessor{blockSize: 4},
@@ -1137,7 +1137,7 @@ func TestKVCache_Integration_Core(t *testing.T) {
 			name:        "Score calculation edge cases",
 			description: "Test score calculation with various scenarios",
 			testFunc: func(t *testing.T) {
-				plugin := &KVCache{}
+				plugin := &KVCacheAware{}
 
 				// Test with fractional scores
 				blockHashes := []uint64{1, 2, 3}
@@ -1166,7 +1166,7 @@ func TestKVCache_Integration_Core(t *testing.T) {
 	}
 }
 
-func TestKVCache_Constants_Core(t *testing.T) {
+func TestKVCacheAware_Constants_Core(t *testing.T) {
 	// Test that constants have expected values
 	tests := []struct {
 		name     string
@@ -1175,8 +1175,8 @@ func TestKVCache_Constants_Core(t *testing.T) {
 	}{
 		{
 			name:     "Plugin name",
-			actual:   KVCachePluginName,
-			expected: "kv-cache",
+			actual:   KVCacheAwarePluginName,
+			expected: "kvcache-aware",
 		},
 		{
 			name:     "Key prefix",
@@ -1375,11 +1375,11 @@ func TestTokenBlockProcessor_Advanced_Core(t *testing.T) {
 }
 
 // Test normalizeAndTokenizePrompt method branches
-func TestKVCache_NormalizeAndTokenizePrompt_Advanced_Core(t *testing.T) {
+func TestKVCacheAware_NormalizeAndTokenizePrompt_Advanced_Core(t *testing.T) {
 	tests := []struct {
 		name        string
 		context     *framework.Context
-		setupPlugin func() *KVCache
+		setupPlugin func() *KVCacheAware
 		expectError bool
 		description string
 	}{
@@ -1391,8 +1391,8 @@ func TestKVCache_NormalizeAndTokenizePrompt_Advanced_Core(t *testing.T) {
 					Text: "Hello world",
 				},
 			},
-			setupPlugin: func() *KVCache {
-				return &KVCache{
+			setupPlugin: func() *KVCacheAware {
+				return &KVCacheAware{
 					// tokenizerManager is nil
 				}
 			},
@@ -1409,8 +1409,8 @@ func TestKVCache_NormalizeAndTokenizePrompt_Advanced_Core(t *testing.T) {
 					},
 				},
 			},
-			setupPlugin: func() *KVCache {
-				return &KVCache{
+			setupPlugin: func() *KVCacheAware {
+				return &KVCacheAware{
 					// tokenizerManager is nil
 				}
 			},
@@ -1426,8 +1426,8 @@ func TestKVCache_NormalizeAndTokenizePrompt_Advanced_Core(t *testing.T) {
 					Messages: []common.Message{},
 				},
 			},
-			setupPlugin: func() *KVCache {
-				return &KVCache{
+			setupPlugin: func() *KVCacheAware {
+				return &KVCacheAware{
 					// tokenizerManager is nil
 				}
 			},
@@ -1458,13 +1458,13 @@ func TestKVCache_NormalizeAndTokenizePrompt_Advanced_Core(t *testing.T) {
 }
 
 // Test Score method with various Redis scenarios
-func TestKVCache_Score_Advanced_Core(t *testing.T) {
+func TestKVCacheAware_Score_Advanced_Core(t *testing.T) {
 	pods := createTestPods("pod1", "pod2", "pod3")
 
 	tests := []struct {
 		name           string
 		context        *framework.Context
-		setupPlugin    func() *KVCache
+		setupPlugin    func() *KVCacheAware
 		expectedScores map[string]int
 		description    string
 	}{
@@ -1476,9 +1476,9 @@ func TestKVCache_Score_Advanced_Core(t *testing.T) {
 					Text: "Hello world",
 				},
 			},
-			setupPlugin: func() *KVCache {
-				return &KVCache{
-					name:             KVCachePluginName,
+			setupPlugin: func() *KVCacheAware {
+				return &KVCacheAware{
+					name:             KVCacheAwarePluginName,
 					maxBlocksToMatch: 128,
 					keyPrefix:        kvCacheKeyPrefix,
 					// processor is nil
@@ -1499,9 +1499,9 @@ func TestKVCache_Score_Advanced_Core(t *testing.T) {
 					Text: "Hello world",
 				},
 			},
-			setupPlugin: func() *KVCache {
-				return &KVCache{
-					name:             KVCachePluginName,
+			setupPlugin: func() *KVCacheAware {
+				return &KVCacheAware{
+					name:             KVCacheAwarePluginName,
 					maxBlocksToMatch: 0, // Very small limit
 					keyPrefix:        kvCacheKeyPrefix,
 					processor:        &TokenBlockProcessor{blockSize: 1},
@@ -1594,8 +1594,8 @@ func TestExtractPodNameFromIdentifier_Advanced_Core(t *testing.T) {
 }
 
 // Test calculatePodScores with complex scenarios
-func TestKVCache_CalculatePodScores_Complex_Core(t *testing.T) {
-	plugin := &KVCache{}
+func TestKVCacheAware_CalculatePodScores_Complex_Core(t *testing.T) {
+	plugin := &KVCacheAware{}
 
 	tests := []struct {
 		name        string
@@ -1695,17 +1695,17 @@ func TestKVCache_CalculatePodScores_Complex_Core(t *testing.T) {
 // TestKVCache_TokenizeWithChatTemplate_Advanced_Core has been removed as the tokenizeWithChatTemplate
 // method has been moved to the tokenization package.
 
-// Test KVCacheBlock String method with various inputs
-func TestKVCacheBlock_String_Advanced_Core(t *testing.T) {
+// Test KVCacheAwareBlock String method with various inputs
+func TestKVCacheAwareBlock_String_Advanced_Core(t *testing.T) {
 	tests := []struct {
 		name     string
-		block    KVCacheBlock
+		block    KVCacheAwareBlock
 		prefix   string
 		expected string
 	}{
 		{
 			name: "Normal case",
-			block: KVCacheBlock{
+			block: KVCacheAwareBlock{
 				ModelName: "test-model",
 				ChunkHash: 12345,
 			},
@@ -1714,7 +1714,7 @@ func TestKVCacheBlock_String_Advanced_Core(t *testing.T) {
 		},
 		{
 			name: "Empty prefix",
-			block: KVCacheBlock{
+			block: KVCacheAwareBlock{
 				ModelName: "test-model",
 				ChunkHash: 12345,
 			},
@@ -1723,7 +1723,7 @@ func TestKVCacheBlock_String_Advanced_Core(t *testing.T) {
 		},
 		{
 			name: "Model name with special characters",
-			block: KVCacheBlock{
+			block: KVCacheAwareBlock{
 				ModelName: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
 				ChunkHash: 9876543210,
 			},
@@ -1732,7 +1732,7 @@ func TestKVCacheBlock_String_Advanced_Core(t *testing.T) {
 		},
 		{
 			name: "Zero hash",
-			block: KVCacheBlock{
+			block: KVCacheAwareBlock{
 				ModelName: "test-model",
 				ChunkHash: 0,
 			},
@@ -1741,7 +1741,7 @@ func TestKVCacheBlock_String_Advanced_Core(t *testing.T) {
 		},
 		{
 			name: "Maximum hash value",
-			block: KVCacheBlock{
+			block: KVCacheAwareBlock{
 				ModelName: "test-model",
 				ChunkHash: 0x7FFFFFFFFFFFFFFF, // Max positive int64
 			},
@@ -1750,7 +1750,7 @@ func TestKVCacheBlock_String_Advanced_Core(t *testing.T) {
 		},
 		{
 			name: "Empty model name",
-			block: KVCacheBlock{
+			block: KVCacheAwareBlock{
 				ModelName: "",
 				ChunkHash: 12345,
 			},
@@ -1770,13 +1770,13 @@ func TestKVCacheBlock_String_Advanced_Core(t *testing.T) {
 }
 
 // Test error handling and edge cases in Score method
-func TestKVCache_Score_ErrorHandling_Core(t *testing.T) {
+func TestKVCacheAware_Score_ErrorHandling_Core(t *testing.T) {
 	pods := createTestPods("pod1", "pod2")
 
 	tests := []struct {
 		name        string
 		context     *framework.Context
-		setupPlugin func() *KVCache
+		setupPlugin func() *KVCacheAware
 		description string
 	}{
 		{
@@ -1787,9 +1787,9 @@ func TestKVCache_Score_ErrorHandling_Core(t *testing.T) {
 					Text: "Hello",
 				},
 			},
-			setupPlugin: func() *KVCache {
-				return &KVCache{
-					name:             KVCachePluginName,
+			setupPlugin: func() *KVCacheAware {
+				return &KVCacheAware{
+					name:             KVCacheAwarePluginName,
 					maxBlocksToMatch: 128,
 					keyPrefix:        kvCacheKeyPrefix,
 					processor:        &TokenBlockProcessor{blockSize: 128},
@@ -1805,9 +1805,9 @@ func TestKVCache_Score_ErrorHandling_Core(t *testing.T) {
 					Text: "Hello world this is a longer text",
 				},
 			},
-			setupPlugin: func() *KVCache {
-				return &KVCache{
-					name:             KVCachePluginName,
+			setupPlugin: func() *KVCacheAware {
+				return &KVCacheAware{
+					name:             KVCacheAwarePluginName,
 					maxBlocksToMatch: 1, // Very small limit
 					keyPrefix:        kvCacheKeyPrefix,
 					processor:        &TokenBlockProcessor{blockSize: 1}, // Small blocks
@@ -1847,7 +1847,7 @@ func TestKVCache_Score_ErrorHandling_Core(t *testing.T) {
 }
 
 // Test binary conversion logic in normalizeAndTokenizePrompt
-func TestKVCache_BinaryConversion_Core(t *testing.T) {
+func TestKVCacheAware_BinaryConversion_Core(t *testing.T) {
 	tests := []struct {
 		name        string
 		inputBytes  []byte
@@ -1990,9 +1990,9 @@ func TestComputeStandardizedHash_Distribution_Core(t *testing.T) {
 }
 
 // Test concurrent access safety (basic test)
-func TestKVCache_Concurrency_Core(t *testing.T) {
-	plugin := &KVCache{
-		name:             KVCachePluginName,
+func TestKVCacheAware_Concurrency_Core(t *testing.T) {
+	plugin := &KVCacheAware{
+		name:             KVCacheAwarePluginName,
 		maxBlocksToMatch: 128,
 		keyPrefix:        kvCacheKeyPrefix,
 		processor:        &TokenBlockProcessor{blockSize: 4},
@@ -2025,27 +2025,27 @@ func TestKVCache_Concurrency_Core(t *testing.T) {
 }
 
 // Test Name method
-func TestKVCache_Name_Core(t *testing.T) {
-	plugin := &KVCache{
-		name: KVCachePluginName,
+func TestKVCacheAware_Name_Core(t *testing.T) {
+	plugin := &KVCacheAware{
+		name: KVCacheAwarePluginName,
 	}
 
-	if plugin.Name() != KVCachePluginName {
-		t.Errorf("Expected name %s, got %s", KVCachePluginName, plugin.Name())
+	if plugin.Name() != KVCacheAwarePluginName {
+		t.Errorf("Expected name %s, got %s", KVCacheAwarePluginName, plugin.Name())
 	}
 
 	// Test with custom name
-	customPlugin := &KVCache{
-		name: "custom-kv-cache",
+	customPlugin := &KVCacheAware{
+		name: "custom-kvcache-aware",
 	}
 
-	if customPlugin.Name() != "custom-kv-cache" {
-		t.Errorf("Expected name custom-kv-cache, got %s", customPlugin.Name())
+	if customPlugin.Name() != "custom-kvcache-aware" {
+		t.Errorf("Expected name custom-kvcache-aware, got %s", customPlugin.Name())
 	}
 }
 
 // Test comprehensive integration scenarios
-func TestKVCache_Integration_Comprehensive_Core(t *testing.T) {
+func TestKVCacheAware_Integration_Comprehensive_Core(t *testing.T) {
 	tests := []struct {
 		name        string
 		description string
@@ -2056,8 +2056,8 @@ func TestKVCache_Integration_Comprehensive_Core(t *testing.T) {
 			description: "Simulate complete KV cache workflow",
 			testFunc: func(t *testing.T) {
 				// Create plugin with realistic configuration
-				plugin := &KVCache{
-					name:             KVCachePluginName,
+				plugin := &KVCacheAware{
+					name:             KVCacheAwarePluginName,
 					maxBlocksToMatch: 10,
 					keyPrefix:        kvCacheKeyPrefix,
 					processor:        &TokenBlockProcessor{blockSize: 8},
@@ -2073,7 +2073,7 @@ func TestKVCache_Integration_Comprehensive_Core(t *testing.T) {
 
 				// Test block key generation
 				for i, hash := range blockHashes {
-					block := KVCacheBlock{ModelName: "test-model", ChunkHash: hash}
+					block := KVCacheAwareBlock{ModelName: "test-model", ChunkHash: hash}
 					key := block.String(plugin.keyPrefix)
 					expectedPrefix := plugin.keyPrefix + "test-model@"
 					if !strings.HasPrefix(key, expectedPrefix) {
@@ -2102,7 +2102,7 @@ func TestKVCache_Integration_Comprehensive_Core(t *testing.T) {
 			name:        "Stress test with large data",
 			description: "Test with large token sequences and many blocks",
 			testFunc: func(t *testing.T) {
-				plugin := &KVCache{
+				plugin := &KVCacheAware{
 					processor: &TokenBlockProcessor{blockSize: 10},
 				}
 
