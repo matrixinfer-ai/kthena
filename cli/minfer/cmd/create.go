@@ -17,15 +17,15 @@ package cmd
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
-	"text/template"
 
 	"github.com/spf13/cobra"
+	"helm.sh/helm/v3/pkg/chart"
+	"helm.sh/helm/v3/pkg/engine"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/tools/clientcmd"
@@ -166,17 +166,44 @@ func renderTemplate(templateName string, values map[string]interface{}) (string,
 		return "", fmt.Errorf("failed to read template: %v", err)
 	}
 
-	tmpl, err := template.New(templateName).Parse(templateData)
+	// Create Helm template engine
+	helmEngine := engine.Engine{
+		EnableDNS: false,
+	}
+
+	// Create a Helm chart structure
+	helmChart := &chart.Chart{
+		Metadata: &chart.Metadata{
+			Name:    "minfer-template",
+			Version: "1.0.0",
+		},
+		Templates: []*chart.File{
+			{
+				Name: "templates/" + templateName,
+				Data: []byte(templateData),
+			},
+		},
+	}
+
+	// Wrap values under "Values" key for proper Helm template access
+	helmValues := map[string]interface{}{
+		"Values": values,
+	}
+
+	// Render template using Helm engine
+	rendered, err := helmEngine.Render(helmChart, helmValues)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse template: %v", err)
+		return "", fmt.Errorf("failed to render template: %v", err)
 	}
 
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, values); err != nil {
-		return "", fmt.Errorf("failed to execute template: %v", err)
+	// Get rendered content for our template
+	templateKey := "minfer-template/templates/" + templateName
+	renderedContent, exists := rendered[templateKey]
+	if !exists {
+		return "", fmt.Errorf("template '%s' was not rendered", templateName)
 	}
 
-	return buf.String(), nil
+	return renderedContent, nil
 }
 
 func askForConfirmation(question string) bool {
