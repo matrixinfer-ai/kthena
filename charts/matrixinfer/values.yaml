@@ -22,6 +22,16 @@ networking:
       dnsName: "your-domain.com"
       # The name of the secret to store the certificate and key.
       secretName: "infer-gateway-tls"
+    # fairness configuration for request scheduling
+    fairness:
+      # enabled controls whether fairness scheduling is active
+      enabled: false
+      # windowSize is the sliding window duration for token usage tracking
+      windowSize: "1h"
+      # inputTokenWeight is the weight multiplier for input tokens
+      inputTokenWeight: 1.0
+      # outputTokenWeight is the weight multiplier for output tokens
+      outputTokenWeight: 2.0
   webhook:
     enabled: true
 

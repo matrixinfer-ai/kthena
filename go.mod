@@ -4,9 +4,11 @@ go 1.24.0
 
 require (
 	github.com/agiledragon/gomonkey/v2 v2.13.0
+	github.com/alicebob/miniredis/v2 v2.35.0
 	github.com/cespare/xxhash v1.1.0
 	github.com/gammazero/deque v1.0.0
 	github.com/gin-gonic/gin v1.10.0
+	github.com/go-redis/redis/v8 v8.11.5
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-retryablehttp v0.7.7
 	github.com/hashicorp/golang-lru/v2 v2.0.7
@@ -31,6 +33,7 @@ require (
 	sigs.k8s.io/controller-runtime v0.20.4
 	sigs.k8s.io/structured-merge-diff/v4 v4.7.0
 	sigs.k8s.io/yaml v1.4.0
+	volcano.sh/apis v1.12.2
 )
 
 require (
@@ -84,6 +87,7 @@ require (
 	github.com/ugorji/go/codec v1.2.12 // indirect
 	github.com/valyala/fastjson v1.6.4 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
+	github.com/yuin/gopher-lua v1.1.1 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/arch v0.8.0 // indirect

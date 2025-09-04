@@ -15,6 +15,38 @@
 
 
 
+#### BodyMatch
+
+
+
+BodyMatch defines the predicate used to match request body content
+
+
+
+_Appears in:_
+- [ModelMatch](#modelmatch)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `model` _string_ | Model is the name of the model or lora adapter to match.<br />If this field is not specified, any model or lora adapter will be matched. |  |  |
+
+
+#### GlobalRateLimit
+
+
+
+GlobalRateLimit contains configuration for global rate limiting
+
+
+
+_Appears in:_
+- [RateLimit](#ratelimit)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `redis` _[RedisConfig](#redisconfig)_ | Redis contains configuration for Redis-based global rate limiting. |  |  |
+
+
 #### InferenceEngine
 
 _Underlying type:_ _string_
@@ -86,6 +118,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `headers` _object (keys:string, values:[StringMatch](#stringmatch))_ | Header to match: prefix, exact, regex<br />If unset, any header will be matched. |  |  |
 | `uri` _[StringMatch](#stringmatch)_ | URI to match: prefix, exact, regex<br />If this field is not specified, a default prefix match on the "/" path is provided. |  |  |
+| `body` _[BodyMatch](#bodymatch)_ | Body contains conditions to match request body content |  |  |
 
 
 #### ModelRoute
@@ -273,6 +306,7 @@ _Appears in:_
 | `inputTokensPerUnit` _integer_ | InputTokensPerUnit is the maximum number of input tokens allowed per unit of time.<br />If this field is not set, there is no limit on input tokens. |  | Minimum: 1 <br /> |
 | `outputTokensPerUnit` _integer_ | OutputTokensPerUnit is the maximum number of output tokens allowed per unit of time.<br />If this field is not set, there is no limit on output tokens. |  | Minimum: 1 <br /> |
 | `unit` _[RateLimitUnit](#ratelimitunit)_ | Unit is the time unit for the rate limit. | second | Enum: [second minute hour day month] <br /> |
+| `global` _[GlobalRateLimit](#globalratelimit)_ | Global contains configuration for global rate limiting using distributed storage.<br />If this field is set, global rate limiting will be used; otherwise, local rate limiting will be used. |  |  |
 
 
 #### RateLimitUnit
@@ -294,6 +328,22 @@ _Appears in:_
 | `hour` |  |
 | `day` |  |
 | `month` |  |
+
+
+#### RedisConfig
+
+
+
+RedisConfig contains Redis connection configuration
+
+
+
+_Appears in:_
+- [GlobalRateLimit](#globalratelimit)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `address` _string_ | Address is the Redis server address in the format "host:port". |  | Required: \{\} <br /> |
 
 
 #### Retry

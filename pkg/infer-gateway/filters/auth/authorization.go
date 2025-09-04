@@ -17,13 +17,8 @@ limitations under the License.
 package auth
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 )
 
 func Authorize(ctx *gin.Context) {
-	ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-		"message": "authentication failed",
-	})
 }

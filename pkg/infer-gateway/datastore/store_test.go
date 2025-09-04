@@ -17,8 +17,13 @@ limitations under the License.
 package datastore
 
 import (
+	"fmt"
+	"net/http"
+	"net/url"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/agiledragon/gomonkey/v2"
 	dto "github.com/prometheus/client_model/go"
@@ -31,6 +36,11 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/backend"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
+
+// ptr is a helper function to get pointer to a value
+func ptr[T any](v T) *T {
+	return &v
+}
 
 func Test_updateHistogramMetrics(t *testing.T) {
 	sum1 := float64(2)
@@ -449,4 +459,761 @@ func TestStoreGetPodsByModelServer(t *testing.T) {
 
 	_, err = s.GetPodsByModelServer(types.NamespacedName{Namespace: "default", Name: "notfound"})
 	assert.Error(t, err)
+}
+
+// TestStoreDeleteModelRoute tests various scenarios for DeleteModelRoute method
+func TestStoreDeleteModelRoute(t *testing.T) {
+	t.Run("delete route with model name", func(t *testing.T) {
+		s := &store{
+			routeInfo:           make(map[string]*modelRouteInfo),
+			routes:              make(map[string]*aiv1alpha1.ModelRoute),
+			loraRoutes:          make(map[string]*aiv1alpha1.ModelRoute),
+			callbacks:           make(map[string][]CallbackFunc),
+			requestWaitingQueue: sync.Map{},
+		}
+
+		// Create and add a model route
+		mr := &aiv1alpha1.ModelRoute{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "default",
+				Name:      "test-route",
+			},
+			Spec: aiv1alpha1.ModelRouteSpec{
+				ModelName:    "test-model",
+				LoraAdapters: []string{"lora1", "lora2"},
+			},
+		}
+
+		err := s.AddOrUpdateModelRoute(mr)
+		assert.NoError(t, err)
+
+		// Add a request queue
+		s.requestWaitingQueue.Store("test-model", NewRequestPriorityQueue())
+
+		// Track delete callbacks
+		var deleteCallbackCalled atomic.Bool
+		s.RegisterCallback("ModelRoute", func(data EventData) {
+			if data.EventType == EventDelete {
+				deleteCallbackCalled.Store(true)
+			}
+		})
+
+		// Delete the route
+		err = s.DeleteModelRoute("default/test-route")
+		assert.NoError(t, err)
+
+		// Verify state
+		s.routeMutex.RLock()
+		assert.Nil(t, s.routeInfo["default/test-route"])
+		assert.Nil(t, s.routes["test-model"])
+		assert.Nil(t, s.loraRoutes["lora1"])
+		assert.Nil(t, s.loraRoutes["lora2"])
+		s.routeMutex.RUnlock()
+
+		// Verify queue is deleted
+		_, exists := s.requestWaitingQueue.Load("test-model")
+		assert.False(t, exists)
+
+		// Verify callback was called
+		assert.Eventually(t, func() bool {
+			return deleteCallbackCalled.Load()
+		}, time.Second, 10*time.Millisecond)
+	})
+
+	t.Run("delete route with only lora adapters", func(t *testing.T) {
+		s := &store{
+			routeInfo:           make(map[string]*modelRouteInfo),
+			routes:              make(map[string]*aiv1alpha1.ModelRoute),
+			loraRoutes:          make(map[string]*aiv1alpha1.ModelRoute),
+			callbacks:           make(map[string][]CallbackFunc),
+			requestWaitingQueue: sync.Map{},
+		}
+
+		// Create and add a route with only lora adapters
+		mr := &aiv1alpha1.ModelRoute{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "test-ns",
+				Name:      "lora-route",
+			},
+			Spec: aiv1alpha1.ModelRouteSpec{
+				ModelName:    "", // No base model
+				LoraAdapters: []string{"lora3", "lora4"},
+			},
+		}
+
+		err := s.AddOrUpdateModelRoute(mr)
+		assert.NoError(t, err)
+
+		// Delete the route
+		err = s.DeleteModelRoute("test-ns/lora-route")
+		assert.NoError(t, err)
+
+		// Verify state
+		s.routeMutex.RLock()
+		assert.Nil(t, s.routeInfo["test-ns/lora-route"])
+		assert.Nil(t, s.loraRoutes["lora3"])
+		assert.Nil(t, s.loraRoutes["lora4"])
+		s.routeMutex.RUnlock()
+	})
+
+	t.Run("delete non-existent route", func(t *testing.T) {
+		s := &store{
+			routeInfo:           make(map[string]*modelRouteInfo),
+			routes:              make(map[string]*aiv1alpha1.ModelRoute),
+			loraRoutes:          make(map[string]*aiv1alpha1.ModelRoute),
+			callbacks:           make(map[string][]CallbackFunc),
+			requestWaitingQueue: sync.Map{},
+		}
+
+		// Track callbacks
+		var deleteCallbackCalled atomic.Bool
+		s.RegisterCallback("ModelRoute", func(data EventData) {
+			if data.EventType == EventDelete {
+				deleteCallbackCalled.Store(true)
+			}
+		})
+
+		// Delete non-existent route should not error
+		err := s.DeleteModelRoute("default/non-existent")
+		assert.NoError(t, err)
+
+		// Callback should still be called
+		assert.Eventually(t, func() bool {
+			return deleteCallbackCalled.Load()
+		}, time.Second, 10*time.Millisecond)
+	})
+
+	t.Run("delete route while preserving others", func(t *testing.T) {
+		s := &store{
+			routeInfo:           make(map[string]*modelRouteInfo),
+			routes:              make(map[string]*aiv1alpha1.ModelRoute),
+			loraRoutes:          make(map[string]*aiv1alpha1.ModelRoute),
+			callbacks:           make(map[string][]CallbackFunc),
+			requestWaitingQueue: sync.Map{},
+		}
+
+		// Add multiple routes
+		mr1 := &aiv1alpha1.ModelRoute{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "default",
+				Name:      "route1",
+			},
+			Spec: aiv1alpha1.ModelRouteSpec{
+				ModelName:    "model1",
+				LoraAdapters: []string{"lora1"},
+			},
+		}
+		mr2 := &aiv1alpha1.ModelRoute{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "default",
+				Name:      "route2",
+			},
+			Spec: aiv1alpha1.ModelRouteSpec{
+				ModelName:    "model2",
+				LoraAdapters: []string{"lora2"},
+			},
+		}
+
+		err := s.AddOrUpdateModelRoute(mr1)
+		assert.NoError(t, err)
+		err = s.AddOrUpdateModelRoute(mr2)
+		assert.NoError(t, err)
+
+		s.requestWaitingQueue.Store("model1", NewRequestPriorityQueue())
+		s.requestWaitingQueue.Store("model2", NewRequestPriorityQueue())
+
+		// Delete route1
+		err = s.DeleteModelRoute("default/route1")
+		assert.NoError(t, err)
+
+		// Verify route1 is deleted but route2 remains
+		s.routeMutex.RLock()
+		assert.Nil(t, s.routeInfo["default/route1"])
+		assert.NotNil(t, s.routeInfo["default/route2"])
+		assert.Nil(t, s.routes["model1"])
+		assert.NotNil(t, s.routes["model2"])
+		assert.Nil(t, s.loraRoutes["lora1"])
+		assert.NotNil(t, s.loraRoutes["lora2"])
+		s.routeMutex.RUnlock()
+
+		// Check queues
+		_, exists1 := s.requestWaitingQueue.Load("model1")
+		assert.False(t, exists1)
+		_, exists2 := s.requestWaitingQueue.Load("model2")
+		assert.True(t, exists2)
+	})
+}
+
+// TestStoreDeleteModelRoute_RequestQueueCleanup specifically tests the cleanup of request queues
+func TestStoreDeleteModelRoute_RequestQueueCleanup(t *testing.T) {
+	s := &store{
+		routeInfo:           make(map[string]*modelRouteInfo),
+		routes:              make(map[string]*aiv1alpha1.ModelRoute),
+		loraRoutes:          make(map[string]*aiv1alpha1.ModelRoute),
+		callbacks:           make(map[string][]CallbackFunc),
+		requestWaitingQueue: sync.Map{},
+	}
+
+	// Create a model route
+	mr := &aiv1alpha1.ModelRoute{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "default",
+			Name:      "cleanup-test",
+		},
+		Spec: aiv1alpha1.ModelRouteSpec{
+			ModelName: "cleanup-model",
+		},
+	}
+
+	// Add the route
+	err := s.AddOrUpdateModelRoute(mr)
+	assert.NoError(t, err)
+
+	// Create and setup a request queue
+	queue := NewRequestPriorityQueue()
+	s.requestWaitingQueue.Store("cleanup-model", queue)
+
+	// Verify queue exists
+	val, exists := s.requestWaitingQueue.Load("cleanup-model")
+	assert.True(t, exists)
+	assert.NotNil(t, val)
+
+	// Delete the model route
+	err = s.DeleteModelRoute("default/cleanup-test")
+	assert.NoError(t, err)
+
+	// Verify queue is deleted
+	_, exists = s.requestWaitingQueue.Load("cleanup-model")
+	assert.False(t, exists)
+}
+
+// TestStoreDeleteModelRoute_ConcurrentAccess tests thread safety of DeleteModelRoute
+func TestStoreDeleteModelRoute_ConcurrentAccess(t *testing.T) {
+	s := &store{
+		routeInfo:           make(map[string]*modelRouteInfo),
+		routes:              make(map[string]*aiv1alpha1.ModelRoute),
+		loraRoutes:          make(map[string]*aiv1alpha1.ModelRoute),
+		callbacks:           make(map[string][]CallbackFunc),
+		requestWaitingQueue: sync.Map{},
+	}
+
+	// Add multiple routes
+	for i := 0; i < 10; i++ {
+		mr := &aiv1alpha1.ModelRoute{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "default",
+				Name:      fmt.Sprintf("route%d", i),
+			},
+			Spec: aiv1alpha1.ModelRouteSpec{
+				ModelName: fmt.Sprintf("model%d", i),
+			},
+		}
+		err := s.AddOrUpdateModelRoute(mr)
+		assert.NoError(t, err)
+
+		s.requestWaitingQueue.Store(fmt.Sprintf("model%d", i), NewRequestPriorityQueue())
+	}
+
+	// Concurrently delete routes
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func(index int) {
+			defer wg.Done()
+			err := s.DeleteModelRoute(fmt.Sprintf("default/route%d", index))
+			assert.NoError(t, err)
+		}(i)
+	}
+
+	wg.Wait()
+
+	// Verify all routes and queues are deleted
+	s.routeMutex.RLock()
+	assert.Empty(t, s.routeInfo)
+	assert.Empty(t, s.routes)
+	assert.Empty(t, s.loraRoutes)
+	s.routeMutex.RUnlock()
+
+	// Verify all queues are deleted
+	s.requestWaitingQueue.Range(func(key, value interface{}) bool {
+		t.Errorf("Queue should not exist for key: %v", key)
+		return true
+	})
+}
+
+// createComplexModelRoute creates a ModelRoute with multiple rules for different models
+func createComplexModelRoute() *aiv1alpha1.ModelRoute {
+	return &aiv1alpha1.ModelRoute{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "default",
+			Name:      "complex-route",
+		},
+		Spec: aiv1alpha1.ModelRouteSpec{
+			ModelName:    "llama2-7b",
+			LoraAdapters: []string{"math-lora", "code-lora", "science-lora"},
+			Rules: []*aiv1alpha1.Rule{
+				{
+					Name: "base-model-rule",
+					ModelMatch: &aiv1alpha1.ModelMatch{
+						Body: &aiv1alpha1.BodyMatch{
+							Model: ptr("llama2-7b"),
+						},
+					},
+					TargetModels: []*aiv1alpha1.TargetModel{
+						{
+							ModelServerName: "base-model-server",
+						},
+					},
+				},
+				{
+					Name: "math-lora-rule",
+					ModelMatch: &aiv1alpha1.ModelMatch{
+						Body: &aiv1alpha1.BodyMatch{
+							Model: ptr("math-lora"),
+						},
+					},
+					TargetModels: []*aiv1alpha1.TargetModel{
+						{
+							ModelServerName: "math-specialized-server",
+						},
+					},
+				},
+				{
+					Name: "code-lora-rule",
+					ModelMatch: &aiv1alpha1.ModelMatch{
+						Body: &aiv1alpha1.BodyMatch{
+							Model: ptr("code-lora"),
+						},
+					},
+					TargetModels: []*aiv1alpha1.TargetModel{
+						{
+							ModelServerName: "code-specialized-server",
+						},
+					},
+				},
+				{
+					Name: "science-lora-rule",
+					ModelMatch: &aiv1alpha1.ModelMatch{
+						Body: &aiv1alpha1.BodyMatch{
+							Model: ptr("science-lora"),
+						},
+					},
+					TargetModels: []*aiv1alpha1.TargetModel{
+						{
+							ModelServerName: "science-specialized-server",
+						},
+					},
+				},
+				{
+					Name: "fallback-rule",
+					TargetModels: []*aiv1alpha1.TargetModel{
+						{
+							ModelServerName: "fallback-server",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func TestStoreMatchModelServer(t *testing.T) {
+	tests := []struct {
+		name           string
+		setupStore     func() *store
+		modelName      string
+		request        *http.Request
+		expectedServer types.NamespacedName
+		expectedIsLora bool
+		expectedError  bool
+	}{
+		{
+			name: "match base model route",
+			setupStore: func() *store {
+				s := &store{
+					routeInfo:  make(map[string]*modelRouteInfo),
+					routes:     make(map[string]*aiv1alpha1.ModelRoute),
+					loraRoutes: make(map[string]*aiv1alpha1.ModelRoute),
+				}
+
+				// Create a ModelRoute with base model and LoRA adapters
+				mr := &aiv1alpha1.ModelRoute{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "default",
+						Name:      "test-route",
+					},
+					Spec: aiv1alpha1.ModelRouteSpec{
+						ModelName:    "llama2-7b",
+						LoraAdapters: []string{"math-lora", "code-lora"},
+						Rules: []*aiv1alpha1.Rule{
+							{
+								Name: "default-rule",
+								TargetModels: []*aiv1alpha1.TargetModel{
+									{
+										ModelServerName: "llama2-server",
+										Weight:          ptr(uint32(100)),
+									},
+								},
+							},
+						},
+					},
+				}
+				s.AddOrUpdateModelRoute(mr)
+				return s
+			},
+			modelName:      "llama2-7b",
+			request:        &http.Request{URL: &url.URL{Path: "/v1/chat/completions"}},
+			expectedServer: types.NamespacedName{Namespace: "default", Name: "llama2-server"},
+			expectedIsLora: false,
+			expectedError:  false,
+		},
+		{
+			name: "match LoRA adapter route",
+			setupStore: func() *store {
+				s := &store{
+					routeInfo:  make(map[string]*modelRouteInfo),
+					routes:     make(map[string]*aiv1alpha1.ModelRoute),
+					loraRoutes: make(map[string]*aiv1alpha1.ModelRoute),
+				}
+
+				mr := &aiv1alpha1.ModelRoute{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "default",
+						Name:      "test-route",
+					},
+					Spec: aiv1alpha1.ModelRouteSpec{
+						ModelName:    "llama2-7b",
+						LoraAdapters: []string{"math-lora", "code-lora"},
+						Rules: []*aiv1alpha1.Rule{
+							{
+								Name: "lora-rule",
+								TargetModels: []*aiv1alpha1.TargetModel{
+									{
+										ModelServerName: "lora-server",
+										Weight:          ptr(uint32(100)),
+									},
+								},
+							},
+						},
+					},
+				}
+				s.AddOrUpdateModelRoute(mr)
+				return s
+			},
+			modelName:      "math-lora",
+			request:        &http.Request{URL: &url.URL{Path: "/v1/chat/completions"}},
+			expectedServer: types.NamespacedName{Namespace: "default", Name: "lora-server"},
+			expectedIsLora: true,
+			expectedError:  false,
+		},
+		{
+			name: "match with header conditions",
+			setupStore: func() *store {
+				s := &store{
+					routeInfo:  make(map[string]*modelRouteInfo),
+					routes:     make(map[string]*aiv1alpha1.ModelRoute),
+					loraRoutes: make(map[string]*aiv1alpha1.ModelRoute),
+				}
+
+				mr := &aiv1alpha1.ModelRoute{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "default",
+						Name:      "test-route",
+					},
+					Spec: aiv1alpha1.ModelRouteSpec{
+						ModelName:    "llama2-7b",
+						LoraAdapters: []string{"math-lora"},
+						Rules: []*aiv1alpha1.Rule{
+							{
+								Name: "header-rule",
+								ModelMatch: &aiv1alpha1.ModelMatch{
+									Headers: map[string]*aiv1alpha1.StringMatch{
+										"X-Model-Type": {
+											Exact: ptr("production"),
+										},
+									},
+								},
+								TargetModels: []*aiv1alpha1.TargetModel{
+									{
+										ModelServerName: "prod-server",
+										Weight:          ptr(uint32(100)),
+									},
+								},
+							},
+							{
+								Name: "fallback-rule",
+								TargetModels: []*aiv1alpha1.TargetModel{
+									{
+										ModelServerName: "dev-server",
+										Weight:          ptr(uint32(100)),
+									},
+								},
+							},
+						},
+					},
+				}
+				s.AddOrUpdateModelRoute(mr)
+				return s
+			},
+			modelName: "llama2-7b",
+			request: &http.Request{
+				URL: &url.URL{Path: "/v1/chat/completions"},
+				Header: map[string][]string{
+					"X-Model-Type": {"production"},
+				},
+			},
+			expectedServer: types.NamespacedName{Namespace: "default", Name: "prod-server"},
+			expectedIsLora: false,
+			expectedError:  false,
+		},
+		{
+			name: "route math-lora to specialized server",
+			setupStore: func() *store {
+				s := &store{
+					routeInfo:  make(map[string]*modelRouteInfo),
+					routes:     make(map[string]*aiv1alpha1.ModelRoute),
+					loraRoutes: make(map[string]*aiv1alpha1.ModelRoute),
+				}
+				s.AddOrUpdateModelRoute(createComplexModelRoute())
+				return s
+			},
+			modelName:      "math-lora",
+			request:        &http.Request{URL: &url.URL{Path: "/v1/chat/completions"}},
+			expectedServer: types.NamespacedName{Namespace: "default", Name: "math-specialized-server"},
+			expectedIsLora: true,
+			expectedError:  false,
+		},
+		{
+			name: "route base model to base server",
+			setupStore: func() *store {
+				s := &store{
+					routeInfo:  make(map[string]*modelRouteInfo),
+					routes:     make(map[string]*aiv1alpha1.ModelRoute),
+					loraRoutes: make(map[string]*aiv1alpha1.ModelRoute),
+				}
+				s.AddOrUpdateModelRoute(createComplexModelRoute())
+				return s
+			},
+			modelName:      "llama2-7b",
+			request:        &http.Request{URL: &url.URL{Path: "/v1/chat/completions"}},
+			expectedServer: types.NamespacedName{Namespace: "default", Name: "base-model-server"},
+			expectedIsLora: false,
+			expectedError:  false,
+		},
+		{
+			name: "route code-lora to specialized server",
+			setupStore: func() *store {
+				s := &store{
+					routeInfo:  make(map[string]*modelRouteInfo),
+					routes:     make(map[string]*aiv1alpha1.ModelRoute),
+					loraRoutes: make(map[string]*aiv1alpha1.ModelRoute),
+				}
+				s.AddOrUpdateModelRoute(createComplexModelRoute())
+				return s
+			},
+			modelName:      "code-lora",
+			request:        &http.Request{URL: &url.URL{Path: "/v1/chat/completions"}},
+			expectedServer: types.NamespacedName{Namespace: "default", Name: "code-specialized-server"},
+			expectedIsLora: true,
+			expectedError:  false,
+		},
+		{
+			name: "route science-lora to specialized server",
+			setupStore: func() *store {
+				s := &store{
+					routeInfo:  make(map[string]*modelRouteInfo),
+					routes:     make(map[string]*aiv1alpha1.ModelRoute),
+					loraRoutes: make(map[string]*aiv1alpha1.ModelRoute),
+				}
+				s.AddOrUpdateModelRoute(createComplexModelRoute())
+				return s
+			},
+			modelName:      "science-lora",
+			request:        &http.Request{URL: &url.URL{Path: "/v1/chat/completions"}},
+			expectedServer: types.NamespacedName{Namespace: "default", Name: "science-specialized-server"},
+			expectedIsLora: true,
+			expectedError:  false,
+		},
+		{
+			name: "route with URI prefix match",
+			setupStore: func() *store {
+				s := &store{
+					routeInfo:  make(map[string]*modelRouteInfo),
+					routes:     make(map[string]*aiv1alpha1.ModelRoute),
+					loraRoutes: make(map[string]*aiv1alpha1.ModelRoute),
+				}
+
+				mr := &aiv1alpha1.ModelRoute{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "default",
+						Name:      "uri-prefix-route",
+					},
+					Spec: aiv1alpha1.ModelRouteSpec{
+						ModelName: "uri-test-model",
+						Rules: []*aiv1alpha1.Rule{
+							{
+								Name: "v1-prefix-rule",
+								ModelMatch: &aiv1alpha1.ModelMatch{
+									Uri: &aiv1alpha1.StringMatch{
+										Prefix: ptr("/v1/"),
+									},
+								},
+								TargetModels: []*aiv1alpha1.TargetModel{
+									{
+										ModelServerName: "v1-server",
+									},
+								},
+							},
+							{
+								Name: "fallback-rule",
+								TargetModels: []*aiv1alpha1.TargetModel{
+									{
+										ModelServerName: "default-server",
+									},
+								},
+							},
+						},
+					},
+				}
+				s.AddOrUpdateModelRoute(mr)
+				return s
+			},
+			modelName:      "uri-test-model",
+			request:        &http.Request{URL: &url.URL{Path: "/v1/chat/completions"}},
+			expectedServer: types.NamespacedName{Namespace: "default", Name: "v1-server"},
+			expectedIsLora: false,
+			expectedError:  false,
+		},
+		{
+			name: "route with URI exact match",
+			setupStore: func() *store {
+				s := &store{
+					routeInfo:  make(map[string]*modelRouteInfo),
+					routes:     make(map[string]*aiv1alpha1.ModelRoute),
+					loraRoutes: make(map[string]*aiv1alpha1.ModelRoute),
+				}
+
+				mr := &aiv1alpha1.ModelRoute{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "default",
+						Name:      "uri-exact-route",
+					},
+					Spec: aiv1alpha1.ModelRouteSpec{
+						ModelName: "exact-uri-model",
+						Rules: []*aiv1alpha1.Rule{
+							{
+								Name: "exact-chat-rule",
+								ModelMatch: &aiv1alpha1.ModelMatch{
+									Uri: &aiv1alpha1.StringMatch{
+										Exact: ptr("/v1/chat/completions"),
+									},
+								},
+								TargetModels: []*aiv1alpha1.TargetModel{
+									{
+										ModelServerName: "chat-server",
+									},
+								},
+							},
+							{
+								Name: "fallback-rule",
+								TargetModels: []*aiv1alpha1.TargetModel{
+									{
+										ModelServerName: "fallback-server",
+									},
+								},
+							},
+						},
+					},
+				}
+				s.AddOrUpdateModelRoute(mr)
+				return s
+			},
+			modelName:      "exact-uri-model",
+			request:        &http.Request{URL: &url.URL{Path: "/v1/chat/completions"}},
+			expectedServer: types.NamespacedName{Namespace: "default", Name: "chat-server"},
+			expectedIsLora: false,
+			expectedError:  false,
+		},
+		{
+			name: "route falls back when URI doesn't match",
+			setupStore: func() *store {
+				s := &store{
+					routeInfo:  make(map[string]*modelRouteInfo),
+					routes:     make(map[string]*aiv1alpha1.ModelRoute),
+					loraRoutes: make(map[string]*aiv1alpha1.ModelRoute),
+				}
+
+				mr := &aiv1alpha1.ModelRoute{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "default",
+						Name:      "uri-fallback-route",
+					},
+					Spec: aiv1alpha1.ModelRouteSpec{
+						ModelName: "fallback-uri-model",
+						Rules: []*aiv1alpha1.Rule{
+							{
+								Name: "specific-v1-rule",
+								ModelMatch: &aiv1alpha1.ModelMatch{
+									Uri: &aiv1alpha1.StringMatch{
+										Prefix: ptr("/v1/"),
+									},
+								},
+								TargetModels: []*aiv1alpha1.TargetModel{
+									{
+										ModelServerName: "v1-server",
+									},
+								},
+							},
+							{
+								Name: "fallback-rule",
+								TargetModels: []*aiv1alpha1.TargetModel{
+									{
+										ModelServerName: "fallback-server",
+									},
+								},
+							},
+						},
+					},
+				}
+				s.AddOrUpdateModelRoute(mr)
+				return s
+			},
+			modelName:      "fallback-uri-model",
+			request:        &http.Request{URL: &url.URL{Path: "/v2/completions"}},
+			expectedServer: types.NamespacedName{Namespace: "default", Name: "fallback-server"},
+			expectedIsLora: false,
+			expectedError:  false,
+		},
+		{
+			name: "no matching route",
+			setupStore: func() *store {
+				return &store{
+					routeInfo:  make(map[string]*modelRouteInfo),
+					routes:     make(map[string]*aiv1alpha1.ModelRoute),
+					loraRoutes: make(map[string]*aiv1alpha1.ModelRoute),
+				}
+			},
+			modelName:      "non-existent-model",
+			request:        &http.Request{URL: &url.URL{Path: "/v1/chat/completions"}},
+			expectedServer: types.NamespacedName{},
+			expectedIsLora: false,
+			expectedError:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := tt.setupStore()
+			server, isLora, err := s.MatchModelServer(tt.modelName, tt.request)
+
+			if tt.expectedError {
+				assert.Error(t, err)
+				return
+			}
+
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expectedIsLora, isLora)
+			assert.Equal(t, tt.expectedServer, server)
+		})
+	}
 }

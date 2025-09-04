@@ -16,6 +16,11 @@ limitations under the License.
 
 package common
 
+const (
+	UserIdKey     = "user_id"
+	TokenUsageKey = "token_usage"
+)
+
 // Message represents a single message in a chat conversation
 type Message struct {
 	Role    string `json:"role"`

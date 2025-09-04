@@ -32,6 +32,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/common"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/connectors"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/filters/auth"
@@ -43,16 +44,11 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
-const (
-	tokenUsageKey = "token_usage"
-	userIdKey     = "user_id"
-)
-
 var EnableFairnessScheduling = env.RegisterBoolVar("ENABLE_FAIRNESS_SCHEDULING", false, "Enable fairness scheduling for inference requests").Get()
 
 type Router struct {
 	scheduler       scheduler.Scheduler
-	authValidator   auth.JWTValidator
+	authenticator   *auth.JWTAuthenticator
 	store           datastore.Store
 	loadRateLimiter *ratelimit.TokenRateLimiter
 
@@ -61,7 +57,9 @@ type Router struct {
 }
 
 func NewRouter(store datastore.Store, gatewayConfigPath string) *Router {
-	loadRateLimiter := ratelimit.NewRateLimiter()
+	// Create a unified rate limiter for all models
+	loadRateLimiter := ratelimit.NewTokenRateLimiter()
+
 	store.RegisterCallback("ModelRoute", func(data datastore.EventData) {
 		switch data.EventType {
 		case datastore.EventAdd, datastore.EventUpdate:
@@ -69,7 +67,12 @@ func NewRouter(store datastore.Store, gatewayConfigPath string) *Router {
 				return
 			}
 			klog.Infof("add or update rate limit for model %s", data.ModelName)
-			loadRateLimiter.AddOrUpdateLimiter(data.ModelName, data.ModelRoute.Spec.RateLimit)
+
+			// Configure the unified rate limiter for this model
+			if err := loadRateLimiter.AddOrUpdateLimiter(data.ModelName, data.ModelRoute.Spec.RateLimit); err != nil {
+				klog.Errorf("failed to configure rate limiter for model %s: %v", data.ModelName, err)
+			}
+
 		case datastore.EventDelete:
 			klog.Infof("delete rate limit for model %s", data.ModelName)
 			loadRateLimiter.DeleteLimiter(data.ModelName)
@@ -84,7 +87,7 @@ func NewRouter(store datastore.Store, gatewayConfigPath string) *Router {
 	return &Router{
 		store:            store,
 		scheduler:        scheduler.NewScheduler(store, gatewayConfig),
-		authValidator:    *auth.NewJWTValidator(store, gatewayConfig),
+		authenticator:    auth.NewJWTAuthenticator(gatewayConfig),
 		loadRateLimiter:  loadRateLimiter,
 		connectorFactory: connectors.NewDefaultFactory(),
 	}
@@ -108,9 +111,18 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 			return
 		}
 		promptStr := utils.GetPromptString(prompt)
+		// Apply rate limiting using the unified rate limiter
 		if err := r.loadRateLimiter.RateLimit(modelName, promptStr); err != nil {
-			klog.Infof("request model: %s, prompt: %s, error: %v", modelName, promptStr, err)
-			c.AbortWithStatusJSON(http.StatusTooManyRequests, err.Error())
+			var errorMsg string
+			switch err.(type) {
+			case *ratelimit.InputRateLimitExceededError:
+				errorMsg = "input token rate limit exceeded"
+			case *ratelimit.OutputRateLimitExceededError:
+				errorMsg = "output token rate limit exceeded"
+			default:
+				errorMsg = "token usage exceeds rate limit"
+			}
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, errorMsg)
 			return
 		}
 
@@ -298,7 +310,7 @@ func (r *Router) GetModelServer(modelName string, req *http.Request) (*v1alpha1.
 }
 
 func (r *Router) Auth() gin.HandlerFunc {
-	return r.authValidator.Authenticate()
+	return r.authenticator.Authenticate()
 }
 
 // proxyRequest proxies the request to the model server pods, returns response to downstream.
@@ -337,7 +349,7 @@ func proxyRequest(
 					klog.V(4).Infof("Parsed usage: %+v", parsed.Usage)
 
 					// The token usage is set by gateway, so remove it before sending to downstream
-					if v, ok := c.Get(tokenUsageKey); ok && v.(bool) {
+					if v, ok := c.Get(common.TokenUsageKey); ok && v.(bool) {
 						return true
 					}
 					if onUsage != nil {
@@ -483,7 +495,7 @@ func (r *Router) proxyToPDDisaggregated(
 
 // handleFairnessScheduling handles the fairness scheduling flow for requests
 func (r *Router) handleFairnessScheduling(c *gin.Context, modelRequest ModelRequest, requestID string, modelName string) error {
-	userIdVal, ok := c.Get(userIdKey)
+	userIdVal, ok := c.Get(common.UserIdKey)
 	if !ok {
 		c.AbortWithStatusJSON(http.StatusBadRequest, "missing userId in request body")
 		return fmt.Errorf("missing userId in request body")

@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package datastore
 
 import (
@@ -21,10 +22,6 @@ import (
 	"errors"
 	"sync"
 	"time"
-)
-
-var (
-	ErrQueueEmpty = errors.New("queue is empty")
 )
 
 // Request represents a request item in the priority queue
@@ -39,18 +36,20 @@ type Request struct {
 
 // RequestPriorityQueue implements the heap.Interface
 type RequestPriorityQueue struct {
-	stopCh chan struct{} // Context for cancellation
-	mu     sync.RWMutex  // Ensure concurrent safety with read/write locks
-	heap   []*Request    // Underlying storage structure
-	cond   *sync.Cond    // Condition variable to signal availability
+	stopCh   chan struct{} // Context for cancellation
+	notifyCh chan struct{} // Channel for item availability notification
+	mu       sync.RWMutex  // Ensure concurrent safety with read/write locks
+	heap     []*Request    // Underlying storage structure
 }
+
+var _ heap.Interface = &RequestPriorityQueue{}
 
 func NewRequestPriorityQueue() *RequestPriorityQueue {
 	pq := &RequestPriorityQueue{
-		stopCh: make(chan struct{}),
-		heap:   make([]*Request, 0),
+		stopCh:   make(chan struct{}),
+		notifyCh: make(chan struct{}, 1), // Buffered to prevent blocking
+		heap:     make([]*Request, 0),
 	}
-	pq.cond = sync.NewCond(&pq.mu)
 	return pq
 }
 
@@ -95,44 +94,38 @@ func (pq *RequestPriorityQueue) PushRequest(r *Request) error {
 	defer pq.mu.Unlock()
 	heap.Push(pq, r)
 	// Signal that a new item is available
-	if pq.cond != nil {
-		pq.cond.Signal()
+	select {
+	case pq.notifyCh <- struct{}{}:
+	default: // Channel is full, notification already pending
 	}
 	return nil
 }
 
-func (pq *RequestPriorityQueue) PopRequest() (*Request, error) {
-	pq.mu.Lock()
-	defer pq.mu.Unlock()
-	if len(pq.heap) == 0 {
-		return nil, ErrQueueEmpty
-	}
-	req := heap.Pop(pq).(*Request)
-	return req, nil
-}
-
 // popWhenAvailable blocks until an item is available or the context is done, then pops one item.
 func (pq *RequestPriorityQueue) popWhenAvailable(ctx context.Context) (*Request, error) {
-	pq.mu.Lock()
-	defer pq.mu.Unlock()
-	for len(pq.heap) == 0 {
-		if ctx.Err() != nil {
-			return nil, ctx.Err()
+	for {
+		pq.mu.Lock()
+		if len(pq.heap) > 0 {
+			req := heap.Pop(pq).(*Request)
+			pq.mu.Unlock()
+			return req, nil
 		}
-		pq.cond.Wait() // releases lock and waits; re-acquires before returning
+		pq.mu.Unlock()
+
+		// Wait for notification or cancellation
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-pq.stopCh:
+			return nil, errors.New("queue stopped")
+		case <-pq.notifyCh:
+			// An item might be available, loop back to check
+			continue
+		}
 	}
-	req := heap.Pop(pq).(*Request)
-	return req, nil
 }
 
 func (pq *RequestPriorityQueue) Run(ctx context.Context, qps int) {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	go func() {
-		<-pq.stopCh
-		cancel() // Ensure we cancel the context when stopping
-	}()
-
 	if qps <= 0 {
 		qps = 1 // prevent division by zero; or treat as unlimited with a fast ticker
 	}
@@ -142,6 +135,8 @@ func (pq *RequestPriorityQueue) Run(ctx context.Context, qps int) {
 	for {
 		select {
 		case <-ctx.Done():
+			return
+		case <-pq.stopCh:
 			return
 		case <-ticker.C:
 			req, err := pq.popWhenAvailable(ctx)
@@ -154,5 +149,16 @@ func (pq *RequestPriorityQueue) Run(ctx context.Context, qps int) {
 				close(req.NotifyChan)
 			}
 		}
+	}
+}
+
+func (pq *RequestPriorityQueue) Close() {
+	pq.mu.Lock()
+	defer pq.mu.Unlock()
+	select {
+	case <-pq.stopCh:
+		// already closed
+	default:
+		close(pq.stopCh)
 	}
 }

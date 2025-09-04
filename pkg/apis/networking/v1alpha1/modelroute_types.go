@@ -74,6 +74,18 @@ type ModelMatch struct {
 	// If this field is not specified, a default prefix match on the "/" path is provided.
 	// +optional
 	Uri *StringMatch `json:"uri,omitempty"`
+
+	// Body contains conditions to match request body content
+	// +optional
+	Body *BodyMatch `json:"body,omitempty"`
+}
+
+// BodyMatch defines the predicate used to match request body content
+type BodyMatch struct {
+	// Model is the name of the model or lora adapter to match.
+	// If this field is not specified, any model or lora adapter will be matched.
+	// +optional
+	Model *string `json:"model,omitempty"`
 }
 
 // StringMatch defines the matching conditions for string fields.
@@ -115,6 +127,24 @@ type RateLimit struct {
 	// +kubebuilder:default=second
 	// +kubebuilder:validation:Enum=second;minute;hour;day;month
 	Unit RateLimitUnit `json:"unit"`
+	// Global contains configuration for global rate limiting using distributed storage.
+	// If this field is set, global rate limiting will be used; otherwise, local rate limiting will be used.
+	// +optional
+	Global *GlobalRateLimit `json:"global,omitempty"`
+}
+
+// GlobalRateLimit contains configuration for global rate limiting
+type GlobalRateLimit struct {
+	// Redis contains configuration for Redis-based global rate limiting.
+	// +optional
+	Redis *RedisConfig `json:"redis,omitempty"`
+}
+
+// RedisConfig contains Redis connection configuration
+type RedisConfig struct {
+	// Address is the Redis server address in the format "host:port".
+	// +kubebuilder:validation:Required
+	Address string `json:"address"`
 }
 
 // +kubebuilder:validation:Enum=second;minute;hour;day;month

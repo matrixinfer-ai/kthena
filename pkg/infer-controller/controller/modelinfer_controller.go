@@ -38,12 +38,14 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
+	volcano "volcano.sh/apis/pkg/client/clientset/versioned"
 
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
 	informersv1alpha1 "matrixinfer.ai/matrixinfer/client-go/informers/externalversions"
 	listerv1alpha1 "matrixinfer.ai/matrixinfer/client-go/listers/workload/v1alpha1"
 	workloadv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-controller/datastore"
+	"matrixinfer.ai/matrixinfer/pkg/infer-controller/gangscheduling"
 	"matrixinfer.ai/matrixinfer/pkg/infer-controller/utils"
 )
 
@@ -57,6 +59,7 @@ type ModelInferController struct {
 	modelInferClient clientset.Interface
 
 	syncHandler         func(ctx context.Context, miKey string) error
+	gangManager         gangscheduling.Manager
 	podsLister          listerv1.PodLister
 	podsInformer        cache.SharedIndexInformer
 	servicesLister      listerv1.ServiceLister
@@ -71,7 +74,7 @@ type ModelInferController struct {
 	initialSync bool     // indicates whether the initial sync has been completed
 }
 
-func NewModelInferController(kubeClientSet kubernetes.Interface, modelInferClient clientset.Interface) (*ModelInferController, error) {
+func NewModelInferController(kubeClientSet kubernetes.Interface, modelInferClient clientset.Interface, volcanoClient volcano.Interface) (*ModelInferController, error) {
 	selector, err := labels.NewRequirement(workloadv1alpha1.GroupNameLabelKey, selection.Exists, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create label selector, err: %v", err)
@@ -110,6 +113,7 @@ func NewModelInferController(kubeClientSet kubernetes.Interface, modelInferClien
 	c := &ModelInferController{
 		kubeClientSet:       kubeClientSet,
 		modelInferClient:    modelInferClient,
+		gangManager:         gangscheduling.NewManager(kubeClientSet, volcanoClient),
 		podsLister:          podsInformer.Lister(),
 		podsInformer:        podsInformer.Informer(),
 		servicesLister:      servicesInformer.Lister(),
@@ -377,6 +381,11 @@ func (c *ModelInferController) syncModelInfer(ctx context.Context, key string) e
 	copy := utils.RemoveRoleReplicasForRevision(mi)
 	revision := utils.Revision(copy.Spec.Template.Roles)
 
+	// PodGroup Manager
+	if err := c.gangManager.ManagePodGroups(ctx, mi); err != nil {
+		return fmt.Errorf("Failed to manage PodGroups for ModelInfer %s/%s: %v", mi.Namespace, mi.Name, err)
+	}
+
 	err = c.manageInferGroupReplicas(ctx, mi, revision)
 	if err != nil {
 		return fmt.Errorf("cannot manage inferGroup replicas: %v", err)
@@ -639,8 +648,12 @@ func (c *ModelInferController) DeleteInferGroup(mi *workloadv1alpha1.ModelInfer,
 
 func (c *ModelInferController) CreatePodByRole(ctx context.Context, role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, roleIndex, groupIndex int, newHash string) error {
 	groupName := utils.GenerateInferGroupName(mi.Name, groupIndex)
+	taskName := c.gangManager.GenerateTaskName(role.Name, roleIndex)
 	// Create entry pod
 	entryPod := utils.GenerateEntryPod(role, mi, groupName, roleIndex, newHash)
+
+	c.gangManager.AnnotatePodWithPodGroup(entryPod, mi, 1+int(role.WorkerReplicas), groupName, taskName)
+
 	_, err := c.kubeClientSet.CoreV1().Pods(mi.Namespace).Create(ctx, entryPod, metav1.CreateOptions{})
 	if err != nil {
 		if !apierrors.IsAlreadyExists(err) {
@@ -663,6 +676,7 @@ func (c *ModelInferController) CreatePodByRole(ctx context.Context, role workloa
 	// Create worker pods
 	for podIndex := range int(role.WorkerReplicas) {
 		workerPod := utils.GenerateWorkerPod(role, mi, entryPod, groupName, roleIndex, podIndex+1, newHash) // worker-pod sequence number starts from 1, so we use index+1 here.
+		c.gangManager.AnnotatePodWithPodGroup(workerPod, mi, 1+int(role.WorkerReplicas), groupName, taskName)
 		_, err = c.kubeClientSet.CoreV1().Pods(mi.Namespace).Create(ctx, workerPod, metav1.CreateOptions{})
 		if err != nil {
 			if !apierrors.IsAlreadyExists(err) {

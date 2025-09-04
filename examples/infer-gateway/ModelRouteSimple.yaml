@@ -4,7 +4,7 @@ metadata:
   name: deepseek-simple
   namespace: default
 spec:
-  modelName: "deepseek-r1"
+  modelName: "deepseek-simple"
   rules:
   - name: "default"
     targetModels:

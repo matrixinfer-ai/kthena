@@ -29,7 +29,6 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
 	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
@@ -46,6 +45,7 @@ func (mc *ModelController) getPreviousModelVersion(model *registryv1alpha1.Model
 	// Get the previous model from cache
 	oldModel, exists := mc.loraUpdateCache[cacheKey]
 	if !exists {
+		klog.Warningf("Get previous Model version failed: %s", cacheKey)
 		return nil, nil
 	}
 
@@ -83,46 +83,6 @@ func (mc *ModelController) hasOnlyLoraAdaptersChanged(oldModel, newModel *regist
 	}
 
 	return hasLoraChanges
-}
-
-// handleLoraAdapterUpdate handles LoRA adapter updates for VLLM backends
-func (mc *ModelController) handleLoraAdapterUpdate(oldModel, newModel *registryv1alpha1.Model) error {
-	klog.Info("Detected LoRA adapter changes, attempting runtime update")
-
-	// Create a context with timeout for the whole LoRA adapter update operation
-	// The timeout should be sufficient to cover all adapter updates across all replicas
-	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
-	defer cancel()
-
-	for i, newBackend := range newModel.Spec.Backends {
-		if newBackend.Type != registryv1alpha1.ModelBackendTypeVLLM {
-			return fmt.Errorf("only VLLM backends are supported for LoRA adapter updates")
-		}
-
-		oldBackend := oldModel.Spec.Backends[i]
-
-		// Get ModelInfer for this backend using the correct naming convention
-		modelInferName := utils.GetBackendResourceName(newModel.Name, newBackend.Name)
-		modelInfer, err := mc.client.WorkloadV1alpha1().ModelInfers(newModel.Namespace).Get(ctx, modelInferName, metav1.GetOptions{})
-		if err != nil {
-			klog.Errorf("Failed to get ModelInfer %s: %v", modelInferName, err)
-			return err
-		}
-
-		// Check if ModelInfer is ready
-		if !mc.isModelInferReady(modelInfer) {
-			klog.Warningf("ModelInfer %s is not ready, skipping LoRA adapter update", modelInferName)
-			return fmt.Errorf("model infer %s is not ready", modelInferName)
-		}
-
-		// Handle LoRA adapter changes
-		if err := mc.updateLoraAdapters(ctx, &newBackend, &oldBackend, modelInfer); err != nil {
-			klog.Errorf("Failed to update LoRA adapters for backend %s: %v", newBackend.Name, err)
-			return err
-		}
-	}
-
-	return nil
 }
 
 // isModelInferReady checks if ModelInfer is ready for LoRA adapter updates
@@ -282,7 +242,7 @@ func (mc *ModelController) loadLoraAdaptersToAllReplicas(ctx context.Context, ru
 // getModelInferRuntimeURLs constructs the runtime service URLs for all ModelInfer pods
 func (mc *ModelController) getModelInferRuntimeURLs(modelInfer *workload.ModelInfer, backend *registryv1alpha1.ModelBackend) ([]string, error) {
 	// Get port from backend environment variables with default fallback to 8100
-	port := env.GetEnvValueOrDefault(backend, env.RuntimePort, 8100)
+	port := env.GetEnvValueOrDefault[int32](backend, env.RuntimePort, 8100)
 
 	// Get all available pod IPs for this ModelInfer
 	podIPs, err := mc.getModelInferPodIPs(modelInfer)
@@ -457,4 +417,132 @@ func (mc *ModelController) cleanupOutdatedLoraUpdateCache(model *registryv1alpha
 		delete(mc.loraUpdateCache, key)
 		klog.V(4).Infof("Cleaned up outdated LoRA update cache entry: %s", key)
 	}
+}
+
+// getDynamicLoraUpdateBackends returns a list of backend names that can use dynamic LoRA updates
+func (mc *ModelController) getDynamicLoraUpdateBackends(oldModel, newModel *registryv1alpha1.Model) []string {
+	var dynamicUpdateBackends []string
+
+	// Create maps for easier lookup by backend name
+	oldBackendMap := make(map[string]*registryv1alpha1.ModelBackend)
+
+	for i := range oldModel.Spec.Backends {
+		backend := &oldModel.Spec.Backends[i]
+		oldBackendMap[backend.Name] = backend
+	}
+
+	for i := range newModel.Spec.Backends {
+		newBackend := &newModel.Spec.Backends[i]
+		oldBackend, exists := oldBackendMap[newBackend.Name]
+		if !exists {
+			// New backend, skip dynamic update
+			continue
+		}
+
+		// Check if only LoRA adapters changed and can use dynamic update
+		if mc.canUseDynamicLoraUpdate(oldBackend, newBackend) {
+			dynamicUpdateBackends = append(dynamicUpdateBackends, newBackend.Name)
+		}
+	}
+
+	return dynamicUpdateBackends
+}
+
+// canUseDynamicLoraUpdate checks if a specific backend can use dynamic LoRA update
+func (mc *ModelController) canUseDynamicLoraUpdate(oldBackend, newBackend *registryv1alpha1.ModelBackend) bool {
+	// Only VLLM backends support dynamic LoRA updates
+	if newBackend.Type != registryv1alpha1.ModelBackendTypeVLLM {
+		return false
+	}
+
+	// Check if runtime LoRA update is enabled for this backend
+	if !mc.isRuntimeLoraUpdateEnabled(newBackend) {
+		return false
+	}
+
+	// Deep copy backends without LoRA adapters for comparison
+	oldBackendCopy := oldBackend.DeepCopy()
+	newBackendCopy := newBackend.DeepCopy()
+	oldBackendCopy.LoraAdapters = nil
+	newBackendCopy.LoraAdapters = nil
+
+	// If anything other than LoRA adapters changed, can't use dynamic update
+	if !reflect.DeepEqual(oldBackendCopy, newBackendCopy) {
+		return false
+	}
+
+	// Check if LoRA adapters actually changed
+	return !reflect.DeepEqual(oldBackend.LoraAdapters, newBackend.LoraAdapters)
+}
+
+// isRuntimeLoraUpdateEnabled checks if runtime LoRA update is enabled for a backend
+func (mc *ModelController) isRuntimeLoraUpdateEnabled(backend *registryv1alpha1.ModelBackend) bool {
+	for _, envVar := range backend.Env {
+		if envVar.Name == "VLLM_ALLOW_RUNTIME_LORA_UPDATING" {
+			return strings.ToLower(envVar.Value) == "true"
+		}
+	}
+	return false
+}
+
+// handleDynamicLoraUpdates handles runtime LoRA adapter updates for specified backends
+func (mc *ModelController) handleDynamicLoraUpdates(oldModel, newModel *registryv1alpha1.Model, backendNames []string) []string {
+	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
+	defer cancel()
+
+	var successfullyUpdated []string
+
+	// Create maps for easier lookup by backend name
+	oldBackendMap := make(map[string]*registryv1alpha1.ModelBackend)
+	newBackendMap := make(map[string]*registryv1alpha1.ModelBackend)
+
+	for i := range oldModel.Spec.Backends {
+		backend := &oldModel.Spec.Backends[i]
+		oldBackendMap[backend.Name] = backend
+	}
+
+	for i := range newModel.Spec.Backends {
+		backend := &newModel.Spec.Backends[i]
+		newBackendMap[backend.Name] = backend
+	}
+
+	// Update LoRA adapters for specified backends
+	for _, backendName := range backendNames {
+		newBackend, exists := newBackendMap[backendName]
+		if !exists {
+			klog.Warningf("Backend %s not found in new model", backendName)
+			continue
+		}
+
+		oldBackend, exists := oldBackendMap[backendName]
+		if !exists {
+			klog.Warningf("Backend %s not found in old model", backendName)
+			continue
+		}
+
+		klog.Infof("Updating LoRA adapters for backend %s", backendName)
+
+		// Get ModelInfer for this backend using the correct naming convention
+		modelInferName := utils.GetBackendResourceName(newModel.Name, newBackend.Name)
+		modelInfer, err := mc.modelInfersLister.ModelInfers(newModel.Namespace).Get(modelInferName)
+		if err != nil {
+			klog.Errorf("Failed to get ModelInfer %s: %v", modelInferName, err)
+			continue
+		}
+
+		// Check if ModelInfer is ready
+		if !mc.isModelInferReady(modelInfer) {
+			klog.Warningf("ModelInfer %s is not ready, skipping LoRA adapter update", modelInferName)
+			continue
+		}
+
+		// Handle LoRA adapter changes
+		if err := mc.updateLoraAdapters(ctx, newBackend, oldBackend, modelInfer); err != nil {
+			klog.Errorf("Failed to update LoRA adapters for backend %s: %v", newBackend.Name, err)
+			continue
+		}
+
+		successfullyUpdated = append(successfullyUpdated, backendName)
+	}
+	return successfullyUpdated
 }

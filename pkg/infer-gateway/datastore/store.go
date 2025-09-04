@@ -21,7 +21,9 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -35,7 +37,6 @@ import (
 
 	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/backend"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
@@ -52,9 +53,56 @@ var (
 		utils.TPOT,
 		utils.TTFT,
 	}
+)
 
+const (
+	// Configuration constants for fairness scheduling
+	defaultQueueQPS = 100
 	uppdateInterval = 1 * time.Second
 )
+
+// createTokenTracker creates a token tracker with configuration from environment variables
+func createTokenTracker() TokenTracker {
+	var opts []TokenTrackerOption
+
+	// Parse window size from environment
+	if windowSizeStr := os.Getenv("FAIRNESS_WINDOW_SIZE"); windowSizeStr != "" {
+		if windowSize, err := time.ParseDuration(windowSizeStr); err == nil {
+			opts = append(opts, WithWindowSize(windowSize))
+		} else {
+			klog.Warningf("Invalid FAIRNESS_WINDOW_SIZE: %v, using default", err)
+		}
+	}
+
+	// Parse token weights from environment
+	inputWeightStr := os.Getenv("FAIRNESS_INPUT_TOKEN_WEIGHT")
+	outputWeightStr := os.Getenv("FAIRNESS_OUTPUT_TOKEN_WEIGHT")
+
+	if inputWeightStr != "" || outputWeightStr != "" {
+		inputWeight := defaultInputTokenWeight
+		outputWeight := defaultOutputTokenWeight
+
+		if inputWeightStr != "" {
+			if w, err := strconv.ParseFloat(inputWeightStr, 64); err == nil {
+				inputWeight = w
+			} else {
+				klog.Warningf("Invalid FAIRNESS_INPUT_TOKEN_WEIGHT: %v, using default", err)
+			}
+		}
+
+		if outputWeightStr != "" {
+			if w, err := strconv.ParseFloat(outputWeightStr, 64); err == nil {
+				outputWeight = w
+			} else {
+				klog.Warningf("Invalid FAIRNESS_OUTPUT_TOKEN_WEIGHT: %v, using default", err)
+			}
+		}
+
+		opts = append(opts, WithTokenWeights(inputWeight, outputWeight))
+	}
+
+	return NewInMemorySlidingWindowTokenTracker(opts...)
+}
 
 // EventType represents different types of events that can trigger callbacks
 type EventType string
@@ -63,7 +111,6 @@ const (
 	EventAdd    EventType = "add"
 	EventUpdate EventType = "update"
 	EventDelete EventType = "delete"
-	// Add more event types here as needed
 )
 
 // EventData contains information about the event that triggered the callback
@@ -73,7 +120,6 @@ type EventData struct {
 
 	ModelName  string
 	ModelRoute *aiv1alpha1.ModelRoute
-	// Add more fields as needed for other event types
 }
 
 // CallbackFunc is the type of function that can be registered as a callback
@@ -120,14 +166,12 @@ type Store interface {
 	GetTokenCount(userId, modelName string) (float64, error)
 	// UpdateTokenCount updates token usage for a user and model
 	UpdateTokenCount(userId, modelName string, inputTokens, outputTokens float64) error
+
+	// Enqueue adds a request to the fair queue
 	Enqueue(*Request) error
 
 	// GetRequestWaitingQueueStats returns per-model queue lengths
 	GetRequestWaitingQueueStats() []QueueStat
-
-	// jwks cache methods
-	GetJwks() Jwks
-	RotateJwks(config conf.AuthenticationConfig)
 }
 
 // QueueStat holds per-model queue metrics to aid scheduling decisions
@@ -169,7 +213,6 @@ type modelRouteInfo struct {
 }
 
 type store struct {
-	jwksCache   *Jwks
 	modelServer sync.Map // map[types.NamespacedName]*modelServer
 	pods        sync.Map // map[types.NamespacedName]*PodInfo
 
@@ -191,7 +234,6 @@ type store struct {
 
 func New() Store {
 	return &store{
-		jwksCache:           &Jwks{},
 		modelServer:         sync.Map{},
 		pods:                sync.Map{},
 		routeInfo:           make(map[string]*modelRouteInfo),
@@ -200,8 +242,8 @@ func New() Store {
 		callbacks:           make(map[string][]CallbackFunc),
 		initialSynced:       &atomic.Bool{},
 		requestWaitingQueue: sync.Map{},
-		// Make options explicit; tweak as needed or wire to config
-		tokenTracker: NewInMemorySlidingWindowTokenTracker(),
+		// Create token tracker with environment-based configuration
+		tokenTracker: createTokenTracker(),
 	}
 }
 
@@ -224,7 +266,6 @@ func (s *store) Run(ctx context.Context) {
 			}
 		}
 	}()
-	go s.jwksRefresher(ctx)
 }
 func (s *store) GetTokenCount(userID, model string) (float64, error) {
 	return s.tokenTracker.GetTokenCount(userID, model)
@@ -233,8 +274,6 @@ func (s *store) GetTokenCount(userID, model string) (float64, error) {
 func (s *store) UpdateTokenCount(userID, model string, inputTokens, outputTokens float64) error {
 	return s.tokenTracker.UpdateTokenCount(userID, model, inputTokens, outputTokens)
 }
-
-type ModelRequest map[string]interface{}
 
 func (s *store) Enqueue(req *Request) error {
 	modelName := req.ModelName
@@ -246,7 +285,7 @@ func (s *store) Enqueue(req *Request) error {
 		newQueue := NewRequestPriorityQueue()
 		val, ok = s.requestWaitingQueue.LoadOrStore(modelName, newQueue)
 		if !ok {
-			go newQueue.Run(context.TODO(), 100)
+			go newQueue.Run(context.TODO(), defaultQueueQPS)
 		}
 		queue, _ = val.(*RequestPriorityQueue)
 	}
@@ -528,7 +567,17 @@ func (s *store) DeleteModelRoute(namespacedName string) error {
 	}
 	delete(s.routeInfo, namespacedName)
 	s.routeMutex.Unlock()
+	if modelName != "" {
+		// Clean up associated waiting queue if exists
+		val, _ := s.requestWaitingQueue.LoadAndDelete(modelName)
+		if val != nil {
+			queue, _ := val.(*RequestPriorityQueue)
+			queue.Close()
+			klog.Infof("deleted waiting queue for model %s", modelName)
+		}
+	}
 
+	// Trigger callbacks outside the lock to avoid potential deadlocks
 	s.triggerCallbacks("ModelRoute", EventData{
 		EventType:  EventDelete,
 		ModelName:  modelName,
@@ -551,7 +600,7 @@ func (s *store) MatchModelServer(model string, req *http.Request) (types.Namespa
 		isLora = true
 	}
 
-	rule, err := s.selectRule(req, mr.Spec.Rules)
+	rule, err := s.selectRule(model, req, mr.Spec.Rules)
 	if err != nil {
 		return types.NamespacedName{}, false, fmt.Errorf("failed to select route rule: %v", err)
 	}
@@ -564,10 +613,18 @@ func (s *store) MatchModelServer(model string, req *http.Request) (types.Namespa
 	return types.NamespacedName{Namespace: mr.Namespace, Name: dst.ModelServerName}, isLora, nil
 }
 
-func (s *store) selectRule(req *http.Request, rules []*aiv1alpha1.Rule) (*aiv1alpha1.Rule, error) {
+func (s *store) selectRule(modelName string, req *http.Request, rules []*aiv1alpha1.Rule) (*aiv1alpha1.Rule, error) {
 	for _, rule := range rules {
 		if rule.ModelMatch == nil {
 			return rule, nil
+		}
+
+		// Check Model match if specified
+		if rule.ModelMatch.Body != nil && rule.ModelMatch.Body.Model != nil {
+			// Perform exact match on Model
+			if modelName != *rule.ModelMatch.Body.Model {
+				continue // Skip this rule if model name doesn't match
+			}
 		}
 
 		headersMatched := true

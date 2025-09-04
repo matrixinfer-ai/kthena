@@ -52,15 +52,17 @@ type userBucketData struct {
 // InMemorySlidingWindowTokenTracker tracks tokens per user in a fixed-size sliding window (in-memory, thread-safe).
 // This function refers to aibrix(https://github.com/vllm-project/aibrix/)
 type InMemorySlidingWindowTokenTracker struct {
-	mu              sync.RWMutex
-	windowSize      time.Duration
-	userBucketStore map[string]map[string]*userBucketData // [user][model] -> buckets
+	mu                sync.RWMutex
+	windowSize        time.Duration
+	inputTokenWeight  float64
+	outputTokenWeight float64
+	userBucketStore   map[string]map[string]*userBucketData // [user][model] -> buckets
 }
 
 // TokenTrackerOption is a function that configures a token tracker
 type TokenTrackerOption func(*InMemorySlidingWindowTokenTracker)
 
-// WithWindowSize overrides the default window size (number of units)
+// WithWindowSize overrides the default window size
 func WithWindowSize(size time.Duration) TokenTrackerOption {
 	return func(t *InMemorySlidingWindowTokenTracker) {
 		if size <= 0 {
@@ -75,12 +77,26 @@ func WithWindowSize(size time.Duration) TokenTrackerOption {
 	}
 }
 
+// WithTokenWeights overrides the default token weights
+func WithTokenWeights(inputWeight, outputWeight float64) TokenTrackerOption {
+	return func(t *InMemorySlidingWindowTokenTracker) {
+		if inputWeight < 0 || outputWeight < 0 {
+			klog.Warningf("Invalid token weights: input=%v, output=%v. Weights must be non-negative", inputWeight, outputWeight)
+			return
+		}
+		t.inputTokenWeight = inputWeight
+		t.outputTokenWeight = outputWeight
+	}
+}
+
 // NewInMemorySlidingWindowTokenTracker creates a new tracker with optional configuration
 func NewInMemorySlidingWindowTokenTracker(opts ...TokenTrackerOption) TokenTracker {
 	// Use internal defaults; callers can override via options
 	tracker := &InMemorySlidingWindowTokenTracker{
-		windowSize:      defaultTokenTrackerWindowSize,
-		userBucketStore: make(map[string]map[string]*userBucketData),
+		windowSize:        defaultTokenTrackerWindowSize,
+		inputTokenWeight:  defaultInputTokenWeight,
+		outputTokenWeight: defaultOutputTokenWeight,
+		userBucketStore:   make(map[string]map[string]*userBucketData),
 	}
 
 	for _, opt := range opts {
@@ -227,7 +243,7 @@ func (t *InMemorySlidingWindowTokenTracker) UpdateTokenCount(user, model string,
 		outputTokens = 0
 	}
 
-	newTokens := inputTokens*defaultInputTokenWeight + outputTokens*defaultOutputTokenWeight
+	newTokens := inputTokens*t.inputTokenWeight + outputTokens*t.outputTokenWeight
 
 	// Append or update the last bucket based on timestamp
 	bucketData := t.userBucketStore[user][model]

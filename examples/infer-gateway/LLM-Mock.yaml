@@ -22,7 +22,7 @@ spec:
       containers:
         - name: llm-engine
           image: ghcr.io/yaozengzeng/vllm-mock:latest
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           env:
             # specify the model name to mock
             - name: MODEL_NAME
