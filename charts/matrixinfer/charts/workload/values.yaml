@@ -5,6 +5,7 @@ inferController:
     # repository is the container image repository for the infer-controller.
     repository: ghcr.io/matrixinfer-ai/infer-controller
     # tag is the container image tag for the infer-controller.
+    # node: edit by CI. No need to modify manually
     tag: latest
     # pullPolicy is the image pull policy for the infer-controller.
     pullPolicy: IfNotPresent
@@ -27,6 +28,7 @@ webhook:
     # repository is the container image repository for the modelinfer-webhook.
     repository: ghcr.io/matrixinfer-ai/modelinfer-webhook
     # tag is the container image tag for the modelinfer-webhook.
+    # node: edit by CI. No need to modify manually
     tag: latest
     # pullPolicy is the image pull policy for the modelinfer-webhook.
     pullPolicy: IfNotPresent
