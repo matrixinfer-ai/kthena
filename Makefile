@@ -53,7 +53,7 @@ gen-crd: controller-gen
 	$(CONTROLLER_GEN) crd paths="./pkg/apis/registry/..." output:crd:artifacts:config=charts/matrixinfer/charts/registry/crds
 
 .PHONY: gen-docs
-gen-docs: crd-ref-docs ## Generate CRD reference documentation
+gen-docs: crd-ref-docs ## Generate CRD and CLI reference documentation
 	mkdir -p docs/matrixinfer/docs/api
 	$(CRD_REF_DOCS) \
 		--source-path=./pkg/apis \
@@ -61,6 +61,8 @@ gen-docs: crd-ref-docs ## Generate CRD reference documentation
 		--output-path=docs/matrixinfer/docs/reference/crd \
 		--renderer=markdown \
 		--output-mode=group
+	# Generate CLI docs for minfer using a standalone docgen program
+	go run ./cli/minfer/internal/tools/docgen/main.go
 
 .PHONY: generate
 generate: controller-gen gen-crd gen-docs ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
