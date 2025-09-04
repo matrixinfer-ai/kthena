@@ -11,7 +11,7 @@ The platform comprises two primary planes:
 - **Control Plane**: Manages models, routes, servers, inference configurations, and autoscaling policies through Kubernetes Custom Resource Definitions (CRDs) and Controllers. Controllers continuously reconcile these CRDs into runtime resources.
 - **Data Plane**: Executes inference workloads through the Gateway and Scheduler, which orchestrate request routing and scheduling. Inference Pods execute AI model requests using **role-based replica groups** supporting Prefill/Decode disaggregation.
 
-<LightboxImage src="/img/diagrams/architecture/architecture_overview.svg" alt="Architecture Overview"></LightboxImage>
+<LightboxImage src="/img/diagrams/architecture/architecture_overview.svg" alt="Architecture Overview"/>
 
 ## Core Components
 

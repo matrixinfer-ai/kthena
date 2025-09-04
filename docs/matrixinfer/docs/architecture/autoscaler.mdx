@@ -8,7 +8,9 @@ Facing real-time changing inference requests, the required hardware resources al
 
 MatrixInfer Autoscaler periodically collects runtime metrics from the Pods of managed inference instances. Based on one or more monitoring metrics specified by the user and their corresponding target values, it estimates the required number of inference instances. Finally, it performs scaling operations according to the configured scaling policies.
 
-<LightboxImage src="/img/architecture-autoscaler.svg" alt="architecture-autoscaler"></LightboxImage>
+<div style={{ textAlign: 'center' }}>
+  <LightboxImage src="/img/architecture-autoscaler.svg" alt="architecture-autoscaler"></LightboxImage>
+</div>
 
 MatrixInfer Autoscaler provides two granularities of scaling methods: **Homogeneous Instances Autoscale** and **Heterogeneous Instances Autoscale**.
 
