@@ -92,7 +92,7 @@ HELM manages the installation of CRDs. However, if you need to uninstall or upda
 ```shell
 kubectl apply -f charts/matrixinfer/charts/networking/crds/
 kubectl apply -f charts/matrixinfer/charts/registry/crds/
-kubectl apply -f charts/matrixinfer/charts/workload/crds/
+kubectl apply -f charts/matrixinfer/charts/workload/crds/ --server-side
 ```
 
 For more details on the reasoning behind this, see [this explanation](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/#some-caveats-and-explanations) and [these limitations](https://helm.sh/docs/topics/charts/#limitations-on-crds).
