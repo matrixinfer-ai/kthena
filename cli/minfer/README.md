@@ -31,10 +31,8 @@ package "minfer CLI" {
   }
   
   package "Flag Layer" as FlagLayer{
-    usecase "-o yaml" as OutputFlag
     usecase "--dry-run" as DryRunFlag
     usecase "--namespace" as NamespaceFlag
-    usecase "--all-namespaces" as AllNamespacesFlag
   }
 }
 
@@ -54,10 +52,6 @@ DescribeVerb --> KubernetesResources
 ' Resources can use flags
 Manifest --> NamespaceFlag
 Manifest --> DryRunFlag
-Template --> OutputFlag
-
-KubernetesResources --> AllNamespacesFlag
-KubernetesResources --> NamespaceFlag
 
 note top of CreateVerb
   Create MatrixInfer resources from
