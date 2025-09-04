@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -47,7 +47,7 @@ func init() {
 func runListManifests(cmd *cobra.Command, args []string) error {
 	// Get the describe flag value
 	describeManifest, _ := cmd.Flags().GetString("describe")
-	
+
 	// If describing a specific manifest
 	if describeManifest != "" {
 		return describeManifestTemplate(describeManifest)
@@ -92,7 +92,6 @@ type ManifestInfo struct {
 	Description string
 	FilePath    string
 }
-
 
 func describeManifestTemplate(manifestName string) error {
 	// Check if template exists
@@ -146,7 +145,7 @@ func extractTemplateVariables(content string) []string {
 			if end == -1 {
 				break
 			}
-			
+
 			variable := strings.TrimSpace(line[start+2 : start+end])
 			// Remove leading dot and any function calls/pipes
 			variable = strings.TrimPrefix(variable, ".")
@@ -156,12 +155,12 @@ func extractTemplateVariables(content string) []string {
 			if pipeIndex := strings.Index(variable, "|"); pipeIndex != -1 {
 				variable = variable[:pipeIndex]
 			}
-			
+
 			if variable != "" && !variableMap[variable] {
 				variables = append(variables, variable)
 				variableMap[variable] = true
 			}
-			
+
 			line = line[start+end+2:]
 		}
 	}

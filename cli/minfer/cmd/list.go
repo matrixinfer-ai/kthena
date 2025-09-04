@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -29,8 +29,8 @@ import (
 )
 
 var (
-	listNamespace string
-	allNamespaces bool
+	listNamespace    string
+	allNamespaces    bool
 	describeManifest string
 )
 
@@ -119,7 +119,7 @@ func init() {
 	// Add persistent flags to the list command
 	listCmd.PersistentFlags().StringVarP(&listNamespace, "namespace", "n", "", "Kubernetes namespace (default: current context namespace)")
 	listCmd.PersistentFlags().BoolVarP(&allNamespaces, "all-namespaces", "A", false, "List resources across all namespaces")
-	
+
 	// Add templates-specific flags
 	templatesListCmd.Flags().StringVar(&describeManifest, "describe", "", "Show detailed information about a specific template")
 }

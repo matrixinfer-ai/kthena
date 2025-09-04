@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -34,10 +34,11 @@ import (
 )
 
 var (
-	templateName string
-	valuesFile   string
-	dryRun       bool
-	namespace    string
+	templateName  string
+	valuesFile    string
+	dryRun        bool
+	namespace     string
+	name          string
 	manifestFlags map[string]string
 )
 
@@ -77,7 +78,8 @@ func init() {
 	manifestCmd.Flags().StringVarP(&valuesFile, "values-file", "f", "", "YAML file containing template values")
 	manifestCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show rendered template without applying to cluster")
 	manifestCmd.Flags().StringVarP(&namespace, "namespace", "n", "default", "Kubernetes namespace to create resources in")
-	
+	manifestCmd.Flags().StringVar(&name, "name", "", "Name for the inference workload")
+
 	// Dynamic flags for template values
 	manifestFlags = make(map[string]string)
 	manifestCmd.Flags().StringToStringVar(&manifestFlags, "set", nil, "Set template values (can specify multiple or separate values with commas: key1=val1,key2=val2)")
@@ -137,6 +139,11 @@ func loadTemplateValues() (map[string]interface{}, error) {
 	// Override with command line flags
 	for key, value := range manifestFlags {
 		values[key] = value
+	}
+
+	// Set name if specified via --name flag
+	if name != "" {
+		values["name"] = name
 	}
 
 	// Set default namespace if not specified
@@ -201,7 +208,7 @@ func applyResources(yamlContent string) error {
 
 	// Parse YAML documents
 	decoder := utilyaml.NewYAMLOrJSONDecoder(strings.NewReader(yamlContent), 1024)
-	
+
 	for {
 		var rawObj map[string]interface{}
 		if err := decoder.Decode(&rawObj); err != nil {
@@ -216,12 +223,12 @@ func applyResources(yamlContent string) error {
 		}
 
 		obj := &unstructured.Unstructured{Object: rawObj}
-		
+
 		// Get resource info
 		gvk := obj.GetObjectKind().GroupVersionKind()
 		resourceName := obj.GetName()
 		resourceNamespace := obj.GetNamespace()
-		
+
 		fmt.Printf("Applying %s/%s: %s", gvk.Kind, gvk.Version, resourceName)
 		if resourceNamespace != "" {
 			fmt.Printf(" in namespace %s", resourceNamespace)
@@ -232,7 +239,7 @@ func applyResources(yamlContent string) error {
 		if err := applyMatrixInferResource(ctx, client, obj); err != nil {
 			return fmt.Errorf("failed to apply %s %s: %v", gvk.Kind, resourceName, err)
 		}
-		
+
 		fmt.Printf("  ✓ Applied successfully\n")
 	}
 
@@ -256,19 +263,19 @@ func applyMatrixInferResource(ctx context.Context, client *versioned.Clientset, 
 		// Example: modelInfer := &workloadv1alpha1.ModelInfer{}
 		// runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, modelInfer)
 		// _, err := client.WorkloadV1alpha1().ModelInfers(resourceNamespace).Create(ctx, modelInfer, metav1.CreateOptions{})
-		
+
 	case "Model":
 		fmt.Printf("  Creating Model: %s in namespace %s\n", resourceName, resourceNamespace)
 		// Similar conversion and creation logic for Model resources
-		
+
 	case "AutoscalingPolicy":
 		fmt.Printf("  Creating AutoscalingPolicy: %s in namespace %s\n", resourceName, resourceNamespace)
 		// Similar conversion and creation logic for AutoscalingPolicy resources
-		
+
 	case "AutoscalingPolicyBinding":
 		fmt.Printf("  Creating AutoscalingPolicyBinding: %s in namespace %s\n", resourceName, resourceNamespace)
 		// Similar conversion and creation logic for AutoscalingPolicyBinding resources
-		
+
 	default:
 		return fmt.Errorf("unsupported resource type: %s", gvk.Kind)
 	}
