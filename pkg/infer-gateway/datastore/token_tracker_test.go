@@ -63,6 +63,53 @@ func TestNewInMemorySlidingWindowTokenTracker(t *testing.T) {
 	}
 }
 
+func TestTokenWeightsConfiguration(t *testing.T) {
+	tests := []struct {
+		name             string
+		inputWeight      float64
+		outputWeight     float64
+		wantInputWeight  float64
+		wantOutputWeight float64
+	}{
+		{
+			name:             "valid custom weights",
+			inputWeight:      1.5,
+			outputWeight:     3.0,
+			wantInputWeight:  1.5,
+			wantOutputWeight: 3.0,
+		},
+		{
+			name:             "zero weights",
+			inputWeight:      0.0,
+			outputWeight:     0.0,
+			wantInputWeight:  0.0,
+			wantOutputWeight: 0.0,
+		},
+		{
+			name:             "negative weights (should be ignored)",
+			inputWeight:      -1.0,
+			outputWeight:     -2.0,
+			wantInputWeight:  defaultInputTokenWeight,
+			wantOutputWeight: defaultOutputTokenWeight,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tracker := NewInMemorySlidingWindowTokenTracker(
+				WithTokenWeights(tt.inputWeight, tt.outputWeight),
+			).(*InMemorySlidingWindowTokenTracker)
+
+			if tracker.inputTokenWeight != tt.wantInputWeight {
+				t.Errorf("inputTokenWeight = %v, want %v", tracker.inputTokenWeight, tt.wantInputWeight)
+			}
+			if tracker.outputTokenWeight != tt.wantOutputWeight {
+				t.Errorf("outputTokenWeight = %v, want %v", tracker.outputTokenWeight, tt.wantOutputWeight)
+			}
+		})
+	}
+}
+
 func TestUpdateTokenCount_BasicFunctionality(t *testing.T) {
 	tracker := NewInMemorySlidingWindowTokenTracker()
 
@@ -145,6 +192,37 @@ func TestUpdateTokenCount_WeightedCalculation(t *testing.T) {
 
 	// Expected weighted total: 100*1.0 + 50*2.0 = 200
 	expectedTotal := inputTokens*defaultInputTokenWeight + outputTokens*defaultOutputTokenWeight
+
+	total, err := tracker.GetTokenCount(user, model)
+	if err != nil {
+		t.Fatalf("unexpected error getting token count: %v", err)
+	}
+
+	if total != expectedTotal {
+		t.Errorf("total = %v, want %v", total, expectedTotal)
+	}
+}
+
+func TestUpdateTokenCount_CustomWeights(t *testing.T) {
+	// Test with custom token weights
+	inputWeight := 1.5
+	outputWeight := 3.0
+	tracker := NewInMemorySlidingWindowTokenTracker(
+		WithTokenWeights(inputWeight, outputWeight),
+	)
+
+	user := "testuser"
+	model := "testmodel"
+	inputTokens := 100.0
+	outputTokens := 50.0
+
+	err := tracker.UpdateTokenCount(user, model, inputTokens, outputTokens)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Expected weighted total: 100*1.5 + 50*3.0 = 300
+	expectedTotal := inputTokens*inputWeight + outputTokens*outputWeight
 
 	total, err := tracker.GetTokenCount(user, model)
 	if err != nil {

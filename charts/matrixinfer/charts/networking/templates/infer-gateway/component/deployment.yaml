@@ -50,6 +50,17 @@ spec:
                   name: redis-secret
                   key: password
                   optional: true
+            # Fairness scheduling configuration
+            - name: ENABLE_FAIRNESS_SCHEDULING
+              value: {{ .Values.inferGateway.fairness.enabled | quote }}
+            {{- if .Values.inferGateway.fairness.enabled }}
+            - name: FAIRNESS_WINDOW_SIZE
+              value: {{ .Values.inferGateway.fairness.windowSize | quote }}
+            - name: FAIRNESS_INPUT_TOKEN_WEIGHT
+              value: {{ .Values.inferGateway.fairness.inputTokenWeight | quote }}
+            - name: FAIRNESS_OUTPUT_TOKEN_WEIGHT
+              value: {{ .Values.inferGateway.fairness.outputTokenWeight | quote }}
+            {{- end }}
           resources: {{- toYaml .Values.inferGateway.resource | nindent 12 }}
           livenessProbe:
             httpGet:
