@@ -26,10 +26,14 @@ import (
 	"github.com/spf13/cobra"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/engine"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/tools/clientcmd"
 	"matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
+	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
+	workloadv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 	"sigs.k8s.io/yaml"
 )
 
@@ -282,26 +286,56 @@ func applyMatrixInferResource(ctx context.Context, client *versioned.Clientset, 
 	// Convert unstructured to the appropriate typed resource
 	switch gvk.Kind {
 	case "ModelInfer":
-		// Note: This is a simplified implementation. In a real scenario, you would:
-		// 1. Convert the unstructured object to a typed ModelInfer object
-		// 2. Handle create vs update logic (check if resource exists)
-		// 3. Properly handle errors and status updates
 		fmt.Printf("  Creating ModelInfer: %s in namespace %s\n", resourceName, resourceNamespace)
-		// Example: modelInfer := &workloadv1alpha1.ModelInfer{}
-		// runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, modelInfer)
-		// _, err := client.WorkloadV1alpha1().ModelInfers(resourceNamespace).Create(ctx, modelInfer, metav1.CreateOptions{})
+		modelInfer := &workloadv1alpha1.ModelInfer{}
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, modelInfer)
+		if err != nil {
+			return fmt.Errorf("failed to convert unstructured object to ModelInfer: %v", err)
+		}
+		
+		_, err = client.WorkloadV1alpha1().ModelInfers(resourceNamespace).Create(ctx, modelInfer, metav1.CreateOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to create ModelInfer: %v", err)
+		}
 
 	case "Model":
 		fmt.Printf("  Creating Model: %s in namespace %s\n", resourceName, resourceNamespace)
-		// Similar conversion and creation logic for Model resources
+		model := &registryv1alpha1.Model{}
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, model)
+		if err != nil {
+			return fmt.Errorf("failed to convert unstructured object to Model: %v", err)
+		}
+		
+		_, err = client.RegistryV1alpha1().Models(resourceNamespace).Create(ctx, model, metav1.CreateOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to create Model: %v", err)
+		}
 
 	case "AutoscalingPolicy":
 		fmt.Printf("  Creating AutoscalingPolicy: %s in namespace %s\n", resourceName, resourceNamespace)
-		// Similar conversion and creation logic for AutoscalingPolicy resources
+		policy := &registryv1alpha1.AutoscalingPolicy{}
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, policy)
+		if err != nil {
+			return fmt.Errorf("failed to convert unstructured object to AutoscalingPolicy: %v", err)
+		}
+		
+		_, err = client.RegistryV1alpha1().AutoscalingPolicies(resourceNamespace).Create(ctx, policy, metav1.CreateOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to create AutoscalingPolicy: %v", err)
+		}
 
 	case "AutoscalingPolicyBinding":
 		fmt.Printf("  Creating AutoscalingPolicyBinding: %s in namespace %s\n", resourceName, resourceNamespace)
-		// Similar conversion and creation logic for AutoscalingPolicyBinding resources
+		binding := &registryv1alpha1.AutoscalingPolicyBinding{}
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, binding)
+		if err != nil {
+			return fmt.Errorf("failed to convert unstructured object to AutoscalingPolicyBinding: %v", err)
+		}
+		
+		_, err = client.RegistryV1alpha1().AutoscalingPolicyBindings(resourceNamespace).Create(ctx, binding, metav1.CreateOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to create AutoscalingPolicyBinding: %v", err)
+		}
 
 	default:
 		return fmt.Errorf("unsupported resource type: %s", gvk.Kind)
