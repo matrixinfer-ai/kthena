@@ -21,9 +21,12 @@ It allows you to:
 - Manage inference workloads, models, and autoscaling policies
 
 Examples:
-  minfer create manifest --name my-model --template basic-inference
-  minfer list models
-  minfer list templates`,
+  minfer get templates
+  minfer describe template deepseek-r1-distill-llama-8b
+  minfer get template deepseek-r1-distill-llama-8b -o yaml
+  minfer create manifest --name my-model --template deepseek-r1-distill-llama-8b
+  minfer get models
+  minfer get modelinfers --all-namespaces`,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

@@ -11,73 +11,80 @@ actor "User" as user
 
 package "minfer CLI" {
   
-  package "Action Layer" {
-    usecase "List" as ListAction
-    usecase "Create" as CreateAction
+  package "Verb Layer" {
+    usecase "Get" as GetVerb
+    usecase "Describe" as DescribeVerb
+    usecase "Create" as CreateVerb
   }
   
-  package "Target Layer" {
-    usecase "Templates" as TemplatesTarget
-    rectangle "Matrixinfer Resources" as Resources {
-       usecase "Models" as ModelsTarget
-       usecase "ModelInfers" as ModelInfersTarget
-       usecase "Policies" as PoliciesTarget
+  package "Resource Layer" {
+    usecase "Templates" as TemplatesResource
+    rectangle "Kubernetes Resources" as KubernetesResources {
+       usecase "Models" as ModelsResource
+       usecase "ModelInfers" as ModelInfersResource
+       usecase "Policies" as PoliciesResource
     }
   }
   
   package "Flag Layer" {
-    usecase "--describe" as DescribeFlag
+    usecase "-o yaml" as OutputFlag
     usecase "--dry-run" as DryRunFlag
     usecase "--namespace" as NamespaceFlag
     usecase "--all-namespaces" as AllNamespacesFlag
   }
 }
 
-' User interactions with action layer
-user --> ListAction : minfer list
-user --> CreateAction : minfer create
+' User interactions with verb layer (kubectl-style)
+user --> GetVerb : minfer get
+user --> DescribeVerb : minfer describe
+user --> CreateVerb : minfer create
 
-' Action layer connects to target layer
-ListAction --> TemplatesTarget : templates
-ListAction --> ModelsTarget : models
-ListAction --> ModelInfersTarget : modelinfers
-ListAction --> PoliciesTarget : autoscaling-policies
+' Verb layer connects to resource layer
+GetVerb --> TemplatesResource : templates
+GetVerb --> TemplatesResource : template [NAME]
+GetVerb --> ModelsResource : models
+GetVerb --> ModelInfersResource : modelinfers
+GetVerb --> PoliciesResource : autoscaling-policies
 
-CreateAction --> TemplatesTarget : manifest
+DescribeVerb --> TemplatesResource : template [NAME]
+DescribeVerb --> ModelsResource : model [NAME]
+DescribeVerb --> ModelInfersResource : modelinfer [NAME]
 
-' Targets can use flags
-TemplatesTarget --> DescribeFlag
-TemplatesTarget --> DryRunFlag
-ModelsTarget --> NamespaceFlag
-ModelsTarget --> AllNamespacesFlag
-ModelInfersTarget --> AllNamespacesFlag
-ModelInfersTarget --> NamespaceFlag
-PoliciesTarget --> AllNamespacesFlag
-PoliciesTarget --> NamespaceFlag
+CreateVerb --> TemplatesResource : manifest
 
-note left of TemplatesTarget
-  Browse available manifest templates
-  with descriptions and variables
+' Resources can use flags
+TemplatesResource --> OutputFlag
+TemplatesResource --> DryRunFlag
+ModelsResource --> NamespaceFlag
+ModelsResource --> AllNamespacesFlag
+ModelInfersResource --> AllNamespacesFlag
+ModelInfersResource --> NamespaceFlag
+PoliciesResource --> AllNamespacesFlag
+PoliciesResource --> NamespaceFlag
+
+note left of TemplatesResource
+  Browse and view templates with
+  kubectl-style verb-noun syntax
 end note
 
-note top of CreateAction
+note top of CreateVerb
   Create MatrixInfer resources from
   templates with custom values
 end note
 
-note right of Resources
-  List Model, ModelInfer, AutoscalingPolicy
-  and AutoscalingPolicyBinding resources
+note right of KubernetesResources
+  Manage Model, ModelInfer, AutoscalingPolicy
+  resources using kubectl-style commands
 end note
 ```
 
 ## Overview
 
-The `minfer` CLI provides an easy way to:
+The `minfer` CLI follows kubectl-style verb-noun grammar and provides an easy way to:
+- Get and view templates and MatrixInfer resources in your cluster
+- Describe detailed information about specific templates and resources
 - Create MatrixInfer resources from predefined manifest templates
-- List and view existing MatrixInfer resources in your cluster
-- Manage inference workloads, models, and autoscaling policies
-- Apply configurations with template rendering and user confirmation
+- Manage inference workloads, models, and autoscaling policies with kubectl-like commands
 
 ### Build from Source
 
@@ -95,7 +102,63 @@ export PATH=$PATH:$(pwd)/bin
 
 ## Usage
 
-Please see `minfer --help`.
+The `minfer` CLI follows kubectl-style verb-noun grammar for consistency and ease of use.
+
+### Template Operations
+
+List all available templates:
+```bash
+minfer get templates
+```
+
+Get a specific template content:
+```bash
+minfer get template deepseek-r1-distill-llama-8b
+minfer get template deepseek-r1-distill-llama-8b -o yaml
+```
+
+Describe a template with detailed information:
+```bash
+minfer describe template deepseek-r1-distill-llama-8b
+```
+
+### Resource Operations
+
+List models:
+```bash
+minfer get models
+minfer get models --all-namespaces
+minfer get models -n production
+```
+
+List model inference workloads:
+```bash
+minfer get modelinfers
+minfer get modelinfers --all-namespaces
+```
+
+List autoscaling policies:
+```bash
+minfer get autoscaling-policies
+minfer get autoscaling-policies -n production
+```
+
+### Creating Resources
+
+Create resources from templates:
+```bash
+minfer create manifest --template deepseek-r1-distill-llama-8b --name my-model
+minfer create manifest --template deepseek-r1-distill-llama-8b --values-file values.yaml
+minfer create manifest --template deepseek-r1-distill-llama-8b --name my-model --dry-run
+```
+
+For more detailed usage information, run:
+```bash
+minfer --help
+minfer get --help
+minfer describe --help
+minfer create --help
+```
 
 ## Configuration
 
@@ -111,7 +174,7 @@ To add new manifest templates:
 1. Create a new `.yaml` file in the `templates/` directory
 2. Use Go template syntax with variables: `{{.variable_name}}`
 3. Add a description comment at the top: `# Description: Your template description`
-4. Test with `minfer list templates --describe your-template`
+4. Test with `minfer describe template your-template`
 
 Example template structure:
 ```yaml
