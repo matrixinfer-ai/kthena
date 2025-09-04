@@ -22,12 +22,12 @@ modelController:
       memory: 128Mi
   # downloaderImage is the container image used for downloading models.
   downloaderImage:
-    repository: ghcr.io/matrixinfer-ai/matrixinfer/downloader
+    repository: ghcr.io/matrixinfer-ai/downloader
     # node: edit by CI. No need to modify manually
     tag: latest
   # runtimeImage is the container image used for running models.
   runtimeImage:
-    repository: ghcr.io/matrixinfer-ai/matrixinfer/runtime
+    repository: ghcr.io/matrixinfer-ai/runtime
     # node: edit by CI. No need to modify manually
     tag: latest
   downloader:
