@@ -29,6 +29,8 @@ import (
 
 	"github.com/spf13/pflag"
 	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
+	volcanoClientSet "volcano.sh/apis/pkg/client/clientset/versioned"
+
 	"matrixinfer.ai/matrixinfer/pkg/infer-controller/controller"
 )
 
@@ -72,12 +74,17 @@ func main() {
 		klog.Fatalf("failed to create k8s client: %v", err)
 	}
 
+	volcanoClient, err := volcanoClientSet.NewForConfig(restConfig)
+	if err != nil {
+		klog.Fatalf("failed to create volcano client: %v", err)
+	}
+
 	modelInferClient, err := clientset.NewForConfig(restConfig)
 	if err != nil {
 		klog.Fatalf("failed to create ModelInfer client: %v", err)
 	}
 	// create ModelInfer controller
-	mic, err := controller.NewModelInferController(kubeClient, modelInferClient)
+	mic, err := controller.NewModelInferController(kubeClient, modelInferClient, volcanoClient)
 	if err != nil {
 		klog.Fatalf("failed to create ModelInfer controller: %v", err)
 	}

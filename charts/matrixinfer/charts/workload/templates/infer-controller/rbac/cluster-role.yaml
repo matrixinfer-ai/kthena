@@ -44,3 +44,15 @@ rules:
       - get
       - list
       - watch
+  - apiGroups:
+    - scheduling.volcano.sh
+    resources:
+    - podgroups
+    verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+    - delete

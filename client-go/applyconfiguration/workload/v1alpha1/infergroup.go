@@ -21,10 +21,9 @@ package v1alpha1
 // InferGroupApplyConfiguration represents a declarative configuration of the InferGroup type for use
 // with apply.
 type InferGroupApplyConfiguration struct {
-	RestartGracePeriodSeconds *int64                                 `json:"restartGracePeriodSeconds,omitempty"`
-	NetworkTopology           *NetworkTopologySpecApplyConfiguration `json:"networkTopology,omitempty"`
-	GangSchedule              *GangScheduleApplyConfiguration        `json:"gangSchedule,omitempty"`
-	Roles                     []RoleApplyConfiguration               `json:"roles,omitempty"`
+	RestartGracePeriodSeconds *int64                          `json:"restartGracePeriodSeconds,omitempty"`
+	GangSchedule              *GangScheduleApplyConfiguration `json:"gangSchedule,omitempty"`
+	Roles                     []RoleApplyConfiguration        `json:"roles,omitempty"`
 }
 
 // InferGroupApplyConfiguration constructs a declarative configuration of the InferGroup type for use with
@@ -38,14 +37,6 @@ func InferGroup() *InferGroupApplyConfiguration {
 // If called multiple times, the RestartGracePeriodSeconds field is set to the value of the last call.
 func (b *InferGroupApplyConfiguration) WithRestartGracePeriodSeconds(value int64) *InferGroupApplyConfiguration {
 	b.RestartGracePeriodSeconds = &value
-	return b
-}
-
-// WithNetworkTopology sets the NetworkTopology field in the declarative configuration to the given value
-// and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the NetworkTopology field is set to the value of the last call.
-func (b *InferGroupApplyConfiguration) WithNetworkTopology(value *NetworkTopologySpecApplyConfiguration) *InferGroupApplyConfiguration {
-	b.NetworkTopology = value
 	return b
 }
 
