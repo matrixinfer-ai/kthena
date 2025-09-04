@@ -18,11 +18,18 @@ package "minfer CLI" {
   }
   
   package "Resource Layer" {
-    usecase "Templates" as TemplatesResource
+    usecase "Templates" as Templates
+    usecase "Template" as Template
+    
+    usecase "Manifest" as Manifest
+    
     rectangle "Kubernetes Resources" as KubernetesResources {
-       usecase "Models" as ModelsResource
-       usecase "ModelInfers" as ModelInfersResource
-       usecase "Policies" as PoliciesResource
+       usecase "Models" as ModelResources
+       usecase "Model" as ModelResource
+       usecase "ModelInfers" as ModelInferResources
+       usecase "ModelInfer" as ModelInferResource
+       usecase "Policy" as PolicyResource
+       usecase "Policies" as PolicyResources
     }
   }
   
@@ -40,29 +47,28 @@ user --> DescribeVerb : minfer describe
 user --> CreateVerb : minfer create
 
 ' Verb layer connects to resource layer
-GetVerb --> TemplatesResource : templates
-GetVerb --> TemplatesResource : template [NAME]
-GetVerb --> ModelsResource : models
-GetVerb --> ModelInfersResource : modelinfers
-GetVerb --> PoliciesResource : autoscaling-policies
+CreateVerb --> Manifest : manifest
+GetVerb --> Templates : templates
+GetVerb --> Template : template [NAME]
+GetVerb --> ModelResources : models
+GetVerb --> ModelInferResources : modelinfers
+GetVerb --> PolicyResources : autoscaling-policies
 
-DescribeVerb --> TemplatesResource : template [NAME]
-DescribeVerb --> ModelsResource : model [NAME]
-DescribeVerb --> ModelInfersResource : modelinfer [NAME]
-
-CreateVerb --> TemplatesResource : manifest
+DescribeVerb --> Template : template [NAME]
+DescribeVerb --> ModelResources : model [NAME]
+DescribeVerb --> ModelInferResources : modelinfer [NAME]
 
 ' Resources can use flags
-TemplatesResource --> OutputFlag
-TemplatesResource --> DryRunFlag
-ModelsResource --> NamespaceFlag
-ModelsResource --> AllNamespacesFlag
-ModelInfersResource --> AllNamespacesFlag
-ModelInfersResource --> NamespaceFlag
-PoliciesResource --> AllNamespacesFlag
-PoliciesResource --> NamespaceFlag
+Templates --> OutputFlag
+Templates --> DryRunFlag
+ModelResources --> NamespaceFlag
+ModelResources --> AllNamespacesFlag
+ModelInferResources --> AllNamespacesFlag
+ModelInferResources --> NamespaceFlag
+PolicyResources --> AllNamespacesFlag
+PolicyResources --> NamespaceFlag
 
-note left of TemplatesResource
+note left of Templates
   Browse and view templates with
   kubectl-style verb-noun syntax
 end note
