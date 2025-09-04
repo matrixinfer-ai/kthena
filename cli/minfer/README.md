@@ -7,33 +7,30 @@
 ### Use Case Diagram
 
 ```plantuml
+
 actor "User" as user
 
 package "minfer CLI" {
   
-  package "Verb Layer" {
+  package "Verb Layer" as verbLayer{
     usecase "Get" as GetVerb
     usecase "Describe" as DescribeVerb
     usecase "Create" as CreateVerb
   }
   
-  package "Resource Layer" {
-    usecase "Templates" as Templates
-    usecase "Template" as Template
-    
+  package "Resource Layer" as ResourceLayer {
+    usecase "Template(s)" as Template
     usecase "Manifest" as Manifest
     
     rectangle "Kubernetes Resources" as KubernetesResources {
-       usecase "Models" as ModelResources
-       usecase "Model" as ModelResource
-       usecase "ModelInfers" as ModelInferResources
-       usecase "ModelInfer" as ModelInferResource
-       usecase "Policy" as PolicyResource
-       usecase "Policies" as PolicyResources
+       usecase "Model(s)" as ModelResource
+       usecase "ModelInfer(s)" as ModelInferResource
+       usecase "Policy(s)" as PolicyResource
+       usecase "PolicyBinding(s)" as PolicyBindingResource
     }
   }
   
-  package "Flag Layer" {
+  package "Flag Layer" as FlagLayer{
     usecase "-o yaml" as OutputFlag
     usecase "--dry-run" as DryRunFlag
     usecase "--namespace" as NamespaceFlag
@@ -42,46 +39,39 @@ package "minfer CLI" {
 }
 
 ' User interactions with verb layer (kubectl-style)
-user --> GetVerb : minfer get
-user --> DescribeVerb : minfer describe
-user --> CreateVerb : minfer create
+user --> GetVerb
+user --> DescribeVerb
+user --> CreateVerb
 
 ' Verb layer connects to resource layer
-CreateVerb --> Manifest : manifest
-GetVerb --> Templates : templates
-GetVerb --> Template : template [NAME]
-GetVerb --> ModelResources : models
-GetVerb --> ModelInferResources : modelinfers
-GetVerb --> PolicyResources : autoscaling-policies
+CreateVerb --> Manifest
+GetVerb --> Template
+GetVerb --> KubernetesResources
 
-DescribeVerb --> Template : template [NAME]
-DescribeVerb --> ModelResources : model [NAME]
-DescribeVerb --> ModelInferResources : modelinfer [NAME]
+DescribeVerb --> Template
+DescribeVerb --> KubernetesResources
 
 ' Resources can use flags
-Templates --> OutputFlag
-Templates --> DryRunFlag
-ModelResources --> NamespaceFlag
-ModelResources --> AllNamespacesFlag
-ModelInferResources --> AllNamespacesFlag
-ModelInferResources --> NamespaceFlag
-PolicyResources --> AllNamespacesFlag
-PolicyResources --> NamespaceFlag
+Manifest --> NamespaceFlag
+Manifest --> DryRunFlag
+Template --> OutputFlag
 
-note left of Templates
-  Browse and view templates with
-  kubectl-style verb-noun syntax
-end note
+KubernetesResources --> AllNamespacesFlag
+KubernetesResources --> NamespaceFlag
 
 note top of CreateVerb
   Create MatrixInfer resources from
   templates with custom values
 end note
 
-note right of KubernetesResources
-  Manage Model, ModelInfer, AutoscalingPolicy
-  resources using kubectl-style commands
-end note
+' layout
+GetVerb -[hidden]-> ModelResource
+GetVerb -[hidden]-> ModelInferResource
+GetVerb -[hidden]-> PolicyResource
+GetVerb -[hidden]-> PolicyBindingResource
+
+verbLayer -[hidden]-> ResourceLayer
+ResourceLayer -[hidden]-> FlagLayer
 ```
 
 ## Overview
