@@ -30,6 +30,7 @@ const (
 	RuntimePort        = "RUNTIME_PORT"
 	RuntimeUrl         = "RUNTIME_URL"
 	RuntimeMetricsPath = "RUNTIME_METRICS_PATH"
+	HfEndpoint         = "HF_ENDPOINT"
 )
 
 // GetEnvValueOrDefault gets value of specific env, if env does not exist, return default value

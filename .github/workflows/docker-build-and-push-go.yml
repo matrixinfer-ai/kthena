@@ -1,9 +1,5 @@
 name: Build and Push Docker Image for Go
 
-permissions:
-  contents: read
-  packages: write
-
 on:
   pull_request:
     branches:

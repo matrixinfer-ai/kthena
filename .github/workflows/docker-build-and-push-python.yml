@@ -1,9 +1,5 @@
 name: Build and Push Docker Image for Python
 
-permissions:
-  contents: read
-  packages: write
-
 on:
   push:
     branches:
