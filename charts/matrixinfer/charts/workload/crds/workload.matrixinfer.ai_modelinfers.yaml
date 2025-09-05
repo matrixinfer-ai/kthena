@@ -119,28 +119,36 @@ spec:
                   gangSchedule:
                     description: GangSchedule defines the GangSchedule config.
                     properties:
-                      enable:
-                        default: true
+                      minRoleReplicas:
+                        additionalProperties:
+                          format: int32
+                          type: integer
                         description: |-
-                          Enable indicates whether users want to enforce gang-scheduling,
-                          default true
-                        type: boolean
-                    type: object
-                  networkTopology:
-                    description: NetworkTopology defines the NetworkTopology config,
-                      this field works in conjunction with network topology feature
-                      and hyperNode CRD.
-                    properties:
-                      highestTierAllowed:
-                        default: 1
-                        description: HighestTierAllowed specifies the highest tier
-                          that a job allowed to cross when scheduling.
-                        type: integer
-                      mode:
-                        default: hard
-                        description: Mode specifies the mode of the network topology
-                          constrain.
-                        type: string
+                          MinRoleReplicas defines the minimum number of replicas required for each role
+                          in role-level gang scheduling. This map allows users to specify different
+                          minimum replica requirements for different roles.
+                          Key: role name
+                          Value: minimum number of replicas required for that role
+                        type: object
+                      networkTopology:
+                        description: NetworkTopology defines the NetworkTopology config,
+                          this field works in conjunction with network topology feature
+                          and hyperNode CRD.
+                        properties:
+                          highestTierAllowed:
+                            default: 1
+                            description: HighestTierAllowed specifies the highest
+                              tier that a job allowed to cross when scheduling.
+                            type: integer
+                          mode:
+                            default: hard
+                            description: Mode specifies the mode of the network topology
+                              constrain.
+                            enum:
+                            - hard
+                            - soft
+                            type: string
+                        type: object
                     type: object
                   restartGracePeriodSeconds:
                     default: 0
@@ -8407,22 +8415,6 @@ spec:
                           maxLength: 12
                           pattern: ^[a-zA-Z0-9]([-a-zA-Z0-9]*[a-zA-Z0-9])?$
                           type: string
-                        networkTopology:
-                          description: NetworkTopology defines the NetworkTopology
-                            config, this field works in conjunction with network topology
-                            feature and hyperNode CRD.
-                          properties:
-                            highestTierAllowed:
-                              default: 1
-                              description: HighestTierAllowed specifies the highest
-                                tier that a job allowed to cross when scheduling.
-                              type: integer
-                            mode:
-                              default: hard
-                              description: Mode specifies the mode of the network
-                                topology constrain.
-                              type: string
-                          type: object
                         replicas:
                           default: 1
                           description: |-

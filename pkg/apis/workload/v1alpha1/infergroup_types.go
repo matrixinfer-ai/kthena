@@ -18,15 +18,22 @@ package v1alpha1
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	volcanoV1Beta1 "volcano.sh/apis/pkg/apis/scheduling/v1beta1"
 )
 
 // GangSchedule defines the gang scheduling configuration.
 type GangSchedule struct {
-	// Enable indicates whether users want to enforce gang-scheduling,
-	// default true
-	// +kubebuilder:default=true
-	Enable *bool `json:"enable,omitempty"`
-	// todo: add more gang scheduling configuration fields
+	// NetworkTopology defines the NetworkTopology config, this field works in conjunction with network topology feature and hyperNode CRD.
+	// +optional
+	NetworkTopology *volcanoV1Beta1.NetworkTopologySpec `json:"networkTopology,omitempty" protobuf:"bytes,5,opt,name=networkTopology"`
+
+	// MinRoleReplicas defines the minimum number of replicas required for each role
+	// in role-level gang scheduling. This map allows users to specify different
+	// minimum replica requirements for different roles.
+	// Key: role name
+	// Value: minimum number of replicas required for that role
+	// +optional
+	MinRoleReplicas map[string]int32 `json:"minRoleReplicas,omitempty"`
 }
 
 // Role defines the specific pod instance role that performs the inference task.
@@ -43,10 +50,6 @@ type Role struct {
 	// +optional
 	// +kubebuilder:default=1
 	Replicas *int32 `json:"replicas,omitempty"`
-
-	// NetworkTopology defines the NetworkTopology config, this field works in conjunction with network topology feature and hyperNode CRD.
-	// +optional
-	NetworkTopology *NetworkTopologySpec `json:"networkTopology,omitempty"`
 
 	// EntryTemplate defines the template for the entry pod of a role.
 	// Required: Currently, a role must have only one entry-pod.
@@ -87,29 +90,6 @@ type Metadata struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
-type NetworkTopologySpec struct {
-	// Mode specifies the mode of the network topology constrain.
-	// +kubebuilder:default=hard
-	// +optional
-	Mode NetworkTopologyMode `json:"mode,omitempty"`
-
-	// HighestTierAllowed specifies the highest tier that a job allowed to cross when scheduling.
-	// +kubebuilder:default=1
-	// +optional
-	HighestTierAllowed *int `json:"highestTierAllowed,omitempty"`
-}
-
-type NetworkTopologyMode string
-
-const (
-	// HardNetworkTopologyMode represents a strict network topology constraint that jobs must adhere to.
-	HardNetworkTopologyMode NetworkTopologyMode = "hard"
-
-	// SoftNetworkTopologyMode represents a flexible network topology constraint that
-	// allows jobs to cross network boundaries under certain conditions.
-	SoftNetworkTopologyMode NetworkTopologyMode = "soft"
-)
-
 // InferGroup is the smallest unit to complete the inference task
 type InferGroup struct {
 	// RestartGracePeriodSeconds defines the grace time for the controller to rebuild the infergroup when an error occurs
@@ -118,13 +98,9 @@ type InferGroup struct {
 	// +kubebuilder:default=0
 	RestartGracePeriodSeconds *int64 `json:"restartGracePeriodSeconds,omitempty"`
 
-	// NetworkTopology defines the NetworkTopology config, this field works in conjunction with network topology feature and hyperNode CRD.
-	// +optional
-	NetworkTopology *NetworkTopologySpec `json:"networkTopology,omitempty"`
-
 	// GangSchedule defines the GangSchedule config.
 	// +optional
-	GangSchedule GangSchedule `json:"gangSchedule,omitempty"`
+	GangSchedule *GangSchedule `json:"gangSchedule,omitempty"`
 	// +kubebuilder:validation:MaxItems=4
 	// +kubebuilder:validation:MinItems=1
 	// +kubebuilder:validation:XValidation:rule="self.all(x, self.exists_one(y, y.name == x.name))", message="roles name must be unique"
