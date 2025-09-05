@@ -19,7 +19,7 @@ The platform comprises two primary planes:
 
 MatrixInfer extends Kubernetes with custom resources that provide declarative configuration for AI inference workloads:
 
-- **Model** – Defines model specifications including weights, checkpoints, and metadata
+- **Model** – Serves as a convenient, high-level API entrance to define model specifications, automatically creating associated ModelRoute, ModelServer, and other related Custom Resources in cascade.
 - **ModelRoute** – Configures routing rules and traffic control policies
 - **ModelServer** – Manages REST/gRPC endpoints with exposure and authentication rules
 - **ModelInfer** – Specifies inference groups, replica configurations, and runtime parameters
