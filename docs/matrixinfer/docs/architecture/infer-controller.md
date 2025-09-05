@@ -9,7 +9,7 @@ Prefilling Decoding Disaggregation and parallel inference services like Pipeline
 
 ## ModelInfer Architecture
 
-![modelinfer.png](../../static/img/modelinfer.png)
+![modelinfer.svg](../../static/img/modelinfer.svg)
 
 The Custom Resource Definition (CRD) of `ModelInfer` is primarily divided into three layers, namely:
 
@@ -61,7 +61,3 @@ Read the [examples](https://github.com/matrixinfer-ai/matrixinfer/blob/main/exam
 | GROUP_SIZE    | The environment variable for the inference Role instance size       | 4                                               | pod        |
 | ENTRY_ADDRESS | The address of the Entry via the headless service                   | sample-0-decode-0-0.sample-0-decode-0-0.default | pod        |
 | WORKER_INDEX  | The index or identity of the pod within the inference Role instance | 0                                               | pod        |
-
-## ModelInfer API
-
-Refer to [api](https://github.com/matrixinfer-ai/matrixinfer/blob/main/docs/matrixinfer/docs/reference/crd/workload.matrixinfer.ai.md).
