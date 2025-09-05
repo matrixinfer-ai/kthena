@@ -21,8 +21,8 @@ MatrixInfer extends Kubernetes with custom resources that provide declarative co
 
 - **Model** – Serves as a convenient, high-level API entrance to define model specifications, automatically creating associated ModelRoute, ModelServer, and other related Custom Resources in cascade.
 - **ModelRoute** – Defines routing rules and traffic control policies, matching incoming LLM requests based on `modelName` or `loraAdapters` and a configurable set of `rules` to direct traffic to specific ModelServers, and can include optional token-based `rateLimit`s.
-- **ModelServer** – Abstracts and manages inference instances (pods), defining the model and engine, categorizing pods via workloadSelector for roles like Prefill/Decode disaggregation, and configuring traffic policies (retries, timeouts).
-- **ModelInfer** – Specifies inference groups, replica configurations, and runtime parameters
+- **ModelServer** – Configures the service exposure and traffic policies for underlying inference instances (pods), defining the model and engine, categorizing pods via workloadSelector for roles like Prefill/Decode disaggregation, and configuring traffic policies (retries, timeouts).
+- **ModelInfer** – Orchestrates the deployment and lifecycle of underlying inference instances (pods), defining `replicas` (InferGroups), `recoveryPolicy` for failures, specialized `roles` (e.g., Prefill/Decode for disaggregated inference), configurable pod `template`s, and its dedicated `scheduler`.
 - **AutoScalingPolicy** – Defines autoscaling triggers, metrics, and scaling behaviors
 - **AutoScalingPolicyBinding** – Associates models with specific autoscaling policies
 
