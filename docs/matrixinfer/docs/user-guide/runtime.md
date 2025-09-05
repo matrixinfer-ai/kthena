@@ -8,11 +8,15 @@ MatrixInfer Runtime is a lightweight sidecar service designed to standardize Pro
 - LoRA lifecycle management: simple HTTP APIs to download+load and unload LoRA adapters for dynamic enable/disable.
 - Model downloading: supports downloading models from S3/OBS/PVC/HuggingFace to a local path.
 
+Notes:
+
+1. If you want to download from S3/OBS, you first need to upload the model to the bucket.
+
 ## Installation
 
-- Runtime does not require separate installation. As part of ModelInfer, it will be automatically deployed in the ModelInfer Pod.
+- Runtime does not support separate installation.  it will be automatically deployed alongside the inference container as a sidecar when you are using `Model` to deploy llm.
 - When deploying via the Model CR (one-stop deployment), no additional configuration is needed; ModelInfer will automatically enable the runtime feature.
-- For standalone deployment using ModelInfer YAML, you can add the following configuration to start Runtime sidecar container:
+- For standalone deployment using ModelInfer YAML, you can add the following configuration to start Runtime as sidecar container:
 
   ```
   - name: runtime
