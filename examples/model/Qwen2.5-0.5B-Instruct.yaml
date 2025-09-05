@@ -15,7 +15,7 @@ spec:
           value: "https://hf-mirror.com/"
       workers:
         - type: "server"
-          image: "public.ecr.aws/q9t5s3a7/vllm-cpu-release-repo:latest"
+          image: "public.ecr.aws/q9t5s3a7/vllm-cpu-release-repo:latest" # This model will run on CPU, for more details visit https://docs.vllm.ai/en/stable/getting_started/installation/cpu.html#pre-built-images
           replicas: 1
           pods: 1
           config:

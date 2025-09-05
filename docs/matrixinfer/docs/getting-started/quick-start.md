@@ -29,27 +29,28 @@ kubectl apply -f https://raw.githubusercontent.com/matrixinfer-ai/matrixinfer/re
 Wait model condition `Active` to become `true`. You can check the status using:
 
 ```bash
-kubectl get model demo -o yaml
+kubectl get model demo -o jsonpath='{.status.conditions}'
 ```
 
 And the status section should look like this when the model is ready:
 
-```bash
-status:
-  backendStatuses:
-  - name: demo-backend1
-    replicas: 1
-  conditions:
-  - lastTransitionTime: "2025-09-03T07:10:55Z"
-    message: Model initialized
-    reason: ModelCreating
-    status: "True"
-    type: Initialized
-  - lastTransitionTime: "2025-09-03T07:12:35Z"
-    message: Model is ready
-    reason: ModelAvailable
-    status: "True"
-    type: Active
+```json
+[
+  {
+    "lastTransitionTime": "2025-09-05T02:14:16Z",
+    "message": "Model initialized",
+    "reason": "ModelCreating",
+    "status": "True",
+    "type": "Initialized"
+  },
+  {
+    "lastTransitionTime": "2025-09-05T02:18:46Z",
+    "message": "Model is ready",
+    "reason": "ModelAvailable",
+    "status": "True",
+    "type": "Active"
+  }
+]
 ```
 
 ## Step 3: Perform Inference
@@ -71,11 +72,11 @@ curl -X POST http://<model-route-ip>/v1/chat/completions \
 }'
 ```
 
-Replace `<model-route-ip>` with the `CLUSTER-IP` of `networking-infer-gateway`
+Use the following command to get the `<model-route-ip>`:
 
 ```bash
-kubectl get svc networking-infer-gateway
+kubectl get svc networking-infer-gateway -o jsonpath='{.spec.clusterIP}'
 ```
 
-or if you want to chat from outside the cluster, you can use the `EXTERNAL-IP` of `networking-infer-gateway` if it's
-available.
+This IP can only be used inside the cluster. If you want to chat from outside the cluster, you can use the `EXTERNAL-IP`
+of `networking-infer-gateway` after you bind it.
