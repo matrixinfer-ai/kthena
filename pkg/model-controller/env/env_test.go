@@ -152,7 +152,7 @@ func TestGetEnvValueOrDefault(t *testing.T) {
 				}},
 			},
 			envName:       "TEST_ENV_VAR",
-			defaultValue:  []corev1.EnvVar{{Name: "TEST_ENV_VAR", Value: ""}},
+			defaultValue:  []corev1.EnvVar{{Name: "TEST_ENV_VAR"}},
 			expectedValue: []corev1.EnvVar{{Name: "TEST_ENV_VAR", Value: "env-value"}},
 		}, {
 			name: "[]corev1.EnvVar type - env not exists",
@@ -163,8 +163,8 @@ func TestGetEnvValueOrDefault(t *testing.T) {
 				}},
 			},
 			envName:       "TEST_ENV_VAR_NOT_EXISTS",
-			defaultValue:  []corev1.EnvVar{{Name: "TEST_ENV_VAR", Value: ""}},
-			expectedValue: []corev1.EnvVar{{Name: "TEST_ENV_VAR", Value: ""}},
+			defaultValue:  []corev1.EnvVar{{Name: "TEST_ENV_VAR"}},
+			expectedValue: []corev1.EnvVar{{Name: "TEST_ENV_VAR"}},
 		},
 		{
 			name: "other slice",

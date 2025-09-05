@@ -52,6 +52,7 @@ const sidebars: SidebarsConfig = {
         'user-guide/prefill-decode-disaggregation',
         'user-guide/multi-node-inference',
         'user-guide/autoscaler',
+        'user-guide/rate-limit',
         'user-guide/runtime',
       ],
     },
