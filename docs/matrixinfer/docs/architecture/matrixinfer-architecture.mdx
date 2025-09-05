@@ -23,8 +23,8 @@ MatrixInfer extends Kubernetes with custom resources that provide declarative co
 - **ModelRoute** – Defines routing rules and traffic control policies, matching incoming LLM requests based on `modelName` or `loraAdapters` and a configurable set of `rules` to direct traffic to specific ModelServers, and can include optional token-based `rateLimit`s.
 - **ModelServer** – Configures the service exposure and traffic policies for underlying inference instances (pods), defining the model and engine, categorizing pods via workloadSelector for roles like Prefill/Decode disaggregation, and configuring traffic policies (retries, timeouts).
 - **ModelInfer** – Orchestrates the deployment and lifecycle of underlying inference instances (pods), defining `replicas` (InferGroups), `recoveryPolicy` for failures, specialized `roles` (e.g., Prefill/Decode for disaggregated inference), configurable pod `template`s, and its dedicated `scheduler`.
-- **AutoScalingPolicy** – Defines comprehensive autoscaling rules including metric collection endpoints, scaling triggers based on custom metrics (CPU, memory, request queue depth, etc.), scaling behaviors (scale-up/down rates, stabilization windows), and target thresholds for automated replica management
-- **AutoScalingPolicyBinding** – Binds autoscaling policies to specific target workloads with two operational modes: **scalingConfiguration** for standard metric-driven scaling of single targets, and **optimizerConfiguration** for intelligent workload distribution across heterogeneous hardware groups (e.g., H100/A100 instances).
+- **AutoScalingPolicy** – Defines autoscaling rules including metric collection endpoints, scaling triggers (CPU, memory, custom metrics), scaling behaviors (rates, stabilization windows), and target thresholds for automated replica management
+- **AutoScalingPolicyBinding** – Binds autoscaling policies to target workloads with two modes: **scalingConfiguration** for metric-driven scaling of individual targets, and **optimizerConfiguration** for cost-optimized workload distribution across heterogeneous hardware (e.g., H100/A100 GPU clusters)
 
 Platform operators manage these CRDs declaratively, and Control Plane controllers continuously reconcile them into runtime resources.
 
@@ -99,13 +99,13 @@ This architecture enables **Prefill/Decode Disaggregation (PD mode)**, allowing 
 1.  **Request Ingress (Client Request Initiation):**
     *   Client applications submit inference requests to the **Infer Gateway** via REST/gRPC endpoints.
 2.  **Gateway Request Processing (Authentication & Rate Control):**
-    *   The **Infer Gateway** validates client credentials through **Authentication & Authorization** middleware and enforces **Rate Limiting** policies to prevent system overload.
+    *   The **Infer Gateway** validates client credentials and enforces **Rate Limiting** policies to prevent system overload.
 3.  **Fairness Scheduling & Queue Management:**
-    *   When request volume exceeds processing capacity, the **Fairness Scheduler** implements queue-based resource allocation mechanisms to ensure equitable request distribution and prevent resource starvation.
+    *   The **Fairness Scheduler** implements queue-based resource allocation to ensure equitable request distribution and prevent resource starvation when capacity is exceeded.
 4.  **Intelligent Request Routing (Scheduler Optimization):**
-    *   The **Scheduler** evaluates available **Inference Pods** using a multi-stage selection algorithm:
-    *   **Filter Plugins** eliminate unsuitable pods based on resource constraints and compatibility requirements.
-    *   **Score Plugins** rank candidate pods using optimization criteria including current request load (**Least Requests**), cache utilization (**KV Cache Aware**, **GPU Cache**), latency minimization (**Least Latency**), and prefix caching efficiency (**Prefix Cache**).
+    *   The **Scheduler** evaluates available **Inference Pods** using a two-stage selection process:
+    *   **Filter Plugins** eliminate unsuitable pods based on resource constraints and compatibility (e.g., LoRA requirements).
+    *   **Score Plugins** rank pods using criteria including request load (**Least Requests**), cache utilization (**KV Cache Aware**, **GPU Cache**), latency optimization (**Least Latency**), and prefix caching (**Prefix Cache**).
 5.  **Load Balancing & Request Dispatching:**
     *   The **Load Balancer** routes requests to optimal backend instances based on health checks and capacity metrics derived from Control Plane metadata.
     *   The **Proxy** component handles request forwarding and maintains connection pooling to target inference groups.
@@ -118,8 +118,8 @@ This architecture enables **Prefill/Decode Disaggregation (PD mode)**, allowing 
 7.  **Control Plane Orchestration (Resource Lifecycle Management):**
     *   **Platform Operators** manage model deployments through CRD manipulation of **Model** resources.
     *   The **Model Controller** propagates configuration changes to downstream controllers: **ModelRoute Controller** (routing rule synchronization), **ModelServer Controller** (endpoint configuration), and **ModelInfer Controller** (replica group orchestration).
-    *   **AutoScaling Policies** define comprehensive scaling rules including custom metric endpoints, target thresholds, and scaling behaviors, bound to specific workloads through **AutoScalingPolicyBinding** resources that support both standard scaling and intelligent optimization across heterogeneous hardware configurations.
-    *   The **Autoscaler Controller** continuously collects metrics from target workload pods, evaluates scaling policies against real-time performance data, and executes scaling decisions by instructing the **ModelInfer Controller** to adjust replica counts or redistribute workloads across different instance types for optimal resource utilization and cost efficiency.
+    *   **AutoScaling Policies** define scaling rules with metric endpoints, thresholds, and behaviors, bound to workloads via **AutoScalingPolicyBinding** resources supporting both standard scaling and cost-optimized distribution across heterogeneous hardware.
+    *   The **Autoscaler Controller** monitors target pod metrics, evaluates scaling policies, and instructs the **ModelInfer Controller** to adjust replica counts or redistribute workloads across instance types for optimal resource utilization and cost efficiency.
 
 ## Key Features
 
@@ -127,11 +127,11 @@ MatrixInfer provides comprehensive capabilities for enterprise-grade AI inferenc
 
 - **Declarative Management**: Complete CRD-driven configuration for models, routes, servers, and scaling policies
 - **Control Plane Orchestration**: Automated resource management with dedicated controllers and continuous reconciliation
-- **Advanced Gateway Pipeline**: Full request processing pipeline with authentication, rate limiting, fairness scheduling, and intelligent routing
-- **Intelligent Scheduling**: Pluggable scheduling framework with latency-aware, cache-aware, and LoRA affinity optimizations
-- **Prefill/Decode Disaggregation**: Specialized workload separation enabling independent scaling of inference stages
+- **Advanced Gateway Pipeline**: Comprehensive request processing with authentication, rate limiting, fairness scheduling, and intelligent routing
+- **Intelligent Scheduling**: Pluggable framework with latency-aware, cache-aware, and LoRA affinity optimizations
+- **Prefill/Decode Disaggregation**: Independent scaling of inference stages through specialized workload separation
 - **Role-Based Architecture**: Flexible inference groups with granular replica management and role assignments
-- **Enterprise Observability**: Comprehensive monitoring through Init Containers, Sidecar Containers, and Runtime Agents
-- **Dynamic Scaling**: Metric-driven autoscaling with support for both homogeneous and heterogeneous instance types
+- **Enterprise Observability**: Comprehensive monitoring via Init Containers, Sidecar Containers, and Runtime Agents
+- **Dynamic Scaling**: Metric-driven autoscaling supporting both homogeneous and heterogeneous instance types
 - **Multi-Engine Support**: Native integration with leading LLM inference engines (vLLM, SGLang)
-- **Kubernetes-Native**: Full integration with Kubernetes ecosystem including RBAC, networking, and storage
+- **Kubernetes-Native**: Full ecosystem integration including RBAC, networking, and storage
