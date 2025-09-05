@@ -205,7 +205,299 @@ Logs are written to stdout by default and can be configured to write to files or
 
 ### 2.3 Debug interface
 
+The gateway exposes a debug interface at `/debug` to help operators inspect internal state and troubleshoot issues. This interface provides access to the gateway's datastore information, allowing examination of ModelRoutes, ModelServers, and Pod details.
+
+#### Debug Endpoints
+
+The following debug endpoints are available:
+
+**List Resources**
+- `/debug/modelroutes` - List all ModelRoute configurations
+- `/debug/modelservers` - List all ModelServer configurations 
+- `/debug/pods` - List all Pod information
+
+**Get Specific Resource**
+- `/debug/modelroute/{name}` - Get details of a specific ModelRoute
+- `/debug/modelserver/{namespace}/{name}` - Get details of a specific ModelServer
+- `/debug/pod/{namespace}/{name}` - Get details of a specific Pod
+
+#### Example Responses
+
+**GET /debug/modelroutes**
+```json
+{
+  "modelroutes": [
+    {
+      "name": "llama2-route",
+      "namespace": "default",
+      "spec": {
+        "modelName": "llama2-7b",
+        "loraAdapters": ["lora-adapter-1", "lora-adapter-2"],
+        "rules": [
+          {
+            "name": "default-rule",
+            "modelMatch": {
+              "body": {
+                "model": "llama2-7b"
+              }
+            },
+            "targetModels": [
+              {
+                "modelServer": {
+                  "name": "llama2-server",
+                  "namespace": "default"
+                },
+                "weight": 100
+              }
+            ]
+          }
+        ],
+        "rateLimit": {
+          "local": {
+            "inputTokensPerSecond": 1000,
+            "outputTokensPerSecond": 500
+          }
+        }
+      }
+    }
+  ]
+}
+```
+
+**GET /debug/modelroute/llama2-route**
+```json
+{
+  "name": "llama2-route",
+  "namespace": "default",
+  "spec": {
+    "modelName": "llama2-7b",
+    "loraAdapters": ["lora-adapter-1", "lora-adapter-2"],
+    "rules": [
+      {
+        "name": "default-rule",
+        "modelMatch": {
+          "headers": {
+            "authorization": {
+              "prefix": "Bearer "
+            }
+          },
+          "uri": {
+            "prefix": "/v1/chat/completions"
+          },
+          "body": {
+            "model": "llama2-7b"
+          }
+        },
+        "targetModels": [
+          {
+            "modelServer": {
+              "name": "llama2-server",
+              "namespace": "default"
+            },
+            "weight": 100
+          }
+        ]
+      }
+    ],
+    "rateLimit": {
+      "local": {
+        "inputTokensPerSecond": 1000,
+        "outputTokensPerSecond": 500
+      }
+    }
+  },
+  "routeInfo": {
+    "model": "llama2-7b",
+    "loras": ["lora-adapter-1", "lora-adapter-2"]
+  }
+}
+```
+
+**GET /debug/modelservers**
+```json
+{
+  "modelservers": [
+    {
+      "name": "llama2-server",
+      "namespace": "default",
+      "spec": {
+        "model": "llama2-7b-chat",
+        "inferenceEngine": "vLLM",
+        "workloadSelector": {
+          "matchLabels": {
+            "app": "llama2",
+            "version": "v1"
+          }
+        },
+        "workloadPort": {
+          "port": 8000,
+          "protocol": "http"
+        },
+        "trafficPolicy": {
+          "loadBalancer": {
+            "simple": "LEAST_REQUEST"
+          }
+        }
+      }
+    }
+  ]
+}
+```
+
+**GET /debug/modelserver/default/llama2-server**
+```json
+{
+  "name": "llama2-server",
+  "namespace": "default",
+  "spec": {
+    "model": "llama2-7b-chat",
+    "inferenceEngine": "vLLM",
+    "workloadSelector": {
+      "matchLabels": {
+        "app": "llama2",
+        "version": "v1"
+      },
+      "pdGroup": {
+        "groupKey": "group-id",
+        "prefillLabels": {
+          "role": "prefill"
+        },
+        "decodeLabels": {
+          "role": "decode"
+        }
+      }
+    },
+    "workloadPort": {
+      "port": 8000,
+      "protocol": "http"
+    },
+    "trafficPolicy": {
+      "loadBalancer": {
+        "simple": "LEAST_REQUEST"
+      }
+    },
+    "kvConnector": {
+      "type": "redis",
+      "redis": {
+        "address": "redis.default.svc.cluster.local:6379",
+        "db": 0
+      }
+    }
+  },
+  "associatedPods": [
+    "default/llama2-deployment-5f7b8c9d-xk2p4",
+    "default/llama2-deployment-5f7b8c9d-mn8q7"
+  ]
+}
+```
+
+**GET /debug/pods**
+```json
+{
+  "pods": [
+    {
+      "name": "llama2-deployment-5f7b8c9d-xk2p4",
+      "namespace": "default",
+      "podIP": "10.244.2.20",
+      "nodeName": "worker-node-1",
+      "phase": "Running",
+      "engine": "vLLM",
+      "metrics": {
+        "gpuCacheUsage": 0.75,
+        "requestWaitingNum": 3,
+        "requestRunningNum": 2,
+        "tpot": 0.045,
+        "ttft": 1.2
+      },
+      "models": ["llama2-7b", "lora-adapter-1", "lora-adapter-2"],
+      "modelServers": ["default/llama2-server"]
+    }
+  ]
+}
+```
+
+**GET /debug/pod/default/llama2-deployment-5f7b8c9d-xk2p4**
+```json
+{
+  "name": "llama2-deployment-5f7b8c9d-xk2p4",
+  "namespace": "default",
+  "podInfo": {
+    "podIP": "10.244.2.20",
+    "nodeName": "worker-node-1",
+    "phase": "Running",
+    "startTime": "2024-01-15T10:00:00Z",
+    "labels": {
+      "app": "llama2",
+      "version": "v1",
+      "role": "inference"
+    }
+  },
+  "engine": "vLLM",
+  "metrics": {
+    "gpuCacheUsage": 0.75,
+    "requestWaitingNum": 3,
+    "requestRunningNum": 2,
+    "tpot": 0.045,
+    "ttft": 1.2,
+    "timeToFirstTokenHistogram": {
+      "buckets": [
+        {"upperBound": 0.5, "cumulativeCount": 10},
+        {"upperBound": 1.0, "cumulativeCount": 25},
+        {"upperBound": 2.0, "cumulativeCount": 45}
+      ],
+      "sampleCount": 50,
+      "sampleSum": 62.5
+    },
+    "timePerOutputTokenHistogram": {
+      "buckets": [
+        {"upperBound": 0.01, "cumulativeCount": 5},
+        {"upperBound": 0.05, "cumulativeCount": 35},
+        {"upperBound": 0.1, "cumulativeCount": 48}
+      ],
+      "sampleCount": 50,
+      "sampleSum": 2.25
+    }
+  },
+  "models": ["llama2-7b", "lora-adapter-1", "lora-adapter-2"],
+  "modelServers": ["default/llama2-server"],
+  "containers": [
+    {
+      "name": "inference-server",
+      "image": "vllm/vllm-openai:latest",
+      "ports": [
+        {
+          "containerPort": 8000,
+          "protocol": "TCP"
+        }
+      ],
+      "resources": {
+        "requests": {
+          "nvidia.com/gpu": "1",
+          "memory": "16Gi",
+          "cpu": "4"
+        }
+      }
+    }
+  ]
+}
+```
 
 ## 3. Conclusion
 
+This proposal defines a comprehensive observability framework for the infer-gateway that provides:
+
+1. **Metrics**: Prometheus-compatible metrics covering HTTP requests, AI-specific token processing, rate limiting, and error tracking with carefully chosen labels to avoid high cardinality issues.
+
+2. **Access Logs**: Structured logging format that captures the complete AI inference request lifecycle, including model routing decisions, pod selection, and detailed timing breakdowns for performance analysis.
+
+3. **Debug Interface**: RESTful debug endpoints that expose internal datastore state for troubleshooting, including ModelRoute configurations, ModelServer details, and Pod metrics.
+
+The framework enables operators to:
+- Monitor system performance and health in real-time
+- Troubleshoot routing and scheduling issues effectively  
+- Analyze token consumption patterns for cost optimization
+- Track rate limiting effectiveness and resource utilization
+- Correlate metrics, logs, and debug information for comprehensive observability
+
+All components are designed to integrate seamlessly with standard observability tools (Prometheus, Grafana, log collectors) while providing AI-specific insights essential for managing inference workloads.
 
