@@ -19,12 +19,12 @@ The platform comprises two primary planes:
 
 MatrixInfer extends Kubernetes with custom resources that provide declarative configuration for AI inference workloads:
 
-- **Model** – Serves as a convenient, high-level API entrance to define model specifications, automatically creating associated ModelRoute, ModelServer, and other related Custom Resources in cascade.
-- **ModelRoute** – Defines routing rules and traffic control policies, matching incoming LLM requests based on `modelName` or `loraAdapters` and a configurable set of `rules` to direct traffic to specific ModelServers, and can include optional token-based `rateLimit`s.
-- **ModelServer** – Configures the service exposure and traffic policies for underlying inference instances (pods), defining the model and engine, categorizing pods via workloadSelector for roles like Prefill/Decode disaggregation, and configuring traffic policies (retries, timeouts).
-- **ModelInfer** – Orchestrates the deployment and lifecycle of underlying inference instances (pods), defining `replicas` (InferGroups), `recoveryPolicy` for failures, specialized `roles` (e.g., Prefill/Decode for disaggregated inference), configurable pod `template`s, and its dedicated `scheduler`.
-- **AutoScalingPolicy** – Defines autoscaling rules including metric collection endpoints, scaling triggers (CPU, memory, custom metrics), scaling behaviors (rates, stabilization windows), and target thresholds for automated replica management
-- **AutoScalingPolicyBinding** – Binds autoscaling policies to target workloads with two modes: **scalingConfiguration** for metric-driven scaling of individual targets, and **optimizerConfiguration** for cost-optimized workload distribution across heterogeneous hardware (e.g., H100/A100 GPU clusters)
+- **Model** – A high-level, opinionated API that captures model specifications and cascades creation/update/deletion of related resources (ModelRoute, ModelServer, ModelInfer, autoscaling artifacts) to deliver a one-stop model deployment experience.
+- **ModelRoute** – Declares routing intent and traffic control: matches by `modelName`, `loraAdapters`, and HTTP attributes (path, headers); supports rule-based routing with weights, canary/A–B strategies, and optional token-based `rateLimit`s.
+- **ModelServer** – Defines service exposure and traffic policy for backend inference pods: specifies the model and inference framework/engine, discovers pods via `workloadSelector` (including role-aware groupings such as Prefill/Decode), and applies traffic policies (retries, timeouts, connection settings) for healthy endpoint publication.
+- **ModelInfer** – Manages inference workloads as `InferGroup`s with role-based replicas (e.g., Prefill/Decode), supporting configurable entry/worker Pod `template`s, `recoveryPolicy`, topology- and gang-aware scheduling, rolling upgrades, and a dedicated `scheduler`.
+- **AutoScalingPolicy** – Specifies autoscaling rules: metric endpoints and triggers (CPU, memory, custom), target thresholds, and scaling behaviors (up/down rates, stabilization and panic windows) for automated replica management.
+- **AutoScalingPolicyBinding** – Attaches policies to target workloads (e.g., ModelInfer or Deployments), supporting two modes: **scalingConfiguration** for metric-driven scaling of a single target and **optimizerConfiguration** for cost-aware distribution across heterogeneous instance types and engines (e.g., H100/A100).
 
 Platform operators manage these CRDs declaratively, and Control Plane controllers continuously reconcile them into runtime resources.
 
