@@ -34,11 +34,11 @@ The Control Plane ensures that declarative configurations are realized into oper
 
 #### **Controllers**
 
-- **Model Controller** – Watches `Model` CRDs and manages model lifecycle and state transitions
-- **ModelRoute Controller** – Synchronizes routing configurations into the inference gateway
-- **ModelServer Controller** – Manages serving endpoints, connectivity, and exposure policies
-- **ModelInfer Controller** – Orchestrates inference groups, role assignments, and replica management
-- **Autoscaler Controller** – Collects runtime metrics from pods and evaluates scaling decisions based on configured policies
+- **Model Controller** – Reconciles `Model` resources into downstream primitives (`ModelRoute`, `ModelServer`, `ModelInfer`, `AutoScalingPolicy`, `AutoScalingPolicyBinding`) and maintains overall model lifecycle and status. It propagates updates and orchestrates cascaded create/update/delete to keep derived resources consistent.
+- **ModelRoute Controller** – Projects routing intent into the Infer Gateway by continuously syncing matches, weights, and model/LoRA selectors from `ModelRoute` CRs. It validates and normalizes rule sets to produce the effective routing table used by the gateway.
+- **ModelServer Controller** – Tracks backend pods via `workloadSelector`, applies traffic policies (retries, timeouts, connection settings), and publishes healthy endpoints to the gateway. It manages service exposure and connectivity for model-serving backends.
+- **ModelInfer Controller** – Manages `ModelInfer` workloads including `InferGroup`s and role-based replicas (e.g., Prefill/Decode). It handles topology- and gang-aware placement, fault recovery, and rolling upgrades, and reconciles entry/worker Pod templates and services for each role.
+- **Autoscaler Controller** – Evaluates runtime metrics against `AutoScalingPolicy` targets and computes desired replica counts for bound workloads. It supports homogeneous scaling (stable/panic modes) and heterogeneous optimization via `AutoScalingPolicyBinding`, adjusting replicas and instance mix to meet SLOs and cost goals.
 
 ### 3. **Data Plane**
 
