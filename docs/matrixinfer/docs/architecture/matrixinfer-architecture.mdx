@@ -48,30 +48,34 @@ The Data Plane executes inference workloads and handles request processing throu
 
 The Infer Gateway processes user requests through a comprehensive pipeline that ensures security, fairness, and optimal resource utilization:
 
-**Request Pipeline:**
+##### **Request Pipeline**
 
-- **Authentication & Authorization** – Validates user identity and permissions
-- **Rate Limiting** – Enforces request throughput limits to prevent system overload
-- **Fairness Scheduling** – Implements queuing mechanisms and fair resource allocation
-- **Scheduling** – Selects optimal pods using filter and score plugins for intelligent request routing
-- **Load Balancing** – Routes requests to optimal backend instances based on health and capacity
-- **Proxy** – Dispatches requests to appropriate data plane inference groups
+The request pipeline orchestrates the flow of user requests through the following stages:
 
-##### **Scheduler (Gateway Component)**
+*   **Authentication & Authorization** – Validates user identity and permissions
+*   **Rate Limiting** – Enforces request throughput limits to prevent system overload
+*   **Fairness Scheduling** – Implements queuing mechanisms and fair resource allocation
+*   **Scheduling** – Selects optimal pods using filter and score plugins for intelligent request routing.
 
-The Infer Gateway includes a pluggable Scheduler that employs **advanced scheduling plugins** to optimize request routing and resource utilization:
+:::info Scheduler (Gateway Component)
+The Infer Gateway includes a pluggable Scheduler that plays a crucial role in the "Scheduling" stage of the request pipeline. It employs **advanced scheduling plugins** to optimize request routing and resource utilization:
 
-**Filter Plugins:**
-- *Least Requests* – Filters pods based on current request load
-- *LoRA Affinity* – Ensures requests requiring specific LoRA adapters are routed to compatible pods
+###### Filter Plugins:
+*   *Least Requests* – Filters pods based on current request load
+*   *LoRA Affinity* – Ensures requests requiring specific LoRA adapters are routed to compatible pods
 
-**Score Plugins:**
-- *KV Cache Aware* – Optimizes routing based on key-value cache availability and utilization
-- *Least Latency* – Minimizes Time to First Token (TTFT) and Time Per Output Token (TPOT)
-- *Prefix Cache* – Leverages shared prefix caching for improved performance
-- *GPU Cache* – Considers GPU memory cache status for optimal routing
+###### Score Plugins:
+*   *KV Cache Aware* – Optimizes routing based on key-value cache availability and utilization
+*   *Least Latency* – Minimizes Time to First Token (TTFT) and Time Per Output Token (TPOT)
+*   *Prefix Cache* – Leverages shared prefix caching for improved performance
+*   *GPU Cache* – Considers GPU memory cache status for optimal routing
 
 It seamlessly integrates with the Infer Gateway’s Load Balancing and Fairness Scheduling components to ensure optimal request distribution.
+:::
+
+*   **Load Balancing** – Routes requests to optimal backend instances based on health and capacity
+*   **Proxy** – Dispatches requests to appropriate data plane inference groups
+
 
 #### **Inference Pods**
 
