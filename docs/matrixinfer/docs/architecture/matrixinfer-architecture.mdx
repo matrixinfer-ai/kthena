@@ -57,9 +57,9 @@ The Infer Gateway processes user requests through a comprehensive pipeline that 
 - **Load Balancing** – Routes requests to optimal backend instances based on health and capacity
 - **Proxy** – Dispatches requests to appropriate data plane inference groups
 
-#### **Scheduler**
+##### **Scheduler (Gateway Component)**
 
-The Scheduler employs **advanced scheduling plugins** to optimize request routing and resource utilization:
+The Infer Gateway includes a pluggable Scheduler that employs **advanced scheduling plugins** to optimize request routing and resource utilization:
 
 **Filter Plugins:**
 - *Least Requests* – Filters pods based on current request load
@@ -71,7 +71,7 @@ The Scheduler employs **advanced scheduling plugins** to optimize request routin
 - *Prefix Cache* – Leverages shared prefix caching for improved performance
 - *GPU Cache* – Considers GPU memory cache status for optimal routing
 
-The scheduler seamlessly integrates with Load Balancing and Fairness Scheduling components to ensure optimal request distribution.
+It seamlessly integrates with the Infer Gateway’s Load Balancing and Fairness Scheduling components to ensure optimal request distribution.
 
 #### **Inference Pods**
 
