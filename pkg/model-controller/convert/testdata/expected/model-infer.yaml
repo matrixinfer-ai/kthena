@@ -61,6 +61,24 @@ spec:
                         fieldPath: metadata.namespace
                   - name: VLLM_USE_V1
                     value: "1"
+                  - name: REDIS_HOST
+                    valueFrom:
+                      configMapKeyRef:
+                        key: REDIS_HOST
+                        name: redis-config
+                        optional: true
+                  - name: REDIS_PORT
+                    valueFrom:
+                      configMapKeyRef:
+                        key: REDIS_PORT
+                        name: redis-config
+                        optional: true
+                  - name: REDIS_PASSWORD
+                    valueFrom:
+                      secretKeyRef:
+                        key: REDIS_PASSWORD
+                        name: redis-secret
+                        optional: true
                 envFrom:
                   - secretRef:
                       name: "test-secret"
@@ -125,6 +143,24 @@ spec:
                         fieldPath: metadata.namespace
                   - name: VLLM_USE_V1
                     value: "1"
+                  - name: REDIS_HOST
+                    valueFrom:
+                      configMapKeyRef:
+                        key: REDIS_HOST
+                        name: redis-config
+                        optional: true
+                  - name: REDIS_PORT
+                    valueFrom:
+                      configMapKeyRef:
+                        key: REDIS_PORT
+                        name: redis-config
+                        optional: true
+                  - name: REDIS_PASSWORD
+                    valueFrom:
+                      secretKeyRef:
+                        key: REDIS_PASSWORD
+                        name: redis-secret
+                        optional: true
                 readinessProbe:
                   failureThreshold: 3
                   httpGet:

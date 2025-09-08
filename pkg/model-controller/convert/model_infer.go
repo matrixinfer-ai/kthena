@@ -449,6 +449,36 @@ func buildEngineEnvVars(backend *registry.ModelBackend, additionalEnvs ...corev1
 			},
 		},
 		{Name: "VLLM_USE_V1", Value: "1"},
+		{
+			Name: "REDIS_HOST",
+			ValueFrom: &corev1.EnvVarSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{Name: "redis-config"},
+					Key:                  "REDIS_HOST",
+					Optional:             &[]bool{true}[0],
+				},
+			},
+		},
+		{
+			Name: "REDIS_PORT",
+			ValueFrom: &corev1.EnvVarSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{Name: "redis-config"},
+					Key:                  "REDIS_PORT",
+					Optional:             &[]bool{true}[0],
+				},
+			},
+		},
+		{
+			Name: "REDIS_PASSWORD",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{Name: "redis-secret"},
+					Key:                  "REDIS_PASSWORD",
+					Optional:             &[]bool{true}[0],
+				},
+			},
+		},
 	}
 	return append(append(append([]corev1.EnvVar(nil), backend.Env...), standardEnvs...), additionalEnvs...)
 }

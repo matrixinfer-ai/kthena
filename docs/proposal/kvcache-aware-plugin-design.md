@@ -1,4 +1,4 @@
-# Proposal: KV Cache Plugin for MatrixInfer Gateway Scheduler
+# Proposal: KV Cache Aware Plugin for MatrixInfer Gateway Scheduler
 
 ## Goals
 
@@ -9,7 +9,7 @@
 
 ## 1. Introduction
 
-The KV Cache Plugin is a scoring plugin for the MatrixInfer gateway scheduler that implements intelligent pod scheduling based on KV cache hit potential. Unlike traditional prefix cache approaches that use byte-based matching, this plugin leverages token-level block matching with Redis-based distributed coordination to optimize inference performance in multi-pod environments.
+The KV Cache Aware Plugin is a scoring plugin for the MatrixInfer gateway scheduler that implements intelligent pod scheduling based on KV cache hit potential. Unlike traditional prefix cache approaches that use byte-based matching, this plugin leverages token-level block matching with Redis-based distributed coordination to optimize inference performance in multi-pod environments.
 
 The plugin addresses the challenge of efficiently routing inference requests to pods that are most likely to have relevant KV cache entries, thereby reducing computation overhead and improving response times for similar or related prompts.
 
@@ -17,7 +17,7 @@ The plugin addresses the challenge of efficiently routing inference requests to 
 
 ### 2.1. Core Components
 
-**KVCache Plugin**
+**KVCacheAware Plugin**
 - Main plugin implementing the `framework.ScorePlugin` interface
 - Manages distributed caching mechanism using Redis
 - Integrates with tokenization system for accurate token processing
@@ -87,10 +87,9 @@ Fields: {
 ### 3.3. Configuration Parameters
 
 ```yaml
-# KVCacheArgs configuration
+# KVCacheAware configuration
 blockSizeToHash: 128      # Tokens per block for hashing
 maxBlocksToMatch: 128     # Maximum blocks to process
-redis: true               # Enable Redis integration
 ```
 
 ### 3.4. Scoring Algorithm
@@ -109,9 +108,9 @@ The plugin implements a consecutive block matching algorithm:
 The plugin integrates with the MatrixInfer scheduler framework as a scoring plugin:
 
 ```go
-var _ framework.ScorePlugin = &KVCache{}
+var _ framework.ScorePlugin = &KVCacheAware{}
 
-func (t *KVCache) Score(ctx *framework.Context, pods []*datastore.PodInfo) map[*datastore.PodInfo]int {
+func (t *KVCacheAware) Score(ctx *framework.Context, pods []*datastore.PodInfo) map[*datastore.PodInfo]int {
     // Implementation returns scores 0-100 for each pod
 }
 ```
@@ -128,7 +127,7 @@ The plugin leverages the existing tokenization infrastructure:
 
 Uses the existing Redis infrastructure:
 
-- **Singleton Pattern**: Leverages `utils.GetRedisClient()` for connection management
+- **Singleton Pattern**: Leverages `utils.TryGetRedisClient()` for connection management
 - **Pipeline Operations**: Efficient batch queries for multiple blocks
 - **Error Handling**: Graceful degradation when Redis is unavailable
 
@@ -153,7 +152,7 @@ Uses the existing Redis infrastructure:
 
 ## 6. Usage Scenarios
 
-The KV Cache Plugin is particularly effective for:
+The KV Cache Aware Plugin is particularly effective for:
 
 - **Chat Completion Workloads**: Similar conversation patterns with shared context
 - **Text Completion Tasks**: Repeated prompt prefixes across requests
@@ -162,6 +161,6 @@ The KV Cache Plugin is particularly effective for:
 
 ## 7. Conclusion
 
-The KV Cache Plugin provides a sophisticated approach to pod scheduling based on KV cache hit potential. By leveraging token-level block matching with distributed Redis coordination, it enables intelligent request routing that can significantly improve inference performance in multi-pod environments.
+The KV Cache Aware Plugin provides a sophisticated approach to pod scheduling based on KV cache hit potential. By leveraging token-level block matching with distributed Redis coordination, it enables intelligent request routing that can significantly improve inference performance in multi-pod environments.
 
 The plugin's integration with advanced tokenization capabilities and chat template processing makes it particularly well-suited for modern LLM inference workloads, while its configurable parameters allow for optimization based on specific deployment requirements and performance characteristics.
