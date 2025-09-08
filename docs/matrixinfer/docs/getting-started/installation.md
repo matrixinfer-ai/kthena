@@ -96,4 +96,10 @@ kubectl get svc -n matrixinfer-system
 
 MatrixInfer components such as webhooks and the gateway require certificates for secure communication. You might need to install a certificate manager to handle certificate provisioning and management automatically.
 
-If you need certificate management capabilities, you can install cert-manager by following the [official installation guide](https://cert-manager.io/docs/installation/) of Cert Manager.
+If you need certificate management capabilities, you can install cert-manager by following the official installation guide of [Cert Manager]((https://cert-manager.io/docs/installation/)).
+
+## Gang Scheduling
+
+For scenarios requiring gang scheduling, particularly for model inference with multiple interdependent instances, MatrixInfer can leverage Volcano.
+
+If you need gang scheduling capabilities, you can install Volcano by following the official installation guide of [Volcano]((https://volcano.sh/en/docs/installation/)).
