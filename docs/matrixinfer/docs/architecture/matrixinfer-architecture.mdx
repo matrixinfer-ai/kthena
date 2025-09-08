@@ -8,8 +8,8 @@ MatrixInfer is a Kubernetes-native AI inference platform built on a **two-plane 
 
 The platform comprises two primary planes:
 
-- **Control Plane**: Manages models, routes, servers, inference configurations, and autoscaling policies through Kubernetes Custom Resource Definitions (CRDs) and Controllers. Controllers continuously reconcile these CRDs into runtime resources.
-- **Data Plane**: Executes inference workloads through the Gateway and Scheduler, which orchestrate request routing and scheduling. Inference Pods execute AI model requests using **role-based replica groups** supporting Prefill/Decode disaggregation.
+- **Control Plane**: MatrixInfer’s model-aware brain. It coordinates models, routes, and servers; validates and stages changes; applies rollout/rollback logic with safety guardrails; and surfaces status/health for clear visibility—focused on model lifecycle and traffic safety rather than cluster mechanics.
+- **Data Plane**: MatrixInfer’s runtime path. The Infer Gateway authenticates requests, enforces rate limits and fairness, and uses a pluggable, model-aware Scheduler (e.g., LoRA affinity, KV/GPU cache and latency plugins) to pick the best replica. Role-based **Prefill/Decode** replica groups enable disaggregation and independent scaling for lower latency, higher throughput, and better cost.
 
 <LightboxImage src="/img/diagrams/architecture/architecture_overview.svg" alt="Architecture Overview"/>
 
@@ -49,6 +49,10 @@ The Data Plane executes inference workloads and handles request processing throu
 The Infer Gateway processes user requests through a comprehensive pipeline that ensures security, fairness, and optimal resource utilization:
 
 ##### **Request Pipeline**
+
+<div style={{ textAlign: 'center' }}>
+    <LightboxImage src="/img/diagrams/architecture/request_pipeline.svg" alt="Request Processing Pipeline" />
+</div>
 
 The request pipeline orchestrates the flow of user requests through the following stages:
 
@@ -98,30 +102,3 @@ Each replica deployment may include the following components:
 - **LLM Engines** – Integrates with specialized backends (e.g., **vLLM**, **SGLang**)
 
 This architecture enables **Prefill/Decode Disaggregation (PD mode)**, allowing independent scaling of different inference stages for optimal resource utilization and performance.
-
-## Request Processing Pipeline
-The Request Processing Pipeline is the end-to-end path an inference request follows across the platform—from ingress and policy enforcement, through fairness and scheduling, to load-balanced dispatch, pod execution, and streamed responses; the detailed step-by-step flow is outlined below.
-
-<div style={{ textAlign: 'center' }}>
-    <LightboxImage src="/img/diagrams/architecture/request_pipeline.svg" alt="Request Processing Pipeline" />
-</div>
-
-1.  **Request Ingress (Client Request Initiation):**
-    *   Client applications submit inference requests to the **Infer Gateway** via REST/gRPC endpoints.
-2.  **Gateway Request Processing (Authentication & Rate Control):**
-    *   The **Infer Gateway** validates client credentials and enforces **Rate Limiting** policies to prevent system overload.
-3.  **Fairness Scheduling & Queue Management:**
-    *   The **Fairness Scheduler** implements queue-based resource allocation to ensure equitable request distribution and prevent resource starvation when capacity is exceeded.
-4.  **Intelligent Request Routing (Scheduler Optimization):**
-    *   The **Scheduler** evaluates available **Inference Pods** using a two-stage selection process:
-    *   **Filter Plugins** eliminate unsuitable pods based on resource constraints and compatibility (e.g., LoRA requirements).
-    *   **Score Plugins** rank pods using criteria including request load (**Least Requests**), cache utilization (**KV Cache Aware**, **GPU Cache**), latency optimization (**Least Latency**), and prefix caching (**Prefix Cache**).
-5.  **Load Balancing & Request Dispatching:**
-    *   The **Load Balancer** routes requests to optimal backend instances based on health checks and capacity metrics derived from Control Plane metadata.
-    *   The **Proxy** component handles request forwarding and maintains connection pooling to target inference groups.
-6.  **Inference Pod Execution:**
-    *   **Inference Pods** execute model computations within specialized role-based architectures:
-    *   **Prefill Pods:** Process input tokenization, context encoding, and KV cache initialization for prompt understanding.
-    *   **Decode Pods:** Perform autoregressive token generation and output streaming for response completion.
-    *   Each pod integrates **LLM Engines** (vLLM, SGLang) for optimized inference execution.
-    *   Supporting components include **Init Containers** for model artifact retrieval, **Sidecar Containers** with **Runtime Agents** for telemetry collection and health monitoring.
