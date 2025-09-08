@@ -1,0 +1,73 @@
+apiVersion: workload.matrixinfer.ai/v1alpha1
+kind: ModelInfer
+metadata:
+  name: sample
+  namespace: default
+spec:
+  schedulerName: volcano
+  replicas: 1  # inferGroup replicas
+  template:
+    restartGracePeriodSeconds: 60
+    gangSchedule:
+      minRoleReplicas:
+        decode: 1
+        prefill: 1
+    roles:
+      - name: prefill
+        replicas: 2       # role replicas, for example, 1P1D
+        entryTemplate:
+          spec:
+            containers:
+              - name: leader
+                image: ghcr.io/yaozengzeng/vllm-mock:latest
+                imagePullPolicy: IfNotPresent
+                env:
+                  # specify the model name to mock
+                  - name: MODEL_NAME
+                    value: "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
+                command:
+                  - python3
+                  - app.py
+        workerReplicas: 2
+        workerTemplate:
+          spec:
+            containers:
+              - name: worker
+                image: ghcr.io/yaozengzeng/vllm-mock:latest
+                imagePullPolicy: IfNotPresent
+                env:
+                  # specify the model name to mock
+                  - name: MODEL_NAME
+                    value: "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
+                command:
+                  - python3
+                  - app.py
+      - name: decode
+        replicas: 2  # role replicas, for example, 1P1D
+        entryTemplate:
+          spec:
+            containers:
+              - name: leader
+                image: ghcr.io/yaozengzeng/vllm-mock:latest
+                imagePullPolicy: IfNotPresent
+                env:
+                  # specify the model name to mock
+                  - name: MODEL_NAME
+                    value: "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
+                command:
+                  - python3
+                  - app.py
+        workerReplicas: 2
+        workerTemplate:
+          spec:
+            containers:
+              - name: worker
+                image: ghcr.io/yaozengzeng/vllm-mock:latest
+                imagePullPolicy: IfNotPresent
+                env:
+                  # specify the model name to mock
+                  - name: MODEL_NAME
+                    value: "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
+                command:
+                  - python3
+                  - app.py

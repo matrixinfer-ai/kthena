@@ -135,8 +135,8 @@ func (m *Manager) createPodGroup(ctx context.Context, mi *workloadv1alpha1.Model
 func (m *Manager) buildOwnerReference(mi *workloadv1alpha1.ModelInfer) []metav1.OwnerReference {
 	return []metav1.OwnerReference{
 		{
-			APIVersion: mi.APIVersion,
-			Kind:       mi.Kind,
+			APIVersion: workloadv1alpha1.GroupVersion.String(),
+			Kind:       workloadv1alpha1.ModelInferKind.Kind,
 			Name:       mi.Name,
 			UID:        mi.UID,
 			Controller: ptr.To(true),

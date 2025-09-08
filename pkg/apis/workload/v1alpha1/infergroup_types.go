@@ -28,7 +28,7 @@ type GangSchedule struct {
 	NetworkTopology *volcanoV1Beta1.NetworkTopologySpec `json:"networkTopology,omitempty" protobuf:"bytes,5,opt,name=networkTopology"`
 
 	// MinRoleReplicas defines the minimum number of replicas required for each role
-	// in role-level gang scheduling. This map allows users to specify different
+	// in gang scheduling. This map allows users to specify different
 	// minimum replica requirements for different roles.
 	// Key: role name
 	// Value: minimum number of replicas required for that role
