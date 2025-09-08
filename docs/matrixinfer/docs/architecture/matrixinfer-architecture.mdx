@@ -125,18 +125,3 @@ The Request Processing Pipeline is the end-to-end path an inference request foll
     *   **Decode Pods:** Perform autoregressive token generation and output streaming for response completion.
     *   Each pod integrates **LLM Engines** (vLLM, SGLang) for optimized inference execution.
     *   Supporting components include **Init Containers** for model artifact retrieval, **Sidecar Containers** with **Runtime Agents** for telemetry collection and health monitoring.
-
-## Key Features
-
-MatrixInfer provides comprehensive capabilities for enterprise-grade AI inference deployment:
-
-- **Declarative Management**: Complete CRD-driven configuration for models, routes, servers, and scaling policies
-- **Control Plane Orchestration**: Automated resource management with dedicated controllers and continuous reconciliation
-- **Advanced Gateway Pipeline**: Comprehensive request processing with authentication, rate limiting, fairness scheduling, and intelligent routing
-- **Intelligent Scheduling**: Pluggable framework with latency-aware, cache-aware, and LoRA affinity optimizations
-- **Prefill/Decode Disaggregation**: Independent scaling of inference stages through specialized workload separation
-- **Role-Based Architecture**: Flexible inference groups with granular replica management and role assignments
-- **Enterprise Observability**: Comprehensive monitoring via Init Containers, Sidecar Containers, and Runtime Agents
-- **Dynamic Scaling**: Metric-driven autoscaling supporting both homogeneous and heterogeneous instance types
-- **Multi-Engine Support**: Native integration with leading LLM inference engines (vLLM, SGLang)
-- **Kubernetes-Native**: Full ecosystem integration including RBAC, networking, and storage
