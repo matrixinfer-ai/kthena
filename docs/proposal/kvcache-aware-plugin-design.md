@@ -90,7 +90,6 @@ Fields: {
 # KVCacheAware configuration
 blockSizeToHash: 128      # Tokens per block for hashing
 maxBlocksToMatch: 128     # Maximum blocks to process
-redis: true               # Enable Redis integration
 ```
 
 ### 3.4. Scoring Algorithm
@@ -128,7 +127,7 @@ The plugin leverages the existing tokenization infrastructure:
 
 Uses the existing Redis infrastructure:
 
-- **Singleton Pattern**: Leverages `utils.GetRedisClient()` for connection management
+- **Singleton Pattern**: Leverages `utils.TryGetRedisClient()` for connection management
 - **Pipeline Operations**: Efficient batch queries for multiple blocks
 - **Error Handling**: Graceful degradation when Redis is unavailable
 

@@ -22,7 +22,6 @@ data:
         args:
           blockSizeToHash: 128
           maxBlocksToMatch: 128
-          redis: false
       plugins:
         Filter:
           enabled:

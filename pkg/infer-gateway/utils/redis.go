@@ -18,32 +18,31 @@ package utils
 
 import (
 	"context"
-	"sync"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 	"k8s.io/klog/v2"
 )
 
-var (
-	redisClient *redis.Client
-	redisOnce   sync.Once
-)
+func TryGetRedisClient() *redis.Client {
+	redisHost := LoadEnv("REDIS_HOST", "redis-server")
+	redisPort := LoadEnv("REDIS_PORT", "6379")
+	redisPassword := LoadEnv("REDIS_PASSWORD", "")
 
-func GetRedisClient() *redis.Client {
-	redisOnce.Do(func() {
-		redisHost := LoadEnv("REDIS_HOST", "redis-server")
-		redisPort := LoadEnv("REDIS_PORT", "6379")
-		redisPassword := LoadEnv("REDIS_PASSWORD", "")
-		redisClient = redis.NewClient(&redis.Options{
-			Addr:     redisHost + ":" + redisPort,
-			Password: redisPassword,
-			DB:       0,
-		})
-		pong, err := redisClient.Ping(context.Background()).Result()
-		if err != nil {
-			klog.Fatalf("Error connecting to Redis: %v", err)
-		}
-		klog.Infof("Connected to Redis: %s", pong)
+	client := redis.NewClient(&redis.Options{
+		Addr:     redisHost + ":" + redisPort,
+		Password: redisPassword,
+		DB:       0,
 	})
-	return redisClient
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	if err := client.Ping(ctx).Err(); err != nil {
+		klog.Errorf("Redis connection failed: %v", err)
+		_ = client.Close()
+		return nil
+	}
+	klog.Infof("Redis connection successfully")
+	return client
 }

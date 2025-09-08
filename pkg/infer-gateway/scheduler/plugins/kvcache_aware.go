@@ -64,9 +64,8 @@ const (
 )
 
 type KVCacheAwareArgs struct {
-	BlockSizeToHash  int  `yaml:"blockSizeToHash,omitempty"`
-	MaxBlocksToMatch int  `yaml:"maxBlocksToMatch,omitempty"`
-	Redis            bool `yaml:"redis,omitempty"`
+	BlockSizeToHash  int `yaml:"blockSizeToHash,omitempty"`
+	MaxBlocksToMatch int `yaml:"maxBlocksToMatch,omitempty"`
 }
 
 type KVCacheAware struct {
@@ -128,10 +127,7 @@ func NewKVCacheAware(pluginArg runtime.RawExtension) *KVCacheAware {
 	}
 	manager := tokenization.NewTokenizerManager(managerConfig)
 
-	var redisClient *redis.Client
-	if args.Redis {
-		redisClient = utils.GetRedisClient()
-	}
+	redisClient := utils.TryGetRedisClient()
 
 	return &KVCacheAware{
 		name:             KVCacheAwarePluginName,
