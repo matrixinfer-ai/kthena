@@ -82,7 +82,15 @@ func TestReconcile(t *testing.T) {
 		metav1.ConditionTrue, "AllGroupsReady", "AllGroupsReady"))
 	_, err = matrixinferClient.WorkloadV1alpha1().ModelInfers(model.Namespace).UpdateStatus(ctx, modelInfer, metav1.UpdateOptions{})
 	assert.NoError(t, err)
-	// todo: Step4. Check that model condition should be active
+	// Step4. Check that model condition should be active
+	assert.True(t, waitForCondition(func() bool {
+		model, err = matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Get(ctx, model.Name, metav1.GetOptions{})
+		if err != nil {
+			return false
+		}
+		return true == meta.IsStatusConditionPresentAndEqual(model.Status.Conditions,
+			string(registry.ModelStatusConditionTypeActive), metav1.ConditionTrue) && model.Generation == model.Status.ObservedGeneration
+	}))
 
 	// Case2: update model weight, and model route should be updated.
 	// Step1. update weight
@@ -155,7 +163,10 @@ func TestReconcile_ReturnsError(t *testing.T) {
 			err = controller.reconcile(ctx, model.Namespace+"/"+model.Name)
 			return err.Error() == "not support model backend type: MindIEDisaggregated"
 		}))
-		// todo check status condition
+		get, err := matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Get(ctx, model.Name, metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Equal(t, true, meta.IsStatusConditionPresentAndEqual(get.Status.Conditions,
+			string(registry.ModelStatusConditionTypeFailed), metav1.ConditionTrue))
 	})
 }
 

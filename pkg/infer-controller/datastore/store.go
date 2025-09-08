@@ -76,7 +76,6 @@ const (
 	InferGroupCreating InferGroupStatus = "Creating"
 	InferGroupDeleting InferGroupStatus = "Deleting"
 	InferGroupScaling  InferGroupStatus = "Scaling"
-	// InferGroupUpdating InferGroupStatus = "Updating"
 	InferGroupNotFound InferGroupStatus = "NotFound"
 )
 

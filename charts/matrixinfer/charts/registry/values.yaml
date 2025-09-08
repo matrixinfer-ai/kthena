@@ -5,6 +5,7 @@ modelController:
     # repository is the container image repository for the model-controller.
     repository: ghcr.io/matrixinfer-ai/model-controller
     # tag is the container image tag for the model-controller.
+    # node: edit by CI. No need to modify manually
     tag: latest
     # pullPolicy is the image pull policy for the model-controller.
     pullPolicy: IfNotPresent
@@ -21,11 +22,13 @@ modelController:
       memory: 128Mi
   # downloaderImage is the container image used for downloading models.
   downloaderImage:
-    repository: matrixinfer/downloader
+    repository: ghcr.io/matrixinfer-ai/downloader
+    # node: edit by CI. No need to modify manually
     tag: latest
   # runtimeImage is the container image used for running models.
   runtimeImage:
-    repository: matrixinfer/runtime
+    repository: ghcr.io/matrixinfer-ai/runtime
+    # node: edit by CI. No need to modify manually
     tag: latest
   downloader:
     # accessKey is the access key for the downloader.
@@ -40,6 +43,7 @@ autoscaler:
     # repository is the container image repository for the model-controller.
     repository: ghcr.io/matrixinfer-ai/autoscaler
     # tag is the container image tag for the model-controller.
+    # node: edit by CI. No need to modify manually
     tag: latest
     # pullPolicy is the image pull policy for the model-controller.
     pullPolicy: IfNotPresent
@@ -63,6 +67,7 @@ webhook:
     # repository is the container image repository for the registry-webhook.
     repository: ghcr.io/matrixinfer-ai/registry-webhook
     # tag is the container image tag for the registry-webhook.
+    # node: edit by CI. No need to modify manually
     tag: latest
     # pullPolicy is the image pull policy for the registry-webhook.
     pullPolicy: IfNotPresent

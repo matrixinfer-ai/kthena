@@ -131,15 +131,15 @@ IMG_INFER_GATEWAY_WEBHOOK ?= ${HUB}/infer-gateway-webhook:${TAG}
 
 .PHONY: docker-build-gateway
 docker-build-gateway: generate
-	$(CONTAINER_TOOL) build -t ${IMG_GATEWAY} -f docker/Dockerfile.gateway .
+	$(CONTAINER_TOOL) build -t ${IMG_GATEWAY} -f docker/Dockerfile.infer-gateway .
 
 .PHONY: docker-build-modelinfer
 docker-build-modelinfer: generate 
-	$(CONTAINER_TOOL) build -t ${IMG_MODELINFER} -f docker/Dockerfile.modelinfer .
+	$(CONTAINER_TOOL) build -t ${IMG_MODELINFER} -f docker/Dockerfile.infer-controller .
 
 .PHONY: docker-build-modelcontroller
 docker-build-modelcontroller: generate
-	$(CONTAINER_TOOL) build -t ${IMG_MODELCONTROLLER} -f docker/Dockerfile.modelcontroller .
+	$(CONTAINER_TOOL) build -t ${IMG_MODELCONTROLLER} -f docker/Dockerfile.model-controller .
 
 .PHONY: docker-build-autoscaler
 docker-build-autoscaler: generate
@@ -147,15 +147,15 @@ docker-build-autoscaler: generate
 
 .PHONY: docker-build-registry-webhook
 docker-build-registry-webhook: generate
-	$(CONTAINER_TOOL) build -t ${IMG_REGISTRY_WEBHOOK} -f docker/Dockerfile.registry.webhook .
+	$(CONTAINER_TOOL) build -t ${IMG_REGISTRY_WEBHOOK} -f docker/Dockerfile.registry-webhook .
 
 .PHONY: docker-build-modelinfer-webhook
 docker-build-modelinfer-webhook: generate
-	$(CONTAINER_TOOL) build -t ${IMG_MODELINFER_WEBHOOK} -f docker/Dockerfile.modelinfer.webhook .
+	$(CONTAINER_TOOL) build -t ${IMG_MODELINFER_WEBHOOK} -f docker/Dockerfile.modelinfer-webhook .
 
 .PHONY: docker-build-infer-gateway-webhook
 docker-build-infer-gateway-webhook: generate
-	$(CONTAINER_TOOL) build -t ${IMG_INFER_GATEWAY_WEBHOOK} -f docker/Dockerfile.infergateway.webhook .
+	$(CONTAINER_TOOL) build -t ${IMG_INFER_GATEWAY_WEBHOOK} -f docker/Dockerfile.infer-gateway-webhook .
 
 .PHONY: docker-push
 docker-push: docker-build-gateway docker-build-modelinfer docker-build-modelcontroller docker-build-registry-webhook docker-build-modelinfer-webhook docker-build-autoscaler docker-build-infer-gateway-webhook ## Push all images to the registry.

@@ -41,7 +41,6 @@ const sidebars: SidebarsConfig = {
       items: [
         'general/prometheus',
         'general/certmanager',
-        'general/ratelimit',
         'general/faq',
       ],
     },
@@ -53,6 +52,7 @@ const sidebars: SidebarsConfig = {
         'user-guide/prefill-decode-disaggregation',
         'user-guide/multi-node-inference',
         'user-guide/autoscaler',
+        'user-guide/rate-limit',
         'user-guide/runtime',
       ],
     },
@@ -63,6 +63,7 @@ const sidebars: SidebarsConfig = {
         'developer-guide/release',
         'developer-guide/modelinfer-rolling-update',
         'developer-guide/ci',
+        'developer-guide/modelinfer-scaling'
       ],
     },
     {

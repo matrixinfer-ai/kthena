@@ -5,10 +5,12 @@ on:
     branches:
       - main
     paths:
-      - '/python/**'
+      - 'python/**'
+    tags:
+      - "v*.*.*"
   pull_request:
     paths:
-      - '/python/Dockerfile'
+      - 'python/Dockerfile'
 
 jobs:
   build:
@@ -30,9 +32,7 @@ jobs:
           # tags based on git refs and semver, push to default branch will also get "latest" tag
           tags: |
             type=ref,event=branch
-            type=ref,event=pr
             type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Log in to Github Container Registry
