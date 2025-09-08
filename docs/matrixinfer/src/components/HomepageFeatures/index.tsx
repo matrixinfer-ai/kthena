@@ -11,32 +11,32 @@ type FeatureItem = {
 
 const FeatureList: FeatureItem[] = [
   {
-    title: 'Easy to Use',
+    title: 'Kubernetes Native',
     Svg: require('@site/static/img/undraw_docusaurus_mountain.svg').default,
     description: (
       <>
-        Docusaurus was designed from the ground up to be easily installed and
-        used to get your website up and running quickly.
+        MatrixInfer is designed from the ground up to be Kubernetes-native,
+        providing seamless integration with your existing K8s infrastructure.
       </>
     ),
   },
   {
-    title: 'Focus on What Matters',
+    title: 'Intelligent Scaling',
     Svg: require('@site/static/img/undraw_docusaurus_tree.svg').default,
     description: (
       <>
-        Docusaurus lets you focus on your docs, and we&apos;ll do the chores. Go
-        ahead and move your docs into the <code>docs</code> directory.
+        Focus on your AI models while MatrixInfer handles intelligent auto-scaling
+        and routing. Deploy models with confidence knowing they&apos;ll scale efficiently.
       </>
     ),
   },
   {
-    title: 'Powered by React',
+    title: 'Multi-Model Serving',
     Svg: require('@site/static/img/undraw_docusaurus_react.svg').default,
     description: (
       <>
-        Extend or customize your website layout by reusing React. Docusaurus can
-        be extended while reusing the same header and footer.
+        Serve multiple AI models simultaneously with advanced model management
+        capabilities. MatrixInfer supports diverse model formats and frameworks.
       </>
     ),
   },

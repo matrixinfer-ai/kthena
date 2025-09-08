@@ -1,4 +1,4 @@
-import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
+import type { SidebarsConfig } from '@docusaurus/plugin-content-docs';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
@@ -15,14 +15,11 @@ import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
 const sidebars: SidebarsConfig = {
   // MatrixInfer documentation sidebar
   tutorialSidebar: [
-    "intro",
+    'intro',
     {
       type: 'category',
       label: 'Getting Started',
-      items: [
-        'getting-started/quick-start',
-        'getting-started/installation',
-      ],
+      items: ['getting-started/quick-start', 'getting-started/installation'],
     },
     {
       type: 'category',
@@ -38,11 +35,7 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'General',
-      items: [
-        'general/prometheus',
-        'general/certmanager',
-        'general/faq',
-      ],
+      items: ['general/prometheus', 'general/certmanager', 'general/faq'],
     },
     {
       type: 'category',
@@ -63,16 +56,13 @@ const sidebars: SidebarsConfig = {
         'developer-guide/release',
         'developer-guide/modelinfer-rolling-update',
         'developer-guide/ci',
-        'developer-guide/modelinfer-scaling'
+        'developer-guide/modelinfer-scaling',
       ],
     },
     {
       type: 'category',
       label: 'Timeline',
-      items: [
-        'timeline/roadmap',
-        'timeline/releases',
-      ],
+      items: ['timeline/roadmap', 'timeline/releases'],
     },
     {
       type: 'category',
@@ -82,9 +72,21 @@ const sidebars: SidebarsConfig = {
           type: 'category',
           label: 'CRD Reference',
           items: [
-            { type: 'doc', id: 'reference/crd/networking.matrixinfer.ai', label: 'Networking' },
-            { type: 'doc', id: 'reference/crd/registry.matrixinfer.ai', label: 'Registry' },
-            { type: 'doc', id: 'reference/crd/workload.matrixinfer.ai', label: 'Workload' },
+            {
+              type: 'doc',
+              id: 'reference/crd/networking.matrixinfer.ai',
+              label: 'Networking',
+            },
+            {
+              type: 'doc',
+              id: 'reference/crd/registry.matrixinfer.ai',
+              label: 'Registry',
+            },
+            {
+              type: 'doc',
+              id: 'reference/crd/workload.matrixinfer.ai',
+              label: 'Workload',
+            },
           ],
         },
       ],

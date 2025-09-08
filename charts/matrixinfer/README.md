@@ -87,7 +87,23 @@ After that, it installs resources from the `/templates` directory in the followi
 > - APIService
 
 **NOTICE:**  
-HELM manages the installation of CRDs. However, if you need to uninstall or update a CRD, please use `kubectl apply` or `kubectl delete`.   
+HELM manages the installation of CRDs. However, if you need to update or uninstall a CRD, please use `kubectl apply` or `kubectl delete` like below.
+
+```shell
+# Update CRDs
+kubectl apply -f charts/matrixinfer/charts/networking/crds/
+kubectl apply -f charts/matrixinfer/charts/registry/crds/
+kubectl apply -f charts/matrixinfer/charts/workload/crds/ --server-side
+
+# Uninstall CRDs 
+kubectl delete -f charts/matrixinfer/charts/networking/crds/
+kubectl delete -f charts/matrixinfer/charts/registry/crds/
+kubectl delete -f charts/matrixinfer/charts/workload/crds/
+```
+> **WARNING:**  
+> When you delete a CRD, Kubernetes will automatically delete all Custom Resources (CRs) that were created based on that CRD definition.  
+> This can lead to data loss if those CRs hold important configuration or state. Make sure you understand the implications before deleting a CRD.
+
 For more details on the reasoning behind this, see [this explanation](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/#some-caveats-and-explanations) and [these limitations](https://helm.sh/docs/topics/charts/#limitations-on-crds).
 
 ## Uninstall

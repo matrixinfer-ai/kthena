@@ -102,24 +102,8 @@ kubectl get crd | grep matrixinfer
 kubectl get svc -n matrixinfer-system
 ```
 
-## Troubleshooting
+## Certificate Management
 
-### Common Issues
+MatrixInfer components such as webhooks and the gateway require certificates for secure communication. You might need to install a certificate manager to handle certificate provisioning and management automatically.
 
-1. **CRD Installation Fails:**
-   - Ensure you have cluster admin permissions
-   - Check if CRDs already exist: `kubectl get crd | grep matrixinfer`
-
-2. **Pods Not Starting:**
-   - Check pod logs: `kubectl logs -n matrixinfer-system <pod-name>`
-   - Verify resource requirements are met
-
-3. **Service Not Accessible:**
-   - Check service type and configuration
-   - Verify network policies and firewall rules
-
-### Getting Help
-
-If you encounter issues:
-- Review logs: `kubectl logs -n matrixinfer-system -l app=matrixinfer`
-- Open an issue on [GitHub](https://github.com/matrixinfer-ai/matrixinfer/issues)
+If you need certificate management capabilities, you can install cert-manager by following the [official installation guide](https://cert-manager.io/docs/installation/) of Cert Manager.
