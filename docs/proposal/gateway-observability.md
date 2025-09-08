@@ -8,6 +8,24 @@
 
 ## 1. Introduction
 
+The infer-gateway serves as a critical component in the AI inference system, managing model routing, request scheduling, and resource allocation. Effective observability is essential for:
+
+1. **Performance Monitoring**: Track request latencies, token processing rates, and resource utilization to ensure optimal system performance.
+
+2. **Troubleshooting**: Quickly identify and diagnose issues through detailed metrics, logs, and debug information.
+
+3. **Capacity Planning**: Analyze usage patterns and resource consumption to make informed scaling decisions.
+
+4. **Cost Optimization**: Monitor token usage and model utilization to optimize resource allocation and costs.
+
+This proposal outlines a comprehensive observability framework that combines:
+
+- **Prometheus Metrics**: Detailed metrics covering HTTP requests, token processing, rate limiting, and errors
+- **Structured Access Logs**: Request lifecycle logging with timing breakdowns and routing decisions
+- **Debug Endpoints**: Internal state exposure for troubleshooting and diagnostics
+
+The framework is designed to integrate with standard observability tools while providing AI-specific insights needed for managing inference workloads at scale.
+
 
 ## 2. Technical Implementation
 
@@ -43,65 +61,88 @@ The gateway exposes the following metrics to monitor request processing:
 
 - `infer_gateway_request_duration_seconds{method="<method>",endpoint="<path>",status_code="<code>",model="<model_name>"}` (Histogram)
   - Request processing latency distribution
-  - Labels: Same as above
+  - Labels:
+    - `method`: HTTP method (GET, POST, etc.)
+    - `endpoint`: Request path (/v1/chat/completions, /v1/completions, etc.)
+    - `status_code`: HTTP response status code (200, 400, 500, etc.)
+    - `model`: AI model name
   - Buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60]
 
 **AI-Specific Token Metrics**
-- `infer_gateway_input_tokens_total{model="<model_name>",endpoint="<path>"}` (Counter)
-  - Total input tokens processed
-  - Labels: model name, endpoint path
-  
-- `infer_gateway_output_tokens_total{model="<model_name>",endpoint="<path>"}` (Counter)
-  - Total output tokens generated
-  - Labels: model name, endpoint path
+- `infer_gateway_tokens_total{model="<model_name>",endpoint="<path>",token_type="input|output"}` (Counter)
+  - Total tokens processed/generated
+  - Labels:
+    - `model`: AI model name
+    - `endpoint`: Request path (/v1/chat/completions, /v1/completions, etc.)
+    - `token_type`: Token type ("input" for processed tokens, "output" for generated tokens)
 
 - `infer_gateway_token_duration_seconds{model="<model_name>",token_type="input|output"}` (Histogram)
   - Token processing time distribution
-  - Labels: model name, token type (input/output)
+  - Labels:
+    - `model`: AI model name
+    - `token_type`: Token type ("input" for processed tokens, "output" for generated tokens)
   - Buckets: [10, 50, 100, 500, 1000, 2000, 5000, 10000]
 
 **Filter Processing Metrics**
 - `infer_gateway_filter_duration_seconds{filter="<filter_name>"}` (Histogram)
   - Processing time per filter
-  - Labels: filter name
+  - Labels:
+    - `filter`: Filter name
   - Buckets: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5]
 
 **Rate Limiting Metrics**  
 - `infer_gateway_rate_limit_exceeded_total{model="<model_name>",limit_type="input_tokens|output_tokens|requests",endpoint="<path>"}` (Counter)
   - Number of requests rejected due to rate limiting
-  - Labels: model name, limit type, endpoint path
+  - Labels:
+    - `model`: AI model name
+    - `limit_type`: Type of rate limit (input_tokens, output_tokens, requests)
+    - `endpoint`: Request path (/v1/chat/completions, /v1/completions, etc.)
   
 - `infer_gateway_rate_limit_utilization{model="<model_name>",limit_type="input_tokens|output_tokens|requests"}` (Gauge)
   - Current rate limit utilization percentage (0-1)
-  - Labels: model name, limit type
+  - Labels:
+    - `model`: AI model name
+    - `limit_type`: Type of rate limit (input_tokens, output_tokens, requests)
 
 **Resource Access Metrics**
 - `infer_gateway_model_route_requests_total{route="<route_name>",model="<model_name>"}` (Counter)
   - Number of ModelRoute accesses
-  - Labels: route name, model name
+  - Labels:
+    - `route`: ModelRoute name
+    - `model`: AI model name
   
 - `infer_gateway_model_server_requests_total{server="<server_name>",model="<model_name>",status_code="<code>"}` (Counter)
   - Number of ModelServer backend accesses
-  - Labels: server name, model name, status code
+  - Labels:
+    - `server`: ModelServer name
+    - `model`: AI model name
+    - `status_code`: HTTP response status code (200, 400, 500, etc.)
 
 **Connection and Scheduling Metrics**
 - `infer_gateway_active_connections{model="<model_name>"}` (Gauge)
   - Current number of active connections per model
-  - Labels: model name
+  - Labels:
+    - `model`: AI model name
   
 - `infer_gateway_queue_size{model="<model_name>"}` (Gauge)
   - Current queue size for pending requests
-  - Labels: model name
+  - Labels:
+    - `model`: AI model name
   
 - `infer_gateway_queue_duration_seconds{model="<model_name>"}` (Histogram)
   - Time requests spend in queue before processing
-  - Labels: model name
+  - Labels:
+    - `model`: AI model name
   - Buckets: [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5]
 
 **Error Metrics**
 - `infer_gateway_request_errors_total{model="<model_name>",error_type="<type>",status_code="<code>",endpoint="<path>"}` (Counter)
   - Request errors by type and status code
-  - Labels: model name, error type (validation, timeout, internal, rate_limit, etc.), status code, endpoint path
+  - Labels:
+    - `model`: AI model name
+    - `error_type`: Type of error (validation, timeout, internal, rate_limit, etc.)
+    - `status_code`: HTTP response status code (200, 400, 500, etc.)
+    - `endpoint`: Request path (/v1/chat/completions, /v1/completions, etc.)
 
 All metrics are exposed at the `/metrics` endpoint in Prometheus format. The metrics provide comprehensive visibility into:
 
@@ -110,20 +151,6 @@ All metrics are exposed at the `/metrics` endpoint in Prometheus format. The met
 - **AI Workload Specific**: Token consumption, model performance, and inference costs  
 - **Resource Utilization**: Connection pools, queuing, and rate limiting
 - **Error Tracking**: Detailed error categorization and failure patterns
-
-**Operational Use Cases**
-1. **Performance Monitoring**: Track request latency, throughput, and model response times
-2. **Capacity Planning**: Monitor token consumption, queue depths, and resource utilization
-3. **Cost Analysis**: Analyze token usage patterns and model efficiency
-4. **Troubleshooting**: Correlate errors with request patterns, models, and endpoints
-5. **Rate Limiting**: Monitor rate limit effectiveness and token consumption patterns
-6. **Service Health**: Track success rates and identify performance bottlenecks
-
-**Integration with Monitoring Stack**
-- **Prometheus**: Metrics collection and storage
-- **Grafana**: Visualization and dashboards
-- **Alert Manager**: Alerting based on metrics thresholds
-
 
 
 ### 2.2 Access log format
@@ -500,4 +527,3 @@ The framework enables operators to:
 - Correlate metrics, logs, and debug information for comprehensive observability
 
 All components are designed to integrate seamlessly with standard observability tools (Prometheus, Grafana, log collectors) while providing AI-specific insights essential for managing inference workloads.
-
