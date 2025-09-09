@@ -6,7 +6,7 @@ This page describes the multi-node inference capabilities in MatrixInfer, base o
 
 With the development of LLM, the scale of model parameters has grown exponentially, and the resource limits of a single conventional virtual machine or physical server can no longer meet the computational demands of these LLM.
 
-The industry has proposed various innovative optimization strategies, such as PD-disaggregates and hybrid deployment of large and small models. These strategies have significantly changed the execution pattern of inference tasks, making inference instances no longer limited to the level of a single Pod, but rather evolving into scenarios where multiple Pods collaboratively complete a single inference prediction.
+The industry has proposed various innovative optimization strategies, such as PD-disaggregation and hybrid deployment of large and small models. These strategies have significantly changed the execution pattern of inference tasks, making inference instances no longer limited to the level of a single pod, but rather evolving into scenarios where multiple pods collaboratively complete a single inference prediction.
 
 To address this issue, matrixinfer provides a new `ModelInfer` CR to describe specific inference depolyment, enabling flexible and diverse deployment methods for inference task pods.
 
@@ -14,17 +14,15 @@ For a detailed definition of the `ModelInfer`, please refer to the [ModelInfer R
 
 ## Preparation
 
-To simplify deployment and reduce the requirements for demonstration environments, we use a **mock LLM server** instead of deploying real models. This mock server implements the vLLM standard interface and returns mock data, making it perfect for testing and learning purposes.
-
 ### Prerequisites
 
-- Kubernetes cluster with MatrixInfer installed
+- Kubernetes cluster with MatrixInfer installed and [volcano](https://volcano.sh/en/docs/installation/) installed
 - Access to the MatrixInfer examples repository
 - Basic understanding of ModelInfer CRD
 
 ### Geting Started
 
-Deploy [mock LLM inference engine](../../../../examples/model-infer/mock.yaml) if you donot have a real GPU/NPU environment at the moment.
+Deploy [llama LLM inference engine](../../../../examples/model-infer/multi-node.yaml). Set the tensor parallel size is 8 and the pipeline parallel size is 2.
 
 You can run the following command to check the ModelInfer status and pod status in the cluster.
 
@@ -49,20 +47,13 @@ status:
   replicas: 1
   updatedReplicas: 1
 
-kubectl get pod -A | grep sample
-NAMESPACE            NAME                                          READY   STATUS    RESTARTS   AGE
-default              sample-0-decode-0-0                           1/1     Running   0          15m
-default              sample-0-decode-0-1                           1/1     Running   0          15m
-default              sample-0-decode-0-2                           1/1     Running   0          15m
-default              sample-0-decode-1-0                           1/1     Running   0          5m59s
-default              sample-0-decode-1-1                           1/1     Running   0          5m59s
-default              sample-0-decode-1-2                           1/1     Running   0          5m59s
-default              sample-0-prefill-0-0                          1/1     Running   0          15m
-default              sample-0-prefill-0-1                          1/1     Running   0          15m
-default              sample-0-prefill-0-2                          1/1     Running   0          15m
-default              sample-0-prefill-1-0                          1/1     Running   0          5m59s
-default              sample-0-prefill-1-1                          1/1     Running   0          5m59s
-default              sample-0-prefill-1-2                          1/1     Running   0          5m59s
+kubectl get pod -owide -l modelinfer.matrixinfer.ai/name=llama-multinode
+
+NAMESPACE   NAME                          READY   STATUS    RESTARTS   AGE     IP            NODE           NOMINATED NODE   READINESS GATES
+default     llama-multinode-0-405b-0-0    1/1     Running   0          15m     10.244.0.56   192.168.5.12   <none>           <none>
+default     llama-multinode-0-405b-0-1    1/1     Running   0          15m     10.244.0.58   192.168.5.43   <none>           <none>
+default     llama-multinode-0-405b-1-0    1/1     Running   0          15m     10.244.0.57   192.168.5.58   <none>           <none>
+default     llama-multinode-0-405b-1-1    1/1     Running   0          15m     10.244.0.53   192.168.5.36   <none>           <none>
 ```
 
 **Note:** The first number in the pod name indicates which `InferGroup` this pod belongs to. The second number indicates which `Role` it belongs to. The third number indicates the pod's sequence number within `Role`.
@@ -81,15 +72,11 @@ Reduce the `modelInfer.Spec.Template.Role.Replicas` from 2 to 1. To trigger a `R
 You can see the result:
 
 ```sh
-kubectl get pod -A | grep sample
+kubectl get pod -l modelinfer.matrixinfer.ai/name=llama-multinode
 
 NAMESPACE            NAME                                          READY   STATUS    RESTARTS   AGE
-default              sample-0-decode-0-0                           1/1     Running   0          28m
-default              sample-0-decode-0-1                           1/1     Running   0          28m
-default              sample-0-decode-0-2                           1/1     Running   0          28m
-default              sample-0-prefill-0-0                          1/1     Running   0          28m
-default              sample-0-prefill-0-1                          1/1     Running   0          28m
-default              sample-0-prefill-0-2                          1/1     Running   0          28m
+default              llama-multinode-0-405b-0-0                    1/1     Running   0          28m
+default              llama-multinode-0-405b-0-1                    1/1     Running   0          28m
 ```
 
 You can see that all pods in `Role1` have been deleted.
@@ -101,21 +88,13 @@ Add the `modelInfer.Spec.Replicas` from 1 to 2. To trigger a `InferGroup Level` 
 You can see the result:
 
 ```sh
-kubectl get pod -A | grep sample 
+kubectl get pod -l modelinfer.matrixinfer.ai/name=llama-multinode
 
 NAMESPACE            NAME                                          READY   STATUS    RESTARTS   AGE
-default              sample-0-decode-0-0                           1/1     Running   0          35m
-default              sample-0-decode-0-1                           1/1     Running   0          35m
-default              sample-0-decode-0-2                           1/1     Running   0          35m
-default              sample-0-prefill-0-0                          1/1     Running   0          35m
-default              sample-0-prefill-0-1                          1/1     Running   0          35m
-default              sample-0-prefill-0-2                          1/1     Running   0          35m
-default              sample-1-decode-0-0                           1/1     Running   0          5s
-default              sample-1-decode-0-1                           1/1     Running   0          5s
-default              sample-1-decode-0-2                           1/1     Running   0          5s
-default              sample-1-prefill-0-0                          1/1     Running   0          5s
-default              sample-1-prefill-0-1                          1/1     Running   0          5s
-default              sample-1-prefill-0-2                          1/1     Running   0          5s
+default              llama-multinode-0-405b-0-0                    1/1     Running   0          35m
+default              llama-multinode-0-405b-0-1                    1/1     Running   0          35m
+default              llama-multinode-1-405b-0-0                    1/1     Running   0          2m
+default              llama-multinode-1-405b-0-1                    1/1     Running   0          2m
 ```
 
 You can see that all roles in `InferGroup1` are created.
@@ -130,7 +109,7 @@ Currently, `ModelInfer` supports rolling upgrades at the `InferGroup` level, ena
   
 ### InferGroup Rolling Update
 
-We configure the corresponding rolling update strategy for sample.
+We configure the corresponding rolling update strategy for llama-multinode.
 
 ```yaml
 spec:
@@ -140,26 +119,17 @@ spec:
       partition: 1
 ```
 
-Modifying the parameters of entryTemplate or workerTemplate triggers a rolling update.
+Modifying the parameters of entryTemplate or workerTemplate triggers a rolling update. For example, changing the image.
 
 You can see the result:
 
 ```sh
-kubectl get pod | grep sample
+kubectl get pods -l modelinfer.matrixinfer.ai/name=llama-multinode -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.containers[*].image}{"\n"}{end}'
 
-NAMESPACE            NAME                                          READY   STATUS    RESTARTS   AGE
-default              sample-0-decode-0-0                           1/1     Running   0          2d18h
-default              sample-0-decode-0-1                           1/1     Running   0          2d18h
-default              sample-0-decode-0-2                           1/1     Running   0          2d18h
-default              sample-0-prefill-0-0                          1/1     Running   0          2d18h
-default              sample-0-prefill-0-1                          1/1     Running   0          2d18h
-default              sample-0-prefill-0-2                          1/1     Running   0          2d18h
-default              sample-1-decode-0-0                           1/1     Running   0          2m13s
-default              sample-1-decode-0-1                           1/1     Running   0          2m13s
-default              sample-1-decode-0-2                           1/1     Running   0          2m13s
-default              sample-1-prefill-0-0                          1/1     Running   0          2m13s
-default              sample-1-prefill-0-1                          1/1     Running   0          2m13s
-default              sample-1-prefill-0-2                          1/1     Running   0          2m13s
+llama-multinode-0-405b-0-0        vllm/vllm-openai:latest    
+llama-multinode-0-405b-0-1        vllm/vllm-openai:latest        
+llama-multinode-1-405b-0-0        vllm/vllm-openai:v0.10.1                  
+llama-multinode-1-405b-0-1        vllm/vllm-openai:v0.10.1                 
 ```
 
 From the pod runtime, it can be seen that only group 1 has been updated. Because we have set rolloutStrategy.partition = 1.
@@ -196,7 +166,7 @@ PodGroup can set the topology constraints of the job through the networkTopology
   - soft: Soft constraint, tasks are deployed within the same HyperNode as much as possible.
 - **highestTierAllowed:** Used with hard mode, indicating the highest tier of HyperNode allowed for job deployment. This field is not required when mode is soft.
 
-You can run the follow command to see the `PodGroup` created by the matrixinfer base ob the `sample modelinfer`.
+You can run the follow command to see the `PodGroup` created by the matrixinfer base ob the `llama-multinode modelinfer`.
 
 ```sh
 kubectl get podgroup-0 -oyaml
@@ -205,28 +175,27 @@ apiVersion: scheduling.volcano.sh/v1beta1
 kind: PodGroup
 metadata:
   annotations:
-    scheduling.k8s.io/group-name: sample-0
+    scheduling.k8s.io/group-name: llama-multinode-0
   creationTimestamp: "2025-09-05T08:43:40Z"
   generation: 9
   labels:
-    modelinfer.matrixinfer.ai/group-name: sample-0
-    modelinfer.matrixinfer.ai/name: sample
-  name: sample-0
+    modelinfer.matrixinfer.ai/group-name: llama-multinode-0
+    modelinfer.matrixinfer.ai/name: llama-multinode
+  name: llama-multinode-0
   namespace: default
   ownerReferences:
   - apiVersion: workload.matrixinfer.ai/v1alpha1
     controller: true
     kind: ModelInfer
-    name: sample
+    name: llama-multinode
     uid: a08cd31a-9f39-450e-a3dc-bc868e08ce0a
   resourceVersion: "2621200"
   uid: 3abd9759-1fd7-48d7-be6b-ac55e17b36a0
 spec:
-  minMember: 6
+  minMember: 2
   minResources: {}
   minTaskMember:
-    decode-0: 3
-    prefill-0: 3
+    405b: 2
   queue: default
 status:
   conditions:
@@ -236,13 +205,13 @@ status:
     transitionID: fea87f6f-c172-4091-b55d-bd7160a7a801
     type: Scheduled
   phase: Running
-  running: 6
+  running: 2
 ```
 
 ## Clean up
 
 ```sh
-kubectl delete sample
+kubectl delete modelinfer llama-multinode
 
 helm uninstall matrixinfe -n matrixinfer-system
 
