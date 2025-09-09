@@ -30,20 +30,22 @@ import (
 )
 
 // NIXLConnector implements high-performance distributed in-memory KV cache using NIXL
-// MooncakeConnector behaves similar as NIXL
 type NIXLConnector struct {
+	name              string
 	prefillRequest    *http.Request
 	decodeRequestBody map[string]interface{}
 }
 
 // NewNIXLConnector creates a new NIXL connector
 func NewNIXLConnector() KVConnector {
-	return &NIXLConnector{}
+	return &NIXLConnector{
+		name: "nixl",
+	}
 }
 
 // Name returns the connector type name
 func (n *NIXLConnector) Name() string {
-	return "nixl"
+	return n.name
 }
 
 // Proxy executes the complete prefill-decode flow using NIXL for high-performance KV transfer
@@ -67,11 +69,11 @@ func (n *NIXLConnector) Proxy(c *gin.Context, reqBody map[string]interface{}, pr
 	return n.decode(c, decodeReq, decodeAddr)
 }
 
-// executePrefillRequest builds and executes the prefill request, returns kv_transfer_params
+// prefill send prefill request, returns kv_transfer_params
 func (n *NIXLConnector) prefill(req *http.Request, prefillAddr string) (interface{}, error) {
 	req.URL.Host = prefillAddr
 	req.URL.Scheme = "http"
-	klog.V(4).Infof("NIXL prefill: sending to %s", req.URL.String())
+	klog.V(4).Infof("%s prefill: sending to %s", n.name, req.URL.String())
 
 	// Send prefill request
 	resp, err := http.DefaultTransport.RoundTrip(req)
@@ -116,13 +118,13 @@ func (n *NIXLConnector) buildDecodeRequest(c *gin.Context, reqBody map[string]in
 	return reqCopy
 }
 
-// executeDecodeRequest builds and executes the decode request with streaming response
+// decode send decode request with streaming response
 func (n *NIXLConnector) decode(c *gin.Context, req *http.Request, decodeAddr string) (int, error) {
 	// Set kv_transfer_params from prefill response
 	req.URL.Host = decodeAddr
 	req.URL.Scheme = "http"
 
-	klog.V(4).Infof("NIXL decode: sending to %s", req.URL.String())
+	klog.V(4).Infof("%s decode: sending to %s", n.name, req.URL.String())
 
 	// Use decoderProxy to handle the decode response with proper streaming
 	return decoderProxy(c, req)

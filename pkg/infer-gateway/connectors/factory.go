@@ -50,8 +50,8 @@ func NewDefaultFactory() *Factory {
 
 	// Register default connectors
 	factory.RegisterConnectorBuilder(v1alpha1.ConnectorTypeHTTP, NewHTTPConnector)
-	factory.RegisterConnectorBuilder(v1alpha1.ConnectorTypeLMCache, NewHTTPConnector)  // LMCache uses HTTP connector for now
-	factory.RegisterConnectorBuilder(v1alpha1.ConnectorTypeMoonCake, NewNIXLConnector) // MoonCakeConnector in vllm-ascend behaves similar to Nixl connector
+	factory.RegisterConnectorBuilder(v1alpha1.ConnectorTypeLMCache, NewHTTPConnector)      // LMCache uses HTTP connector for now
+	factory.RegisterConnectorBuilder(v1alpha1.ConnectorTypeMoonCake, NewMoonCakeConnector) // MoonCakeConnector in vllm-ascend
 	factory.RegisterConnectorBuilder(v1alpha1.ConnectorTypeNIXL, NewNIXLConnector)
 
 	return factory
