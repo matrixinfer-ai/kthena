@@ -33,7 +33,7 @@ webhook:
     # pullPolicy is the image pull policy for the modelinfer-webhook.
     pullPolicy: IfNotPresent
     # args are the command line arguments for the modelinfer-webhook.
-    args: [ "--port=8443", "--webhook-timeout=30" ]
+    args: [ "--port=8443"]
   # resource defines the resource limits and requests for the modelinfer-webhook.
   resource:
     limits:
