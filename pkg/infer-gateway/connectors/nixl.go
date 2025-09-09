@@ -69,7 +69,8 @@ func (n *NIXLConnector) Proxy(c *gin.Context, reqBody map[string]interface{}, pr
 // executePrefillRequest builds and executes the prefill request, returns kv_transfer_params
 func (n *NIXLConnector) executePrefillRequest(req *http.Request, prefillAddr string) (interface{}, error) {
 	req.URL.Host = prefillAddr
-	klog.V(4).Infof("NIXL prefill: sending to %s", prefillAddr)
+	req.URL.Scheme = "http"
+	klog.V(4).Infof("NIXL prefill: sending to %s", req.URL.String())
 
 	// Send prefill request
 	resp, err := http.DefaultTransport.RoundTrip(req)
@@ -118,8 +119,9 @@ func (n *NIXLConnector) buildDecodeRequest(c *gin.Context, reqBody map[string]in
 func (n *NIXLConnector) executeDecodeRequest(c *gin.Context, req *http.Request, decodeAddr string) (int, error) {
 	// Set kv_transfer_params from prefill response
 	req.URL.Host = decodeAddr
+	req.URL.Scheme = "http"
 
-	klog.V(4).Infof("NIXL decode: sending to %s", decodeAddr)
+	klog.V(4).Infof("NIXL decode: sending to %s", req.URL.String())
 
 	// Use decoderProxy to handle the decode response with proper streaming
 	return decoderProxy(c, req)
@@ -149,6 +151,7 @@ func (n *NIXLConnector) buildPrefillRequest(req *http.Request, reqBody map[strin
 	}
 
 	prefillReq := req.Clone(req.Context())
+	prefillReq.URL.Scheme = "http"
 	prefillReq.Body = io.NopCloser(bytes.NewBuffer(body))
 	prefillReq.ContentLength = int64(len(body))
 
