@@ -35,6 +35,14 @@ inferGateway:
     inputTokenWeight: 1.0
     # outputTokenWeight is the weight multiplier for output tokens in priority calculation (default: 2.0)
     outputTokenWeight: 2.0
+  # accessLog configuration for request logging
+  accessLog:
+    # enabled controls whether access logging is active
+    enabled: true
+    # format specifies the log output format: "json" or "text" (default: text)
+    format: "text"
+    # output specifies where to write logs: "stdout", "stderr", or file path (default: stdout)
+    output: "stdout"
 
 redis:
   # Redis is deployed separately using examples in examples/redis/

@@ -61,6 +61,13 @@ spec:
             - name: FAIRNESS_OUTPUT_TOKEN_WEIGHT
               value: {{ .Values.inferGateway.fairness.outputTokenWeight | quote }}
             {{- end }}
+            # Access log configuration
+            - name: ACCESS_LOG_ENABLED
+              value: {{ .Values.inferGateway.accessLog.enabled | quote }}
+            - name: ACCESS_LOG_FORMAT
+              value: {{ .Values.inferGateway.accessLog.format | quote }}
+            - name: ACCESS_LOG_OUTPUT
+              value: {{ .Values.inferGateway.accessLog.output | quote }}
           resources: {{- toYaml .Values.inferGateway.resource | nindent 12 }}
           livenessProbe:
             httpGet:
