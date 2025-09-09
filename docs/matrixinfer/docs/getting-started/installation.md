@@ -100,6 +100,9 @@ If you need certificate management capabilities, you can install cert-manager by
 
 ## Gang Scheduling
 
-For scenarios requiring gang scheduling, particularly for model inference with multiple interdependent instances, MatrixInfer can leverage Volcano.
+MatrixInfer leverages **Volcano** (a high-performance batch system for Kubernetes) to provide gang scheduling capabilities.
 
 If you need gang scheduling capabilities, you can install Volcano by following the official installation guide of [Volcano]((https://volcano.sh/en/docs/installation/)).
+
+# Minfer CLI
+MatrixInfer provides a CLI tool called `minfer` to manage your MatrixInfer deployments. Please refer to the [CLI documentation](./CLI.md) for more information.
