@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/stretchr/testify/assert"
 
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
@@ -176,4 +177,96 @@ func TestJWTAuthenticatorMiddleware(t *testing.T) {
 		middleware(c)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
+}
+
+func TestValidateAudiences(t *testing.T) {
+	authenticator := &JWTAuthenticator{}
+	token := jwt.New()
+
+	t.Run("skip validation when no audiences configured", func(t *testing.T) {
+		jwks := &Jwks{
+			Audiences: []string{},
+		}
+
+		err := authenticator.validateAudiences(token, jwks)
+		assert.NoError(t, err, "Should skip validation when no audiences configured")
+	})
+
+	t.Run("skip validation when no audiences configured and JWT have audience", func(t *testing.T) {
+		jwks := &Jwks{
+			Audiences: []string{},
+		}
+		token.Set("aud", "expected-audience")
+
+		err := authenticator.validateAudiences(token, jwks)
+		assert.NoError(t, err, "Should skip validation when no audiences configured")
+		token.Remove("aud")
+	})
+
+	t.Run("missing audience claim in token", func(t *testing.T) {
+		jwks := &Jwks{
+			Audiences: []string{"expected-audience"},
+		}
+
+		err := authenticator.validateAudiences(token, jwks)
+		assert.Error(t, err, "Should return error when audience claim is missing")
+		assert.Contains(t, err.Error(), "audience claim missing", "Error message should indicate missing audience claim")
+	})
+
+	t.Run("nil audience value", func(t *testing.T) {
+		jwks := &Jwks{
+			Audiences: []string{"expected-audience"},
+		}
+
+		token.Set("aud", nil)
+
+		err := authenticator.validateAudiences(token, jwks)
+		assert.Error(t, err, "Should return error when audience is nil")
+		assert.Contains(t, err.Error(), "audience claim missing", "Error message should indicate need for audience")
+	})
+
+	t.Run("single audience match", func(t *testing.T) {
+		jwks := &Jwks{
+			Audiences: []string{"expected-audience", "another-audience"},
+		}
+
+		token.Set("aud", "expected-audience")
+
+		err := authenticator.validateAudiences(token, jwks)
+		assert.NoError(t, err, "Should pass validation when single audience matches")
+	})
+
+	t.Run("single audience mismatch", func(t *testing.T) {
+		jwks := &Jwks{
+			Audiences: []string{"expected-audience", "another-audience"},
+		}
+		token.Set("aud", "different-audience")
+
+		err := authenticator.validateAudiences(token, jwks)
+		assert.Error(t, err, "Should return error when single audience does not match")
+		assert.Contains(t, err.Error(), "audience mismatch", "Error message should indicate audience mismatch")
+	})
+
+	t.Run("multiple audiences match", func(t *testing.T) {
+		jwks := &Jwks{
+			Audiences: []string{"expected-audience", "another-audience"},
+		}
+		token.Set("aud", []string{"different-audience", "expected-audience"})
+
+		err := authenticator.validateAudiences(token, jwks)
+		assert.NoError(t, err, "Should pass validation when one of multiple audiences matches")
+	})
+
+	t.Run("multiple audiences mismatch", func(t *testing.T) {
+		jwks := &Jwks{
+			Audiences: []string{"expected-audience", "another-audience"},
+		}
+		token.Set("aud", []string{"different-audience", "yet-another-audience"})
+
+		err := authenticator.validateAudiences(token, jwks)
+		assert.Error(t, err, "Should return error when none of multiple audiences match")
+		assert.Contains(t, err.Error(), "audience mismatch", "Error message should indicate audience mismatch")
+	})
+
+	token.Remove("aud")
 }
