@@ -4,10 +4,12 @@ List registered models
 
 ### Synopsis
 
-List Model resources in the cluster.
+List Model resources in the cluster. 
+
+If NAME is provided, only models containing the specified name will be displayed.
 
 ```
-minfer get models [flags]
+minfer get models [NAME] [flags]
 ```
 
 ### Options

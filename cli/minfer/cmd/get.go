@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -76,11 +77,14 @@ Use -o yaml flag to output the template content in YAML format.`,
 
 // getModelsCmd represents the get models command
 var getModelsCmd = &cobra.Command{
-	Use:     "models",
+	Use:     "models [NAME]",
 	Aliases: []string{"model"},
 	Short:   "List registered models",
-	Long:    `List Model resources in the cluster.`,
-	RunE:    runGetModels,
+	Long: `List Model resources in the cluster. 
+
+If NAME is provided, only models containing the specified name will be displayed.`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: runGetModels,
 }
 
 // getModelInfersCmd represents the get modelinfers command
@@ -250,11 +254,29 @@ func runGetModels(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to list Models: %v", err)
 	}
 
-	if len(models.Items) == 0 {
-		if getAllNamespaces {
-			fmt.Println("No Models found across all namespaces.")
+	// Get name filter if provided
+	var nameFilter string
+	if len(args) > 0 {
+		nameFilter = args[0]
+	}
+
+	// Count matching models first
+	matchCount := 0
+	for _, model := range models.Items {
+		if nameFilter == "" || strings.Contains(strings.ToLower(model.Name), strings.ToLower(nameFilter)) {
+			matchCount++
+		}
+	}
+
+	if matchCount == 0 {
+		if nameFilter != "" {
+			fmt.Printf("No Models found matching '%s'.\n", nameFilter)
 		} else {
-			fmt.Printf("No Models found in namespace %s.\n", namespace)
+			if getAllNamespaces {
+				fmt.Println("No Models found across all namespaces.")
+			} else {
+				fmt.Printf("No Models found in namespace %s.\n", namespace)
+			}
 		}
 		return nil
 	}
@@ -267,13 +289,15 @@ func runGetModels(cmd *cobra.Command, args []string) error {
 		fmt.Fprintln(w, "NAME\tAGE")
 	}
 
-	// Print Models
+	// Print matching Models
 	for _, model := range models.Items {
-		age := time.Since(model.CreationTimestamp.Time).Truncate(time.Second)
-		if getAllNamespaces {
-			fmt.Fprintf(w, "%s\t%s\t%s\n", model.Namespace, model.Name, age)
-		} else {
-			fmt.Fprintf(w, "%s\t%s\n", model.Name, age)
+		if nameFilter == "" || strings.Contains(strings.ToLower(model.Name), strings.ToLower(nameFilter)) {
+			age := time.Since(model.CreationTimestamp.Time).Truncate(time.Second)
+			if getAllNamespaces {
+				fmt.Fprintf(w, "%s\t%s\t%s\n", model.Namespace, model.Name, age)
+			} else {
+				fmt.Fprintf(w, "%s\t%s\n", model.Name, age)
+			}
 		}
 	}
 
