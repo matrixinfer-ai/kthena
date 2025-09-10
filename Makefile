@@ -84,22 +84,25 @@ vet: ## Run go vet against code.
 test: generate fmt vet envtest ## Run tests. Exclude e2e, client-go.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e | grep -v /client-go) -coverprofile cover.out
 
-# TODO(user): To use a different vendor for e2e tests, modify the setup under 'tests/e2e'.
 # The default setup assumes Kind is pre-installed and builds/loads the Manager Docker image locally.
 # Prometheus and CertManager are installed by default; skip with:
 # - PROMETHEUS_INSTALL_SKIP=true
 # - CERT_MANAGER_INSTALL_SKIP=true
 .PHONY: test-e2e
-test-e2e: generate fmt vet ## Run the e2e tests. Expected an isolated environment using Kind.
+test-e2e: fmt vet ## Run the e2e tests. Expected an isolated environment using Kind.
 	@command -v kind >/dev/null 2>&1 || { \
 		echo "Kind is not installed. Please install Kind manually."; \
 		exit 1; \
 	}
-	@kind get clusters | grep -q 'kind' || { \
-		echo "No Kind cluster is running. Please start a Kind cluster before running the e2e tests."; \
-		exit 1; \
-	}
-	go test ./test/e2e/ -v -ginkgo.v
+	@echo "Setting up Kind cluster for E2E tests..."
+	@./test/e2e/setup.sh
+	@echo "Running E2E tests..."
+	@KUBECONFIG=/tmp/kubeconfig-e2e go test ./test/e2e/ -v -timeout=10m
+	@echo "E2E tests completed"
+
+.PHONY: test-e2e-cleanup
+test-e2e-cleanup: ## Clean up the Kind cluster used for E2E tests.
+	@./test/e2e/cleanup.sh
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter
@@ -130,32 +133,36 @@ IMG_MODELINFER_WEBHOOK ?= ${HUB}/modelinfer-webhook:${TAG}
 IMG_INFER_GATEWAY_WEBHOOK ?= ${HUB}/infer-gateway-webhook:${TAG}
 
 .PHONY: docker-build-gateway
-docker-build-gateway: generate
+docker-build-gateway:
 	$(CONTAINER_TOOL) build -t ${IMG_GATEWAY} -f docker/Dockerfile.infer-gateway .
 
 .PHONY: docker-build-modelinfer
-docker-build-modelinfer: generate 
+docker-build-modelinfer:
 	$(CONTAINER_TOOL) build -t ${IMG_MODELINFER} -f docker/Dockerfile.infer-controller .
 
 .PHONY: docker-build-modelcontroller
-docker-build-modelcontroller: generate
+docker-build-modelcontroller:
 	$(CONTAINER_TOOL) build -t ${IMG_MODELCONTROLLER} -f docker/Dockerfile.model-controller .
 
 .PHONY: docker-build-autoscaler
-docker-build-autoscaler: generate
+docker-build-autoscaler:
 	$(CONTAINER_TOOL) build -t ${IMG_AUTOSCALER} -f docker/Dockerfile.autoscaler .
 
 .PHONY: docker-build-registry-webhook
-docker-build-registry-webhook: generate
+docker-build-registry-webhook:
 	$(CONTAINER_TOOL) build -t ${IMG_REGISTRY_WEBHOOK} -f docker/Dockerfile.registry-webhook .
 
 .PHONY: docker-build-modelinfer-webhook
-docker-build-modelinfer-webhook: generate
+docker-build-modelinfer-webhook:
 	$(CONTAINER_TOOL) build -t ${IMG_MODELINFER_WEBHOOK} -f docker/Dockerfile.modelinfer-webhook .
 
 .PHONY: docker-build-infer-gateway-webhook
-docker-build-infer-gateway-webhook: generate
+docker-build-infer-gateway-webhook:
 	$(CONTAINER_TOOL) build -t ${IMG_INFER_GATEWAY_WEBHOOK} -f docker/Dockerfile.infer-gateway-webhook .
+
+.PHONY: docker-build-all
+docker-build-all: generate docker-build-gateway docker-build-modelinfer docker-build-modelcontroller docker-build-registry-webhook docker-build-modelinfer-webhook docker-build-autoscaler docker-build-infer-gateway-webhook ## Build all images.
+	@echo "All images built."
 
 .PHONY: docker-push
 docker-push: docker-build-gateway docker-build-modelinfer docker-build-modelcontroller docker-build-registry-webhook docker-build-modelinfer-webhook docker-build-autoscaler docker-build-infer-gateway-webhook ## Push all images to the registry.

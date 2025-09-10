@@ -1,6 +1,6 @@
 modelController:
   # replicas is the number of model-controller instances to run.
-  replicas: 3
+  replicas: 1
   image:
     # repository is the container image repository for the model-controller.
     repository: ghcr.io/matrixinfer-ai/model-controller
@@ -11,7 +11,7 @@ modelController:
     pullPolicy: IfNotPresent
     # args are the command line arguments for the model-controller.
     # Must set --leader-elect to true if replicas are greater than or equal to 2. Default is false.
-    args: [ "--leader-elect=true" ]
+    args: [ "--leader-elect=false" ]
   # resource defines the resource limits and requests for the model-controller.
   resource:
     limits:
@@ -38,7 +38,7 @@ modelController:
 
 autoscaler:
   # replicas is the number of model-controller instances to run.
-  replicas: 3
+  replicas: 1
   image:
     # repository is the container image repository for the model-controller.
     repository: ghcr.io/matrixinfer-ai/autoscaler
@@ -49,7 +49,7 @@ autoscaler:
     pullPolicy: IfNotPresent
     # args are the command line arguments for the model-controller.
     # Must set --leader-elect to true if replicas are greater than or equal to 2. Default is false.
-    args: [ "--leader-elect=true" ]
+    args: [ "--leader-elect=false" ]
   # resource defines the resource limits and requests for the model-controller.
   resource:
     limits:
@@ -86,7 +86,7 @@ global:
   certManager:
     enabled: true
   webhook:
-    # caBundle is the base64-encoded CA bundle for webhook server certificates.
-    # This is required when cert-manager is disabled (global.certManager.enabled=false).
-    # You can generate it with: cat /path/to/your/ca.crt | base64 | tr -d '\n'
-    # caBundle: ""
+  # caBundle is the base64-encoded CA bundle for webhook server certificates.
+  # This is required when cert-manager is disabled (global.certManager.enabled=false).
+  # You can generate it with: cat /path/to/your/ca.crt | base64 | tr -d '\n'
+  # caBundle: ""
