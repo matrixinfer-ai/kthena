@@ -147,9 +147,9 @@ func (l *accessLoggerImpl) formatJSON(entry *AccessLogEntry) (string, error) {
 func (l *accessLoggerImpl) formatText(entry *AccessLogEntry) (string, error) {
 	// Format: [timestamp] "METHOD /path PROTOCOL" status_code duration
 	// model=name route=route server=server pod=pod tokens=input/output timings=req+upstream+resp
-	
+
 	timestamp := entry.Timestamp.Format(time.RFC3339Nano)
-	
+
 	// Basic request line
 	line := fmt.Sprintf(`[%s] "%s %s %s" %d %dms`,
 		timestamp, entry.Method, entry.Path, entry.Protocol,
