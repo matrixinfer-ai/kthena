@@ -93,7 +93,7 @@ func init() {
 	describeCmd.AddCommand(describeModelCmd)
 	describeCmd.AddCommand(describeModelInferCmd)
 	describeCmd.AddCommand(describeAutoscalingPolicyCmd)
-	
+
 	// Add namespace flags
 	describeCmd.PersistentFlags().StringVarP(&getNamespace, "namespace", "n", "", "Kubernetes namespace (default: current context namespace)")
 }
@@ -138,7 +138,7 @@ func runDescribeTemplate(cmd *cobra.Command, args []string) error {
 
 func runDescribeModel(cmd *cobra.Command, args []string) error {
 	modelName := args[0]
-	
+
 	client, err := getGetMatrixInferClient()
 	if err != nil {
 		return err
@@ -166,7 +166,7 @@ func runDescribeModel(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal Model to YAML: %v", err)
 	}
-	
+
 	fmt.Println("Resource Details:")
 	fmt.Println("=================")
 	fmt.Print(string(data))
@@ -176,7 +176,7 @@ func runDescribeModel(cmd *cobra.Command, args []string) error {
 
 func runDescribeModelInfer(cmd *cobra.Command, args []string) error {
 	modelInferName := args[0]
-	
+
 	client, err := getGetMatrixInferClient()
 	if err != nil {
 		return err
@@ -204,7 +204,7 @@ func runDescribeModelInfer(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal ModelInfer to YAML: %v", err)
 	}
-	
+
 	fmt.Println("Resource Details:")
 	fmt.Println("=================")
 	fmt.Print(string(data))
@@ -214,7 +214,7 @@ func runDescribeModelInfer(cmd *cobra.Command, args []string) error {
 
 func runDescribeAutoscalingPolicy(cmd *cobra.Command, args []string) error {
 	policyName := args[0]
-	
+
 	client, err := getGetMatrixInferClient()
 	if err != nil {
 		return err
@@ -242,7 +242,7 @@ func runDescribeAutoscalingPolicy(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal AutoscalingPolicy to YAML: %v", err)
 	}
-	
+
 	fmt.Println("Resource Details:")
 	fmt.Println("=================")
 	fmt.Print(string(data))

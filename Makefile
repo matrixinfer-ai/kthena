@@ -61,7 +61,7 @@ gen-docs: crd-ref-docs ## Generate CRD and CLI reference documentation
 		--output-path=docs/matrixinfer/docs/reference/crd \
 		--renderer=markdown \
 		--output-mode=group
-	# Generate CLI docs for minfer using a standalone docgen program
+	# Generate Minfer CLI docs using a standalone doc-gen program
 	go run ./cli/minfer/internal/tools/docgen/main.go
 
 .PHONY: generate

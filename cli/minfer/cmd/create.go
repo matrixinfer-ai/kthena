@@ -292,7 +292,7 @@ func applyMatrixInferResource(ctx context.Context, client *versioned.Clientset, 
 		if err != nil {
 			return fmt.Errorf("failed to convert unstructured object to ModelInfer: %v", err)
 		}
-		
+
 		_, err = client.WorkloadV1alpha1().ModelInfers(resourceNamespace).Create(ctx, modelInfer, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to create ModelInfer: %v", err)
@@ -305,7 +305,7 @@ func applyMatrixInferResource(ctx context.Context, client *versioned.Clientset, 
 		if err != nil {
 			return fmt.Errorf("failed to convert unstructured object to Model: %v", err)
 		}
-		
+
 		_, err = client.RegistryV1alpha1().Models(resourceNamespace).Create(ctx, model, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to create Model: %v", err)
@@ -318,7 +318,7 @@ func applyMatrixInferResource(ctx context.Context, client *versioned.Clientset, 
 		if err != nil {
 			return fmt.Errorf("failed to convert unstructured object to AutoscalingPolicy: %v", err)
 		}
-		
+
 		_, err = client.RegistryV1alpha1().AutoscalingPolicies(resourceNamespace).Create(ctx, policy, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to create AutoscalingPolicy: %v", err)
@@ -331,7 +331,7 @@ func applyMatrixInferResource(ctx context.Context, client *versioned.Clientset, 
 		if err != nil {
 			return fmt.Errorf("failed to convert unstructured object to AutoscalingPolicyBinding: %v", err)
 		}
-		
+
 		_, err = client.RegistryV1alpha1().AutoscalingPolicyBindings(resourceNamespace).Create(ctx, binding, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to create AutoscalingPolicyBinding: %v", err)

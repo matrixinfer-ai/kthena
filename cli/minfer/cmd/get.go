@@ -30,9 +30,9 @@ import (
 )
 
 var (
-	outputFormat string
-	getNamespace    string
-	getAllNamespaces    bool
+	outputFormat     string
+	getNamespace     string
+	getAllNamespaces bool
 )
 
 // getCmd represents the get command
@@ -121,7 +121,7 @@ func init() {
 
 	// Add output format flag
 	getCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", "", "Output format (yaml|json|table)")
-	
+
 	// Add namespace flags
 	getCmd.PersistentFlags().StringVarP(&getNamespace, "namespace", "n", "", "Kubernetes namespace (default: current context namespace)")
 	getCmd.PersistentFlags().BoolVarP(&getAllNamespaces, "all-namespaces", "A", false, "List resources across all namespaces")
