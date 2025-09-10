@@ -30,12 +30,6 @@ const (
 // AccessLogMiddleware returns a Gin middleware that tracks request timing and metadata
 func AccessLogMiddleware(logger AccessLogger) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Skip logging for health check endpoints
-		if c.Request.URL.Path == "/health" || c.Request.URL.Path == "/ready" {
-			c.Next()
-			return
-		}
-
 		// Generate request ID if not present
 		requestID := c.Request.Header.Get("x-request-id")
 		if requestID == "" {
@@ -85,8 +79,8 @@ func SetModelName(c *gin.Context, modelName string) {
 	}
 }
 
-// SetModelRouting sets model routing information in the access log context
-func SetModelRouting(c *gin.Context, modelRoute, modelServer, selectedPod string) {
+// SetRequestRouting sets request routing information in the access log context
+func SetRequestRouting(c *gin.Context, modelRoute, modelServer, selectedPod string) {
 	if ctx := GetAccessLogContext(c); ctx != nil {
 		// Parse namespace/name format for model server
 		var modelServerName string

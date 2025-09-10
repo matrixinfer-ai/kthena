@@ -203,7 +203,7 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 func (r *Router) doLoadbalance(c *gin.Context, modelRequest ModelRequest) {
 	modelName := modelRequest["model"].(string)
 	// step 3: Find pods and model server details
-	modelServerName, isLora, err := r.store.MatchModelServer(modelName, c.Request)
+	modelServerName, isLora, modelRoute, err := r.store.MatchModelServer(modelName, c.Request)
 	if err != nil {
 		accesslog.SetError(c, "model_server_matching", fmt.Sprintf("can't find corresponding model server: %v", err))
 		c.AbortWithStatusJSON(http.StatusNotFound, fmt.Sprintf("can't find corresponding model server: %v", err))
@@ -217,10 +217,6 @@ func (r *Router) doLoadbalance(c *gin.Context, modelRequest ModelRequest) {
 		c.AbortWithStatusJSON(http.StatusNotFound, fmt.Sprintf("can't find model server: %v", modelServerName))
 		return
 	}
-
-	// Set model server information in access log
-	modelServerFullName := fmt.Sprintf("%s/%s", modelServerName.Namespace, modelServerName.Name)
-	accesslog.SetModelRouting(c, "", modelServerFullName, "")
 
 	model := modelServer.Spec.Model
 	if model != nil && !isLora {
@@ -251,10 +247,19 @@ func (r *Router) doLoadbalance(c *gin.Context, modelRequest ModelRequest) {
 		return
 	}
 
-	// Set selected pod information in access log
-	if ctx.BestPods != nil && len(ctx.BestPods) > 0 && ctx.BestPods[0].Pod != nil {
+	// Set complete request routing information in access log
+	modelServerFullName := fmt.Sprintf("%s/%s", modelServerName.Namespace, modelServerName.Name)
+	modelRouteName := ""
+	if modelRoute != nil {
+		modelRouteName = fmt.Sprintf("%s/%s", modelRoute.Namespace, modelRoute.Name)
+	}
+
+	if len(ctx.BestPods) > 0 && ctx.BestPods[0].Pod != nil {
 		selectedPod := ctx.BestPods[0].Pod.Name
-		accesslog.SetModelRouting(c, "", modelServerFullName, selectedPod)
+		accesslog.SetRequestRouting(c, modelRouteName, modelServerFullName, selectedPod)
+	} else {
+		// Set routing info even if no pod is selected (for error cases)
+		accesslog.SetRequestRouting(c, modelRouteName, modelServerFullName, "")
 	}
 
 	req := c.Request
@@ -376,7 +381,7 @@ func (r *Router) proxyModelEndpoint(
 }
 
 func (r *Router) GetModelServer(modelName string, req *http.Request) (*v1alpha1.ModelServer, error) {
-	modelServerName, isLora, err := r.store.MatchModelServer(modelName, req)
+	modelServerName, isLora, _, err := r.store.MatchModelServer(modelName, req)
 	if err != nil {
 		return nil, fmt.Errorf("can't find corresponding model server: %v", err)
 	}

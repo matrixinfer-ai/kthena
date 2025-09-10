@@ -1204,7 +1204,7 @@ func TestStoreMatchModelServer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := tt.setupStore()
-			server, isLora, err := s.MatchModelServer(tt.modelName, tt.request)
+			server, isLora, _, err := s.MatchModelServer(tt.modelName, tt.request)
 
 			if tt.expectedError {
 				assert.Error(t, err)
