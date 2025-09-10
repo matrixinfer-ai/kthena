@@ -21,6 +21,7 @@ package main
 
 import (
 	"embed"
+
 	"matrixinfer.ai/matrixinfer/cli/minfer/cmd"
 )
 

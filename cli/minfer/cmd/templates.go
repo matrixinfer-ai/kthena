@@ -24,6 +24,12 @@ import (
 
 var templatesFS embed.FS
 
+type ManifestInfo struct {
+	Name        string
+	Description string
+	FilePath    string
+}
+
 // InitTemplates initializes the templates filesystem
 func InitTemplates(fs embed.FS) {
 	templatesFS = fs
@@ -98,4 +104,43 @@ func extractManifestDescriptionFromContent(content string) string {
 	}
 
 	return "No description available"
+}
+
+func extractTemplateVariables(content string) []string {
+	var variables []string
+	variableMap := make(map[string]bool)
+
+	// Simple regex-like approach to find {{ .VariableName }} patterns
+	lines := strings.Split(content, "\n")
+	for _, line := range lines {
+		for {
+			start := strings.Index(line, "{{")
+			if start == -1 {
+				break
+			}
+			end := strings.Index(line[start:], "}}")
+			if end == -1 {
+				break
+			}
+
+			variable := strings.TrimSpace(line[start+2 : start+end])
+			// Remove leading dot and any function calls/pipes
+			variable = strings.TrimPrefix(variable, ".")
+			if spaceIndex := strings.Index(variable, " "); spaceIndex != -1 {
+				variable = variable[:spaceIndex]
+			}
+			if pipeIndex := strings.Index(variable, "|"); pipeIndex != -1 {
+				variable = variable[:pipeIndex]
+			}
+
+			if variable != "" && !variableMap[variable] {
+				variables = append(variables, variable)
+				variableMap[variable] = true
+			}
+
+			line = line[start+end+2:]
+		}
+	}
+
+	return variables
 }
