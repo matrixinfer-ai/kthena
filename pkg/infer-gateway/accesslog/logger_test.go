@@ -53,7 +53,7 @@ func TestAccessLogEntry_ToJSON(t *testing.T) {
 		Output:  "stdout",
 		Enabled: true,
 	}
-	
+
 	logger := &accessLoggerImpl{config: config}
 	output, err := logger.formatJSON(entry)
 	require.NoError(t, err)
@@ -109,7 +109,7 @@ func TestAccessLogEntry_ToText(t *testing.T) {
 		Output:  "stdout",
 		Enabled: true,
 	}
-	
+
 	logger := &accessLoggerImpl{config: config}
 	output, err := logger.formatText(entry)
 	require.NoError(t, err)
@@ -158,7 +158,7 @@ func TestAccessLogEntry_WithError(t *testing.T) {
 		Output:  "stdout",
 		Enabled: true,
 	}
-	
+
 	logger := &accessLoggerImpl{config: config}
 	output, err := logger.formatJSON(entry)
 	require.NoError(t, err)
@@ -181,9 +181,9 @@ func TestAccessLogEntry_WithError(t *testing.T) {
 func TestAccessLogContext_Lifecycle(t *testing.T) {
 	modelName := "test-model"
 	requestID := "test-request-123"
-	
+
 	ctx := NewAccessLogContext(requestID, "POST", "/v1/chat/completions", "HTTP/1.1", modelName)
-	
+
 	// Verify initial state
 	assert.Equal(t, requestID, ctx.RequestID)
 	assert.Equal(t, "POST", ctx.Method)
@@ -243,16 +243,16 @@ func TestAccessLogContext_Lifecycle(t *testing.T) {
 
 func TestNoopAccessLogger(t *testing.T) {
 	logger := &noopAccessLogger{}
-	
+
 	entry := &AccessLogEntry{
 		Method: "POST",
 		Path:   "/test",
 	}
-	
+
 	// Should not return any errors
 	err := logger.Log(entry)
 	assert.NoError(t, err)
-	
+
 	err = logger.Close()
 	assert.NoError(t, err)
 }

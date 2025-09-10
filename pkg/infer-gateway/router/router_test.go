@@ -470,10 +470,10 @@ func TestAccessLogConfigurationFromEnv(t *testing.T) {
 			name:            "text format with file output",
 			envEnabled:      "true",
 			envFormat:       "text",
-			envOutput:       "/var/log/access.log",
+			envOutput:       "/tmp/access.log",
 			expectedEnabled: true,
 			expectedFormat:  accesslog.FormatText,
-			expectedOutput:  "/var/log/access.log",
+			expectedOutput:  "/tmp/access.log",
 		},
 		{
 			name:            "disabled access log",
@@ -497,10 +497,24 @@ func TestAccessLogConfigurationFromEnv(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Handle file output case - create a temporary file
+			envOutput := tt.envOutput
+			var tempFile *os.File
+			if tt.envOutput == "/tmp/access.log" {
+				var err error
+				tempFile, err = os.CreateTemp("", "access_log_test_*.log")
+				assert.NoError(t, err)
+				envOutput = tempFile.Name()
+				defer func() {
+					tempFile.Close()
+					os.Remove(tempFile.Name())
+				}()
+			}
+
 			// Set environment variables
 			os.Setenv("ACCESS_LOG_ENABLED", tt.envEnabled)
 			os.Setenv("ACCESS_LOG_FORMAT", tt.envFormat)
-			os.Setenv("ACCESS_LOG_OUTPUT", tt.envOutput)
+			os.Setenv("ACCESS_LOG_OUTPUT", envOutput)
 
 			// Create access log configuration (simulating the logic in NewRouter)
 			accessLogConfig := &accesslog.AccessLoggerConfig{
@@ -531,7 +545,12 @@ func TestAccessLogConfigurationFromEnv(t *testing.T) {
 			// Verify configuration
 			assert.Equal(t, tt.expectedEnabled, accessLogConfig.Enabled)
 			assert.Equal(t, tt.expectedFormat, accessLogConfig.Format)
-			assert.Equal(t, tt.expectedOutput, accessLogConfig.Output)
+			// For file output, we check that the config output matches the actual temp file path
+			if tt.envOutput == "/tmp/access.log" {
+				assert.Equal(t, envOutput, accessLogConfig.Output)
+			} else {
+				assert.Equal(t, tt.expectedOutput, accessLogConfig.Output)
+			}
 
 			// Test that logger can be created with this configuration
 			logger, err := accesslog.NewAccessLogger(accessLogConfig)
