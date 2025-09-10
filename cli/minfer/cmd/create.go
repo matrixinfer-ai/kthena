@@ -20,7 +20,6 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -89,7 +88,9 @@ func init() {
 	manifestFlags = make(map[string]string)
 	manifestCmd.Flags().StringToStringVar(&manifestFlags, "set", nil, "Set template values (can specify multiple or separate values with commas: key1=val1,key2=val2)")
 
-	manifestCmd.MarkFlagRequired("template")
+	if err := manifestCmd.MarkFlagRequired("template"); err != nil {
+		panic(fmt.Sprintf("failed to mark template flag as required: %v", err))
+	}
 }
 
 func runCreateManifest(cmd *cobra.Command, args []string) error {
@@ -131,7 +132,7 @@ func loadTemplateValues() (map[string]interface{}, error) {
 
 	// Load from values file if specified
 	if valuesFile != "" {
-		data, err := ioutil.ReadFile(valuesFile)
+		data, err := os.ReadFile(valuesFile)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read values file: %v", err)
 		}
