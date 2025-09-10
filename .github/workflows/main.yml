@@ -30,7 +30,7 @@ jobs:
       - name: generate copyright
         shell: bash
         run: |
-          make add-copyright
+          make gen-copyright
       - name: check diff
         shell: bash
         run: |

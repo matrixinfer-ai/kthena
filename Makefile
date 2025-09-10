@@ -65,7 +65,7 @@ gen-docs: crd-ref-docs ## Generate CRD and CLI reference documentation
 	go run ./cli/minfer/internal/tools/docgen/main.go
 
 .PHONY: generate
-generate: controller-gen gen-crd gen-docs ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+generate: controller-gen gen-crd gen-docs gen-copyright ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 	go mod tidy
 	./hack/update-codegen.sh
@@ -269,8 +269,8 @@ crd-ref-docs: $(CRD_REF_DOCS) ## Download crd-ref-docs locally if necessary.
 $(CRD_REF_DOCS): $(LOCALBIN)
 	$(call go-install-tool,$(CRD_REF_DOCS),github.com/elastic/crd-ref-docs,$(CRD_REF_DOCS_VERSION))
 
-.PHONY: add-copyright
-add-copyright:
+.PHONY: gen-copyright
+gen-copyright:
 	@echo "Adding copyright headers..."
 	@hack/update-copyright.sh
 
