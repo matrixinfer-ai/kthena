@@ -63,11 +63,10 @@ type ModelBackend struct {
 	Name string `json:"name"`
 	// Type is the type of the backend.
 	Type ModelBackendType `json:"type"`
-	// ModelURI is the URI where the model is stored. Support hf://, s3://, pvc://.
+	// ModelURI is the URI where you download the model. Support hf://, s3://, pvc://.
 	// +kubebuilder:validation:Pattern=`^(hf://|s3://|pvc://).+`
 	ModelURI string `json:"modelURI"`
-	// CacheURI is the URI where the model cache is stored. Support hostpath://, pvc://.
-	// +optional
+	// CacheURI is the URI where the downloaded model stored. Support hostpath://, pvc://.
 	// +kubebuilder:validation:Pattern=`^(hostpath://|pvc://).+`
 	CacheURI string `json:"cacheURI,omitempty"`
 	// List of sources to populate environment variables in the container.
@@ -80,7 +79,12 @@ type ModelBackend struct {
 	// +listType=atomic
 	EnvFrom []corev1.EnvFromSource `json:"envFrom,omitempty" protobuf:"bytes,19,rep,name=envFrom"`
 	// List of environment variables to set in the container.
-	// Support "ENDPOINT", "RUNTIME_URL"(default http://localhost:8000), "RUNTIME_PORT"(default 8100)
+	// Supported names:
+	// "ENDPOINT": When you download model from s3, you have to specify it.
+	// "RUNTIME_URL": default is http://localhost:8000
+	// "RUNTIME_PORT": default is 8100
+	// "RUNTIME_METRICS_PATH": default is /metrics
+	// "HF_ENDPOINT":The url of hugging face. Default is https://huggingface.co/
 	// Cannot be updated.
 	// +optional
 	// +patchMergeKey=name
@@ -171,7 +175,7 @@ type ModelWorker struct {
 	// +optional
 	Affinity corev1.Affinity `json:"affinity,omitempty"`
 	// Config contains worker-specific configuration in JSON format.
-	// You can find vLLM config here https://docs.vllm.ai/en/stable/api/vllm/config.html
+	// You can find vLLM config here https://docs.vllm.ai/en/stable/configuration/engine_args.html
 	// +optional
 	Config apiextensionsv1.JSON `json:"config,omitempty"`
 }

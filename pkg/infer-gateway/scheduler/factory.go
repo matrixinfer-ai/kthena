@@ -82,8 +82,8 @@ func registerDefaultPlugins(registry *PluginRegistry) {
 		return &plugins.PrefixCache{}
 	})
 
-	registry.registerScorePlugin(plugins.KVCachePluginName, func(args runtime.RawExtension) framework.ScorePlugin {
-		return plugins.NewKVCache(args)
+	registry.registerScorePlugin(plugins.KVCacheAwarePluginName, func(args runtime.RawExtension) framework.ScorePlugin {
+		return plugins.NewKVCacheAware(args)
 	})
 	// filterPlugin
 	registry.registerFilterPlugin(plugins.LeastRequestPluginName, func(args runtime.RawExtension) framework.FilterPlugin {

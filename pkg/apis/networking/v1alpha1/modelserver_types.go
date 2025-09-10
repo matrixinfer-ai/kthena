@@ -104,10 +104,10 @@ type WorkloadPort struct {
 type KVConnectorType string
 
 const (
-	ConnectorTypeHTTP     KVConnectorType = "http"
-	ConnectorTypeNIXL     KVConnectorType = "nixl"
-	ConnectorTypeLMCache  KVConnectorType = "lmcache"
-	ConnectorTypeMoonCake KVConnectorType = "mooncake"
+	ConnectorTypeHTTP     KVConnectorType = "http"     // Passthrough without mutating prefil/decode requests
+	ConnectorTypeNIXL     KVConnectorType = "nixl"     // Indicates `NixlConnector` in vllm
+	ConnectorTypeLMCache  KVConnectorType = "lmcache"  // Indicates `LmcacheConnector` in vllm
+	ConnectorTypeMoonCake KVConnectorType = "mooncake" // Indicates `MoonCakeConnector` in vllm-ascend
 )
 
 // KVConnectorSpec defines KV connector configuration for PD disaggregated routing

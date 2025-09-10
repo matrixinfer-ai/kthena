@@ -18,11 +18,10 @@ data:
           blockSizeToHash: 64
           maxBlocksToMatch: 128
           maxHashCacheSize: 50000
-      - name: kv-cache
-      args:
-        blockSizeToHash: 128
-        maxBlocksToMatch: 128
-        redis: {{.Values.redis.enabled}}
+      - name: kvcache-aware
+        args:
+          blockSizeToHash: 128
+          maxBlocksToMatch: 128
       plugins:
         Filter:
           enabled:
@@ -38,6 +37,4 @@ data:
             - name: least-latency
               weight: 1
             - name: prefix-cache
-              weight: 1
-            - name: kv-cache
               weight: 1

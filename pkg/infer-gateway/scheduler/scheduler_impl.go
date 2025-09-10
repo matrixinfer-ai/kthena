@@ -62,7 +62,6 @@ func NewScheduler(store datastore.Store, gatewayConfig *conf.GatewayConfiguratio
 	// Default plugin configuration.
 	scorePluginMap := map[string]int{
 		"least-request": 1,
-		"kv-cache":      1,
 		"least-latency": 1,
 		"prefix-cache":  1,
 	}

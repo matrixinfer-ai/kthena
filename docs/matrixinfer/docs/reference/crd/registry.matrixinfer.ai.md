@@ -329,10 +329,10 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `name` _string_ | Name is the name of the backend. Can't duplicate with other ModelBackend name in the same Model CR.<br />Note: update name will cause the old modelInfer deletion and a new modelInfer creation. |  | Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?$` <br /> |
 | `type` _[ModelBackendType](#modelbackendtype)_ | Type is the type of the backend. |  | Enum: [vLLM vLLMDisaggregated SGLang MindIE MindIEDisaggregated] <br /> |
-| `modelURI` _string_ | ModelURI is the URI where the model is stored. Support hf://, s3://, pvc://. |  | Pattern: `^(hf://\|s3://\|pvc://).+` <br /> |
-| `cacheURI` _string_ | CacheURI is the URI where the model cache is stored. Support hostpath://, pvc://. |  | Pattern: `^(hostpath://\|pvc://).+` <br /> |
+| `modelURI` _string_ | ModelURI is the URI where you download the model. Support hf://, s3://, pvc://. |  | Pattern: `^(hf://\|s3://\|pvc://).+` <br /> |
+| `cacheURI` _string_ | CacheURI is the URI where the downloaded model stored. Support hostpath://, pvc://. |  | Pattern: `^(hostpath://\|pvc://).+` <br /> |
 | `envFrom` _[EnvFromSource](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#envfromsource-v1-core) array_ | List of sources to populate environment variables in the container.<br />The keys defined within a source must be a C_IDENTIFIER. All invalid keys<br />will be reported as an event when the container is starting. When a key exists in multiple<br />sources, the value associated with the last source will take precedence.<br />Values defined by an Env with a duplicate key will take precedence.<br />Cannot be updated. |  |  |
-| `env` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#envvar-v1-core) array_ | List of environment variables to set in the container.<br />Support "ENDPOINT", "RUNTIME_URL"(default http://localhost:8000), "RUNTIME_PORT"(default 8100)<br />Cannot be updated. |  |  |
+| `env` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#envvar-v1-core) array_ | List of environment variables to set in the container.<br />Supported names:<br />"ENDPOINT": When you download model from s3, you have to specify it.<br />"RUNTIME_URL": default is http://localhost:8000<br />"RUNTIME_PORT": default is 8100<br />"RUNTIME_METRICS_PATH": default is /metrics<br />"HF_ENDPOINT":The url of hugging face. Default is https://huggingface.co/<br />Cannot be updated. |  |  |
 | `minReplicas` _integer_ | MinReplicas is the minimum number of replicas for the backend. |  | Maximum: 1e+06 <br />Minimum: 0 <br /> |
 | `maxReplicas` _integer_ | MaxReplicas is the maximum number of replicas for the backend. |  | Maximum: 1e+06 <br />Minimum: 1 <br /> |
 | `scalingCost` _integer_ | ScalingCost is the cost associated with running this backend. |  | Minimum: 0 <br /> |
@@ -461,7 +461,7 @@ _Appears in:_
 | `pods` _integer_ | Pods is the number of pods for the worker. |  | Maximum: 1e+06 <br />Minimum: 0 <br /> |
 | `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#resourcerequirements-v1-core)_ | Resources specifies the resource requirements for the worker. |  |  |
 | `affinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#affinity-v1-core)_ | Affinity specifies the affinity rules for scheduling the worker pods. |  |  |
-| `config` _[JSON](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#json-v1-apiextensions-k8s-io)_ | Config contains worker-specific configuration in JSON format.<br />You can find vLLM config here https://docs.vllm.ai/en/stable/api/vllm/config.html |  |  |
+| `config` _[JSON](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#json-v1-apiextensions-k8s-io)_ | Config contains worker-specific configuration in JSON format.<br />You can find vLLM config here https://docs.vllm.ai/en/stable/configuration/engine_args.html |  |  |
 
 
 #### ModelWorkerType

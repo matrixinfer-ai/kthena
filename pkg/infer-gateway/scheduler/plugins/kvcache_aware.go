@@ -15,14 +15,14 @@ limitations under the License.
 */
 
 /*
-KV Cache Plugin
+KV Cache Aware Plugin
 
-The KV Cache Plugin is a scoring plugin for the MatrixInfer gateway scheduler that implements
+The KV Cache Aware Plugin is a scoring plugin for the MatrixInfer gateway scheduler that implements
 intelligent pod scheduling based on KV cache hit potential using token-level block matching
 with Redis-based distributed coordination.
 
 For detailed design documentation, architecture overview, and implementation details,
-see: docs/proposal/kv-cache-plugin-design.md
+see: docs/proposal/kvcache-aware-plugin-design.md
 */
 
 package plugins
@@ -46,8 +46,8 @@ import (
 )
 
 const (
-	// KVCachePluginName is the name identifier for the KV cache scoring plugin
-	KVCachePluginName = "kv-cache"
+	// KVCacheAwarePluginName is the name identifier for the KV cache scoring plugin
+	KVCacheAwarePluginName = "kvcache-aware"
 
 	// kvCacheKeyPrefix is the Redis key prefix for storing token block mappings
 	// Redis key format: "matrix:kv:block:{model}@{hash}"
@@ -63,13 +63,12 @@ const (
 	defaultMaxBlocksToMatch = 128
 )
 
-type KVCacheArgs struct {
-	BlockSizeToHash  int  `yaml:"blockSizeToHash,omitempty"`
-	MaxBlocksToMatch int  `yaml:"maxBlocksToMatch,omitempty"`
-	Redis            bool `yaml:"redis,omitempty"`
+type KVCacheAwareArgs struct {
+	BlockSizeToHash  int `yaml:"blockSizeToHash,omitempty"`
+	MaxBlocksToMatch int `yaml:"maxBlocksToMatch,omitempty"`
 }
 
-type KVCache struct {
+type KVCacheAware struct {
 	name             string
 	maxBlocksToMatch int
 	keyPrefix        string
@@ -78,14 +77,14 @@ type KVCache struct {
 	tokenizerManager *tokenization.TokenizerManager
 }
 
-var _ framework.ScorePlugin = &KVCache{}
+var _ framework.ScorePlugin = &KVCacheAware{}
 
 type TokenBlockProcessor struct {
 	blockSize int
 }
 
-// KVCacheBlock represents a token block for Redis storage
-type KVCacheBlock struct {
+// KVCacheAwareBlock represents a token block for Redis storage
+type KVCacheAwareBlock struct {
 	ModelName string // Model name (e.g., "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B")
 	ChunkHash uint64 // SHA-256 hash of the token block
 }
@@ -101,15 +100,15 @@ type KVCacheBlock struct {
 //	  "pod-name-1.namespace": "1703123456",
 //	  "pod-name-2.namespace": "1703123789"
 //	}
-func (b KVCacheBlock) String(prefix string) string {
+func (b KVCacheAwareBlock) String(prefix string) string {
 	return fmt.Sprintf("%s%s@%d", prefix, b.ModelName, b.ChunkHash)
 }
 
-func NewKVCache(pluginArg runtime.RawExtension) *KVCache {
-	var args KVCacheArgs
+func NewKVCacheAware(pluginArg runtime.RawExtension) *KVCacheAware {
+	var args KVCacheAwareArgs
 	if len(pluginArg.Raw) > 0 {
 		if err := yaml.Unmarshal(pluginArg.Raw, &args); err != nil {
-			klog.Warningf("Failed to unmarshal KVCacheArgs: %v", err)
+			klog.Warningf("Failed to unmarshal KVCacheAwareArgs: %v", err)
 		}
 	}
 
@@ -128,13 +127,10 @@ func NewKVCache(pluginArg runtime.RawExtension) *KVCache {
 	}
 	manager := tokenization.NewTokenizerManager(managerConfig)
 
-	var redisClient *redis.Client
-	if args.Redis {
-		redisClient = utils.GetRedisClient()
-	}
+	redisClient := utils.TryGetRedisClient()
 
-	return &KVCache{
-		name:             KVCachePluginName,
+	return &KVCacheAware{
+		name:             KVCacheAwarePluginName,
 		maxBlocksToMatch: maxBlocksToMatch,
 		keyPrefix:        kvCacheKeyPrefix,
 		redisClient:      redisClient,
@@ -143,18 +139,18 @@ func NewKVCache(pluginArg runtime.RawExtension) *KVCache {
 	}
 }
 
-func (t *KVCache) Name() string {
+func (t *KVCacheAware) Name() string {
 	return t.name
 }
 
-func (t *KVCache) normalizeAndTokenizePrompt(ctx *framework.Context, pods []*datastore.PodInfo) ([]uint32, error) {
+func (t *KVCacheAware) normalizeAndTokenizePrompt(ctx *framework.Context, pods []*datastore.PodInfo) ([]uint32, error) {
 	if t.tokenizerManager == nil {
 		return nil, fmt.Errorf("tokenizer manager not available")
 	}
 	return t.tokenizerManager.TokenizePrompt(ctx.Model, ctx.Prompt, pods)
 }
 
-func (t *KVCache) Score(ctx *framework.Context, pods []*datastore.PodInfo) map[*datastore.PodInfo]int {
+func (t *KVCacheAware) Score(ctx *framework.Context, pods []*datastore.PodInfo) map[*datastore.PodInfo]int {
 	scoreResults := make(map[*datastore.PodInfo]int)
 
 	for _, pod := range pods {
@@ -197,7 +193,7 @@ func (t *KVCache) Score(ctx *framework.Context, pods []*datastore.PodInfo) map[*
 
 // queryRedisForBlocks queries Redis to find which pods have cached the given token block hashes
 // Returns a map from block hash to list of pod names that have cached that block
-func (t *KVCache) queryRedisForBlocks(blockHashes []uint64, modelName string) (map[uint64][]string, error) {
+func (t *KVCacheAware) queryRedisForBlocks(blockHashes []uint64, modelName string) (map[uint64][]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -212,7 +208,7 @@ func (t *KVCache) queryRedisForBlocks(blockHashes []uint64, modelName string) (m
 
 	// Build pipeline commands for batch Redis query
 	for i, hash := range blockHashes {
-		block := KVCacheBlock{ModelName: modelName, ChunkHash: hash}
+		block := KVCacheAwareBlock{ModelName: modelName, ChunkHash: hash}
 		key := block.String(t.keyPrefix)
 		cmds[i] = pipe.HKeys(ctx, key)
 	}
@@ -246,11 +242,11 @@ func extractPodNameFromIdentifier(podIdentifier string) string {
 	return parts[0]
 }
 
-func (t *KVCache) calculatePodScores(blockHashes []uint64, blockToPods map[uint64][]string) map[string]int {
+func (t *KVCacheAware) calculatePodScores(blockHashes []uint64, blockToPods map[uint64][]string) map[string]int {
 	podScores := make(map[string]int)
 
 	if len(blockHashes) == 0 {
-		klog.Infof("KVCache: No block hashes to process")
+		klog.Infof("KVCacheAware: No block hashes to process")
 		return podScores
 	}
 
@@ -294,7 +290,7 @@ func (t *KVCache) calculatePodScores(blockHashes []uint64, blockToPods map[uint6
 	for podName, matchLen := range podScores {
 		score := int((float64(matchLen) / float64(totalBlocks)) * 100)
 		podScores[podName] = score
-		klog.V(4).Infof("KVCache Pod %s: matched %d/%d blocks, score: %d", podName, matchLen, totalBlocks, score)
+		klog.V(4).Infof("KVCacheAware Pod %s: matched %d/%d blocks, score: %d", podName, matchLen, totalBlocks, score)
 	}
 
 	return podScores
@@ -328,7 +324,7 @@ func computeStandardizedHash(tokenIds []int) uint64 {
 
 	// Clear MSB to ensure positive value (0x7FFFFFFFFFFFFFFF masks out sign bit)
 	result := fullHash & 0x7FFFFFFFFFFFFFFF
-	klog.V(4).Infof("KVCache: compute standardized hash - token_ids=%v, hash=%d", tokenIds, result)
+	klog.V(4).Infof("KVCacheAware: compute standardized hash - token_ids=%v, hash=%d", tokenIds, result)
 	return result
 }
 
