@@ -217,7 +217,7 @@ func TestListModelRoutes(t *testing.T) {
 	// Create request
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	req, _ := http.NewRequest("GET", "/debug/modelroutes", nil)
+	req, _ := http.NewRequest("GET", "/debug/config_dump/modelroutes", nil)
 	c.Request = req
 
 	// Call handler
@@ -267,9 +267,12 @@ func TestGetModelRoute(t *testing.T) {
 	// Create request
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	req, _ := http.NewRequest("GET", "/debug/modelroute/llama2-route", nil)
+	req, _ := http.NewRequest("GET", "/debug/config_dump/namespaces/default/modelroutes/llama2-route", nil)
 	c.Request = req
-	c.Params = gin.Params{{Key: "name", Value: "llama2-route"}}
+	c.Params = gin.Params{
+		{Key: "namespace", Value: "default"},
+		{Key: "name", Value: "llama2-route"},
+	}
 
 	// Call handler
 	handler.GetModelRoute(c)

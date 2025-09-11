@@ -75,7 +75,7 @@ func (s *Server) startRouter(ctx context.Context, router *router.Router, store d
 
 	// Debug endpoints
 	debugHandler := debug.NewDebugHandler(store)
-	debugGroup := engine.Group("/debug")
+	debugGroup := engine.Group("/debug/config_dump")
 	{
 		// List resources
 		debugGroup.GET("/modelroutes", debugHandler.ListModelRoutes)
@@ -83,9 +83,9 @@ func (s *Server) startRouter(ctx context.Context, router *router.Router, store d
 		debugGroup.GET("/pods", debugHandler.ListPods)
 
 		// Get specific resources
-		debugGroup.GET("/modelroute/:name", debugHandler.GetModelRoute)
-		debugGroup.GET("/modelserver/:namespace/:name", debugHandler.GetModelServer)
-		debugGroup.GET("/pod/:namespace/:name", debugHandler.GetPod)
+		debugGroup.GET("/namespaces/:namespace/modelroutes/:name", debugHandler.GetModelRoute)
+		debugGroup.GET("/namespaces/:namespace/modelservers/:name", debugHandler.GetModelServer)
+		debugGroup.GET("/namespaces/:namespace/pods/:name", debugHandler.GetPod)
 	}
 
 	server := &http.Server{

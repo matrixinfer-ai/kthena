@@ -120,7 +120,7 @@ type ResourceRequirements struct {
 
 // List endpoints
 
-// ListModelRoutes handles GET /debug/modelroutes
+// ListModelRoutes handles GET /debug/config_dump/modelroutes
 func (h *DebugHandler) ListModelRoutes(c *gin.Context) {
 	modelRoutes := h.store.GetAllModelRoutes()
 
@@ -143,7 +143,7 @@ func (h *DebugHandler) ListModelRoutes(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"modelroutes": responses})
 }
 
-// ListModelServers handles GET /debug/modelservers
+// ListModelServers handles GET /debug/config_dump/modelservers
 func (h *DebugHandler) ListModelServers(c *gin.Context) {
 	modelServers := h.store.GetAllModelServers()
 
@@ -170,7 +170,7 @@ func (h *DebugHandler) ListModelServers(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"modelservers": responses})
 }
 
-// ListPods handles GET /debug/pods
+// ListPods handles GET /debug/config_dump/pods
 func (h *DebugHandler) ListPods(c *gin.Context) {
 	pods := h.store.GetAllPods()
 
@@ -185,42 +185,27 @@ func (h *DebugHandler) ListPods(c *gin.Context) {
 
 // Get specific resource endpoints
 
-// GetModelRoute handles GET /debug/modelroute/{name}
+// GetModelRoute handles GET /debug/config_dump/namespaces/{namespace}/modelroutes/{name}
 func (h *DebugHandler) GetModelRoute(c *gin.Context) {
+	namespace := c.Param("namespace")
 	name := c.Param("name")
-	if name == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "name parameter is required"})
+
+	if namespace == "" || name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "namespace and name parameters are required"})
 		return
 	}
 
-	// Try to find the ModelRoute in different namespaces
-	// First try default namespace
-	namespacedName := "default/" + name
+	namespacedName := namespace + "/" + name
 	mr, info := h.store.GetModelRoute(namespacedName)
-
-	if mr == nil {
-		// Try to find in all namespaces
-		allRoutes := h.store.GetAllModelRoutes()
-		for nsName, route := range allRoutes {
-			parts := strings.Split(nsName, "/")
-			if len(parts) == 2 && parts[1] == name {
-				mr = route
-				namespacedName = nsName
-				_, info = h.store.GetModelRoute(nsName)
-				break
-			}
-		}
-	}
 
 	if mr == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "ModelRoute not found"})
 		return
 	}
 
-	parts := strings.Split(namespacedName, "/")
 	response := ModelRouteResponse{
-		Name:      parts[1],
-		Namespace: parts[0],
+		Name:      name,
+		Namespace: namespace,
 		Spec:      mr.Spec,
 	}
 
@@ -234,7 +219,7 @@ func (h *DebugHandler) GetModelRoute(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// GetModelServer handles GET /debug/modelserver/{namespace}/{name}
+// GetModelServer handles GET /debug/config_dump/namespaces/{namespace}/modelservers/{name}
 func (h *DebugHandler) GetModelServer(c *gin.Context) {
 	namespace := c.Param("namespace")
 	name := c.Param("name")
@@ -273,7 +258,7 @@ func (h *DebugHandler) GetModelServer(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// GetPod handles GET /debug/pod/{namespace}/{name}
+// GetPod handles GET /debug/config_dump/namespaces/{namespace}/pods/{name}
 func (h *DebugHandler) GetPod(c *gin.Context) {
 	namespace := c.Param("namespace")
 	name := c.Param("name")
