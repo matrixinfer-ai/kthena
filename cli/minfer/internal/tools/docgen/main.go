@@ -30,6 +30,9 @@ func main() {
 	// Get the root command from the CLI application
 	rootCmd := cmd.GetRootCmd()
 
+	// Disable the auto-generated tag, including the date
+	rootCmd.DisableAutoGenTag = true
+
 	// Define output directory relative to the project root (assumes running from repo root)
 	// Target: docs/matrixinfer/docs/reference/cli
 	outputDir := "docs/matrixinfer/docs/reference/cli"
