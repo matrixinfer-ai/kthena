@@ -53,7 +53,7 @@ gen-crd: controller-gen
 	$(CONTROLLER_GEN) crd paths="./pkg/apis/registry/..." output:crd:artifacts:config=charts/matrixinfer/charts/registry/crds
 
 .PHONY: gen-docs
-gen-docs: crd-ref-docs ## Generate CRD reference documentation
+gen-docs: crd-ref-docs ## Generate CRD and CLI reference documentation
 	mkdir -p docs/matrixinfer/docs/api
 	$(CRD_REF_DOCS) \
 		--source-path=./pkg/apis \
@@ -61,9 +61,11 @@ gen-docs: crd-ref-docs ## Generate CRD reference documentation
 		--output-path=docs/matrixinfer/docs/reference/crd \
 		--renderer=markdown \
 		--output-mode=group
+	# Generate Minfer CLI docs using a standalone doc-gen program
+	go run ./cli/minfer/internal/tools/docgen/main.go
 
 .PHONY: generate
-generate: controller-gen gen-crd gen-docs ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+generate: controller-gen gen-crd gen-docs gen-copyright ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 	go mod tidy
 	./hack/update-codegen.sh
@@ -120,6 +122,7 @@ build: generate fmt vet
 	go build -o bin/registry-webhook cmd/registry-webhook/main.go
 	go build -o bin/infer-webhook cmd/modelinfer-webhook/main.go
 	go build -o bin/infer-gateway-webhook cmd/infer-gateway-webhook/main.go
+	go build -o bin/minfer cli/minfer/main.go
 
 IMG_MODELINFER ?= ${HUB}/infer-controller:${TAG}
 IMG_MODELCONTROLLER ?= ${HUB}/model-controller:${TAG}
@@ -266,8 +269,8 @@ crd-ref-docs: $(CRD_REF_DOCS) ## Download crd-ref-docs locally if necessary.
 $(CRD_REF_DOCS): $(LOCALBIN)
 	$(call go-install-tool,$(CRD_REF_DOCS),github.com/elastic/crd-ref-docs,$(CRD_REF_DOCS_VERSION))
 
-.PHONY: add-copyright
-add-copyright:
+.PHONY: gen-copyright
+gen-copyright:
 	@echo "Adding copyright headers..."
 	@hack/update-copyright.sh
 

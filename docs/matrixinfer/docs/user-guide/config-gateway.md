@@ -14,11 +14,11 @@ The scheduler configuration includes plugin configurations and lists of enabled/
 
 Plugin Configuration (PluginConfig):
 
-|Plugin Name|Parameters|Description|
-|-|-|-|
-|least-request|maxWaitingRequests|Sets the maximum number of waiting requests|
-|least-latency|TTFTTPOTWeightFactor|Sets the weight factor for TTFT and TPOT|
-|prefix-cache|blockSizeToHash<br>maxBlocksToMatch<br>maxHashCacheSize|Configures prefix cache parameters|
+|Plugin Name| Parameters                                              |Description|
+|-|---------------------------------------------------------|-|
+|least-request| maxWaitingRequests                                      |Sets the maximum number of waiting requests|
+|least-latency| TTFTTPOTWeightFactor                                    |Sets the weight factor for TTFT and TPOT|
+|prefix-cache| blockSizeToHash<br />maxBlocksToMatch<br />maxHashCacheSize |Configures prefix cache parameters|
 
 Filter Plugins (Filter):
 
