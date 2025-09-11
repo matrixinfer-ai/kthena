@@ -184,12 +184,12 @@ func (m *MockStore) GetAllPods() map[types.NamespacedName]*datastore.PodInfo {
 	return args.Get(0).(map[types.NamespacedName]*datastore.PodInfo)
 }
 
-func (m *MockStore) GetModelRoute(namespacedName string) (*aiv1alpha1.ModelRoute, *datastore.ModelRouteInfo) {
+func (m *MockStore) GetModelRoute(namespacedName string) *aiv1alpha1.ModelRoute {
 	args := m.Called(namespacedName)
 	if args.Get(0) == nil {
-		return nil, nil
+		return nil
 	}
-	return args.Get(0).(*aiv1alpha1.ModelRoute), args.Get(1).(*datastore.ModelRouteInfo)
+	return args.Get(0).(*aiv1alpha1.ModelRoute)
 }
 
 func TestListModelRoutes(t *testing.T) {
@@ -257,12 +257,7 @@ func TestGetModelRoute(t *testing.T) {
 		},
 	}
 
-	routeInfo := &datastore.ModelRouteInfo{
-		Model: "llama2-7b",
-		Loras: []string{"lora-adapter-1"},
-	}
-
-	mockStore.On("GetModelRoute", "default/llama2-route").Return(modelRoute, routeInfo)
+	mockStore.On("GetModelRoute", "default/llama2-route").Return(modelRoute)
 
 	// Create request
 	w := httptest.NewRecorder()
@@ -287,9 +282,6 @@ func TestGetModelRoute(t *testing.T) {
 	assert.Equal(t, "llama2-route", response.Name)
 	assert.Equal(t, "default", response.Namespace)
 	assert.Equal(t, "llama2-7b", response.Spec.ModelName)
-	assert.NotNil(t, response.RouteInfo)
-	assert.Equal(t, "llama2-7b", response.RouteInfo.Model)
-	assert.Equal(t, []string{"lora-adapter-1"}, response.RouteInfo.Loras)
 
 	mockStore.AssertExpectations(t)
 }

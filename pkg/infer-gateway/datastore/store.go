@@ -146,6 +146,7 @@ type Store interface {
 	// Model routing methods
 	AddOrUpdateModelRoute(mr *aiv1alpha1.ModelRoute) error
 	DeleteModelRoute(namespacedName string) error
+	GetModelRoute(namespacedName string) *aiv1alpha1.ModelRoute
 
 	// PDGroup methods for efficient PD scheduling
 	GetDecodePods(modelServerName types.NamespacedName) ([]*PodInfo, error)
@@ -177,7 +178,6 @@ type Store interface {
 	GetAllModelRoutes() map[string]*aiv1alpha1.ModelRoute
 	GetAllModelServers() map[types.NamespacedName]*aiv1alpha1.ModelServer
 	GetAllPods() map[types.NamespacedName]*PodInfo
-	GetModelRoute(namespacedName string) (*aiv1alpha1.ModelRoute, *ModelRouteInfo)
 }
 
 // QueueStat holds per-model queue metrics to aid scheduling decisions
@@ -1012,29 +1012,29 @@ func (s *store) GetAllPods() map[types.NamespacedName]*PodInfo {
 	return result
 }
 
-// GetModelRoute returns a specific ModelRoute and its info by namespacedName
-func (s *store) GetModelRoute(namespacedName string) (*aiv1alpha1.ModelRoute, *ModelRouteInfo) {
+// GetModelRoute returns a specific ModelRoute by namespacedName
+func (s *store) GetModelRoute(namespacedName string) *aiv1alpha1.ModelRoute {
 	s.routeMutex.RLock()
 	defer s.routeMutex.RUnlock()
 
 	info, exists := s.routeInfo[namespacedName]
 	if !exists {
-		return nil, nil
+		return nil
 	}
 
 	// Try to find the route from the primary model
 	if info.Model != "" {
 		if route, ok := s.routes[info.Model]; ok {
-			return route, info
+			return route
 		}
 	}
 
 	// Try to find the route from lora adapters
 	for _, lora := range info.Loras {
 		if route, ok := s.loraRoutes[lora]; ok {
-			return route, info
+			return route
 		}
 	}
 
-	return nil, info
+	return nil
 }

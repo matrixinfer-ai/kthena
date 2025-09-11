@@ -196,7 +196,7 @@ func (h *DebugHandler) GetModelRoute(c *gin.Context) {
 	}
 
 	namespacedName := namespace + "/" + name
-	mr, info := h.store.GetModelRoute(namespacedName)
+	mr := h.store.GetModelRoute(namespacedName)
 
 	if mr == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "ModelRoute not found"})
@@ -207,13 +207,6 @@ func (h *DebugHandler) GetModelRoute(c *gin.Context) {
 		Name:      name,
 		Namespace: namespace,
 		Spec:      mr.Spec,
-	}
-
-	if info != nil {
-		response.RouteInfo = &RouteInfo{
-			Model: info.Model,
-			Loras: info.Loras,
-		}
 	}
 
 	c.JSON(http.StatusOK, response)
