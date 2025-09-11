@@ -1,8 +1,10 @@
-# Using ConfigMap to Configure Gateway
+# Inference Gateway Customization
 
 ## Overview
 
 ConfigMap is a Kubernetes API object used to store configuration data. MatrixInfer Gateway uses ConfigMap to configure scheduler plugins and authentication settings, allowing users to customize gateway behavior without recompiling the code.
+
+**NOTICE:** The ConfigMap must be prepared before launching the gateway pod, otherwise it will not take effect. Beacuse we do not support hot reload.
 
 ## Configuration options
 
@@ -146,5 +148,5 @@ After creating or updating the ConfigMap, you need to restart the Gateway Pod fo
 kubectl apply -f configmap.yaml
 
 # Restart Gateway Pod
-kubectl delete pod -l app.kubernetes.io/component=infer-gateway
+kubectl rollout restart deployment/infer-gateway
 ```
