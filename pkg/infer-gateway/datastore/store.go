@@ -172,6 +172,12 @@ type Store interface {
 
 	// GetRequestWaitingQueueStats returns per-model queue lengths
 	GetRequestWaitingQueueStats() []QueueStat
+
+	// Debug interface methods
+	GetAllModelRoutes() map[string]*aiv1alpha1.ModelRoute
+	GetAllModelServers() map[types.NamespacedName]*aiv1alpha1.ModelServer
+	GetAllPods() map[types.NamespacedName]*PodInfo
+	GetModelRoute(namespacedName string) (*aiv1alpha1.ModelRoute, *ModelRouteInfo)
 }
 
 // QueueStat holds per-model queue metrics to aid scheduling decisions
@@ -200,17 +206,20 @@ type PodInfo struct {
 	modelServer sets.Set[types.NamespacedName] // The modelservers this pod belongs to
 }
 
-// modelRouteInfo stores the mapping between a ModelRoute resource and its associated models.
+// ModelRouteInfo stores the mapping between a ModelRoute resource and its associated models.
 // It maintains both the primary model and any LoRA adapters that are configured for this route.
-type modelRouteInfo struct {
-	// model is the primary model name that this route serves.
+type ModelRouteInfo struct {
+	// Model is the primary model name that this route serves.
 	// If empty, it means this route only serves LoRA adapters.
-	model string
+	Model string
 
-	// loras is a list of LoRA adapter names that this route serves.
+	// Loras is a list of LoRA adapter names that this route serves.
 	// These adapters can be used to modify the behavior of the primary model.
-	loras []string
+	Loras []string
 }
+
+// For backwards compatibility
+type modelRouteInfo = ModelRouteInfo
 
 type store struct {
 	modelServer sync.Map // map[types.NamespacedName]*modelServer
@@ -533,8 +542,8 @@ func (s *store) AddOrUpdateModelRoute(mr *aiv1alpha1.ModelRoute) error {
 	s.routeMutex.Lock()
 	key := mr.Namespace + "/" + mr.Name
 	s.routeInfo[key] = &modelRouteInfo{
-		model: mr.Spec.ModelName,
-		loras: mr.Spec.LoraAdapters,
+		Model: mr.Spec.ModelName,
+		Loras: mr.Spec.LoraAdapters,
 	}
 
 	if mr.Spec.ModelName != "" {
@@ -559,9 +568,9 @@ func (s *store) DeleteModelRoute(namespacedName string) error {
 	info := s.routeInfo[namespacedName]
 	var modelName string
 	if info != nil {
-		modelName = info.model
-		delete(s.routes, info.model)
-		for _, lora := range info.loras {
+		modelName = info.Model
+		delete(s.routes, info.Model)
+		for _, lora := range info.Loras {
 			delete(s.loraRoutes, lora)
 		}
 	}
@@ -943,4 +952,89 @@ func (p *PodInfo) GetModelServersList() []types.NamespacedName {
 		return nil
 	}
 	return p.modelServer.UnsortedList()
+}
+
+// GetEngine returns the inference engine name
+func (p *PodInfo) GetEngine() string {
+	return p.engine
+}
+
+// Debug interface implementations
+
+// GetAllModelRoutes returns all ModelRoutes in the store
+func (s *store) GetAllModelRoutes() map[string]*aiv1alpha1.ModelRoute {
+	s.routeMutex.RLock()
+	defer s.routeMutex.RUnlock()
+
+	result := make(map[string]*aiv1alpha1.ModelRoute)
+	for key, info := range s.routeInfo {
+		if info.Model != "" {
+			if route, ok := s.routes[info.Model]; ok {
+				result[key] = route
+			}
+		}
+		// Also check lora routes
+		for _, lora := range info.Loras {
+			if route, ok := s.loraRoutes[lora]; ok {
+				result[key] = route
+				break // Same route for all loras in a ModelRoute
+			}
+		}
+	}
+	return result
+}
+
+// GetAllModelServers returns all ModelServers in the store
+func (s *store) GetAllModelServers() map[types.NamespacedName]*aiv1alpha1.ModelServer {
+	result := make(map[types.NamespacedName]*aiv1alpha1.ModelServer)
+	s.modelServer.Range(func(key, value any) bool {
+		if namespacedName, ok := key.(types.NamespacedName); ok {
+			if ms, ok := value.(*modelServer); ok {
+				result[namespacedName] = ms.modelServer
+			}
+		}
+		return true
+	})
+	return result
+}
+
+// GetAllPods returns all Pods in the store
+func (s *store) GetAllPods() map[types.NamespacedName]*PodInfo {
+	result := make(map[types.NamespacedName]*PodInfo)
+	s.pods.Range(func(key, value any) bool {
+		if namespacedName, ok := key.(types.NamespacedName); ok {
+			if podInfo, ok := value.(*PodInfo); ok {
+				result[namespacedName] = podInfo
+			}
+		}
+		return true
+	})
+	return result
+}
+
+// GetModelRoute returns a specific ModelRoute and its info by namespacedName
+func (s *store) GetModelRoute(namespacedName string) (*aiv1alpha1.ModelRoute, *ModelRouteInfo) {
+	s.routeMutex.RLock()
+	defer s.routeMutex.RUnlock()
+
+	info, exists := s.routeInfo[namespacedName]
+	if !exists {
+		return nil, nil
+	}
+
+	// Try to find the route from the primary model
+	if info.Model != "" {
+		if route, ok := s.routes[info.Model]; ok {
+			return route, info
+		}
+	}
+
+	// Try to find the route from lora adapters
+	for _, lora := range info.Loras {
+		if route, ok := s.loraRoutes[lora]; ok {
+			return route, info
+		}
+	}
+
+	return nil, info
 }

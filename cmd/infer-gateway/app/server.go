@@ -61,7 +61,7 @@ func (s *Server) Run(ctx context.Context) {
 	klog.Infof("Controllers have synced, starting store periodic update loop")
 	store.Run(ctx)
 	// start router
-	s.startRouter(ctx, r)
+	s.startRouter(ctx, r, store)
 }
 
 func (s *Server) HasSynced() bool {
