@@ -206,20 +206,17 @@ type PodInfo struct {
 	modelServer sets.Set[types.NamespacedName] // The modelservers this pod belongs to
 }
 
-// ModelRouteInfo stores the mapping between a ModelRoute resource and its associated models.
+// modelRouteInfo stores the mapping between a ModelRoute resource and its associated models.
 // It maintains both the primary model and any LoRA adapters that are configured for this route.
-type ModelRouteInfo struct {
-	// Model is the primary model name that this route serves.
+type modelRouteInfo struct {
+	// model is the primary model name that this route serves.
 	// If empty, it means this route only serves LoRA adapters.
-	Model string
+	model string
 
-	// Loras is a list of LoRA adapter names that this route serves.
+	// loras is a list of LoRA adapter names that this route serves.
 	// These adapters can be used to modify the behavior of the primary model.
-	Loras []string
+	loras []string
 }
-
-// For backwards compatibility
-type modelRouteInfo = ModelRouteInfo
 
 type store struct {
 	modelServer sync.Map // map[types.NamespacedName]*modelServer
@@ -542,8 +539,8 @@ func (s *store) AddOrUpdateModelRoute(mr *aiv1alpha1.ModelRoute) error {
 	s.routeMutex.Lock()
 	key := mr.Namespace + "/" + mr.Name
 	s.routeInfo[key] = &modelRouteInfo{
-		Model: mr.Spec.ModelName,
-		Loras: mr.Spec.LoraAdapters,
+		model: mr.Spec.ModelName,
+		loras: mr.Spec.LoraAdapters,
 	}
 
 	if mr.Spec.ModelName != "" {
@@ -568,9 +565,9 @@ func (s *store) DeleteModelRoute(namespacedName string) error {
 	info := s.routeInfo[namespacedName]
 	var modelName string
 	if info != nil {
-		modelName = info.Model
-		delete(s.routes, info.Model)
-		for _, lora := range info.Loras {
+		modelName = info.model
+		delete(s.routes, info.model)
+		for _, lora := range info.loras {
 			delete(s.loraRoutes, lora)
 		}
 	}
@@ -968,13 +965,13 @@ func (s *store) GetAllModelRoutes() map[string]*aiv1alpha1.ModelRoute {
 
 	result := make(map[string]*aiv1alpha1.ModelRoute)
 	for key, info := range s.routeInfo {
-		if info.Model != "" {
-			if route, ok := s.routes[info.Model]; ok {
+		if info.model != "" {
+			if route, ok := s.routes[info.model]; ok {
 				result[key] = route
 			}
 		}
 		// Also check lora routes
-		for _, lora := range info.Loras {
+		for _, lora := range info.loras {
 			if route, ok := s.loraRoutes[lora]; ok {
 				result[key] = route
 				break // Same route for all loras in a ModelRoute
@@ -1023,14 +1020,14 @@ func (s *store) GetModelRoute(namespacedName string) *aiv1alpha1.ModelRoute {
 	}
 
 	// Try to find the route from the primary model
-	if info.Model != "" {
-		if route, ok := s.routes[info.Model]; ok {
+	if info.model != "" {
+		if route, ok := s.routes[info.model]; ok {
 			return route
 		}
 	}
 
 	// Try to find the route from lora adapters
-	for _, lora := range info.Loras {
+	for _, lora := range info.loras {
 		if route, ok := s.loraRoutes[lora]; ok {
 			return route
 		}
