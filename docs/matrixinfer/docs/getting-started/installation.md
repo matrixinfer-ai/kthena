@@ -10,59 +10,49 @@ This guide will help you install MatrixInfer on your Kubernetes cluster.
 
 Before installing MatrixInfer, ensure you have the following:
 
-- **Kubernetes cluster** (version 1.20 or later)
-- **kubectl** configured to access your cluster
-- **Helm** (version 3.0 or later)
-- Cluster admin permissions
+-   **Kubernetes cluster** (version 1.20 or later)
+-   **kubectl** configured to access your cluster
+-   **Helm** (version 3.0 or later)
+-   Cluster admin permissions
 
 ## Installation Methods
 
 ### Method 1: Helm Installation (Recommended)
 
-1. **Add the MatrixInfer Helm repository:**
+MatrixInfer Helm charts are published to the GitHub Container Registry (GHCR).
 
-```bash
-helm repo add matrixinfer https://matrixinfer-ai.github.io/charts
-helm repo update
-```
+1.  **Install MatrixInfer directly from GHCR:**
 
-2. **Install MatrixInfer:**
+    ```bash
+    helm install matrixinfer oci://ghcr.io/matrixinfer-ai/charts/matrixinfer \
+      --namespace matrixinfer-system \
+      --create-namespace
+    ```
 
-```bash
-helm install matrixinfer matrixinfer/matrixinfer \
-  --namespace matrixinfer-system \
-  --create-namespace
-```
+    You might optionally specify a chart version:
 
-3. **Verify the installation:**
+    ```bash
+    helm install matrixinfer oci://ghcr.io/matrixinfer-ai/charts/matrixinfer \
+      --version <YOUR_CHART_VERSION> \
+      --namespace matrixinfer-system \
+      --create-namespace
+    ```
 
-```bash
-kubectl get pods -n matrixinfer-system
-```
+### Method 2: Manual Installation with GitHub Release Manifests
 
-### Method 2: Manual Installation with Manifests
+MatrixInfer provides all necessary components in a single manifest file for easy installation from GitHub Releases.
 
-1. **Clone the repository:**
+1.  **Apply the MatrixInfer manifest:**
 
-```bash
-git clone https://github.com/matrixinfer-ai/matrixinfer.git
-cd matrixinfer
-```
+    ```bash
+    kubectl apply -f https://github.com/matrixinfer-ai/matrixinfer/releases/latest/download/matrixinfer.yaml
+    ```
 
-2. **Apply the CRDs:**
+    To install a specific version, replace `latest` with the desired release tag (e.g., `v1.2.3`):
 
-```bash
-kubectl apply -f charts/matrixinfer/charts/networking/crds/
-kubectl apply -f charts/matrixinfer/charts/registry/crds/
-kubectl apply -f charts/matrixinfer/charts/workload/crds/
-```
-
-3. **Install the components:**
-
-```bash
-make build-installer
-kubectl apply -f dist/install.yaml
-```
+    ```bash
+    kubectl apply -f https://github.com/matrixinfer-ai/matrixinfer/releases/download/vX.Y.Z/matrixinfer.yaml
+    ```
 
 ## Configuration Options
 
@@ -71,7 +61,7 @@ kubectl apply -f dist/install.yaml
 You can customize the installation by providing values:
 
 ```bash
-helm install matrixinfer matrixinfer/matrixinfer \
+helm install matrixinfer oci://ghcr.io/matrixinfer-ai/charts/matrixinfer \
   --namespace matrixinfer-system \
   --create-namespace \
   --set controller.replicas=2 \
@@ -81,7 +71,7 @@ helm install matrixinfer matrixinfer/matrixinfer \
 ### Common Configuration Parameters
 
 | Parameter | Description | Default |
-|-----------|-------------|---------|
+| :------------------ | :---------------------------- | :-------- |
 | `controller.replicas` | Number of controller replicas | `1` |
 | `gateway.service.type` | Gateway service type | `ClusterIP` |
 | `registry.enabled` | Enable model registry | `true` |
@@ -95,7 +85,7 @@ After installation, verify that all components are running:
 # Check all pods are running
 kubectl get pods -n matrixinfer-system
 
-# Check CRDs are installed
+# Check CRDs are installed (CRDs are included in the main manifest/chart)
 kubectl get crd | grep matrixinfer
 
 # Check services
@@ -106,4 +96,13 @@ kubectl get svc -n matrixinfer-system
 
 MatrixInfer components such as webhooks and the gateway require certificates for secure communication. You might need to install a certificate manager to handle certificate provisioning and management automatically.
 
-If you need certificate management capabilities, you can install cert-manager by following the [official installation guide](https://cert-manager.io/docs/installation/) of Cert Manager.
+If you need certificate management capabilities, you can install cert-manager by following the official installation guide of [Cert Manager](https://cert-manager.io/docs/installation/).
+
+## Gang Scheduling
+
+MatrixInfer leverages **Volcano** (a high-performance batch system for Kubernetes) to provide gang scheduling capabilities.
+
+If you need gang scheduling capabilities, you can install Volcano by following the official installation guide of [Volcano](https://volcano.sh/en/docs/installation/).
+
+# Minfer CLI
+MatrixInfer provides a CLI tool called `minfer` to manage your MatrixInfer deployments. Please refer to the [CLI documentation](./CLI.md) for more information.

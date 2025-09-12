@@ -19,7 +19,15 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'Getting Started',
-      items: ['getting-started/quick-start', 'getting-started/installation'],
+      items: [
+        'getting-started/quick-start',
+        'getting-started/installation',
+        {
+          type: 'doc',
+          id: 'getting-started/CLI',
+          label: 'CLI',
+        },
+      ],
     },
     {
       type: 'category',
@@ -35,7 +43,7 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'General',
-      items: ['general/prometheus', 'general/certmanager', 'general/faq'],
+      items: ['general/prometheus', 'general/cert-manager', 'general/faq'],
     },
     {
       type: 'category',
