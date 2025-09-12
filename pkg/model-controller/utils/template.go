@@ -82,7 +82,7 @@ func ReplaceEmbeddedPlaceholders(s string, values *map[string]interface{}) (stri
 	return result.String(), nil
 }
 
-func ParseArgs(config *apiextensionsv1.JSON) ([]string, error) {
+func ConvertVLLMArgsFromJson(config *apiextensionsv1.JSON) ([]string, error) {
 	if config == nil || config.Raw == nil {
 		return []string{}, nil
 	}

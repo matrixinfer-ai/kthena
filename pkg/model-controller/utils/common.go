@@ -17,6 +17,7 @@ limitations under the License.
 package utils
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -31,6 +32,17 @@ const (
 )
 
 var XPUList = []corev1.ResourceName{"nvidia.com/gpu", "huawei.com/ascend-1980"}
+
+func TryGetFromArgs(config []byte, key string) (any, error) {
+	var configMap map[string]interface{}
+	if err := json.Unmarshal(config, &configMap); err != nil {
+		return "", fmt.Errorf("failed to unmarshal config: %w", err)
+	}
+	if _, exists := configMap[key]; !exists {
+		return nil, nil
+	}
+	return configMap[key], nil
+}
 
 func GetDeviceNum(worker *registryv1alpha1.ModelWorker) int64 {
 	sum := int64(0)

@@ -19,6 +19,7 @@ package convert
 import (
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/ptr"
@@ -120,7 +121,10 @@ func TestCreateModelInferResources(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
-			assert.Equal(t, tt.expected, got)
+			diff := cmp.Diff(tt.expected, got)
+			if diff != "" {
+				t.Errorf("ModelInfer mismatch (-expected +actual):\n%s", diff)
+			}
 		})
 	}
 }

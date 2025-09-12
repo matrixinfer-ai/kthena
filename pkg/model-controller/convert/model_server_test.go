@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	networking "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
@@ -32,16 +33,35 @@ func TestBuildModelServer(t *testing.T) {
 		expectErrMsg string
 	}{
 		{
-			name:     "PD disaggregation",
+			name:     "normal case with VLLM backend",
+			input:    loadYaml[registry.Model](t, "testdata/input/model.yaml"),
+			expected: []*networking.ModelServer{loadYaml[networking.ModelServer](t, "testdata/expected/model-server.yaml")},
+		},
+		{
+			name:     "PD disaggregation case",
 			input:    loadYaml[registry.Model](t, "testdata/input/pd-disaggregated-model.yaml"),
 			expected: []*networking.ModelServer{loadYaml[networking.ModelServer](t, "testdata/expected/pd-model-server.yaml")},
 		},
 		{
-			name:     "normal case",
-			input:    loadYaml[registry.Model](t, "testdata/input/model.yaml"),
-			expected: []*networking.ModelServer{loadYaml[networking.ModelServer](t, "testdata/expected/model-server.yaml")},
+			name: "invalid backend type",
+			input: &registry.Model{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "invalid-backend",
+					Namespace: "default",
+				},
+				Spec: registry.ModelSpec{
+					Backends: []registry.ModelBackend{
+						{
+							Name: "invalid",
+							Type: "InvalidType",
+						},
+					},
+				},
+			},
+			expectErrMsg: "not support InvalidType backend yet",
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := BuildModelServer(tt.input)

@@ -17,6 +17,7 @@ limitations under the License.
 package convert
 
 import (
+	"fmt"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,6 +29,11 @@ import (
 	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
 )
 
+var VLLMKvConnectorType = map[string]networking.KVConnectorType{
+	"MooncakeConnectorV1": networking.ConnectorTypeMoonCake,
+	"LMCacheConnectorV1":  networking.ConnectorTypeLMCache,
+}
+
 // BuildModelServer creates arrays of ModelServer for the given model.
 // Each model backend will create one model server.
 func BuildModelServer(model *registry.Model) ([]*networking.ModelServer, error) {
@@ -37,26 +43,15 @@ func BuildModelServer(model *registry.Model) ([]*networking.ModelServer, error) 
 		switch backend.Type {
 		case registry.ModelBackendTypeVLLM, registry.ModelBackendTypeVLLMDisaggregated:
 			inferenceEngine = networking.VLLM
-		case registry.ModelBackendTypeSGLang:
-			inferenceEngine = networking.SGLang
-		case registry.ModelBackendTypeMindIE, registry.ModelBackendTypeMindIEDisaggregated:
-			klog.Warning("Not support MindIE backend yet, please use vLLM or SGLang backend")
-			return modelServers, nil
-		}
-		var pdGroup *networking.PDGroup
-		switch backend.Type {
-		case registry.ModelBackendTypeVLLMDisaggregated, registry.ModelBackendTypeMindIEDisaggregated:
-			pdGroup = &networking.PDGroup{
-				GroupKey: workload.GroupNameLabelKey,
-				PrefillLabels: map[string]string{
-					workload.RoleLabelKey: "prefill",
-				},
-				DecodeLabels: map[string]string{
-					workload.RoleLabelKey: "decode",
-				},
-			}
+		default:
+			return nil, fmt.Errorf("not support %s backend yet, please use vLLM backend", backend.Type)
 		}
 		servedModelName, err := getServedModelName(model, backend)
+		if err != nil {
+			return nil, err
+		}
+		pdGroup := getPdGroup(backend)
+		kvConnector, err := getKvConnectorSpec(backend)
 		if err != nil {
 			return nil, err
 		}
@@ -90,6 +85,7 @@ func BuildModelServer(model *registry.Model) ([]*networking.ModelServer, error) 
 						RetryInterval: &metav1.Duration{Duration: time.Duration(0) * time.Second},
 					},
 				},
+				KVConnector: kvConnector,
 			},
 		}
 		modelServer.Labels = utils.GetModelControllerLabels(model, backend.Name, icUtils.Revision(modelServer.Spec))
@@ -98,17 +94,87 @@ func BuildModelServer(model *registry.Model) ([]*networking.ModelServer, error) 
 	return modelServers, nil
 }
 
+func getKvConnectorSpec(backend registry.ModelBackend) (*networking.KVConnectorSpec, error) {
+	var connectorType *networking.KVConnectorType
+	foundConfig := false
+	for _, worker := range backend.Workers {
+		if worker.Type != registry.ModelWorkerTypePrefill && worker.Type != registry.ModelWorkerTypeDecode {
+			continue
+		}
+
+		kvTransferConfig, err := utils.TryGetFromArgs(worker.Config.Raw, "kv-transfer-config")
+		if err != nil {
+			return nil, fmt.Errorf("failed to get kv-transfer-config for worker %s: %w", worker.Type, err)
+		}
+		if kvTransferConfig == nil {
+			klog.Warningf("worker %s (backend %s) missing kv-transfer-config", worker.Type, backend.Name)
+			continue
+		}
+		kvTransferConfigStr, ok := kvTransferConfig.(string)
+		if !ok {
+			klog.Warningf("invalid kv-transfer-config type %T for worker %s", kvTransferConfig, worker.Type)
+			continue
+		}
+
+		kvTransferType, err := utils.TryGetFromArgs([]byte(kvTransferConfigStr), "kv_connector")
+		if err != nil {
+			klog.Warningf("invalid kv-transfer-config type %T for worker %s, str: %s", kvTransferConfig, worker.Type, kvTransferConfigStr)
+			return nil, fmt.Errorf("failed to get kv_connector for worker %s: %w", worker.Type, err)
+		}
+		if kvTransferType == nil {
+			klog.Warningf("worker %s (backend %s) missing kv_connector", worker.Type, backend.Name)
+			continue
+		}
+
+		if converted, ok := kvTransferType.(string); ok {
+			if ct, exists := VLLMKvConnectorType[converted]; exists {
+				connectorType = &ct
+				foundConfig = true
+			} else {
+				klog.Warningf("unknown kv_connector type %q for worker %s", converted, worker.Type)
+			}
+		} else {
+			klog.Warningf("invalid kv_connector type %T for worker %s", kvTransferType, worker.Type)
+		}
+	}
+
+	if foundConfig {
+		return &networking.KVConnectorSpec{Type: *connectorType}, nil
+	}
+	return nil, nil
+}
+
+func getPdGroup(backend registry.ModelBackend) *networking.PDGroup {
+	switch backend.Type {
+	case registry.ModelBackendTypeVLLMDisaggregated, registry.ModelBackendTypeMindIEDisaggregated:
+		return &networking.PDGroup{
+			GroupKey: workload.GroupNameLabelKey,
+			PrefillLabels: map[string]string{
+				workload.RoleLabelKey: string(registry.ModelWorkerTypePrefill),
+			},
+			DecodeLabels: map[string]string{
+				workload.RoleLabelKey: string(registry.ModelWorkerTypeDecode),
+			},
+		}
+	}
+	return nil
+}
+
 // getServedModelName gets served model name from the worker config. Default is the model name.
 func getServedModelName(model *registry.Model, backend registry.ModelBackend) (string, error) {
 	servedModelName := model.Name
 	for _, worker := range backend.Workers {
-		args, err := utils.ParseArgs(&worker.Config)
-		if err != nil {
-			return "", err
-		}
-		for i, str := range args {
-			if str == "--served-model-name" && i+1 < len(args) {
-				servedModelName = args[i+1]
+		if worker.Type == registry.ModelWorkerTypeServer ||
+			worker.Type == registry.ModelWorkerTypeDecode {
+			valStr, err := utils.TryGetFromArgs(worker.Config.Raw, "served-model-name")
+			if err != nil {
+				return "", err
+			}
+			if valStr == nil {
+				continue
+			}
+			if val, ok := valStr.(string); ok {
+				servedModelName = val
 				break
 			}
 		}
