@@ -48,6 +48,10 @@ const config: Config = {
     },
   ],
 
+  plugins: [
+    './plugins/webpack-raw-loader',
+  ],
+
   presets: [
     [
       'classic',
