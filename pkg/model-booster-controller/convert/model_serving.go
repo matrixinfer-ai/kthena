@@ -327,7 +327,6 @@ func buildCommands(workerConfig *apiextensionsv1.JSON, modelDownloadPath string,
 		commands = []string{"bash", "-c", fmt.Sprintf("chmod u+x %s && %s leader --ray_cluster_size=%d --num-gpus=%d && %s", VllmMultiNodeServingScriptPath, VllmMultiNodeServingScriptPath, workersMap[workload.ModelWorkerTypeServer].Pods, utils.GetDeviceNum(workersMap[workload.ModelWorkerTypeServer]), strings.Join(commands, " "))}
 	}
 	commands = append(commands, "--kv-events-config", config.GetDefaultKVEventsConfig())
-	commands = append(commands, "--enforce-eager")
 	return commands, err
 }
 

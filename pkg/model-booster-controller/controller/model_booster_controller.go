@@ -201,27 +201,10 @@ func (mc *ModelBoosterController) reconcile(ctx context.Context, namespaceAndNam
 			return err
 		}
 	}
-
-	// Track backends that have been dynamically updated
-	var dynamicUpdatedBackends []string
-	// check if only LoRA adapters have changed for runtime update
-	if oldModel, err := mc.getPreviousModelVersion(model); err == nil && oldModel != nil && mc.hasOnlyLoraAdaptersChanged(oldModel, model) {
-		klog.Info("model generation is not equal to observed generation, checking for LoRA adapter changes")
-
-		if oldModel, err := mc.getPreviousModelVersion(model); err == nil && oldModel != nil {
-			dynamicBackends := mc.getDynamicLoraUpdateBackends(oldModel, model)
-			if len(dynamicBackends) > 0 {
-				klog.Infof("Detected LoRA adapter changes for backends: %v, attempting runtime update", dynamicBackends)
-				successUpdatedBackends := mc.handleDynamicLoraUpdates(oldModel, model, dynamicBackends)
-				klog.Infof("Dynamic LoRA updates completed successfully for backends: %v", successUpdatedBackends)
-				dynamicUpdatedBackends = successUpdatedBackends
-			}
-		}
-	}
 	if err := mc.setModelProcessingCondition(ctx, model); err != nil {
 		return err
 	}
-	if err := mc.createOrUpdateModelServing(ctx, model, dynamicUpdatedBackends); err != nil {
+	if err := mc.createOrUpdateModelServing(ctx, model); err != nil {
 		mc.setModelFailedCondition(ctx, model, err)
 		return err
 	}

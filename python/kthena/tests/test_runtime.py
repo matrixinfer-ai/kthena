@@ -82,13 +82,10 @@ def test_load_lora_adapter_success(monkeypatch):
     app = create_application(_make_args())
 
     state = get_app_state(app)
-    # lifespan 会重建 AsyncClient，这里同时替换 httpx.AsyncClient
     monkeypatch.setattr("httpx.AsyncClient", _FakeAsyncClient)
     state.client = _FakeAsyncClient()
 
-    # Patch download_model to no-op (fast, deterministic)
     monkeypatch.setattr("matrixinfer.runtime.app.download_model", lambda *args, **kwargs: None)
-    # Ensure sync client in background path would also be mocked if used
     monkeypatch.setattr("httpx.Client", _FakeSyncClient)
 
     with TestClient(app) as client:

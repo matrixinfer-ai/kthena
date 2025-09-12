@@ -30,14 +30,14 @@ import (
 
 // createOrUpdateModelServing attempts to create model serving if model serving does not exist, or update it if it is different from model.
 // Meanwhile, delete model serving if it is not in the model spec anymore.
-func (mc *ModelBoosterController) createOrUpdateModelServing(ctx context.Context, model *workload.ModelBooster, excludedBackends []string) error {
+func (mc *ModelBoosterController) createOrUpdateModelServing(ctx context.Context, model *workload.ModelBooster) error {
 	existingModelServings, err := mc.listModelServingsByLabel(model)
 	if err != nil {
 		return err
 	}
-
+	successUpdatedBackends := mc.dynamicUpdateLoraBackends(model)
 	excludedSet := make(map[string]bool)
-	for _, backendName := range excludedBackends {
+	for _, backendName := range successUpdatedBackends {
 		excludedSet[backendName] = true
 	}
 
