@@ -26,6 +26,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/debug"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/router"
 )
 
@@ -39,7 +40,7 @@ func NewRouter(store datastore.Store) *router.Router {
 }
 
 // Starts router
-func (s *Server) startRouter(ctx context.Context, router *router.Router) {
+func (s *Server) startRouter(ctx context.Context, router *router.Router, store datastore.Store) {
 	gin.SetMode(gin.ReleaseMode)
 	engine := gin.New()
 	engine.Use(gin.LoggerWithWriter(gin.DefaultWriter, "/healthz", "readyz"), gin.Recovery())
@@ -71,6 +72,21 @@ func (s *Server) startRouter(ctx context.Context, router *router.Router) {
 
 	// Handle all paths under /v1/
 	engine.Any("/v1/*path", router.HandlerFunc())
+
+	// Debug endpoints
+	debugHandler := debug.NewDebugHandler(store)
+	debugGroup := engine.Group("/debug/config_dump")
+	{
+		// List resources
+		debugGroup.GET("/modelroutes", debugHandler.ListModelRoutes)
+		debugGroup.GET("/modelservers", debugHandler.ListModelServers)
+		debugGroup.GET("/pods", debugHandler.ListPods)
+
+		// Get specific resources
+		debugGroup.GET("/namespaces/:namespace/modelroutes/:name", debugHandler.GetModelRoute)
+		debugGroup.GET("/namespaces/:namespace/modelservers/:name", debugHandler.GetModelServer)
+		debugGroup.GET("/namespaces/:namespace/pods/:name", debugHandler.GetPod)
+	}
 
 	server := &http.Server{
 		Addr:    ":" + s.Port,

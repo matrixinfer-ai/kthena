@@ -146,6 +146,7 @@ type Store interface {
 	// Model routing methods
 	AddOrUpdateModelRoute(mr *aiv1alpha1.ModelRoute) error
 	DeleteModelRoute(namespacedName string) error
+	GetModelRoute(namespacedName string) *aiv1alpha1.ModelRoute
 
 	// PDGroup methods for efficient PD scheduling
 	GetDecodePods(modelServerName types.NamespacedName) ([]*PodInfo, error)
@@ -172,6 +173,11 @@ type Store interface {
 
 	// GetRequestWaitingQueueStats returns per-model queue lengths
 	GetRequestWaitingQueueStats() []QueueStat
+
+	// Debug interface methods
+	GetAllModelRoutes() map[string]*aiv1alpha1.ModelRoute
+	GetAllModelServers() map[types.NamespacedName]*aiv1alpha1.ModelServer
+	GetAllPods() map[types.NamespacedName]*PodInfo
 }
 
 // QueueStat holds per-model queue metrics to aid scheduling decisions
@@ -943,4 +949,89 @@ func (p *PodInfo) GetModelServersList() []types.NamespacedName {
 		return nil
 	}
 	return p.modelServer.UnsortedList()
+}
+
+// GetEngine returns the inference engine name
+func (p *PodInfo) GetEngine() string {
+	return p.engine
+}
+
+// Debug interface implementations
+
+// GetAllModelRoutes returns all ModelRoutes in the store
+func (s *store) GetAllModelRoutes() map[string]*aiv1alpha1.ModelRoute {
+	s.routeMutex.RLock()
+	defer s.routeMutex.RUnlock()
+
+	result := make(map[string]*aiv1alpha1.ModelRoute)
+	for key, info := range s.routeInfo {
+		if info.model != "" {
+			if route, ok := s.routes[info.model]; ok {
+				result[key] = route
+			}
+		}
+		// Also check lora routes
+		for _, lora := range info.loras {
+			if route, ok := s.loraRoutes[lora]; ok {
+				result[key] = route
+				break // Same route for all loras in a ModelRoute
+			}
+		}
+	}
+	return result
+}
+
+// GetAllModelServers returns all ModelServers in the store
+func (s *store) GetAllModelServers() map[types.NamespacedName]*aiv1alpha1.ModelServer {
+	result := make(map[types.NamespacedName]*aiv1alpha1.ModelServer)
+	s.modelServer.Range(func(key, value any) bool {
+		if namespacedName, ok := key.(types.NamespacedName); ok {
+			if ms, ok := value.(*modelServer); ok {
+				result[namespacedName] = ms.modelServer
+			}
+		}
+		return true
+	})
+	return result
+}
+
+// GetAllPods returns all Pods in the store
+func (s *store) GetAllPods() map[types.NamespacedName]*PodInfo {
+	result := make(map[types.NamespacedName]*PodInfo)
+	s.pods.Range(func(key, value any) bool {
+		if namespacedName, ok := key.(types.NamespacedName); ok {
+			if podInfo, ok := value.(*PodInfo); ok {
+				result[namespacedName] = podInfo
+			}
+		}
+		return true
+	})
+	return result
+}
+
+// GetModelRoute returns a specific ModelRoute by namespacedName
+func (s *store) GetModelRoute(namespacedName string) *aiv1alpha1.ModelRoute {
+	s.routeMutex.RLock()
+	defer s.routeMutex.RUnlock()
+
+	info, exists := s.routeInfo[namespacedName]
+	if !exists {
+		return nil
+	}
+
+	// Try to find the route from the primary model
+	if info.model != "" {
+		if route, ok := s.routes[info.model]; ok {
+			return route
+		}
+	}
+
+	// Try to find the route from lora adapters
+	for _, lora := range info.loras {
+		if route, ok := s.loraRoutes[lora]; ok {
+			return route
+		}
+	}
+
+	return nil
 }
