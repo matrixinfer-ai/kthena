@@ -127,7 +127,9 @@ func (h *DebugHandler) ListModelServers(c *gin.Context) {
 		if pods, err := h.store.GetPodsByModelServer(namespacedName); err == nil {
 			var podNames []string
 			for _, pod := range pods {
-				podNames = append(podNames, pod.Pod.Namespace+"/"+pod.Pod.Name)
+				if pod.Pod != nil {
+					podNames = append(podNames, pod.Pod.Namespace+"/"+pod.Pod.Name)
+				}
 			}
 			response.AssociatedPods = podNames
 		}
@@ -211,7 +213,9 @@ func (h *DebugHandler) GetModelServer(c *gin.Context) {
 	if pods, err := h.store.GetPodsByModelServer(namespacedName); err == nil {
 		var podNames []string
 		for _, pod := range pods {
-			podNames = append(podNames, pod.Pod.Namespace+"/"+pod.Pod.Name)
+			if pod.Pod != nil {
+				podNames = append(podNames, pod.Pod.Namespace+"/"+pod.Pod.Name)
+			}
 		}
 		response.AssociatedPods = podNames
 	}
