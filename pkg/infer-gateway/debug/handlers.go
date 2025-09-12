@@ -21,8 +21,6 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	dto "github.com/prometheus/client_model/go"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
@@ -63,14 +61,13 @@ type ModelServerResponse struct {
 }
 
 type PodResponse struct {
-	Name         string      `json:"name"`
-	Namespace    string      `json:"namespace"`
-	PodInfo      *PodInfo    `json:"podInfo,omitempty"`
-	Engine       string      `json:"engine"`
-	Metrics      *Metrics    `json:"metrics,omitempty"`
-	Models       []string    `json:"models"`
-	ModelServers []string    `json:"modelServers"`
-	Containers   []Container `json:"containers,omitempty"`
+	Name         string   `json:"name"`
+	Namespace    string   `json:"namespace"`
+	PodInfo      *PodInfo `json:"podInfo,omitempty"`
+	Engine       string   `json:"engine"`
+	Metrics      *Metrics `json:"metrics,omitempty"`
+	Models       []string `json:"models"`
+	ModelServers []string `json:"modelServers"`
 }
 
 type PodInfo struct {
@@ -82,40 +79,11 @@ type PodInfo struct {
 }
 
 type Metrics struct {
-	GPUCacheUsage               float64    `json:"gpuCacheUsage"`
-	RequestWaitingNum           float64    `json:"requestWaitingNum"`
-	RequestRunningNum           float64    `json:"requestRunningNum"`
-	TPOT                        float64    `json:"tpot"`
-	TTFT                        float64    `json:"ttft"`
-	TimeToFirstTokenHistogram   *Histogram `json:"timeToFirstTokenHistogram,omitempty"`
-	TimePerOutputTokenHistogram *Histogram `json:"timePerOutputTokenHistogram,omitempty"`
-}
-
-type Histogram struct {
-	Buckets     []Bucket `json:"buckets"`
-	SampleCount uint64   `json:"sampleCount"`
-	SampleSum   float64  `json:"sampleSum"`
-}
-
-type Bucket struct {
-	UpperBound      float64 `json:"upperBound"`
-	CumulativeCount uint64  `json:"cumulativeCount"`
-}
-
-type Container struct {
-	Name      string                `json:"name"`
-	Image     string                `json:"image"`
-	Ports     []ContainerPort       `json:"ports,omitempty"`
-	Resources *ResourceRequirements `json:"resources,omitempty"`
-}
-
-type ContainerPort struct {
-	ContainerPort int32  `json:"containerPort"`
-	Protocol      string `json:"protocol"`
-}
-
-type ResourceRequirements struct {
-	Requests map[string]string `json:"requests,omitempty"`
+	GPUCacheUsage     float64 `json:"gpuCacheUsage"`
+	RequestWaitingNum float64 `json:"requestWaitingNum"`
+	RequestRunningNum float64 `json:"requestRunningNum"`
+	TPOT              float64 `json:"tpot"`
+	TTFT              float64 `json:"ttft"`
 }
 
 // List endpoints
@@ -303,16 +271,6 @@ func (h *DebugHandler) convertPodInfoToResponse(namespacedName types.NamespacedN
 		TTFT:              podInfo.TTFT,
 	}
 
-	// Add histogram metrics if available and details are requested
-	if includeDetails {
-		if podInfo.TimeToFirstToken != nil {
-			response.Metrics.TimeToFirstTokenHistogram = convertHistogram(podInfo.TimeToFirstToken)
-		}
-		if podInfo.TimePerOutputToken != nil {
-			response.Metrics.TimePerOutputTokenHistogram = convertHistogram(podInfo.TimePerOutputToken)
-		}
-	}
-
 	// Add pod info if details are requested
 	if includeDetails && podInfo.Pod != nil {
 		response.PodInfo = &PodInfo{
@@ -325,61 +283,7 @@ func (h *DebugHandler) convertPodInfoToResponse(namespacedName types.NamespacedN
 		if podInfo.Pod.Status.StartTime != nil {
 			response.PodInfo.StartTime = podInfo.Pod.Status.StartTime.Format("2006-01-02T15:04:05Z")
 		}
-
-		// Add container information
-		response.Containers = h.convertContainers(podInfo.Pod.Spec.Containers)
 	}
 
 	return response
-}
-
-func (h *DebugHandler) convertContainers(containers []corev1.Container) []Container {
-	var result []Container
-	for _, container := range containers {
-		c := Container{
-			Name:  container.Name,
-			Image: container.Image,
-		}
-
-		// Convert ports
-		for _, port := range container.Ports {
-			c.Ports = append(c.Ports, ContainerPort{
-				ContainerPort: port.ContainerPort,
-				Protocol:      string(port.Protocol),
-			})
-		}
-
-		// Convert resources
-		if len(container.Resources.Requests) > 0 {
-			c.Resources = &ResourceRequirements{
-				Requests: make(map[string]string),
-			}
-			for resource, quantity := range container.Resources.Requests {
-				c.Resources.Requests[string(resource)] = quantity.String()
-			}
-		}
-
-		result = append(result, c)
-	}
-	return result
-}
-
-func convertHistogram(hist *dto.Histogram) *Histogram {
-	if hist == nil {
-		return nil
-	}
-
-	result := &Histogram{
-		SampleCount: hist.GetSampleCount(),
-		SampleSum:   hist.GetSampleSum(),
-	}
-
-	for _, bucket := range hist.GetBucket() {
-		result.Buckets = append(result.Buckets, Bucket{
-			UpperBound:      bucket.GetUpperBound(),
-			CumulativeCount: bucket.GetCumulativeCount(),
-		})
-	}
-
-	return result
 }
