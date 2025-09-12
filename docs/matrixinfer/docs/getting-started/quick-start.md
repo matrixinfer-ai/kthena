@@ -80,3 +80,8 @@ kubectl get svc networking-infer-gateway -o jsonpath='{.spec.clusterIP}' -n <you
 
 This IP can only be used inside the cluster. If you want to chat from outside the cluster, you can use the `EXTERNAL-IP`
 of `networking-infer-gateway` after you bind it.
+
+# TroubleShooting
+
+Q: The result of `kubectl get model demo -o jsonpath='{.status.conditions}'` is empty, why?
+A: Model controller not work well, please open an issue in GitHub and provide logs of model controller.
