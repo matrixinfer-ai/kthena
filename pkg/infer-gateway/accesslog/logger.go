@@ -145,15 +145,21 @@ func (l *accessLoggerImpl) formatJSON(entry *AccessLogEntry) (string, error) {
 
 // formatText formats the entry as structured text
 func (l *accessLoggerImpl) formatText(entry *AccessLogEntry) (string, error) {
-	// Format: [timestamp] "METHOD /path PROTOCOL" status_code duration
-	// model=name route=route server=server pod=pod tokens=input/output timings=req+upstream+resp
+	// Format: [timestamp] "METHOD /path PROTOCOL" status_code [error=type:message]
+	// model=name route=route server=server pod=pod request_id=id tokens=input/output
+	// timings=total(req+upstream+resp)ms
 
 	timestamp := entry.Timestamp.Format(time.RFC3339Nano)
 
-	// Basic request line
-	line := fmt.Sprintf(`[%s] "%s %s %s" %d %dms`,
+	// Basic request line with status code
+	line := fmt.Sprintf(`[%s] "%s %s %s" %d`,
 		timestamp, entry.Method, entry.Path, entry.Protocol,
-		entry.StatusCode, entry.DurationTotal)
+		entry.StatusCode)
+
+	// Add error information immediately after status code
+	if entry.Error != nil {
+		line += fmt.Sprintf(" error=%s:%s", entry.Error.Type, entry.Error.Message)
+	}
 
 	// Add AI-specific fields
 	if entry.ModelName != "" {
@@ -177,16 +183,12 @@ func (l *accessLoggerImpl) formatText(entry *AccessLogEntry) (string, error) {
 		line += fmt.Sprintf(" tokens=%d/%d", entry.InputTokens, entry.OutputTokens)
 	}
 
-	// Add timing breakdown
-	line += fmt.Sprintf(" timings=%d+%d+%dms",
+	// Add complete timing breakdown with total and breakdown
+	line += fmt.Sprintf(" timings=%dms(%d+%d+%d)",
+		entry.DurationTotal,
 		entry.DurationRequestProcessing,
 		entry.DurationUpstreamProcessing,
 		entry.DurationResponseProcessing)
-
-	// Add error information
-	if entry.Error != nil {
-		line += fmt.Sprintf(" error=%s:%s", entry.Error.Type, entry.Error.Message)
-	}
 
 	return line, nil
 }

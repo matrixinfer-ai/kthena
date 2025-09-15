@@ -112,14 +112,14 @@ func TestAccessLogEntry_ToText(t *testing.T) {
 	expectedParts := []string{
 		`[2024-01-15T10:30:45.123Z]`,
 		`"POST /v1/chat/completions HTTP/1.1"`,
-		`200 2350ms`,
+		`200`,
 		`model=llama2-7b`,
 		`route=llama2-route-v1`,
 		`server=default/llama2-server`,
 		`pod=llama2-deployment-5f7b8c9d-xk2p4`,
 		`request_id=test-request-id`,
 		`tokens=150/75`,
-		`timings=45+2180+5ms`,
+		`timings=2350ms(45+2180+5)`,
 	}
 
 	for _, part := range expectedParts {

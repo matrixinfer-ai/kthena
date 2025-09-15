@@ -19,6 +19,8 @@ package accesslog
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 )
 
@@ -82,12 +84,20 @@ func SetModelName(c *gin.Context, modelName string) {
 // SetRequestRouting sets request routing information in the access log context
 func SetRequestRouting(c *gin.Context, modelRoute, modelServer, selectedPod string) {
 	if ctx := GetAccessLogContext(c); ctx != nil {
-		// Parse namespace/name format for model server
-		var modelServerName string
+		// Parse namespace/name format for model server using k8s utility
+		var namespacedName types.NamespacedName
 		if modelServer != "" {
-			modelServerName = modelServer
+			namespace, name, err := cache.SplitMetaNamespaceKey(modelServer)
+			if err != nil {
+				klog.Warningf("Failed to parse model server name '%s': %v", modelServer, err)
+				// Fallback: treat entire string as name
+				namespacedName.Name = modelServer
+			} else {
+				namespacedName.Namespace = namespace
+				namespacedName.Name = name
+			}
 		}
-		ctx.SetModelRouting(modelRoute, parseNamespacedName(modelServerName), selectedPod)
+		ctx.SetModelRouting(modelRoute, namespacedName, selectedPod)
 	}
 }
 
@@ -131,24 +141,4 @@ func MarkResponseProcessingEnd(c *gin.Context) {
 	if ctx := GetAccessLogContext(c); ctx != nil {
 		ctx.MarkResponseProcessingEnd()
 	}
-}
-
-// parseNamespacedName parses a "namespace/name" string into NamespacedName
-func parseNamespacedName(nameStr string) (result struct{ Namespace, Name string }) {
-	if nameStr == "" {
-		return
-	}
-
-	// Simple parsing - split on first '/'
-	for i, ch := range nameStr {
-		if ch == '/' {
-			result.Namespace = nameStr[:i]
-			result.Name = nameStr[i+1:]
-			return
-		}
-	}
-
-	// No namespace found, treat entire string as name
-	result.Name = nameStr
-	return
 }

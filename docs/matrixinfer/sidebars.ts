@@ -69,6 +69,11 @@ const sidebars: SidebarsConfig = {
       label: 'Reference',
       items: [
         {
+          type: 'doc',
+          id: 'reference/gateway-access-log-fields',
+          label: 'Gateway Access Log Fields',
+        },
+        {
           type: 'category',
           label: 'CRD Reference',
           items: [
