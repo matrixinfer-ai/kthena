@@ -22,7 +22,7 @@ from matrixinfer.runtime.metric import MetricOperator, RenameMetric
 class EngineType(Enum):
     VLLM = "vllm"
     SGLANG = "sglang"
-    vLLMDisaggregated = "vllmdisaggregated"
+    VLLM_DISAGGREGATED = "vllmdisaggregated"
 
 
 class StandardMetricNames:
@@ -90,7 +90,7 @@ class MetricStandard:
     def _get_real_engine_type(self) -> EngineType:
         if self.engine.lower() in {
             EngineType.VLLM.value,
-            EngineType.vLLMDisaggregated.value,
+            EngineType.VLLM_DISAGGREGATED.value,
         }:
             return EngineType.VLLM
         if self.engine.lower() == EngineType.SGLANG.value:
