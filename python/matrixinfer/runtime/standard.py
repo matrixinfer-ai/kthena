@@ -19,9 +19,10 @@ from prometheus_client import Metric
 from matrixinfer.runtime.metric import MetricOperator, RenameMetric
 
 
-class SupportedEngine(Enum):
+class EngineType(Enum):
     VLLM = "vllm"
     SGLANG = "sglang"
+    VLLM_DISAGGREGATED = "vllmdisaggregated"
 
 
 class StandardMetricNames:
@@ -33,14 +34,13 @@ class StandardMetricNames:
 
 
 STANDARD_RULES: Dict[str, List[MetricOperator]] = {
-    SupportedEngine.VLLM.value: [
+    EngineType.VLLM.value: [
         RenameMetric(
             "vllm:generation_tokens_total",
             StandardMetricNames.GENERATION_TOKENS_TOTAL,
         ),
         RenameMetric(
-            "vllm:num_requests_waiting", 
-            StandardMetricNames.NUM_REQUESTS_WAITING
+            "vllm:num_requests_waiting", StandardMetricNames.NUM_REQUESTS_WAITING
         ),
         RenameMetric(
             "vllm:time_to_first_token_seconds",
@@ -55,15 +55,12 @@ STANDARD_RULES: Dict[str, List[MetricOperator]] = {
             StandardMetricNames.E2E_REQUEST_LATENCY_SECONDS,
         ),
     ],
-    SupportedEngine.SGLANG.value: [
+    EngineType.SGLANG.value: [
         RenameMetric(
             "sglang:generation_tokens_total",
             StandardMetricNames.GENERATION_TOKENS_TOTAL,
         ),
-        RenameMetric(
-            "sglang:num_queue_reqs", 
-            StandardMetricNames.NUM_REQUESTS_WAITING
-        ),
+        RenameMetric("sglang:num_queue_reqs", StandardMetricNames.NUM_REQUESTS_WAITING),
         RenameMetric(
             "sglang:time_to_first_token_seconds",
             StandardMetricNames.TIME_TO_FIRST_TOKEN_SECONDS,
@@ -85,10 +82,20 @@ class UnsupportedEngineError(ValueError):
 
 
 class MetricStandard:
-    
+
     def __init__(self, engine: str):
-        self.engine = engine.lower()
+        self.engine = self._get_real_engine_type(engine)
         self.metric_operators_dict = self._build_operators_dict()
+
+    def _get_real_engine_type(self) -> EngineType:
+        if self.engine.lower() in {
+            EngineType.VLLM.value,
+            EngineType.VLLM_DISAGGREGATED.value,
+        }:
+            return EngineType.VLLM
+        if self.engine.lower() == EngineType.SGLANG.value:
+            return EngineType.SGLANG
+        raise UnsupportedEngineError(f"Unsupported engine: {self.engine}")
 
     def _build_operators_dict(self) -> Dict[str, MetricOperator]:
         if self.engine not in STANDARD_RULES:
@@ -97,7 +104,7 @@ class MetricStandard:
                 f"Unsupported engine: {self.engine}. "
                 f"Supported engine: {', '.join(supported_engines)}"
             )
-        
+
         return {
             operator.register_name(): operator
             for operator in STANDARD_RULES[self.engine]
@@ -106,11 +113,11 @@ class MetricStandard:
     def process(self, origin_metric: Metric) -> Optional[Metric]:
         if not self.metric_operators_dict:
             return None
-            
+
         operator = self.metric_operators_dict.get(origin_metric.name)
         if operator is None:
             return None
-            
+
         return operator.process(origin_metric)
 
     def is_supported_metric(self, metric_name: str) -> bool:
