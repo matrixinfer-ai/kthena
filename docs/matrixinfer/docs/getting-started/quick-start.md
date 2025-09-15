@@ -1,6 +1,8 @@
 ---
 sidebar_position: 2
 ---
+import QuickStartYaml from '../../../../examples/model/Qwen2.5-0.5B-Instruct.yaml?raw';
+import CodeBlock from '@theme/CodeBlock';
 
 # Quick Start
 
@@ -17,8 +19,9 @@ We'll install a model from Hugging Face and perform inference using a simple cur
 
 Create the example model in your namespace (replace `<your-namespace>` with your actual namespace):
 
-You can find the example YAML
-file [here](https://github.com/matrixinfer-ai/matrixinfer/tree/main/examples/model/Qwen2.5-0.5B-Instruct.yaml).
+<CodeBlock language="yaml">
+{QuickStartYaml}
+</CodeBlock>
 
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/matrixinfer-ai/matrixinfer/refs/heads/main/examples/model/Qwen2.5-0.5B-Instruct.yaml -n <your-namespace>
