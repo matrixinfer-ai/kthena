@@ -6,7 +6,7 @@ metadata:
     registry.matrixinfer.ai/managed-by: registry.matrixinfer.ai
     registry.matrixinfer.ai/model-name: ds-r1-qwen-7b-pd
     registry.matrixinfer.ai/model-uid: randomUID
-    registry.matrixinfer.ai/revision: 994b886f8
+    registry.matrixinfer.ai/revision: 67cc57ffd4
   name: ds-r1-qwen-7b-pd-ds-r1-qwen-7b-pd
   namespace: demo
   ownerReferences:
@@ -99,6 +99,8 @@ spec:
                   - --disable-frontend-multiprocessing
                   - --gpu-memory-utilization
                   - "0.99"
+                  - --kv-transfer-config
+                  - '{"kv_connector":"MooncakeConnectorV1","kv_role":"kv_producer","kv_connector_extra_config":{"prefill":{"dp_size":2,"tp_size":2},"decode":{"dp_size":2,"tp_size":2}}}'
                   - --max-model-len
                   - "2048"
                   - --quantization
@@ -289,6 +291,8 @@ spec:
                   - --disable-frontend-multiprocessing
                   - --gpu-memory-utilization
                   - "0.95"
+                  - --kv-transfer-config
+                  - '{"kv_connector":"MooncakeConnectorV1","kv_role":"kv_consumer","kv_connector_extra_config":{"prefill":{"dp_size":2,"tp_size":2},"decode":{"dp_size":2,"tp_size":2}}}'
                   - --max-model-len
                   - "1024"
                   - --quantization

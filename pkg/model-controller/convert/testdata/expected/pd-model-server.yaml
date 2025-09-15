@@ -8,7 +8,7 @@ metadata:
     registry.matrixinfer.ai/managed-by: registry.matrixinfer.ai
     registry.matrixinfer.ai/model-name: ds-r1-qwen-7b-pd
     registry.matrixinfer.ai/model-uid: randomUID
-    registry.matrixinfer.ai/revision: 6f8d7ccd5b
+    registry.matrixinfer.ai/revision: 76cdf44cd5
   ownerReferences:
     - apiVersion: registry.matrixinfer.ai/v1alpha1
       blockOwnerDeletion: true
@@ -34,3 +34,5 @@ spec:
     retry:
       attempts: 5
       retryInterval: 0s
+  kvConnector:
+    type: mooncake

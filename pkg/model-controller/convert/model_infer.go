@@ -322,7 +322,7 @@ func mapWorkers(workers []registry.ModelWorker) map[registry.ModelWorkerType]*re
 func buildCommands(workerConfig *apiextensionsv1.JSON, modelDownloadPath string,
 	workersMap map[registry.ModelWorkerType]*registry.ModelWorker) ([]string, error) {
 	commands := []string{"python", "-m", "vllm.entrypoints.openai.api_server", "--model", modelDownloadPath}
-	args, err := utils.ParseArgs(workerConfig)
+	args, err := utils.ConvertVLLMArgsFromJson(workerConfig)
 	commands = append(commands, args...)
 	if workersMap[registry.ModelWorkerTypeServer] != nil && workersMap[registry.ModelWorkerTypeServer].Pods > 1 {
 		commands = append(commands, "--distributed_executor_backend", "ray")

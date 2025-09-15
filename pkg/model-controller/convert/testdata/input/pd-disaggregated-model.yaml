@@ -33,6 +33,8 @@ spec:
             max-model-len: 2048
             trust-remote-code: ""
             quantization: "ascend"
+            kv-transfer-config:
+              '{"kv_connector":"MooncakeConnectorV1","kv_role":"kv_producer","kv_connector_extra_config":{"prefill":{"dp_size":2,"tp_size":2},"decode":{"dp_size":2,"tp_size":2}}}'
           resources:
             limits:
               cpu: "16"
@@ -54,6 +56,8 @@ spec:
             max-model-len: 1024
             trust-remote-code: ""
             quantization: "ascend"
+            kv-transfer-config:
+              '{"kv_connector":"MooncakeConnectorV1","kv_role":"kv_consumer","kv_connector_extra_config":{"prefill":{"dp_size":2,"tp_size":2},"decode":{"dp_size":2,"tp_size":2}}}'
           resources:
             limits:
               cpu: "16"
