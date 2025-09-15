@@ -18,8 +18,6 @@ package accesslog
 
 import (
 	"time"
-
-	"k8s.io/apimachinery/pkg/types"
 )
 
 // AccessLogEntry represents a structured access log entry for AI gateway requests
@@ -68,7 +66,7 @@ type AccessLogContext struct {
 	Protocol    string
 	ModelName   string
 	ModelRoute  string
-	ModelServer types.NamespacedName
+	ModelServer string
 	SelectedPod string
 
 	// Token counts
@@ -105,7 +103,7 @@ func NewAccessLogContext(requestID, method, path, protocol, modelName string) *A
 }
 
 // SetModelRouting sets the model routing information
-func (ctx *AccessLogContext) SetModelRouting(modelRoute string, modelServer types.NamespacedName, selectedPod string) {
+func (ctx *AccessLogContext) SetModelRouting(modelRoute string, modelServer string, selectedPod string) {
 	ctx.ModelRoute = modelRoute
 	ctx.ModelServer = modelServer
 	ctx.SelectedPod = selectedPod
@@ -174,15 +172,8 @@ func (ctx *AccessLogContext) ToAccessLogEntry(statusCode int) *AccessLogEntry {
 	upstreamProcessing := ctx.UpstreamEnd.Sub(ctx.UpstreamStart).Milliseconds()
 	responseProcessing := ctx.ResponseProcessingEnd.Sub(ctx.ResponseProcessingStart).Milliseconds()
 
-	// Build model server name
-	modelServerName := ""
-	if ctx.ModelServer.Name != "" {
-		if ctx.ModelServer.Namespace != "" {
-			modelServerName = ctx.ModelServer.Namespace + "/" + ctx.ModelServer.Name
-		} else {
-			modelServerName = ctx.ModelServer.Name
-		}
-	}
+	// Model server name is already in namespace/name format
+	modelServerName := ctx.ModelServer
 
 	entry := &AccessLogEntry{
 		Timestamp:                  ctx.StartTime,

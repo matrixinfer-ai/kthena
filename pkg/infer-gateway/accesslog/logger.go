@@ -146,7 +146,7 @@ func (l *accessLoggerImpl) formatJSON(entry *AccessLogEntry) (string, error) {
 // formatText formats the entry as structured text
 func (l *accessLoggerImpl) formatText(entry *AccessLogEntry) (string, error) {
 	// Format: [timestamp] "METHOD /path PROTOCOL" status_code [error=type:message]
-	// model=name route=route server=server pod=pod request_id=id tokens=input/output
+	// model_name=name model_route=route model_server=server selected_pod=pod request_id=id tokens=input/output
 	// timings=total(req+upstream+resp)ms
 
 	timestamp := entry.Timestamp.Format(time.RFC3339Nano)
@@ -163,16 +163,16 @@ func (l *accessLoggerImpl) formatText(entry *AccessLogEntry) (string, error) {
 
 	// Add AI-specific fields
 	if entry.ModelName != "" {
-		line += fmt.Sprintf(" model=%s", entry.ModelName)
+		line += fmt.Sprintf(" model_name=%s", entry.ModelName)
 	}
 	if entry.ModelRoute != "" {
-		line += fmt.Sprintf(" route=%s", entry.ModelRoute)
+		line += fmt.Sprintf(" model_route=%s", entry.ModelRoute)
 	}
 	if entry.ModelServer != "" {
-		line += fmt.Sprintf(" server=%s", entry.ModelServer)
+		line += fmt.Sprintf(" model_server=%s", entry.ModelServer)
 	}
 	if entry.SelectedPod != "" {
-		line += fmt.Sprintf(" pod=%s", entry.SelectedPod)
+		line += fmt.Sprintf(" selected_pod=%s", entry.SelectedPod)
 	}
 	if entry.RequestID != "" {
 		line += fmt.Sprintf(" request_id=%s", entry.RequestID)

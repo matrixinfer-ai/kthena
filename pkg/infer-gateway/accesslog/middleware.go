@@ -19,8 +19,6 @@ package accesslog
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 )
 
@@ -84,20 +82,8 @@ func SetModelName(c *gin.Context, modelName string) {
 // SetRequestRouting sets request routing information in the access log context
 func SetRequestRouting(c *gin.Context, modelRoute, modelServer, selectedPod string) {
 	if ctx := GetAccessLogContext(c); ctx != nil {
-		// Parse namespace/name format for model server using k8s utility
-		var namespacedName types.NamespacedName
-		if modelServer != "" {
-			namespace, name, err := cache.SplitMetaNamespaceKey(modelServer)
-			if err != nil {
-				klog.Warningf("Failed to parse model server name '%s': %v", modelServer, err)
-				// Fallback: treat entire string as name
-				namespacedName.Name = modelServer
-			} else {
-				namespacedName.Namespace = namespace
-				namespacedName.Name = name
-			}
-		}
-		ctx.SetModelRouting(modelRoute, namespacedName, selectedPod)
+		// modelRoute and modelServer are already in namespace/name format
+		ctx.SetModelRouting(modelRoute, modelServer, selectedPod)
 	}
 }
 

@@ -16,7 +16,7 @@ Access logs are available in two formats:
 
 The text format follows this structure:
 ```
-[timestamp] "METHOD /path PROTOCOL" status_code [error=type:message] model=name route=route server=server pod=pod request_id=id tokens=input/output timings=total(req+upstream+resp)ms
+[timestamp] "METHOD /path PROTOCOL" status_code [error=type:message] model_name=name model_route=route model_server=server selected_pod=pod request_id=id tokens=input/output timings=total(req+upstream+resp)ms
 ```
 
 Key features of the text format:
@@ -66,7 +66,7 @@ These fields provide information about how the request was routed through the AI
 | Field          | Type     | Description                               | Example                                |
 | -------------- | -------- | ----------------------------------------- | -------------------------------------- |
 | `model_name`   | `string` | Name of the AI model requested            | `llama2-7b`, `gpt-3.5-turbo`           |
-| `model_route`  | `string` | Name of the ModelRoute resource used      | `llama2-route-v1`                      |
+| `model_route`  | `string` | Name of the ModelRoute resource used      | `default/llama2-route-v1`              |
 | `model_server` | `string` | ModelServer that handled the request      | `default/llama2-server`                |
 | `selected_pod` | `string` | Specific pod that processed the inference | `llama2-deployment-5f7b8c9d-xk2p4`     |
 | `request_id`   | `string` | Unique identifier for request tracing     | `550e8400-e29b-41d4-a716-446655440000` |
@@ -109,7 +109,7 @@ All timing values are in milliseconds and provide detailed performance metrics.
   "protocol": "HTTP/1.1",
   "status_code": 200,
   "model_name": "llama2-7b",
-  "model_route": "llama2-route-v1",
+  "model_route": "default/llama2-route-v1",
   "model_server": "default/llama2-server",
   "selected_pod": "llama2-deployment-5f7b8c9d-xk2p4",
   "request_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -136,7 +136,7 @@ All timing values are in milliseconds and provide detailed performance metrics.
     "message": "Model inference timeout after 30s"
   },
   "model_name": "llama2-7b",
-  "model_route": "llama2-route-v1",
+  "model_route": "default/llama2-route-v1",
   "model_server": "default/llama2-server",
   "selected_pod": "llama2-deployment-5f7b8c9d-xk2p4",
   "request_id": "660e8400-e29b-41d4-a716-446655440001",
@@ -152,13 +152,13 @@ All timing values are in milliseconds and provide detailed performance metrics.
 ### Text Format Example
 
 ```
-[2024-01-15T10:30:45.123Z] "POST /v1/chat/completions HTTP/1.1" 200 model=llama2-7b route=llama2-route-v1 server=default/llama2-server pod=llama2-deployment-5f7b8c9d-xk2p4 request_id=550e8400-e29b-41d4-a716-446655440000 tokens=150/75 timings=2350ms(45+2180+5)
+[2024-01-15T10:30:45.123Z] "POST /v1/chat/completions HTTP/1.1" 200 model_name=llama2-7b model_route=default/llama2-route-v1 model_server=default/llama2-server selected_pod=llama2-deployment-5f7b8c9d-xk2p4 request_id=550e8400-e29b-41d4-a716-446655440000 tokens=150/75 timings=2350ms(45+2180+5)
 ```
 
 ### Text Format with Error
 
 ```
-[2024-01-15T10:35:22.456Z] "POST /v1/chat/completions HTTP/1.1" 504 error=timeout:Model inference timeout after 30s model=llama2-7b route=llama2-route-v1 server=default/llama2-server pod=llama2-deployment-5f7b8c9d-xk2p4 request_id=660e8400-e29b-41d4-a716-446655440001 tokens=200/0 timings=30050ms(50+30000+0)
+[2024-01-15T10:35:22.456Z] "POST /v1/chat/completions HTTP/1.1" 504 error=timeout:Model inference timeout after 30s model_name=llama2-7b model_route=default/llama2-route-v1 model_server=default/llama2-server selected_pod=llama2-deployment-5f7b8c9d-xk2p4 request_id=660e8400-e29b-41d4-a716-446655440001 tokens=200/0 timings=30050ms(50+30000+0)
 ```
 
 ## Configuration

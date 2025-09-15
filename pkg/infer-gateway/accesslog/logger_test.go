@@ -33,7 +33,7 @@ func TestAccessLogEntry_ToJSON(t *testing.T) {
 		Protocol:                   "HTTP/1.1",
 		StatusCode:                 200,
 		ModelName:                  "llama2-7b",
-		ModelRoute:                 "llama2-route-v1",
+		ModelRoute:                 "default/llama2-route-v1",
 		ModelServer:                "default/llama2-server",
 		SelectedPod:                "llama2-deployment-5f7b8c9d-xk2p4",
 		RequestID:                  "test-request-id",
@@ -65,7 +65,7 @@ func TestAccessLogEntry_ToJSON(t *testing.T) {
 	assert.Equal(t, "/v1/chat/completions", parsed["path"])
 	assert.Equal(t, float64(200), parsed["status_code"])
 	assert.Equal(t, "llama2-7b", parsed["model_name"])
-	assert.Equal(t, "llama2-route-v1", parsed["model_route"])
+	assert.Equal(t, "default/llama2-route-v1", parsed["model_route"])
 	assert.Equal(t, "default/llama2-server", parsed["model_server"])
 	assert.Equal(t, "llama2-deployment-5f7b8c9d-xk2p4", parsed["selected_pod"])
 	assert.Equal(t, float64(150), parsed["input_tokens"])
@@ -86,7 +86,7 @@ func TestAccessLogEntry_ToText(t *testing.T) {
 		Protocol:                   "HTTP/1.1",
 		StatusCode:                 200,
 		ModelName:                  "llama2-7b",
-		ModelRoute:                 "llama2-route-v1",
+		ModelRoute:                 "default/llama2-route-v1",
 		ModelServer:                "default/llama2-server",
 		SelectedPod:                "llama2-deployment-5f7b8c9d-xk2p4",
 		RequestID:                  "test-request-id",
@@ -113,10 +113,10 @@ func TestAccessLogEntry_ToText(t *testing.T) {
 		`[2024-01-15T10:30:45.123Z]`,
 		`"POST /v1/chat/completions HTTP/1.1"`,
 		`200`,
-		`model=llama2-7b`,
-		`route=llama2-route-v1`,
-		`server=default/llama2-server`,
-		`pod=llama2-deployment-5f7b8c9d-xk2p4`,
+		`model_name=llama2-7b`,
+		`model_route=default/llama2-route-v1`,
+		`model_server=default/llama2-server`,
+		`selected_pod=llama2-deployment-5f7b8c9d-xk2p4`,
 		`request_id=test-request-id`,
 		`tokens=150/75`,
 		`timings=2350ms(45+2180+5)`,
@@ -187,10 +187,9 @@ func TestAccessLogContext_Lifecycle(t *testing.T) {
 	assert.False(t, ctx.RequestProcessingStart.IsZero())
 
 	// Set model routing info
-	ctx.SetModelRouting("test-route", struct{ Namespace, Name string }{"default", "test-server"}, "test-pod-123")
-	assert.Equal(t, "test-route", ctx.ModelRoute)
-	assert.Equal(t, "default", ctx.ModelServer.Namespace)
-	assert.Equal(t, "test-server", ctx.ModelServer.Name)
+	ctx.SetModelRouting("default/test-route", "default/test-server", "test-pod-123")
+	assert.Equal(t, "default/test-route", ctx.ModelRoute)
+	assert.Equal(t, "default/test-server", ctx.ModelServer)
 	assert.Equal(t, "test-pod-123", ctx.SelectedPod)
 
 	// Set token counts
@@ -223,7 +222,7 @@ func TestAccessLogContext_Lifecycle(t *testing.T) {
 	entry := ctx.ToAccessLogEntry(429)
 	assert.Equal(t, 429, entry.StatusCode)
 	assert.Equal(t, modelName, entry.ModelName)
-	assert.Equal(t, "test-route", entry.ModelRoute)
+	assert.Equal(t, "default/test-route", entry.ModelRoute)
 	assert.Equal(t, "default/test-server", entry.ModelServer)
 	assert.Equal(t, "test-pod-123", entry.SelectedPod)
 	assert.Equal(t, 100, entry.InputTokens)
