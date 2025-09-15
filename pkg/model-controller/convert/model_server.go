@@ -102,7 +102,7 @@ func getKvConnectorSpec(backend registry.ModelBackend) (*networking.KVConnectorS
 			continue
 		}
 
-		kvTransferConfig, err := utils.TryGetFromArgs(worker.Config.Raw, "kv-transfer-config")
+		kvTransferConfig, err := utils.TryGetField(worker.Config.Raw, "kv-transfer-config")
 		if err != nil {
 			return nil, fmt.Errorf("failed to get kv-transfer-config for worker %s: %w", worker.Type, err)
 		}
@@ -116,7 +116,7 @@ func getKvConnectorSpec(backend registry.ModelBackend) (*networking.KVConnectorS
 			continue
 		}
 
-		kvTransferType, err := utils.TryGetFromArgs([]byte(kvTransferConfigStr), "kv_connector")
+		kvTransferType, err := utils.TryGetField([]byte(kvTransferConfigStr), "kv_connector")
 		if err != nil {
 			klog.Warningf("invalid kv-transfer-config type %T for worker %s, str: %s", kvTransferConfig, worker.Type, kvTransferConfigStr)
 			return nil, fmt.Errorf("failed to get kv_connector for worker %s: %w", worker.Type, err)
@@ -166,7 +166,7 @@ func getServedModelName(model *registry.Model, backend registry.ModelBackend) (s
 	for _, worker := range backend.Workers {
 		if worker.Type == registry.ModelWorkerTypeServer ||
 			worker.Type == registry.ModelWorkerTypeDecode {
-			valStr, err := utils.TryGetFromArgs(worker.Config.Raw, "served-model-name")
+			valStr, err := utils.TryGetField(worker.Config.Raw, "served-model-name")
 			if err != nil {
 				return "", err
 			}

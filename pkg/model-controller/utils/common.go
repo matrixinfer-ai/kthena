@@ -33,7 +33,7 @@ const (
 
 var XPUList = []corev1.ResourceName{"nvidia.com/gpu", "huawei.com/ascend-1980"}
 
-func TryGetFromArgs(config []byte, key string) (any, error) {
+func TryGetField(config []byte, key string) (any, error) {
 	var configMap map[string]interface{}
 	if err := json.Unmarshal(config, &configMap); err != nil {
 		return "", fmt.Errorf("failed to unmarshal config: %w", err)
