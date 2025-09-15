@@ -1,4 +1,5 @@
 # Model Controller
+
 ### The rules of generated resource name
 
 - The name of the `Model Infer` is in the format of `<model-name>-<backend-name>`.
@@ -48,3 +49,9 @@ the related resources will be deleted as well.
 ## Examples of Model CR
 
 You can find examples of model CR [here](https://github.com/matrixinfer-ai/matrixinfer/tree/main/examples/model)
+
+## Advanced features
+
+### Gang Scheduling
+
+`GangSchedule` is disabled by default, if you want to enable it, see [here](https://github.com/matrixinfer-ai/matrixinfer/blob/main/docs/matrixinfer/docs/user-guide/multi-node-inference.md#gang-scheduling-and-network-topology)
