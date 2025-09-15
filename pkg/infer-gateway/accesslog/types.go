@@ -31,6 +31,9 @@ type AccessLogEntry struct {
 	Protocol   string    `json:"protocol"`
 	StatusCode int       `json:"status_code"`
 
+	// Error information (if applicable)
+	Error *ErrorInfo `json:"error,omitempty"`
+
 	// AI-specific routing information
 	ModelName   string `json:"model_name"`
 	ModelRoute  string `json:"model_route,omitempty"`
@@ -42,23 +45,11 @@ type AccessLogEntry struct {
 	InputTokens  int `json:"input_tokens,omitempty"`
 	OutputTokens int `json:"output_tokens,omitempty"`
 
-	// Timing breakdown (in milliseconds)
-	Duration *DurationInfo `json:"duration"`
-
-	// Error information (if applicable)
-	Error *ErrorInfo `json:"error,omitempty"`
-}
-
-// DurationInfo contains detailed timing breakdown
-type DurationInfo struct {
-	// Total end-to-end request processing time (ms)
-	Total int64 `json:"total"`
-	// Gateway request processing overhead (ms)
-	RequestProcessing int64 `json:"request_processing"`
-	// Model inference time on backend pod (ms)
-	UpstreamProcessing int64 `json:"upstream_processing"`
-	// Response processing time (ms)
-	ResponseProcessing int64 `json:"response_processing"`
+	// Timing breakdown (in milliseconds) - flattened fields
+	DurationTotal              int64 `json:"duration_total"`
+	DurationRequestProcessing  int64 `json:"duration_request_processing"`
+	DurationUpstreamProcessing int64 `json:"duration_upstream_processing"`
+	DurationResponseProcessing int64 `json:"duration_response_processing"`
 }
 
 // ErrorInfo contains error details for failed requests
@@ -194,25 +185,23 @@ func (ctx *AccessLogContext) ToAccessLogEntry(statusCode int) *AccessLogEntry {
 	}
 
 	entry := &AccessLogEntry{
-		Timestamp:    ctx.StartTime,
-		Method:       ctx.Method,
-		Path:         ctx.Path,
-		Protocol:     ctx.Protocol,
-		StatusCode:   statusCode,
-		ModelName:    ctx.ModelName,
-		ModelRoute:   ctx.ModelRoute,
-		ModelServer:  modelServerName,
-		SelectedPod:  ctx.SelectedPod,
-		RequestID:    ctx.RequestID,
-		InputTokens:  ctx.InputTokens,
-		OutputTokens: ctx.OutputTokens,
-		Duration: &DurationInfo{
-			Total:              total,
-			RequestProcessing:  requestProcessing,
-			UpstreamProcessing: upstreamProcessing,
-			ResponseProcessing: responseProcessing,
-		},
-		Error: ctx.Error,
+		Timestamp:                  ctx.StartTime,
+		Method:                     ctx.Method,
+		Path:                       ctx.Path,
+		Protocol:                   ctx.Protocol,
+		StatusCode:                 statusCode,
+		Error:                      ctx.Error,
+		ModelName:                  ctx.ModelName,
+		ModelRoute:                 ctx.ModelRoute,
+		ModelServer:                modelServerName,
+		SelectedPod:                ctx.SelectedPod,
+		RequestID:                  ctx.RequestID,
+		InputTokens:                ctx.InputTokens,
+		OutputTokens:               ctx.OutputTokens,
+		DurationTotal:              total,
+		DurationRequestProcessing:  requestProcessing,
+		DurationUpstreamProcessing: upstreamProcessing,
+		DurationResponseProcessing: responseProcessing,
 	}
 
 	return entry

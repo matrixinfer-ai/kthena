@@ -153,7 +153,7 @@ func (l *accessLoggerImpl) formatText(entry *AccessLogEntry) (string, error) {
 	// Basic request line
 	line := fmt.Sprintf(`[%s] "%s %s %s" %d %dms`,
 		timestamp, entry.Method, entry.Path, entry.Protocol,
-		entry.StatusCode, entry.Duration.Total)
+		entry.StatusCode, entry.DurationTotal)
 
 	// Add AI-specific fields
 	if entry.ModelName != "" {
@@ -178,12 +178,10 @@ func (l *accessLoggerImpl) formatText(entry *AccessLogEntry) (string, error) {
 	}
 
 	// Add timing breakdown
-	if entry.Duration != nil {
-		line += fmt.Sprintf(" timings=%d+%d+%dms",
-			entry.Duration.RequestProcessing,
-			entry.Duration.UpstreamProcessing,
-			entry.Duration.ResponseProcessing)
-	}
+	line += fmt.Sprintf(" timings=%d+%d+%dms",
+		entry.DurationRequestProcessing,
+		entry.DurationUpstreamProcessing,
+		entry.DurationResponseProcessing)
 
 	// Add error information
 	if entry.Error != nil {

@@ -27,24 +27,22 @@ import (
 
 func TestAccessLogEntry_ToJSON(t *testing.T) {
 	entry := &AccessLogEntry{
-		Timestamp:    time.Date(2024, 1, 15, 10, 30, 45, 123000000, time.UTC),
-		Method:       "POST",
-		Path:         "/v1/chat/completions",
-		Protocol:     "HTTP/1.1",
-		StatusCode:   200,
-		ModelName:    "llama2-7b",
-		ModelRoute:   "llama2-route-v1",
-		ModelServer:  "default/llama2-server",
-		SelectedPod:  "llama2-deployment-5f7b8c9d-xk2p4",
-		RequestID:    "test-request-id",
-		InputTokens:  150,
-		OutputTokens: 75,
-		Duration: &DurationInfo{
-			Total:              2350,
-			RequestProcessing:  45,
-			UpstreamProcessing: 2180,
-			ResponseProcessing: 5,
-		},
+		Timestamp:                  time.Date(2024, 1, 15, 10, 30, 45, 123000000, time.UTC),
+		Method:                     "POST",
+		Path:                       "/v1/chat/completions",
+		Protocol:                   "HTTP/1.1",
+		StatusCode:                 200,
+		ModelName:                  "llama2-7b",
+		ModelRoute:                 "llama2-route-v1",
+		ModelServer:                "default/llama2-server",
+		SelectedPod:                "llama2-deployment-5f7b8c9d-xk2p4",
+		RequestID:                  "test-request-id",
+		InputTokens:                150,
+		OutputTokens:               75,
+		DurationTotal:              2350,
+		DurationRequestProcessing:  45,
+		DurationUpstreamProcessing: 2180,
+		DurationResponseProcessing: 5,
 	}
 
 	// Create a logger with JSON format
@@ -73,34 +71,31 @@ func TestAccessLogEntry_ToJSON(t *testing.T) {
 	assert.Equal(t, float64(150), parsed["input_tokens"])
 	assert.Equal(t, float64(75), parsed["output_tokens"])
 
-	// Check duration structure
-	duration := parsed["duration"].(map[string]interface{})
-	assert.Equal(t, float64(2350), duration["total"])
-	assert.Equal(t, float64(45), duration["request_processing"])
-	assert.Equal(t, float64(2180), duration["upstream_processing"])
-	assert.Equal(t, float64(5), duration["response_processing"])
+	// Check flattened duration fields
+	assert.Equal(t, float64(2350), parsed["duration_total"])
+	assert.Equal(t, float64(45), parsed["duration_request_processing"])
+	assert.Equal(t, float64(2180), parsed["duration_upstream_processing"])
+	assert.Equal(t, float64(5), parsed["duration_response_processing"])
 }
 
 func TestAccessLogEntry_ToText(t *testing.T) {
 	entry := &AccessLogEntry{
-		Timestamp:    time.Date(2024, 1, 15, 10, 30, 45, 123000000, time.UTC),
-		Method:       "POST",
-		Path:         "/v1/chat/completions",
-		Protocol:     "HTTP/1.1",
-		StatusCode:   200,
-		ModelName:    "llama2-7b",
-		ModelRoute:   "llama2-route-v1",
-		ModelServer:  "default/llama2-server",
-		SelectedPod:  "llama2-deployment-5f7b8c9d-xk2p4",
-		RequestID:    "test-request-id",
-		InputTokens:  150,
-		OutputTokens: 75,
-		Duration: &DurationInfo{
-			Total:              2350,
-			RequestProcessing:  45,
-			UpstreamProcessing: 2180,
-			ResponseProcessing: 5,
-		},
+		Timestamp:                  time.Date(2024, 1, 15, 10, 30, 45, 123000000, time.UTC),
+		Method:                     "POST",
+		Path:                       "/v1/chat/completions",
+		Protocol:                   "HTTP/1.1",
+		StatusCode:                 200,
+		ModelName:                  "llama2-7b",
+		ModelRoute:                 "llama2-route-v1",
+		ModelServer:                "default/llama2-server",
+		SelectedPod:                "llama2-deployment-5f7b8c9d-xk2p4",
+		RequestID:                  "test-request-id",
+		InputTokens:                150,
+		OutputTokens:               75,
+		DurationTotal:              2350,
+		DurationRequestProcessing:  45,
+		DurationUpstreamProcessing: 2180,
+		DurationResponseProcessing: 5,
 	}
 
 	// Create a logger with text format
@@ -139,17 +134,15 @@ func TestAccessLogEntry_WithError(t *testing.T) {
 		Path:       "/v1/chat/completions",
 		Protocol:   "HTTP/1.1",
 		StatusCode: 500,
-		ModelName:  "llama2-7b",
-		Duration: &DurationInfo{
-			Total:              100,
-			RequestProcessing:  50,
-			UpstreamProcessing: 0,
-			ResponseProcessing: 50,
-		},
 		Error: &ErrorInfo{
 			Type:    "timeout",
 			Message: "Model inference timeout after 30s",
 		},
+		ModelName:                  "llama2-7b",
+		DurationTotal:              100,
+		DurationRequestProcessing:  50,
+		DurationUpstreamProcessing: 0,
+		DurationResponseProcessing: 50,
 	}
 
 	// Test JSON format
@@ -235,8 +228,7 @@ func TestAccessLogContext_Lifecycle(t *testing.T) {
 	assert.Equal(t, "test-pod-123", entry.SelectedPod)
 	assert.Equal(t, 100, entry.InputTokens)
 	assert.Equal(t, 50, entry.OutputTokens)
-	assert.NotNil(t, entry.Duration)
-	assert.Greater(t, entry.Duration.Total, int64(0))
+	assert.Greater(t, entry.DurationTotal, int64(0))
 	assert.NotNil(t, entry.Error)
 	assert.Equal(t, "rate_limit", entry.Error.Type)
 }
