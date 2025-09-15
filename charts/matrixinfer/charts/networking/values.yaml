@@ -36,13 +36,6 @@ inferGateway:
     # outputTokenWeight is the weight multiplier for output tokens in priority calculation (default: 2.0)
     outputTokenWeight: 2.0
 
-redis:
-  # Redis is deployed separately using examples in examples/redis/
-  # Set enabled to true when using KV Cache Aware plugin
-  enabled: false
-  # Redis connection configuration will be read from redis-config ConfigMap
-  # Deploy Redis using examples/redis/redis-standalone.yaml when needed
-
 webhook:
   enabled: true
   # replicas is the number of gateway-webhook instances to run.
@@ -56,7 +49,7 @@ webhook:
     # pullPolicy is the image pull policy for the gateway-webhook.
     pullPolicy: IfNotPresent
     # args are the command line arguments for the gateway-webhook.
-    args: [ "--port=8443"]
+    args: [ "--port=8443" ]
   # resource defines the resource limits and requests for the gateway-webhook.
   resource:
     limits:

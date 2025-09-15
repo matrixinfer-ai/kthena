@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MatrixInfer Plugin Performance Comparison</title>
+    <style>
+        /* Academic paper styling */
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            line-height: 1.8;
+            color: #000;
+            max-width: 210mm;
+            margin: 0 auto;
+            padding: 25mm 20mm;
+            background-color: #fff;
+            font-size: 11pt;
+        }
+        
+        .paper-title {
+            font-size: 18pt;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 20pt;
+            line-height: 1.3;
+        }
+        
+        h1 {
+            font-size: 14pt;
+            font-weight: bold;
+            margin-top: 25pt;
+            margin-bottom: 12pt;
+            text-transform: uppercase;
+            letter-spacing: 0.5pt;
+        }
+        
+        /* Academic tables */
+        table {
+            width: 85%;
+            margin: 15pt auto;
+            border-collapse: collapse;
+            font-size: 9pt;
+            border-top: 2pt solid #000;
+            border-bottom: 2pt solid #000;
+        }
+        
+        table caption {
+            font-weight: bold;
+            margin-bottom: 8pt;
+            text-align: left;
+            font-size: 11pt;
+        }
+        
+        th {
+            padding: 6pt 4pt;
+            text-align: center;
+            border-bottom: 1pt solid #000;
+            font-weight: bold;
+            background-color: #fff;
+            vertical-align: bottom;
+        }
+
+        td {
+            padding: 4pt;
+            text-align: center;
+            border-bottom: 0.5pt solid #ccc;
+            vertical-align: middle;
+        }
+        
+        /* Figures and charts */
+        .figure {
+            text-align: center;
+            margin: 15pt 0;
+            page-break-inside: avoid;
+        }
+        
+        .figure img {
+            max-width: 100%;
+            height: auto;
+            border: 1pt solid #000;
+        }
+        
+        .figure-caption {
+            font-size: 10pt;
+            font-weight: bold;
+            margin-top: 6pt;
+            margin-bottom: 8pt;
+            text-align: left;
+            line-height: 1.4;
+        }
+
+        .figure-note {
+            font-size: 9pt;
+            margin-top: 4pt;
+            margin-bottom: 8pt;
+            font-style: italic;
+            color: #666;
+            text-align: left;
+        }
+        
+        .results-section {
+            margin: 20pt 0;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 40pt;
+            padding-top: 15pt;
+            border-top: 1pt solid #ccc;
+            font-size: 9pt;
+            color: #666;
+        }
+        
+        @media print {
+            body {
+                margin: 0;
+                padding: 20mm;
+            }
+            .no-print {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Plugin Performance Report -->
+    <div class="paper-title">
+        MatrixInfer Plugin Performance Comparison
+    </div>
+
+    
+    <h1>Test Configuration</h1>
+    <div class="results-section">
+        <table>
+            <caption>Model and Benchmark Configuration</caption>
+            <thead>
+                <tr>
+                    <th>Parameter</th>
+                    <th>Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>model</td>
+                    <td>deepseek-ai/DeepSeek-R1-Distill-Qwen-7B</td>
+                </tr>
+                <tr>
+                    <td>block-size</td>
+                    <td>128</td>
+                </tr>
+                <tr>
+                    <td>max-model-len</td>
+                    <td>32768</td>
+                </tr>
+                <tr>
+                    <td>max-num-batched-tokens</td>
+                    <td>65536</td>
+                </tr>
+                <tr>
+                    <td>replicas</td>
+                    <td>3</td>
+                </tr>
+                <tr>
+                    <td>gpu-memory-utilization</td>
+                    <td>0.9</td>
+                </tr>
+                <tr>
+                    <td>max-num-seq</td>
+                    <td>256</td>
+                </tr>
+                <tr>
+                    <td>dataset-name</td>
+                    <td>generated-shared-prefix</td>
+                </tr>
+                <tr>
+                    <td>gsp-num-groups</td>
+                    <td>256</td>
+                </tr>
+                <tr>
+                    <td>gsp-prompts-per-group</td>
+                    <td>32</td>
+                </tr>
+                <tr>
+                    <td>gsp-system-prompt-len</td>
+                    <td>4096</td>
+                </tr>
+                <tr>
+                    <td>gsp-question-len</td>
+                    <td>256</td>
+                </tr>
+                <tr>
+                    <td>gsp-output-len</td>
+                    <td>128</td>
+                </tr>
+                <tr>
+                    <td>request-rate</td>
+                    <td>800</td>
+                </tr>
+                <tr>
+                    <td>max-concurrency</td>
+                    <td>300</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Plugin Performance Metrics Table -->
+    <h1>Plugin Performance Metrics</h1>
+    <table>
+        <caption>Plugin Performance Comparison Results</caption>
+        <thead>
+            <tr>
+                <th>Plugin Configuration</th>
+                <th>Test Count</th>
+                <th>Success Rate (%)</th>
+                <th>Throughput<br>(req/s)</th>
+                <th>Latency<br>(s)</th>
+                <th>TTFT<br>(s)</th>
+            </tr>
+        </thead>
+        <tbody>
+            
+            <tr>
+                <td>Gpu Usage</td>
+                <td>3</td>
+                <td>100.0</td>
+                <td>9.56</td>
+                <td>30.92</td>
+                <td>13.14</td>
+            </tr>
+            <tr>
+                <td>Least Latency</td>
+                <td>3</td>
+                <td>100.0</td>
+                <td>9.47</td>
+                <td>31.44</td>
+                <td>11.07</td>
+            </tr>
+            <tr>
+                <td>Least Request+Kv Cache</td>
+                <td>3</td>
+                <td>100.0</td>
+                <td>32.22</td>
+                <td>9.22</td>
+                <td>0.57</td>
+            </tr>
+            <tr>
+                <td>Least Request+Prefix Cache</td>
+                <td>3</td>
+                <td>100.0</td>
+                <td>23.87</td>
+                <td>12.47</td>
+                <td>0.83</td>
+            </tr>
+            <tr>
+                <td>Least Request</td>
+                <td>3</td>
+                <td>100.0</td>
+                <td>9.86</td>
+                <td>30.13</td>
+                <td>12.46</td>
+            </tr>
+            <tr>
+                <td>Random</td>
+                <td>3</td>
+                <td>100.0</td>
+                <td>11.81</td>
+                <td>25.23</td>
+                <td>2.15</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- Performance Charts -->
+    <h1>Performance Charts</h1>
+    <div class="results-section">
+        
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+
+    <div class="figure">
+        <div class="figure-caption">Figure 1: Throughput Comparison</div>
+        <div style="width: 100%; height: 280px;">
+            <canvas id="throughputChart"></canvas>
+        </div>
+        <div class="figure-note">Throughput measured in requests per second. Higher values indicate better performance.</div>
+    </div>
+
+    <div class="figure">
+        <div class="figure-caption">Figure 2: End-to-End Latency Comparison</div>
+        <div style="width: 100%; height: 280px;">
+            <canvas id="latencyChart"></canvas>
+        </div>
+        <div class="figure-note">Latency measured in seconds. Lower values indicate better performance.</div>
+    </div>
+
+    <div class="figure">
+        <div class="figure-caption">Figure 3: Time to First Token Comparison</div>
+        <div style="width: 100%; height: 280px;">
+            <canvas id="ttftChart"></canvas>
+        </div>
+        <div class="figure-note">TTFT measured in seconds. Lower values indicate better responsiveness.</div>
+    </div>
+
+    <script>
+    // Academic chart styling
+    Chart.defaults.font.family = 'Times New Roman, serif';
+    Chart.defaults.font.size = 11;
+    Chart.defaults.color = '#000';
+
+    // Throughput Chart
+    const throughputCtx = document.getElementById('throughputChart').getContext('2d');
+    new Chart(throughputCtx, {
+        type: 'bar',
+        data: {
+            labels: ["Gpu Usage", "Least Latency", "Least Request+Kv Cache", "Least Request+Prefix Cache", "Least Request", "Random"],
+            datasets: [{
+                label: 'Throughput',
+                data: [9.56, 9.47, 32.22, 23.87, 9.86, 11.81],
+                backgroundColor: '#4a90e2',
+                borderColor: '#2c5aa0',
+                borderWidth: 1
+            }]
+        },
+        plugins: [ChartDataLabels],
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    titleColor: '#000',
+                    bodyColor: '#000',
+                    borderColor: '#000',
+                    borderWidth: 1
+                },
+                datalabels: {
+                    anchor: 'end',
+                    align: 'top',
+                    color: '#000',
+                    font: {
+                        size: 10,
+                        weight: 'bold'
+                    },
+                    formatter: function(value) {
+                        return value.toFixed(2);
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        maxRotation: 45,
+                        color: '#000'
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: '#e0e0e0',
+                        lineWidth: 0.8,
+                        drawBorder: false
+                    },
+                    title: {
+                        display: true,
+                        text: 'Throughput (req/s)',
+                        color: '#000',
+                        font: {
+                            size: 12,
+                            weight: 'normal'
+                        }
+                    },
+                    ticks: {
+                        color: '#000'
+                    }
+                }
+            },
+            elements: {
+                bar: {
+                    maxBarThickness: 20,
+                    borderRadius: 2
+                }
+            },
+            categoryPercentage: 0.8,
+            barPercentage: 0.6
+        }
+    });
+
+    // Latency Chart
+    const latencyCtx = document.getElementById('latencyChart').getContext('2d');
+    new Chart(latencyCtx, {
+        type: 'bar',
+        data: {
+            labels: ["Gpu Usage", "Least Latency", "Least Request+Kv Cache", "Least Request+Prefix Cache", "Least Request", "Random"],
+            datasets: [{
+                label: 'Latency',
+                data: [30.92, 31.44, 9.22, 12.47, 30.13, 25.23],
+                backgroundColor: '#e74c3c',
+                borderColor: '#c0392b',
+                borderWidth: 1
+            }]
+        },
+        plugins: [ChartDataLabels],
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    titleColor: '#000',
+                    bodyColor: '#000',
+                    borderColor: '#000',
+                    borderWidth: 1
+                },
+                datalabels: {
+                    anchor: 'end',
+                    align: 'top',
+                    color: '#000',
+                    font: {
+                        size: 10,
+                        weight: 'bold'
+                    },
+                    formatter: function(value) {
+                        return value.toFixed(2);
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        maxRotation: 45,
+                        color: '#000'
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: '#e0e0e0',
+                        lineWidth: 0.8,
+                        drawBorder: false
+                    },
+                    title: {
+                        display: true,
+                        text: 'Latency (seconds)',
+                        color: '#000',
+                        font: {
+                            size: 12,
+                            weight: 'normal'
+                        }
+                    },
+                    ticks: {
+                        color: '#000'
+                    }
+                }
+            },
+            elements: {
+                bar: {
+                    maxBarThickness: 20,
+                    borderRadius: 2
+                }
+            },
+            categoryPercentage: 0.8,
+            barPercentage: 0.6
+        }
+    });
+
+    // TTFT Chart
+    const ttftCtx = document.getElementById('ttftChart').getContext('2d');
+    new Chart(ttftCtx, {
+        type: 'bar',
+        data: {
+            labels: ["Gpu Usage", "Least Latency", "Least Request+Kv Cache", "Least Request+Prefix Cache", "Least Request", "Random"],
+            datasets: [{
+                label: 'TTFT',
+                data: [13.14, 11.07, 0.57, 0.83, 12.46, 2.15],
+                backgroundColor: '#2ecc71',
+                borderColor: '#27ae60',
+                borderWidth: 1
+            }]
+        },
+        plugins: [ChartDataLabels],
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    titleColor: '#000',
+                    bodyColor: '#000',
+                    borderColor: '#000',
+                    borderWidth: 1
+                },
+                datalabels: {
+                    anchor: 'end',
+                    align: 'top',
+                    color: '#000',
+                    font: {
+                        size: 10,
+                        weight: 'bold'
+                    },
+                    formatter: function(value) {
+                        return value.toFixed(2);
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        maxRotation: 45,
+                        color: '#000'
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: '#e0e0e0',
+                        lineWidth: 0.8,
+                        drawBorder: false
+                    },
+                    title: {
+                        display: true,
+                        text: 'TTFT (seconds)',
+                        color: '#000',
+                        font: {
+                            size: 12,
+                            weight: 'normal'
+                        }
+                    },
+                    ticks: {
+                        color: '#000'
+                    }
+                }
+            },
+            elements: {
+                bar: {
+                    maxBarThickness: 20,
+                    borderRadius: 2
+                }
+            },
+            categoryPercentage: 0.8,
+            barPercentage: 0.6
+        }
+    });
+    </script>
+    
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>Generated: 2025-08-31 20:00:14</p>
+    </div>
+</body>
+</html>
