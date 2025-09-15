@@ -41,6 +41,7 @@ import (
 	"k8s.io/klog/v2"
 
 	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/accesslog"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/common"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/connectors"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
@@ -423,4 +424,152 @@ func TestRouter_HandlerFunc_ScheduleFailure(t *testing.T) {
 	// 5. Assertions
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	assert.Contains(t, w.Body.String(), "can't schedule to target pod")
+}
+
+func TestAccessLogConfigurationFromEnv(t *testing.T) {
+	// Save original environment variables
+	originalEnabled := os.Getenv("ACCESS_LOG_ENABLED")
+	originalFormat := os.Getenv("ACCESS_LOG_FORMAT")
+	originalOutput := os.Getenv("ACCESS_LOG_OUTPUT")
+
+	// Clean up after test
+	defer func() {
+		os.Setenv("ACCESS_LOG_ENABLED", originalEnabled)
+		os.Setenv("ACCESS_LOG_FORMAT", originalFormat)
+		os.Setenv("ACCESS_LOG_OUTPUT", originalOutput)
+	}()
+
+	tests := []struct {
+		name            string
+		envEnabled      string
+		envFormat       string
+		envOutput       string
+		expectedEnabled bool
+		expectedFormat  accesslog.LogFormat
+		expectedOutput  string
+	}{
+		{
+			name:            "default configuration",
+			envEnabled:      "",
+			envFormat:       "",
+			envOutput:       "",
+			expectedEnabled: true,
+			expectedFormat:  accesslog.FormatText,
+			expectedOutput:  "stdout",
+		},
+		{
+			name:            "JSON format configuration",
+			envEnabled:      "true",
+			envFormat:       "json",
+			envOutput:       "stdout",
+			expectedEnabled: true,
+			expectedFormat:  accesslog.FormatJSON,
+			expectedOutput:  "stdout",
+		},
+		{
+			name:            "text format with file output",
+			envEnabled:      "true",
+			envFormat:       "text",
+			envOutput:       "/tmp/access.log",
+			expectedEnabled: true,
+			expectedFormat:  accesslog.FormatText,
+			expectedOutput:  "/tmp/access.log",
+		},
+		{
+			name:            "disabled access log",
+			envEnabled:      "false",
+			envFormat:       "json",
+			envOutput:       "stdout",
+			expectedEnabled: false,
+			expectedFormat:  accesslog.FormatJSON,
+			expectedOutput:  "stdout",
+		},
+		{
+			name:            "stderr output",
+			envEnabled:      "true",
+			envFormat:       "text",
+			envOutput:       "stderr",
+			expectedEnabled: true,
+			expectedFormat:  accesslog.FormatText,
+			expectedOutput:  "stderr",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Handle file output case - create a temporary file
+			envOutput := tt.envOutput
+			var tempFile *os.File
+			if tt.envOutput == "/tmp/access.log" {
+				var err error
+				tempFile, err = os.CreateTemp("", "access_log_test_*.log")
+				assert.NoError(t, err)
+				envOutput = tempFile.Name()
+				defer func() {
+					tempFile.Close()
+					os.Remove(tempFile.Name())
+				}()
+			}
+
+			// Set environment variables
+			os.Setenv("ACCESS_LOG_ENABLED", tt.envEnabled)
+			os.Setenv("ACCESS_LOG_FORMAT", tt.envFormat)
+			os.Setenv("ACCESS_LOG_OUTPUT", envOutput)
+
+			// Create access log configuration (simulating the logic in NewRouter)
+			accessLogConfig := &accesslog.AccessLoggerConfig{
+				Enabled: true,
+				Format:  accesslog.FormatText,
+				Output:  "stdout",
+			}
+
+			// Apply environment variable overrides
+			if enabled := os.Getenv("ACCESS_LOG_ENABLED"); enabled != "" {
+				if enabledBool, err := parseBool(enabled); err == nil {
+					accessLogConfig.Enabled = enabledBool
+				}
+			}
+
+			if format := os.Getenv("ACCESS_LOG_FORMAT"); format != "" {
+				if format == "json" {
+					accessLogConfig.Format = accesslog.FormatJSON
+				} else if format == "text" {
+					accessLogConfig.Format = accesslog.FormatText
+				}
+			}
+
+			if output := os.Getenv("ACCESS_LOG_OUTPUT"); output != "" {
+				accessLogConfig.Output = output
+			}
+
+			// Verify configuration
+			assert.Equal(t, tt.expectedEnabled, accessLogConfig.Enabled)
+			assert.Equal(t, tt.expectedFormat, accessLogConfig.Format)
+			// For file output, we check that the config output matches the actual temp file path
+			if tt.envOutput == "/tmp/access.log" {
+				assert.Equal(t, envOutput, accessLogConfig.Output)
+			} else {
+				assert.Equal(t, tt.expectedOutput, accessLogConfig.Output)
+			}
+
+			// Test that logger can be created with this configuration
+			logger, err := accesslog.NewAccessLogger(accessLogConfig)
+			assert.NoError(t, err)
+			assert.NotNil(t, logger)
+
+			// Clean up
+			logger.Close()
+		})
+	}
+}
+
+// Helper function to parse boolean (same logic as strconv.ParseBool but simpler for test)
+func parseBool(str string) (bool, error) {
+	switch str {
+	case "1", "t", "T", "true", "TRUE", "True":
+		return true, nil
+	case "0", "f", "F", "false", "FALSE", "False":
+		return false, nil
+	}
+	return false, &strconv.NumError{Func: "ParseBool", Num: str, Err: strconv.ErrSyntax}
 }

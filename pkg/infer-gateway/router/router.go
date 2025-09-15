@@ -23,6 +23,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -32,6 +34,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
+	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/accesslog"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/common"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/connectors"
 	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
@@ -51,6 +54,7 @@ type Router struct {
 	authenticator   *auth.JWTAuthenticator
 	store           datastore.Store
 	loadRateLimiter *ratelimit.TokenRateLimiter
+	accessLogger    accesslog.AccessLogger
 
 	// KV Connector management
 	connectorFactory *connectors.Factory
@@ -84,11 +88,43 @@ func NewRouter(store datastore.Store, gatewayConfigPath string) *Router {
 		klog.Fatalf("failed to parse gateway config: %v", err)
 	}
 
+	// Initialize access logger with configuration from environment variables
+	accessLogConfig := &accesslog.AccessLoggerConfig{
+		Enabled: true,
+		Format:  accesslog.FormatText,
+		Output:  "stdout",
+	}
+
+	// Read access log configuration from environment variables
+	if enabled := os.Getenv("ACCESS_LOG_ENABLED"); enabled != "" {
+		if enabledBool, err := strconv.ParseBool(enabled); err == nil {
+			accessLogConfig.Enabled = enabledBool
+		}
+	}
+
+	if format := os.Getenv("ACCESS_LOG_FORMAT"); format != "" {
+		if format == "json" {
+			accessLogConfig.Format = accesslog.FormatJSON
+		} else if format == "text" {
+			accessLogConfig.Format = accesslog.FormatText
+		}
+	}
+
+	if output := os.Getenv("ACCESS_LOG_OUTPUT"); output != "" {
+		accessLogConfig.Output = output
+	}
+
+	accessLogger, err := accesslog.NewAccessLogger(accessLogConfig)
+	if err != nil {
+		klog.Fatalf("failed to create access logger: %v", err)
+	}
+
 	return &Router{
 		store:            store,
 		scheduler:        scheduler.NewScheduler(store, gatewayConfig),
 		authenticator:    auth.NewJWTAuthenticator(gatewayConfig),
 		loadRateLimiter:  loadRateLimiter,
+		accessLogger:     accessLogger,
 		connectorFactory: connectors.NewDefaultFactory(),
 	}
 }
@@ -100,28 +136,47 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 		// Step 1: Parse and validate request
 		modelRequest, err := ParseModelRequest(c)
 		if err != nil {
+			accesslog.SetError(c, "request_parsing", err.Error())
 			return
 		}
 
 		// step 2: Detection of rate limit
 		modelName := modelRequest["model"].(string)
+
+		// Set model name in access log
+		accesslog.SetModelName(c, modelName)
+
 		prompt, err := utils.ParsePrompt(modelRequest)
 		if err != nil {
+			accesslog.SetError(c, "prompt_parsing", "prompt not found")
 			c.AbortWithStatusJSON(http.StatusNotFound, "prompt not found")
 			return
 		}
 		promptStr := utils.GetPromptString(prompt)
+
+		// Calculate and set input tokens for access log
+		inputTokens := len(promptStr) / 4 // Simple estimation
+		accesslog.SetTokenCounts(c, inputTokens, 0)
+
+		// Mark end of request processing phase
+		accesslog.MarkRequestProcessingEnd(c)
+
 		// Apply rate limiting using the unified rate limiter
 		if err := r.loadRateLimiter.RateLimit(modelName, promptStr); err != nil {
 			var errorMsg string
+			var errorType string
 			switch err.(type) {
 			case *ratelimit.InputRateLimitExceededError:
 				errorMsg = "input token rate limit exceeded"
+				errorType = "input_rate_limit"
 			case *ratelimit.OutputRateLimitExceededError:
 				errorMsg = "output token rate limit exceeded"
+				errorType = "output_rate_limit"
 			default:
 				errorMsg = "token usage exceeds rate limit"
+				errorType = "rate_limit"
 			}
+			accesslog.SetError(c, errorType, errorMsg)
 			c.AbortWithStatusJSON(http.StatusTooManyRequests, errorMsg)
 			return
 		}
@@ -139,6 +194,7 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 
 		// step 3.2: load balancing for Fairness scheduling enabled case
 		if err := r.handleFairnessScheduling(c, modelRequest, requestID, modelName); err != nil {
+			accesslog.SetError(c, "scheduling", err.Error())
 			return
 		}
 	}
@@ -147,8 +203,9 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 func (r *Router) doLoadbalance(c *gin.Context, modelRequest ModelRequest) {
 	modelName := modelRequest["model"].(string)
 	// step 3: Find pods and model server details
-	modelServerName, isLora, err := r.store.MatchModelServer(modelName, c.Request)
+	modelServerName, isLora, modelRoute, err := r.store.MatchModelServer(modelName, c.Request)
 	if err != nil {
+		accesslog.SetError(c, "model_server_matching", fmt.Sprintf("can't find corresponding model server: %v", err))
 		c.AbortWithStatusJSON(http.StatusNotFound, fmt.Sprintf("can't find corresponding model server: %v", err))
 		return
 	}
@@ -156,6 +213,7 @@ func (r *Router) doLoadbalance(c *gin.Context, modelRequest ModelRequest) {
 	pods, modelServer, err := r.getPodsAndServer(modelServerName)
 	if err != nil || len(pods) == 0 {
 		klog.Errorf("failed to get pods and model server: %v, %v", modelServerName, err)
+		accesslog.SetError(c, "pod_discovery", fmt.Sprintf("can't find model server: %v", modelServerName))
 		c.AbortWithStatusJSON(http.StatusNotFound, fmt.Sprintf("can't find model server: %v", modelServerName))
 		return
 	}
@@ -171,6 +229,7 @@ func (r *Router) doLoadbalance(c *gin.Context, modelRequest ModelRequest) {
 	}
 	prompt, err := utils.ParsePrompt(modelRequest)
 	if err != nil {
+		accesslog.SetError(c, "prompt_parsing", "prompt not found")
 		c.AbortWithStatusJSON(http.StatusNotFound, "prompt not found")
 		return
 	}
@@ -183,13 +242,30 @@ func (r *Router) doLoadbalance(c *gin.Context, modelRequest ModelRequest) {
 
 	err = r.scheduler.Schedule(ctx, pods)
 	if err != nil {
+		accesslog.SetError(c, "scheduling", fmt.Sprintf("can't schedule to target pod: %v", err))
 		c.AbortWithStatusJSON(http.StatusBadRequest, fmt.Sprintf("can't schedule to target pod: %v", err))
 		return
+	}
+
+	// Set complete request routing information in access log
+	modelServerFullName := fmt.Sprintf("%s/%s", modelServerName.Namespace, modelServerName.Name)
+	modelRouteName := ""
+	if modelRoute != nil {
+		modelRouteName = fmt.Sprintf("%s/%s", modelRoute.Namespace, modelRoute.Name)
+	}
+
+	if len(ctx.BestPods) > 0 && ctx.BestPods[0].Pod != nil {
+		selectedPod := ctx.BestPods[0].Pod.Name
+		accesslog.SetRequestRouting(c, modelRouteName, modelServerFullName, selectedPod)
+	} else {
+		// Set routing info even if no pod is selected (for error cases)
+		accesslog.SetRequestRouting(c, modelRouteName, modelServerFullName, "")
 	}
 
 	req := c.Request
 	if err := r.proxyModelEndpoint(c, req, ctx, modelRequest, modelServer.Spec.WorkloadPort.Port); err != nil {
 		klog.Errorf("request failed reqID: %s: %v", c.Request.Header.Get("x-request-id"), err)
+		accesslog.SetError(c, "proxy", "request processing failed")
 		c.AbortWithStatusJSON(http.StatusInternalServerError, "request processing failed")
 	}
 }
@@ -257,6 +333,9 @@ func (r *Router) proxyModelEndpoint(
 	modelRequest ModelRequest,
 	port int32,
 ) error {
+	// Mark start of upstream processing
+	accesslog.MarkUpstreamStart(c)
+
 	// proxy to pd aggregated pod
 	if ctx.BestPods != nil {
 		decodeRequest := connectors.BuildDecodeRequest(c, req, modelRequest)
@@ -267,7 +346,7 @@ func (r *Router) proxyModelEndpoint(
 			userID = v
 		}
 		modelName := ctx.Model
-		return r.proxy(c, decodeRequest, ctx, stream, port, func(resp handlers.OpenAIResponse) {
+		err := r.proxy(c, decodeRequest, ctx, stream, port, func(resp handlers.OpenAIResponse) {
 			if resp.Usage.TotalTokens <= 0 {
 				return
 			}
@@ -275,11 +354,19 @@ func (r *Router) proxyModelEndpoint(
 			if r.loadRateLimiter != nil {
 				r.loadRateLimiter.RecordOutputTokens(modelName, resp.Usage.CompletionTokens)
 			}
+			// Update access log with output tokens
+			if accessCtx := accesslog.GetAccessLogContext(c); accessCtx != nil {
+				accessCtx.SetTokenCounts(accessCtx.InputTokens, resp.Usage.CompletionTokens)
+			}
 			if userID == "" || modelName == "" {
 				return
 			}
 			_ = r.store.UpdateTokenCount(userID, modelName, float64(resp.Usage.PromptTokens), float64(resp.Usage.CompletionTokens))
 		})
+
+		// Mark end of upstream processing
+		accesslog.MarkUpstreamEnd(c)
+		return err
 	}
 
 	// Get appropriate connector for this model server
@@ -294,7 +381,7 @@ func (r *Router) proxyModelEndpoint(
 }
 
 func (r *Router) GetModelServer(modelName string, req *http.Request) (*v1alpha1.ModelServer, error) {
-	modelServerName, isLora, err := r.store.MatchModelServer(modelName, req)
+	modelServerName, isLora, _, err := r.store.MatchModelServer(modelName, req)
 	if err != nil {
 		return nil, fmt.Errorf("can't find corresponding model server: %v", err)
 	}
@@ -311,6 +398,10 @@ func (r *Router) GetModelServer(modelName string, req *http.Request) (*v1alpha1.
 
 func (r *Router) Auth() gin.HandlerFunc {
 	return r.authenticator.Authenticate()
+}
+
+func (r *Router) AccessLog() gin.HandlerFunc {
+	return accesslog.AccessLogMiddleware(r.accessLogger)
 }
 
 // proxyRequest proxies the request to the model server pods, returns response to downstream.

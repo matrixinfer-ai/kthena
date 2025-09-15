@@ -50,6 +50,7 @@ func (s *Server) startRouter(ctx context.Context, router *router.Router, store d
 
 	// engine.Use(auth.Authenticate)
 	// engine.Use(auth.Authorize)
+	engine.Use(AccessLogMiddleware(router))
 	engine.Use(AuthMiddleware(router))
 
 	engine.GET("/healthz", func(c *gin.Context) {
@@ -117,6 +118,19 @@ func (s *Server) startRouter(ctx context.Context, router *router.Router, store d
 		klog.Errorf("Server shutdown failed: %v", err)
 	}
 	klog.Info("HTTP server exited")
+}
+
+func AccessLogMiddleware(gwRouter *router.Router) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Access log for "/v1/" only
+		if !strings.HasPrefix(c.Request.URL.Path, "/v1/") {
+			c.Next()
+			return
+		}
+
+		// Calling Middleware
+		gwRouter.AccessLog()(c)
+	}
 }
 
 func AuthMiddleware(gwRouter *router.Router) gin.HandlerFunc {

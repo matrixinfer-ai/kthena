@@ -141,7 +141,7 @@ type Store interface {
 	DeletePod(podName types.NamespacedName) error
 
 	// New methods for routing functionality
-	MatchModelServer(modelName string, request *http.Request) (types.NamespacedName, bool, error)
+	MatchModelServer(modelName string, request *http.Request) (types.NamespacedName, bool, *aiv1alpha1.ModelRoute, error)
 
 	// Model routing methods
 	AddOrUpdateModelRoute(mr *aiv1alpha1.ModelRoute) error
@@ -592,7 +592,7 @@ func (s *store) DeleteModelRoute(namespacedName string) error {
 	return nil
 }
 
-func (s *store) MatchModelServer(model string, req *http.Request) (types.NamespacedName, bool, error) {
+func (s *store) MatchModelServer(model string, req *http.Request) (types.NamespacedName, bool, *aiv1alpha1.ModelRoute, error) {
 	s.routeMutex.RLock()
 	defer s.routeMutex.RUnlock()
 
@@ -601,22 +601,22 @@ func (s *store) MatchModelServer(model string, req *http.Request) (types.Namespa
 	if !ok {
 		mr, ok = s.loraRoutes[model]
 		if !ok {
-			return types.NamespacedName{}, false, fmt.Errorf("not found route rules for model %s", model)
+			return types.NamespacedName{}, false, nil, fmt.Errorf("not found route rules for model %s", model)
 		}
 		isLora = true
 	}
 
 	rule, err := s.selectRule(model, req, mr.Spec.Rules)
 	if err != nil {
-		return types.NamespacedName{}, false, fmt.Errorf("failed to select route rule: %v", err)
+		return types.NamespacedName{}, false, nil, fmt.Errorf("failed to select route rule: %v", err)
 	}
 
 	dst, err := s.selectDestination(rule.TargetModels)
 	if err != nil {
-		return types.NamespacedName{}, false, fmt.Errorf("failed to select destination: %v", err)
+		return types.NamespacedName{}, false, nil, fmt.Errorf("failed to select destination: %v", err)
 	}
 
-	return types.NamespacedName{Namespace: mr.Namespace, Name: dst.ModelServerName}, isLora, nil
+	return types.NamespacedName{Namespace: mr.Namespace, Name: dst.ModelServerName}, isLora, mr, nil
 }
 
 func (s *store) selectRule(modelName string, req *http.Request, rules []*aiv1alpha1.Rule) (*aiv1alpha1.Rule, error) {
