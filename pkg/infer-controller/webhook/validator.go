@@ -134,6 +134,8 @@ func (v *ModelInferValidator) validateModelInfer(modelInfer *workloadv1alpha1.Mo
 	allErrs = append(allErrs, validateWorkerImages(modelInfer)...)
 	allErrs = append(allErrs, validatorReplicas(modelInfer)...)
 	allErrs = append(allErrs, validateRollingUpdateConfiguration(modelInfer)...)
+	allErrs = append(allErrs, validateGangSchedule(modelInfer)...)
+	allErrs = append(allErrs, validateWorkerReplicas(modelInfer)...)
 
 	if len(allErrs) > 0 {
 		var messages []string
@@ -193,6 +195,23 @@ func validateRollingUpdateConfiguration(mi *workloadv1alpha1.ModelInfer) field.E
 	maxSurgePath := field.NewPath("spec").Child("rolloutStrategy").Child("rollingUpdateConfiguration").Child("maxSurge")
 	allErrs = append(allErrs, validateIntOrPercent(maxSurge, maxSurgePath)...)
 
+	// Validate partition field
+	if mi.Spec.RolloutStrategy.RollingUpdateConfiguration.Partition != nil {
+		partitionPath := field.NewPath("spec").Child("rolloutStrategy").Child("rollingUpdateConfiguration").Child("partition")
+		partitionValue := *mi.Spec.RolloutStrategy.RollingUpdateConfiguration.Partition
+
+		// Check if partition is non-negative
+		if partitionValue < 0 {
+			allErrs = append(allErrs, field.Invalid(partitionPath, partitionValue, "partition must be greater than or equal to 0"))
+		}
+
+		// Check if partition is less than replicas
+		if mi.Spec.Replicas != nil && partitionValue >= *mi.Spec.Replicas {
+			allErrs = append(allErrs, field.Invalid(partitionPath, partitionValue,
+				fmt.Sprintf("partition must be less than replicas (%d)", *mi.Spec.Replicas)))
+		}
+	}
+
 	maxUnavailableValue, err := intstr.GetScaledValueFromIntOrPercent(&maxUnavailable, int(*mi.Spec.Replicas), false)
 	if err != nil {
 		allErrs = append(allErrs, field.Invalid(maxUnavailablePath, maxUnavailable, "validate maxUnavailable"))
@@ -237,6 +256,88 @@ func validatorReplicas(mi *workloadv1alpha1.ModelInfer) field.ErrorList {
 			))
 		}
 	}
+	return allErrs
+}
+
+// validateGangSchedule validates the gang scheduling configuration
+func validateGangSchedule(mi *workloadv1alpha1.ModelInfer) field.ErrorList {
+	var allErrs field.ErrorList
+
+	if mi.Spec.Template.GangSchedule == nil || mi.Spec.Template.GangSchedule.MinRoleReplicas == nil {
+		return allErrs
+	}
+
+	minRoleReplicas := mi.Spec.Template.GangSchedule.MinRoleReplicas
+	minRoleReplicasPath := field.NewPath("spec").Child("template").Child("gangSchedule").Child("minRoleReplicas")
+
+	// Create a map of role names for quick lookup
+	roleNames := make(map[string]bool)
+	for _, role := range mi.Spec.Template.Roles {
+		roleNames[role.Name] = true
+	}
+
+	// Validate each minRoleReplicas entry
+	for roleName, minReplicas := range minRoleReplicas {
+		// Check if the role exists
+		if !roleNames[roleName] {
+			allErrs = append(allErrs, field.Invalid(
+				minRoleReplicasPath.Key(roleName),
+				roleName,
+				fmt.Sprintf("role %s does not exist in template.roles", roleName),
+			))
+			continue
+		}
+
+		// Find the role to check its actual replicas
+		for _, role := range mi.Spec.Template.Roles {
+			if role.Name == roleName {
+				// Calculate total replicas for this role (entry + workers)
+				totalReplicas := int32(1) // Entry pod
+				if role.Replicas != nil {
+					totalReplicas *= *role.Replicas
+				}
+				totalReplicas += role.WorkerReplicas
+
+				// Validate minReplicas doesn't exceed total replicas
+				if minReplicas > totalReplicas {
+					allErrs = append(allErrs, field.Invalid(
+						minRoleReplicasPath.Key(roleName),
+						minReplicas,
+						fmt.Sprintf("minRoleReplicas (%d) for role %s cannot exceed total replicas (%d)", minReplicas, roleName, totalReplicas),
+					))
+				}
+
+				// Validate minReplicas is non-negative
+				if minReplicas < 0 {
+					allErrs = append(allErrs, field.Invalid(
+						minRoleReplicasPath.Key(roleName),
+						minReplicas,
+						fmt.Sprintf("minRoleReplicas for role %s must be non-negative", roleName),
+					))
+				}
+				break
+			}
+		}
+	}
+
+	return allErrs
+}
+
+// validateWorkerReplicas validates worker replicas in roles
+func validateWorkerReplicas(mi *workloadv1alpha1.ModelInfer) field.ErrorList {
+	var allErrs field.ErrorList
+
+	for i, role := range mi.Spec.Template.Roles {
+		// WorkerReplicas must be non-negative
+		if role.WorkerReplicas < 0 {
+			allErrs = append(allErrs, field.Invalid(
+				field.NewPath("spec").Child("template").Child("roles").Index(i).Child("workerReplicas"),
+				role.WorkerReplicas,
+				"workerReplicas must be a non-negative integer",
+			))
+		}
+	}
+
 	return allErrs
 }
 
