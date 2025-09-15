@@ -223,9 +223,6 @@ spec:
                   type: DirectoryOrCreate
                 name: backend1-weights
         name: leader
-        networkTopology:
-          highestTierAllowed: 2
-          mode: hard
         replicas: 0
         workerReplicas: 1
         workerTemplate:
