@@ -26,9 +26,6 @@ spec:
     roles:
       - name: leader
         replicas: ${SERVER_REPLICAS}
-        networkTopology:
-          mode: hard
-          highestTierAllowed: 2
         entryTemplate:
           metadata: ${SERVER_ENTRY_TEMPLATE_METADATA}
           spec:
