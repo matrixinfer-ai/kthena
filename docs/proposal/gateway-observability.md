@@ -37,7 +37,7 @@ The gateway exposes the following metrics to monitor request processing:
 
 **Essential Labels**: Include key dimensions for effective monitoring and debugging:
 - `method`: HTTP method (GET, POST) - useful for differentiating request types
-- `endpoint`: API path (/v1/chat/completions, /v1/completions) - track different API usage
+- `path`: API path (/v1/chat/completions, /v1/completions) - track different API usage
 - `status_code`: HTTP response status code (200, 400, 500) - monitor success/failure patterns
 - `model`: AI model name - essential for AI workload monitoring
 - `error_type`: Specific error categories for detailed troubleshooting
@@ -51,72 +51,54 @@ The gateway exposes the following metrics to monitor request processing:
 #### Request Processing Metrics
 
 **HTTP Request Metrics**
-- `infer_gateway_requests_total{method="<method>",endpoint="<path>",status_code="<code>",model="<model_name>"}` (Counter)
-  - Total number of HTTP requests processed by the gateway
+- `infer_gateway_requests_total{method="<method>",path="<path>",status_code="<code>",model="<model_name>",model_route="<route_name>",model_server="<server_name>",error_type="<error_type>",pd_disaggregated="true|false"}` (Counter)
+  - Total number of HTTP requests processed by the gateway, including routing information
   - Labels: 
     - `method`: HTTP method (GET, POST, etc.)
-    - `endpoint`: Request path (/v1/chat/completions, /v1/completions, etc.)
+    - `path`: Request path (/v1/chat/completions, /v1/completions, etc.)
     - `status_code`: HTTP response status code (200, 400, 500, etc.)
     - `model`: AI model name
+    - `model_route`: ModelRoute name that handled the request
+    - `model_server`: ModelServer name that processed the request
+    - `error_type`: Type of error (validation, timeout, internal, rate_limit, etc.)
+    - `pd_disaggregated`: Whether the request uses prefill-decode separation ("true" or "false")
 
-- `infer_gateway_request_duration_seconds{method="<method>",endpoint="<path>",status_code="<code>",model="<model_name>"}` (Histogram)
+- `infer_gateway_request_duration_seconds{method="<method>",path="<path>",status_code="<code>",model="<model_name>",pd_disaggregated="true|false"}` (Histogram)
   - Request processing latency distribution
   - Labels:
     - `method`: HTTP method (GET, POST, etc.)
-    - `endpoint`: Request path (/v1/chat/completions, /v1/completions, etc.)
+    - `path`: Request path (/v1/chat/completions, /v1/completions, etc.)
     - `status_code`: HTTP response status code (200, 400, 500, etc.)
     - `model`: AI model name
+    - `pd_disaggregated`: Whether the request uses prefill-decode separation ("true" or "false")
   - Buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60]
 
 **AI-Specific Token Metrics**
-- `infer_gateway_tokens_total{model="<model_name>",endpoint="<path>",token_type="input|output"}` (Counter)
+- `infer_gateway_tokens_total{model="<model_name>",path="<path>",token_type="input|output",pd_disaggregated="true|false"}` (Counter)
   - Total tokens processed/generated
   - Labels:
     - `model`: AI model name
-    - `endpoint`: Request path (/v1/chat/completions, /v1/completions, etc.)
+    - `path`: Request path (/v1/chat/completions, /v1/completions, etc.)
     - `token_type`: Token type ("input" for processed tokens, "output" for generated tokens)
+    - `pd_disaggregated`: Whether the request uses prefill-decode separation ("true" or "false")
 
-- `infer_gateway_token_duration_seconds{model="<model_name>",token_type="input|output"}` (Histogram)
-  - Token processing time distribution
+**Scheduler Plugin Metrics**
+- `infer_gateway_scheduler_plugin_duration_seconds{model="<model_name>",plugin="<plugin_name>",type="filter|score",pd_disaggregated="true|false"}` (Histogram)
+  - Processing time per scheduler plugin
   - Labels:
     - `model`: AI model name
-    - `token_type`: Token type ("input" for processed tokens, "output" for generated tokens)
-  - Buckets: [10, 50, 100, 500, 1000, 2000, 5000, 10000]
-
-**Filter Processing Metrics**
-- `infer_gateway_filter_duration_seconds{filter="<filter_name>"}` (Histogram)
-  - Processing time per filter
-  - Labels:
-    - `filter`: Filter name
+    - `plugin`: Plugin name
+    - `type`: Plugin type ("filter" for filtering plugins, "score" for scoring plugins)
+    - `pd_disaggregated`: Whether the request uses prefill-decode separation ("true" or "false")
   - Buckets: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5]
 
 **Rate Limiting Metrics**  
-- `infer_gateway_rate_limit_exceeded_total{model="<model_name>",limit_type="input_tokens|output_tokens|requests",endpoint="<path>"}` (Counter)
+- `infer_gateway_rate_limit_exceeded_total{model="<model_name>",limit_type="input_tokens|output_tokens|requests",path="<path>"}` (Counter)
   - Number of requests rejected due to rate limiting
   - Labels:
     - `model`: AI model name
     - `limit_type`: Type of rate limit (input_tokens, output_tokens, requests)
-    - `endpoint`: Request path (/v1/chat/completions, /v1/completions, etc.)
-  
-- `infer_gateway_rate_limit_utilization{model="<model_name>",limit_type="input_tokens|output_tokens|requests"}` (Gauge)
-  - Current rate limit utilization percentage (0-1)
-  - Labels:
-    - `model`: AI model name
-    - `limit_type`: Type of rate limit (input_tokens, output_tokens, requests)
-
-**Resource Access Metrics**
-- `infer_gateway_model_route_requests_total{route="<route_name>",model="<model_name>"}` (Counter)
-  - Number of ModelRoute accesses
-  - Labels:
-    - `route`: ModelRoute name
-    - `model`: AI model name
-  
-- `infer_gateway_model_server_requests_total{server="<server_name>",model="<model_name>",status_code="<code>"}` (Counter)
-  - Number of ModelServer backend accesses
-  - Labels:
-    - `server`: ModelServer name
-    - `model`: AI model name
-    - `status_code`: HTTP response status code (200, 400, 500, etc.)
+    - `path`: Request path (/v1/chat/completions, /v1/completions, etc.)
 
 **Connection and Scheduling Metrics**
 - `infer_gateway_active_connections{model="<model_name>"}` (Gauge)
@@ -124,25 +106,20 @@ The gateway exposes the following metrics to monitor request processing:
   - Labels:
     - `model`: AI model name
   
-- `infer_gateway_queue_size{model="<model_name>"}` (Gauge)
-  - Current queue size for pending requests
+- `infer_gateway_fairness_queue_size{model="<model_name>",user_id="<user_id>",pd_disaggregated="true|false"}` (Gauge)
+  - Current fairness queue size for pending requests
   - Labels:
     - `model`: AI model name
-  
-- `infer_gateway_queue_duration_seconds{model="<model_name>"}` (Histogram)
-  - Time requests spend in queue before processing
-  - Labels:
-    - `model`: AI model name
-  - Buckets: [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5]
+    - `user_id`: User identifier for the fairness scheduling
+    - `pd_disaggregated`: Whether the request uses prefill-decode separation ("true" or "false")
 
-**Error Metrics**
-- `infer_gateway_request_errors_total{model="<model_name>",error_type="<type>",status_code="<code>",endpoint="<path>"}` (Counter)
-  - Request errors by type and status code
+- `infer_gateway_fairness_queue_duration_seconds{model="<model_name>",user_id="<user_id>",pd_disaggregated="true|false"}` (Histogram)
+  - Time requests spend in fairness queue before processing
   - Labels:
     - `model`: AI model name
-    - `error_type`: Type of error (validation, timeout, internal, rate_limit, etc.)
-    - `status_code`: HTTP response status code (200, 400, 500, etc.)
-    - `endpoint`: Request path (/v1/chat/completions, /v1/completions, etc.)
+    - `user_id`: User identifier for the fairness scheduling
+    - `pd_disaggregated`: Whether the request uses prefill-decode separation ("true" or "false")
+  - Buckets: [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5]
 
 All metrics are exposed at the `/metrics` endpoint in Prometheus format. The metrics provide comprehensive visibility into:
 
