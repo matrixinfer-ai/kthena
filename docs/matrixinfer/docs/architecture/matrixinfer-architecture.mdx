@@ -95,10 +95,8 @@ Each replica deployment may include the following components:
 
 - **Entry Pod** – Provides ingress endpoints for role-specific requests
 - **Worker Pod(s)** – Execute actual model inference computations
-- **Init Container** – Handles dependency resolution and artifact setup prior to execution
-- **Sidecar Container** – Manages logging, observability, and networking auxiliary processes
-- **Downloader** – Fetches model weights and artifacts from storage
-- **Runtime Agent** – Collects health metrics and performance telemetry
+- **Downloader** – Universal model/artifact fetcher supporting Hugging Face, S3/OBS, and PVC sources with concurrent downloads, file-based locking, and flexible configuration
+- **Runtime Agent** – Sidecar service that proxies and standardizes engine metrics (vLLM/SGLang), exposes LoRA adapter lifecycle APIs (download/load/unload), and provides a model download endpoint
 - **LLM Engines** – Integrates with specialized backends (e.g., **vLLM**, **SGLang**)
 
 This architecture enables **Prefill/Decode Disaggregation (PD mode)**, allowing independent scaling of different inference stages for optimal resource utilization and performance.
