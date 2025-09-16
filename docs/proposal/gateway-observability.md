@@ -170,21 +170,20 @@ The gateway generates structured access logs for each request, following Envoy's
   
   // AI-specific routing information
   "model_name": "llama2-7b",
-  "model_route": "llama2-route-v1",
-  "model_server": "llama2-server",
+  "model_route": "default/llama2-route-v1",
+  "model_server": "default/llama2-server",
   "selected_pod": "llama2-deployment-5f7b8c9d-xk2p4",
+  "request_id": "550e8400-e29b-41d4-a716-446655440000",
   
   // Token information
   "input_tokens": 150,
   "output_tokens": 75,
   
-  // Timing breakdown (in milliseconds)
-  "duration": {
-    "total": 2350,                // Total request processing time
-    "request_processing": 45,     // Gateway request processing overhead
-    "upstream_processing": 2180,     // Model inference time on backend pod
-    "response_processing": 5      // Response processing time
-  },
+  // Timing breakdown (in milliseconds) - flattened structure
+  "duration_total": 2350,
+  "duration_request_processing": 45,
+  "duration_upstream_processing": 2180,
+  "duration_response_processing": 5,
   
   // Error information (if applicable)
   "error": {
@@ -197,60 +196,82 @@ The gateway generates structured access logs for each request, following Envoy's
 #### Text Format (Alternative)
 For environments preferring text logs, a structured text format is also supported:
 ```
-[2024-01-15T10:30:45.123Z] "POST /v1/chat/completions HTTP/1.1" 200 2350ms
-model=llama2-7b route=llama2-route-v1 server=llama2-server pod=llama2-deployment-5f7b8c9d-xk2p4 
-tokens=150/75 timings=45+2180+5ms
+[2024-01-15T10:30:45.123Z] "POST /v1/chat/completions HTTP/1.1" 200 model_name=llama2-7b model_route=default/llama2-route-v1 model_server=default/llama2-server selected_pod=llama2-deployment-5f7b8c9d-xk2p4 request_id=550e8400-e29b-41d4-a716-446655440000 tokens=150/75 timings=2350ms(45+2180+5)
 ```
+
+**Text Format Features:**
+- **Error placement**: Error information (if present) appears immediately after status code: `error=type:message`
+- **Timing format**: Shows total time with detailed breakdown in parentheses: `timings=total(req+upstream+resp)ms`
+- **Compact representation**: All information on a single line for easy parsing and grep operations
+- **Key-value pairs**: All fields after the basic HTTP line are in `key=value` format
 
 #### Key Fields Explanation
 
 **Standard HTTP Fields** (Following Envoy format):
-- `timestamp`: Request start time in ISO 8601 format
+- `timestamp`: Request start time in ISO 8601 format with nanosecond precision
 - `method`, `path`, `protocol`: Standard HTTP request information
 - `status_code`: HTTP response status code
 
 **AI-Specific Routing Fields**:
 - `model_name`: The AI model requested in the request body
-- `model_route`: Which ModelRoute CR was matched for this request
-- `model_server`: Which ModelServer CR was selected for routing
+- `model_route`: Which ModelRoute CR was matched for this request (namespace/name format)
+- `model_server`: Which ModelServer CR was selected for routing (namespace/name format)
 - `selected_pod`: The specific pod that processed the inference request
+- `request_id`: Unique request identifier (generated if not provided in x-request-id header)
 
 **Token Tracking**:
-- `input_tokens`: Number of tokens in the input prompt
-- `output_tokens`: Number of tokens in the response
+- `input_tokens`: Number of tokens in the input prompt (omitted if 0)
+- `output_tokens`: Number of tokens in the response (omitted if 0)
 
-**Detailed Timing Breakdown** (all times in milliseconds):
-- `total`: End-to-end request processing time
-- `request_processing`: Time spent in gateway request processing (parsing, routing, etc.)
-- `upstream_processing`: Actual model inference time on the backend pod
-- `response_processing`: Time spent processing and formatting the response
+**Detailed Timing Breakdown** (all times in milliseconds, flattened structure):
+- `duration_total`: End-to-end request processing time
+- `duration_request_processing`: Time spent in gateway request processing (parsing, routing, etc.)
+- `duration_upstream_processing`: Actual model inference time on the backend pod
+- `duration_response_processing`: Time spent processing and formatting the response
 
 **Error Information**:
-- `error`: Detailed error information for failed requests (type and message)
+- `error`: Detailed error information for failed requests (type and message, omitted if no error)
 
-Logs are written to stdout by default and can be configured to write to files or external log collectors.
+#### Configuration
+
+Access logging can be configured through the AccessLoggerConfig:
+
+```go
+type AccessLoggerConfig struct {
+    Format  LogFormat `json:"format" yaml:"format"`   // "json" or "text"
+    Output  string    `json:"output" yaml:"output"`   // "stdout", "stderr", or file path
+    Enabled bool      `json:"enabled" yaml:"enabled"` // Enable/disable logging
+}
+```
+
+**Default Configuration:**
+- Format: JSON
+- Output: stdout  
+- Enabled: true
+
+Logs are written to stdout by default and can be configured to write to files or external log collectors. When logging is disabled, a no-op logger is used to avoid performance overhead.
 
 ### 2.3 Debug interface
 
-The gateway exposes a debug interface at `/debug` to help operators inspect internal state and troubleshoot issues. This interface provides access to the gateway's datastore information, allowing examination of ModelRoutes, ModelServers, and Pod details.
+The gateway exposes a debug interface at `/debug/config_dump` to help operators inspect internal state and troubleshoot issues. This interface provides access to the gateway's datastore information, allowing examination of ModelRoutes, ModelServers, and Pod details.
 
 #### Debug Endpoints
 
 The following debug endpoints are available:
 
 **List Resources**
-- `/debug/modelroutes` - List all ModelRoute configurations
-- `/debug/modelservers` - List all ModelServer configurations 
-- `/debug/pods` - List all Pod information
+- `/debug/config_dump/modelroutes` - List all ModelRoute configurations
+- `/debug/config_dump/modelservers` - List all ModelServer configurations 
+- `/debug/config_dump/pods` - List all Pod information
 
 **Get Specific Resource**
-- `/debug/modelroute/{name}` - Get details of a specific ModelRoute
-- `/debug/modelserver/{namespace}/{name}` - Get details of a specific ModelServer
-- `/debug/pod/{namespace}/{name}` - Get details of a specific Pod
+- `/debug/config_dump/namespaces/{namespace}/modelroutes/{name}` - Get details of a specific ModelRoute
+- `/debug/config_dump/namespaces/{namespace}/modelservers/{name}` - Get details of a specific ModelServer
+- `/debug/config_dump/namespaces/{namespace}/pods/{name}` - Get details of a specific Pod
 
 #### Example Responses
 
-**GET /debug/modelroutes**
+**GET /debug/config_dump/modelroutes**
 ```json
 {
   "modelroutes": [
@@ -291,7 +312,7 @@ The following debug endpoints are available:
 }
 ```
 
-**GET /debug/modelroute/llama2-route**
+**GET /debug/config_dump/namespaces/default/modelroutes/llama2-route**
 ```json
 {
   "name": "llama2-route",
@@ -332,15 +353,11 @@ The following debug endpoints are available:
         "outputTokensPerSecond": 500
       }
     }
-  },
-  "routeInfo": {
-    "model": "llama2-7b",
-    "loras": ["lora-adapter-1", "lora-adapter-2"]
   }
 }
 ```
 
-**GET /debug/modelservers**
+**GET /debug/config_dump/modelservers**
 ```json
 {
   "modelservers": [
@@ -371,7 +388,7 @@ The following debug endpoints are available:
 }
 ```
 
-**GET /debug/modelserver/default/llama2-server**
+**GET /debug/config_dump/namespaces/default/modelservers/llama2-server**
 ```json
 {
   "name": "llama2-server",
@@ -418,7 +435,7 @@ The following debug endpoints are available:
 }
 ```
 
-**GET /debug/pods**
+**GET /debug/config_dump/pods**
 ```json
 {
   "pods": [
@@ -443,7 +460,7 @@ The following debug endpoints are available:
 }
 ```
 
-**GET /debug/pod/default/llama2-deployment-5f7b8c9d-xk2p4**
+**GET /debug/config_dump/namespaces/default/pods/llama2-deployment-5f7b8c9d-xk2p4**
 ```json
 {
   "name": "llama2-deployment-5f7b8c9d-xk2p4",
@@ -465,47 +482,10 @@ The following debug endpoints are available:
     "requestWaitingNum": 3,
     "requestRunningNum": 2,
     "tpot": 0.045,
-    "ttft": 1.2,
-    "timeToFirstTokenHistogram": {
-      "buckets": [
-        {"upperBound": 0.5, "cumulativeCount": 10},
-        {"upperBound": 1.0, "cumulativeCount": 25},
-        {"upperBound": 2.0, "cumulativeCount": 45}
-      ],
-      "sampleCount": 50,
-      "sampleSum": 62.5
-    },
-    "timePerOutputTokenHistogram": {
-      "buckets": [
-        {"upperBound": 0.01, "cumulativeCount": 5},
-        {"upperBound": 0.05, "cumulativeCount": 35},
-        {"upperBound": 0.1, "cumulativeCount": 48}
-      ],
-      "sampleCount": 50,
-      "sampleSum": 2.25
-    }
+    "ttft": 1.2
   },
   "models": ["llama2-7b", "lora-adapter-1", "lora-adapter-2"],
-  "modelServers": ["default/llama2-server"],
-  "containers": [
-    {
-      "name": "inference-server",
-      "image": "vllm/vllm-openai:latest",
-      "ports": [
-        {
-          "containerPort": 8000,
-          "protocol": "TCP"
-        }
-      ],
-      "resources": {
-        "requests": {
-          "nvidia.com/gpu": "1",
-          "memory": "16Gi",
-          "cpu": "4"
-        }
-      }
-    }
-  ]
+  "modelServers": ["default/llama2-server"]
 }
 ```
 
