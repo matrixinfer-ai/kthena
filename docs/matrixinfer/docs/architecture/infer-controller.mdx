@@ -1,3 +1,5 @@
+import LightboxImage from '@site/src/components/LightboxImage';
+
 # Infer Controller
 
 Infer Controller is the controller for the inference workload `ModelInfer` in MatrixInfer, which is used to reconcile `ModelInfer` resources and manage the lifecycle of inference pods.
@@ -9,7 +11,7 @@ Prefilling Decoding Disaggregation and parallel inference services like Pipeline
 
 ## ModelInfer Architecture
 
-![modelinfer.svg](../../static/img/modelinfer.svg)
+<LightboxImage src="/img/modelinfer.svg" alt="modelinfer.svg"/>
 
 The Custom Resource Definition (CRD) of `ModelInfer` is primarily divided into three layers, namely:
 
