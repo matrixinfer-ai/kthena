@@ -59,7 +59,7 @@
     /* Ensure active menu item text is red and regular menu text is white */
     /* The primary color will automatically apply to active links usually.
        We just need to make sure default link color isn't too dark. */
-    --ifm-link-color: var(--ifm-color-content); /* Default links will be white */
+    --ifm-link-color: var(--ifm-color-primary); /* Default links will be white */
     --ifm-link-hover-color: var(--ifm-color-primary); /* Links turn red on hover */
 }
 

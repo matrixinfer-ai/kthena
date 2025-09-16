@@ -19,13 +19,15 @@ We'll install a model from Hugging Face and perform inference using a simple cur
 
 Create the example model in your namespace (replace `<your-namespace>` with your actual namespace):
 
-<CodeBlock language="yaml">
-{QuickStartYaml}
-</CodeBlock>
-
-```bash
-kubectl apply -f https://raw.githubusercontent.com/matrixinfer-ai/matrixinfer/refs/heads/main/examples/model/Qwen2.5-0.5B-Instruct.yaml -n <your-namespace>
+```shell
+kubectl apply -n <your-namespace> -f https://raw.githubusercontent.com/matrixinfer-ai/matrixinfer/refs/heads/main/examples/model/Qwen2.5-0.5B-Instruct.yaml
 ```
+
+Content of the Model:
+
+<CodeBlock language="yaml">
+    {QuickStartYaml}
+</CodeBlock>
 
 ## Step 2: Wait for Model to be Ready
 
