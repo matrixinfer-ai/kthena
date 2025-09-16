@@ -19,15 +19,7 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'Getting Started',
-      items: [
-        'getting-started/quick-start',
-        'getting-started/installation',
-        {
-          type: 'doc',
-          id: 'getting-started/CLI',
-          label: 'CLI',
-        },
-      ],
+      items: ['getting-started/quick-start', 'getting-started/installation'],
     },
     {
       type: 'category',
