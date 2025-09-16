@@ -668,7 +668,7 @@ func (c *ModelInferController) CreatePodByRole(ctx context.Context, role workloa
 		return nil
 	}
 	// Create headless service
-	err = utils.CreateHeadlessService(ctx, c.kubeClientSet, mi, entryPod.Spec.Subdomain, entryPod.ObjectMeta.Labels, groupName, role.Name, roleIndex)
+	err = utils.CreateHeadlessService(ctx, c.kubeClientSet, mi, entryPod.ObjectMeta.Labels, groupName, role.Name, roleIndex)
 	if err != nil {
 		klog.Errorf("create headless service failed: %v", err)
 		return err
