@@ -101,10 +101,17 @@ The gateway exposes the following metrics to monitor request processing:
     - `path`: Request path (/v1/chat/completions, /v1/completions, etc.)
 
 **Connection and Scheduling Metrics**
-- `infer_gateway_active_connections{model="<model_name>"}` (Gauge)
-  - Current number of active connections per model
+- `infer_gateway_active_downstream_connections{model="<model_name>",model_route="<route_name>"}` (Gauge)
+  - Current number of active downstream connections (from clients to gateway)
   - Labels:
     - `model`: AI model name
+    - `model_route`: ModelRoute name handling the connections
+
+- `infer_gateway_active_upstream_connections{model_server="<server_name>",selected_pod="<pod_name>"}` (Gauge)
+  - Current number of active upstream connections (from gateway to backend pods)
+  - Labels:
+    - `model_server`: ModelServer name processing the connections
+    - `selected_pod`: Specific pod handling the connections
   
 - `infer_gateway_fairness_queue_size{model="<model_name>",user_id="<user_id>",pd_disaggregated="true|false"}` (Gauge)
   - Current fairness queue size for pending requests
@@ -126,7 +133,7 @@ All metrics are exposed at the `/metrics` endpoint in Prometheus format. The met
 **Key Observability Dimensions**
 - **Request Processing**: HTTP request patterns, latency, and success rates
 - **AI Workload Specific**: Token consumption, model performance, and inference costs  
-- **Resource Utilization**: Connection pools, queuing, and rate limiting
+- **Resource Utilization**: Connections, queuing, and rate limiting
 - **Error Tracking**: Detailed error categorization and failure patterns
 
 
