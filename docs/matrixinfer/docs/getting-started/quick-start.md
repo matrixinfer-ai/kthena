@@ -25,7 +25,7 @@ kubectl apply -n <your-namespace> -f https://raw.githubusercontent.com/matrixinf
 
 Content of the Model:
 
-<CodeBlock language="yaml">
+<CodeBlock language="yaml" showLineNumbers>
     {QuickStartYaml}
 </CodeBlock>
 
