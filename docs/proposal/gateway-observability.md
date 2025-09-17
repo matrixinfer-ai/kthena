@@ -115,11 +115,10 @@ The gateway exposes the following metrics to monitor request processing:
     - `model`: AI model name
     - `model_route`: ModelRoute name handling the connections
 
-- `infer_gateway_active_upstream_connections{model_server="<server_name>",selected_pod="<pod_name>"}` (Gauge)
+- `infer_gateway_active_upstream_connections{model_server="<server_name>"}` (Gauge)
   - Current number of active upstream connections (from gateway to backend pods)
   - Labels:
     - `model_server`: ModelServer name processing the connections
-    - `selected_pod`: Specific pod handling the connections
   
 - `infer_gateway_fairness_queue_size{model="<model_name>",user_id="<user_id>"}` (Gauge)
   - Current fairness queue size for pending requests
