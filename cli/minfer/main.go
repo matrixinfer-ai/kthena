@@ -25,7 +25,7 @@ import (
 	"matrixinfer.ai/matrixinfer/cli/minfer/cmd"
 )
 
-//go:embed templates/*.yaml
+//go:embed helm/templates/**/*.yaml
 var templatesFS embed.FS
 
 func main() {

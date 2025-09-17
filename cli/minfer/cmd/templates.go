@@ -35,28 +35,59 @@ func InitTemplates(fs embed.FS) {
 	templatesFS = fs
 }
 
-// GetTemplateContent returns the content of a template by name
+// GetTemplateContent returns the content of a template by name (vendor/model format)
 func GetTemplateContent(templateName string) (string, error) {
-	templatePath := fmt.Sprintf("templates/%s.yaml", templateName)
-	content, err := templatesFS.ReadFile(templatePath)
-	if err != nil {
-		return "", fmt.Errorf("template '%s' not found", templateName)
+	// If templateName contains a slash, it's in vendor/model format, use it directly
+	if strings.Contains(templateName, "/") {
+		templatePath := fmt.Sprintf("helm/templates/%s.yaml", templateName)
+		content, err := templatesFS.ReadFile(templatePath)
+		if err == nil {
+			return string(content), nil
+		}
 	}
-	return string(content), nil
+
+	// Fallback: search through all vendor directories (for backward compatibility)
+	vendors, err := templatesFS.ReadDir("helm/templates")
+	if err != nil {
+		return "", fmt.Errorf("failed to read templates directory: %v", err)
+	}
+
+	for _, vendor := range vendors {
+		if vendor.IsDir() {
+			vendorPath := fmt.Sprintf("helm/templates/%s/%s.yaml", vendor.Name(), templateName)
+			content, err := templatesFS.ReadFile(vendorPath)
+			if err == nil {
+				return string(content), nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("template '%s' not found", templateName)
 }
 
-// ListTemplates returns a list of all available template names
+// ListTemplates returns a list of all available template names in vendor/model format
 func ListTemplates() ([]string, error) {
-	entries, err := templatesFS.ReadDir("templates")
+	vendors, err := templatesFS.ReadDir("helm/templates")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read templates directory: %v", err)
 	}
 
 	var templates []string
-	for _, entry := range entries {
-		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".yaml") {
-			templateName := strings.TrimSuffix(entry.Name(), ".yaml")
-			templates = append(templates, templateName)
+	for _, vendor := range vendors {
+		if vendor.IsDir() {
+			vendorPath := fmt.Sprintf("helm/templates/%s", vendor.Name())
+			models, err := templatesFS.ReadDir(vendorPath)
+			if err != nil {
+				continue // Skip if can't read vendor directory
+			}
+
+			for _, model := range models {
+				if !model.IsDir() && strings.HasSuffix(model.Name(), ".yaml") {
+					templateName := strings.TrimSuffix(model.Name(), ".yaml")
+					fullTemplateName := fmt.Sprintf("%s/%s", vendor.Name(), templateName)
+					templates = append(templates, fullTemplateName)
+				}
+			}
 		}
 	}
 
@@ -65,9 +96,32 @@ func ListTemplates() ([]string, error) {
 
 // TemplateExists checks if a template with the given name exists
 func TemplateExists(templateName string) bool {
-	templatePath := fmt.Sprintf("templates/%s.yaml", templateName)
-	_, err := templatesFS.Open(templatePath)
-	return err == nil
+	// If templateName contains a slash, it's in vendor/model format, use it directly
+	if strings.Contains(templateName, "/") {
+		templatePath := fmt.Sprintf("helm/templates/%s.yaml", templateName)
+		_, err := templatesFS.Open(templatePath)
+		if err == nil {
+			return true
+		}
+	}
+
+	// Fallback: search through all vendor directories (for backward compatibility)
+	vendors, err := templatesFS.ReadDir("helm/templates")
+	if err != nil {
+		return false
+	}
+
+	for _, vendor := range vendors {
+		if vendor.IsDir() {
+			vendorPath := fmt.Sprintf("helm/templates/%s/%s.yaml", vendor.Name(), templateName)
+			_, err := templatesFS.Open(vendorPath)
+			if err == nil {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 // GetTemplateInfo returns template information including name, description, and file path
