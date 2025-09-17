@@ -1,5 +1,37 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+/*
+Copyright Kthena-AI Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+/*
+Copyright Kthena-AI Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -32,29 +64,29 @@ import (
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 
-	matrixinferfake "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/fake"
-	informersv1alpha1 "matrixinfer.ai/matrixinfer/client-go/informers/externalversions"
-	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/backend"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
+	kthenafake "github.com/volcano-sh/kthena/client-go/clientset/versioned/fake"
+	informersv1alpha1 "github.com/volcano-sh/kthena/client-go/informers/externalversions"
+	aiv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/backend"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/datastore"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/utils"
 )
 
 func TestModelServerController_ModelServerLifecycle(t *testing.T) {
 	// Create fake clients
 	kubeClient := kubefake.NewSimpleClientset()
-	matrixinferClient := matrixinferfake.NewSimpleClientset()
+	kthenaClient := kthenafake.NewSimpleClientset()
 
 	// Create informer factories
 	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, 0)
-	matrixinferInformerFactory := informersv1alpha1.NewSharedInformerFactory(matrixinferClient, 0)
+	kthenaInformerFactory := informersv1alpha1.NewSharedInformerFactory(kthenaClient, 0)
 
 	// Create store
 	store := datastore.New()
 
 	// Create controller
 	controller := NewModelServerController(
-		matrixinferInformerFactory,
+		kthenaInformerFactory,
 		kubeInformerFactory,
 		store,
 	)
@@ -62,7 +94,7 @@ func TestModelServerController_ModelServerLifecycle(t *testing.T) {
 	stop := make(chan struct{})
 	defer close(stop)
 
-	matrixinferInformerFactory.Start(stop)
+	kthenaInformerFactory.Start(stop)
 	kubeInformerFactory.Start(stop)
 
 	// Test Case 1: ModelServer Creation
@@ -83,7 +115,7 @@ func TestModelServerController_ModelServerLifecycle(t *testing.T) {
 		}
 
 		// Add ModelServer to fake client
-		_, err := matrixinferClient.NetworkingV1alpha1().ModelServers("default").Create(
+		_, err := kthenaClient.NetworkingV1alpha1().ModelServers("default").Create(
 			context.Background(), ms, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
@@ -138,7 +170,7 @@ func TestModelServerController_ModelServerLifecycle(t *testing.T) {
 		}
 
 		// Create initial ModelServer
-		_, err := matrixinferClient.NetworkingV1alpha1().ModelServers("default").Create(
+		_, err := kthenaClient.NetworkingV1alpha1().ModelServers("default").Create(
 			context.Background(), ms, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
@@ -160,7 +192,7 @@ func TestModelServerController_ModelServerLifecycle(t *testing.T) {
 		updatedMS.Labels["version"] = "v2"
 		updatedMS.Spec.WorkloadSelector.MatchLabels["environment"] = "production"
 
-		_, err = matrixinferClient.NetworkingV1alpha1().ModelServers("default").Update(
+		_, err = kthenaClient.NetworkingV1alpha1().ModelServers("default").Update(
 			context.Background(), updatedMS, metav1.UpdateOptions{})
 		assert.NoError(t, err)
 
@@ -215,7 +247,7 @@ func TestModelServerController_ModelServerLifecycle(t *testing.T) {
 		}
 
 		// Create ModelServer first
-		_, err := matrixinferClient.NetworkingV1alpha1().ModelServers("default").Create(
+		_, err := kthenaClient.NetworkingV1alpha1().ModelServers("default").Create(
 			context.Background(), ms, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
@@ -236,7 +268,7 @@ func TestModelServerController_ModelServerLifecycle(t *testing.T) {
 		assert.NotNil(t, storedMS, "ModelServer should be found in store before deletion")
 
 		// Delete ModelServer
-		err = matrixinferClient.NetworkingV1alpha1().ModelServers("default").Delete(
+		err = kthenaClient.NetworkingV1alpha1().ModelServers("default").Delete(
 			context.Background(), "test-modelserver-delete", metav1.DeleteOptions{})
 		assert.NoError(t, err)
 
@@ -264,7 +296,7 @@ func TestModelServerController_PodLifecycle(t *testing.T) {
 
 	// Create fake clients
 	kubeClient := kubefake.NewSimpleClientset()
-	matrixinferClient := matrixinferfake.NewSimpleClientset()
+	kthenaClient := kthenafake.NewSimpleClientset()
 
 	// Create a ModelServer first to associate pods with
 	ms := &aiv1alpha1.ModelServer{
@@ -281,20 +313,20 @@ func TestModelServerController_PodLifecycle(t *testing.T) {
 			},
 		},
 	}
-	_, err := matrixinferClient.NetworkingV1alpha1().ModelServers("default").Create(
+	_, err := kthenaClient.NetworkingV1alpha1().ModelServers("default").Create(
 		context.Background(), ms, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	// Create informer factories
 	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, 0)
-	matrixinferInformerFactory := informersv1alpha1.NewSharedInformerFactory(matrixinferClient, 0)
+	kthenaInformerFactory := informersv1alpha1.NewSharedInformerFactory(kthenaClient, 0)
 
 	// Create store
 	store := datastore.New()
 
 	// Create controller
 	controller := NewModelServerController(
-		matrixinferInformerFactory,
+		kthenaInformerFactory,
 		kubeInformerFactory,
 		store,
 	)
@@ -304,7 +336,7 @@ func TestModelServerController_PodLifecycle(t *testing.T) {
 
 	go controller.Run(stop)
 
-	matrixinferInformerFactory.Start(stop)
+	kthenaInformerFactory.Start(stop)
 	kubeInformerFactory.Start(stop)
 	waitForCacheSync(t, 5*time.Second, controller.modelServerSynced, controller.podSynced)
 
@@ -499,18 +531,18 @@ func TestModelServerController_PodLifecycle(t *testing.T) {
 func TestModelServerController_ErrorHandling(t *testing.T) {
 	// Create fake clients
 	kubeClient := kubefake.NewSimpleClientset()
-	matrixinferClient := matrixinferfake.NewSimpleClientset()
+	kthenaClient := kthenafake.NewSimpleClientset()
 
 	// Create informer factories
 	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, 0)
-	matrixinferInformerFactory := informersv1alpha1.NewSharedInformerFactory(matrixinferClient, 0)
+	kthenaInformerFactory := informersv1alpha1.NewSharedInformerFactory(kthenaClient, 0)
 
 	// Create store
 	store := datastore.New()
 
 	// Create controller
 	controller := NewModelServerController(
-		matrixinferInformerFactory,
+		kthenaInformerFactory,
 		kubeInformerFactory,
 		store,
 	)
@@ -543,18 +575,18 @@ func TestModelServerController_ErrorHandling(t *testing.T) {
 func TestModelServerController_WorkQueueProcessing(t *testing.T) {
 	// Create fake clients
 	kubeClient := kubefake.NewSimpleClientset()
-	matrixinferClient := matrixinferfake.NewSimpleClientset()
+	kthenaClient := kthenafake.NewSimpleClientset()
 
 	// Create informer factories
 	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, 0)
-	matrixinferInformerFactory := informersv1alpha1.NewSharedInformerFactory(matrixinferClient, 0)
+	kthenaInformerFactory := informersv1alpha1.NewSharedInformerFactory(kthenaClient, 0)
 
 	// Create store
 	store := datastore.New()
 
 	// Create controller
 	controller := NewModelServerController(
-		matrixinferInformerFactory,
+		kthenaInformerFactory,
 		kubeInformerFactory,
 		store,
 	)
@@ -618,18 +650,18 @@ func TestModelServerController_WorkQueueProcessing(t *testing.T) {
 func TestModelServerController_PodSelectionLogic(t *testing.T) {
 	// Create fake clients
 	kubeClient := kubefake.NewSimpleClientset()
-	matrixinferClient := matrixinferfake.NewSimpleClientset()
+	kthenaClient := kthenafake.NewSimpleClientset()
 
 	// Create informer factories
 	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, 0)
-	matrixinferInformerFactory := informersv1alpha1.NewSharedInformerFactory(matrixinferClient, 0)
+	kthenaInformerFactory := informersv1alpha1.NewSharedInformerFactory(kthenaClient, 0)
 
 	// Create store
 	store := datastore.New()
 
 	// Create controller
 	controller := NewModelServerController(
-		matrixinferInformerFactory,
+		kthenaInformerFactory,
 		kubeInformerFactory,
 		store,
 	)
@@ -637,7 +669,7 @@ func TestModelServerController_PodSelectionLogic(t *testing.T) {
 	stop := make(chan struct{})
 	defer close(stop)
 	go controller.Run(stop)
-	matrixinferInformerFactory.Start(stop)
+	kthenaInformerFactory.Start(stop)
 	kubeInformerFactory.Start(stop)
 
 	// Test Case: Pod with Non-matching Labels
@@ -659,7 +691,7 @@ func TestModelServerController_PodSelectionLogic(t *testing.T) {
 			},
 		}
 
-		_, err := matrixinferClient.NetworkingV1alpha1().ModelServers("default").Create(
+		_, err := kthenaClient.NetworkingV1alpha1().ModelServers("default").Create(
 			context.Background(), ms, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
@@ -735,7 +767,7 @@ func TestModelServerController_ComprehensiveLifecycleTest(t *testing.T) {
 	// Create a comprehensive test that tests the full workflow
 	// with proper informer setup and timing
 	kubeClient := kubefake.NewSimpleClientset()
-	matrixinferClient := matrixinferfake.NewSimpleClientset()
+	kthenaClient := kthenafake.NewSimpleClientset()
 
 	// Create and add resources to fake clients BEFORE starting informers
 	ms := &aiv1alpha1.ModelServer{
@@ -795,7 +827,7 @@ func TestModelServerController_ComprehensiveLifecycleTest(t *testing.T) {
 	}
 
 	// Add resources to fake clients
-	_, err := matrixinferClient.NetworkingV1alpha1().ModelServers("test-ns").Create(
+	_, err := kthenaClient.NetworkingV1alpha1().ModelServers("test-ns").Create(
 		context.Background(), ms, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
@@ -809,7 +841,7 @@ func TestModelServerController_ComprehensiveLifecycleTest(t *testing.T) {
 
 	// Create informer factories and start them
 	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, 0)
-	matrixinferInformerFactory := informersv1alpha1.NewSharedInformerFactory(matrixinferClient, 0)
+	kthenaInformerFactory := informersv1alpha1.NewSharedInformerFactory(kthenaClient, 0)
 
 	stopCh := make(chan struct{})
 	defer close(stopCh)
@@ -817,12 +849,12 @@ func TestModelServerController_ComprehensiveLifecycleTest(t *testing.T) {
 	// Create controller and store
 	store := datastore.New()
 	controller := NewModelServerController(
-		matrixinferInformerFactory,
+		kthenaInformerFactory,
 		kubeInformerFactory,
 		store,
 	)
 
-	matrixinferInformerFactory.Start(stopCh)
+	kthenaInformerFactory.Start(stopCh)
 	kubeInformerFactory.Start(stopCh)
 
 	waitForObjectInCache(t, 2*time.Second, func() bool {
@@ -851,7 +883,7 @@ func TestModelServerController_ComprehensiveLifecycleTest(t *testing.T) {
 	updatedMS.Labels["version"] = "v2"
 	updatedMS.Spec.InferenceEngine = aiv1alpha1.SGLang
 
-	_, err = matrixinferClient.NetworkingV1alpha1().ModelServers("test-ns").Update(
+	_, err = kthenaClient.NetworkingV1alpha1().ModelServers("test-ns").Update(
 		context.Background(), updatedMS, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 

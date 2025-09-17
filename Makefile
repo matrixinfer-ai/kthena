@@ -1,5 +1,5 @@
 # Image URL to use all building/pushing image targets
-HUB ?= ghcr.io/matrixinfer-ai
+HUB ?= ghcr.io/volcano-sh
 TAG ?= latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0
@@ -48,17 +48,17 @@ help: ## Display this help.
 
 .PHONY: gen-crd
 gen-crd: controller-gen 
-	$(CONTROLLER_GEN) crd paths="./pkg/apis/networking/..." output:crd:artifacts:config=charts/matrixinfer/charts/networking/crds
-	$(CONTROLLER_GEN) crd paths="./pkg/apis/workload/..." output:crd:artifacts:config=charts/matrixinfer/charts/workload/crds
-	$(CONTROLLER_GEN) crd paths="./pkg/apis/registry/..." output:crd:artifacts:config=charts/matrixinfer/charts/registry/crds
+	$(CONTROLLER_GEN) crd paths="./pkg/apis/networking/..." output:crd:artifacts:config=charts/kthena/charts/networking/crds
+	$(CONTROLLER_GEN) crd paths="./pkg/apis/workload/..." output:crd:artifacts:config=charts/kthena/charts/workload/crds
+	$(CONTROLLER_GEN) crd paths="./pkg/apis/registry/..." output:crd:artifacts:config=charts/kthena/charts/registry/crds
 
 .PHONY: gen-docs
 gen-docs: crd-ref-docs ## Generate CRD and CLI reference documentation
-	mkdir -p docs/matrixinfer/docs/api
+	mkdir -p docs/kthena/docs/api
 	$(CRD_REF_DOCS) \
 		--source-path=./pkg/apis \
-		--config=docs/matrixinfer/crd-ref-docs-config.yaml \
-		--output-path=docs/matrixinfer/docs/reference/crd \
+		--config=docs/kthena/crd-ref-docs-config.yaml \
+		--output-path=docs/kthena/docs/reference/crd \
 		--renderer=markdown \
 		--output-mode=group
 	# Generate Minfer CLI docs using a standalone doc-gen program

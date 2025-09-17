@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -40,7 +40,7 @@ func ModelInfer(name, namespace string) *ModelInferApplyConfiguration {
 	b.WithName(name)
 	b.WithNamespace(namespace)
 	b.WithKind("ModelInfer")
-	b.WithAPIVersion("workload.matrixinfer.ai/v1alpha1")
+	b.WithAPIVersion("workload.volcano.sh/v1alpha1")
 	return b
 }
 

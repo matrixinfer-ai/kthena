@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,15 +23,15 @@ import (
 	sync "sync"
 	time "time"
 
+	versioned "github.com/volcano-sh/kthena/client-go/clientset/versioned"
+	internalinterfaces "github.com/volcano-sh/kthena/client-go/informers/externalversions/internalinterfaces"
+	networking "github.com/volcano-sh/kthena/client-go/informers/externalversions/networking"
+	registry "github.com/volcano-sh/kthena/client-go/informers/externalversions/registry"
+	workload "github.com/volcano-sh/kthena/client-go/informers/externalversions/workload"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
-	versioned "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
-	internalinterfaces "matrixinfer.ai/matrixinfer/client-go/informers/externalversions/internalinterfaces"
-	networking "matrixinfer.ai/matrixinfer/client-go/informers/externalversions/networking"
-	registry "matrixinfer.ai/matrixinfer/client-go/informers/externalversions/registry"
-	workload "matrixinfer.ai/matrixinfer/client-go/informers/externalversions/workload"
 )
 
 // SharedInformerOption defines the functional option type for SharedInformerFactory.

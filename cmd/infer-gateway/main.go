@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ import (
 	"github.com/spf13/pflag"
 	"k8s.io/klog/v2"
 
-	"matrixinfer.ai/matrixinfer/cmd/infer-gateway/app"
+	"github.com/volcano-sh/kthena/cmd/infer-gateway/app"
 )
 
 func main() {

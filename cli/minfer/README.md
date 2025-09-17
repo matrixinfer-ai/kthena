@@ -1,6 +1,6 @@
-# minfer - MatrixInfer CLI
+# minfer - kthena CLI
 
-`minfer` is a command-line interface tool for managing MatrixInfer AI inference workloads in Kubernetes clusters.
+`minfer` is a command-line interface tool for managing kthena AI inference workloads in Kubernetes clusters.
 
 ## Architecture Diagrams
 
@@ -54,7 +54,7 @@ Manifest --> NamespaceFlag
 Manifest --> DryRunFlag
 
 note top of CreateVerb
-  Create MatrixInfer resources from
+  Create Kthena resources from
   templates with custom values
 end note
 
@@ -71,9 +71,9 @@ ResourceLayer -[hidden]-> FlagLayer
 ## Overview
 
 The `minfer` CLI follows kubectl-style verb-noun grammar and provides an easy way to:
-- Get and view templates and MatrixInfer resources in your cluster
+- Get and view templates and Kthena resources in your cluster
 - Describe detailed information about specific templates and resources
-- Create MatrixInfer resources from predefined manifest templates
+- Create Kthena resources from predefined manifest templates
 - Manage inference workloads, models, and autoscaling policies with kubectl-like commands
 
 ### Build from Source
@@ -154,7 +154,7 @@ minfer create --help
 
 The CLI uses your local kubectl configuration. Ensure you have:
 - Valid kubeconfig file (usually `~/.kube/config`)
-- Access to a Kubernetes cluster with MatrixInfer CRDs installed
+- Access to a Kubernetes cluster with Kthena CRDs installed
 - Appropriate RBAC permissions for the target namespaces
 
 ## Contributing
@@ -171,7 +171,7 @@ Example template structure:
 # Description: Your template description
 # Variables: var1, var2, var3
 ---
-apiVersion: workload.matrixinfer.ai/v1alpha1
+apiVersion: workload.volcano.sh/v1alpha1
 kind: ModelInfer
 metadata:
   name: {{.name}}

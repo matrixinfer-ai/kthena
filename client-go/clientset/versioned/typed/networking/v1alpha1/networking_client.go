@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,9 +21,9 @@ package v1alpha1
 import (
 	http "net/http"
 
+	scheme "github.com/volcano-sh/kthena/client-go/clientset/versioned/scheme"
+	networkingv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
 	rest "k8s.io/client-go/rest"
-	scheme "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/scheme"
-	networkingv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 )
 
 type NetworkingV1alpha1Interface interface {
@@ -32,7 +32,7 @@ type NetworkingV1alpha1Interface interface {
 	ModelServersGetter
 }
 
-// NetworkingV1alpha1Client is used to interact with features provided by the networking.matrixinfer.ai group.
+// NetworkingV1alpha1Client is used to interact with features provided by the networking.volcano.sh group.
 type NetworkingV1alpha1Client struct {
 	restClient rest.Interface
 }

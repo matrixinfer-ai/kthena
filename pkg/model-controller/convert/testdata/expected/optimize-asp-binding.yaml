@@ -1,16 +1,16 @@
-apiVersion: registry.matrixinfer.ai/v1alpha1
+apiVersion: registry.volcano.sh/v1alpha1
 kind: AutoscalingPolicyBinding
 metadata:
   labels:
-    registry.matrixinfer.ai/backend-name: ""
-    registry.matrixinfer.ai/managed-by: registry.matrixinfer.ai
-    registry.matrixinfer.ai/model-name: multi-backend-model
-    registry.matrixinfer.ai/revision: 7bbd8dc485
-    registry.matrixinfer.ai/model-uid: randomUID
+    registry.volcano.sh/backend-name: ""
+    registry.volcano.sh/managed-by: registry.volcano.sh
+    registry.volcano.sh/model-name: multi-backend-model
+    registry.volcano.sh/revision: 7bbd8dc485
+    registry.volcano.sh/model-uid: randomUID
   name: multi-backend-model
   namespace: dev
   ownerReferences:
-    - apiVersion: registry.matrixinfer.ai/v1alpha1
+    - apiVersion: registry.volcano.sh/v1alpha1
       kind: Model
       name: multi-backend-model
       uid: randomUID
@@ -27,7 +27,7 @@ spec:
         cost: 0
         target:
           additionalMatchLabels:
-            modelinfer.matrixinfer.ai/role: leader
+            modelinfer.volcano.sh/role: leader
           targetRef:
             name: multi-backend-model-backend1
             kind: ModelInfer
@@ -37,7 +37,7 @@ spec:
         cost: 0
         target:
           additionalMatchLabels:
-            modelinfer.matrixinfer.ai/role: leader
+            modelinfer.volcano.sh/role: leader
           targetRef:
             name: multi-backend-model-backend2
             kind: ModelInfer

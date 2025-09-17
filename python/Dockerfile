@@ -19,11 +19,11 @@ RUN set -ex && \
     rm -rf awscliv2.zip aws
 
 WORKDIR /app
-COPY matrixinfer/downloader/requirements.txt .
+COPY kthena/downloader/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY matrixinfer/downloader/ ./matrixinfer/downloader/
+COPY kthena/downloader/ ./kthena/downloader/
 ENV PYTHONPATH="/app"
-ENTRYPOINT ["python", "matrixinfer/downloader/app.py"]
+ENTRYPOINT ["python", "kthena/downloader/app.py"]
 
 FROM python:3.12-slim AS runtime
 RUN apt-get update && \
@@ -45,11 +45,11 @@ RUN set -ex && \
     rm -rf awscliv2.zip aws
 
 WORKDIR /app
-COPY matrixinfer/downloader/requirements.txt .
+COPY kthena/downloader/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY matrixinfer/downloader/ ./matrixinfer/downloader/
-COPY matrixinfer/runtime/ ./matrixinfer/runtime/
-RUN pip install --no-cache-dir -r matrixinfer/runtime/requirements.txt
+COPY kthena/downloader/ ./kthena/downloader/
+COPY kthena/runtime/ ./kthena/runtime/
+RUN pip install --no-cache-dir -r kthena/runtime/requirements.txt
 ENV PYTHONPATH="/app"
 # Default to runtime, but can override with command
-ENTRYPOINT ["python","matrixinfer/runtime/app.py"]
+ENTRYPOINT ["python","kthena/runtime/app.py"]

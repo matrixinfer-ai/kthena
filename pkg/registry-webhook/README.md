@@ -1,6 +1,6 @@
 # Registry Webhook
 
-The registry webhook is a Kubernetes admission controller that provides validation and mutation capabilities for Model resources in the MatrixInfer system. It consists of two main components: a validating webhook and a mutating webhook.
+The registry webhook is a Kubernetes admission controller that provides validation and mutation capabilities for Model resources in the Kthena system. It consists of two main components: a validating webhook and a mutating webhook.
 
 ## Validation Rules
 
@@ -60,9 +60,9 @@ These defaults are only applied when the model has an autoscaling policy referen
 ### Endpoints
 
 - **Validation**:
-    - `/validate-registry-matrixinfer-ai-v1alpha1-model`
-    - `/validate-registry-matrixinfer-ai-v1alpha1-autoscalingpolicybinding`
-- **Mutation**: `/mutate-registry-matrixinfer-ai-v1alpha1-model`
+    - `/validate-registry-volcano-sh-v1alpha1-model`
+    - `/validate-registry-volcano-sh-v1alpha1-autoscalingpolicybinding`
+- **Mutation**: `/mutate-registry-volcano-sh-v1alpha1-model`
 - **Health Check**: `/healthz`
 
 ### Default Settings
@@ -125,8 +125,8 @@ To extend the webhooks to support additional resource types:
 1. **Create new handler functions** following the pattern in `validator.go` and `mutator.go`
 2. **Register new endpoints** in `pkg/registry-webhook/server/server.go`:
    ```go
-   mux.HandleFunc("/validate-registry-matrixinfer-ai-v1alpha1-newresource", newResourceValidator.Handle)
-   mux.HandleFunc("/mutate-registry-matrixinfer-ai-v1alpha1-newresource", newResourceMutator.Handle)
+   mux.HandleFunc("/validate-registry-volcano-sh-v1alpha1-newresource", newResourceValidator.Handle)
+   mux.HandleFunc("/mutate-registry-volcano-sh-v1alpha1-newresource", newResourceMutator.Handle)
    ```
 3. **Update webhook configurations** in the Helm charts to include the new resource types
 4. **Add corresponding tests** for the new resource handlers

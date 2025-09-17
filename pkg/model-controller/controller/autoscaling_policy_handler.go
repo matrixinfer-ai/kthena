@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,12 +19,12 @@ package controller
 import (
 	"context"
 
+	registryv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	"github.com/volcano-sh/kthena/pkg/model-controller/convert"
+	"github.com/volcano-sh/kthena/pkg/model-controller/utils"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
-	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/convert"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
 )
 
 func (mc *ModelController) createOrUpdateAutoscalingPolicyAndBinding(ctx context.Context, model *registryv1alpha1.Model) error {

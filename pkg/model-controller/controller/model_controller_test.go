@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,12 +23,12 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	kthenafake "github.com/volcano-sh/kthena/client-go/clientset/versioned/fake"
+	registry "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	workload "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-	matrixinferfake "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/fake"
-	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
-	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 	"sigs.k8s.io/yaml"
 )
 
@@ -37,10 +37,10 @@ import (
 func TestReconcile(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	// Create fake clients for Kubernetes and MatrixInfer
+	// Create fake clients for Kubernetes and Kthena
 	kubeClient := fake.NewClientset()
-	matrixinferClient := matrixinferfake.NewSimpleClientset()
-	controller := NewModelController(kubeClient, matrixinferClient)
+	kthenaClient := kthenafake.NewSimpleClientset()
+	controller := NewModelController(kubeClient, kthenaClient)
 	assert.NotNil(t, controller)
 	// Start controller
 	go controller.Run(ctx, 1)
@@ -49,42 +49,42 @@ func TestReconcile(t *testing.T) {
 
 	// Case1: Create a model with ASP, and then model infer, model server, model route, ASP, ASP binding should be created.
 	// Step1. Create model
-	createdModel, err := matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Create(ctx, model, metav1.CreateOptions{})
+	createdModel, err := kthenaClient.RegistryV1alpha1().Models(model.Namespace).Create(ctx, model, metav1.CreateOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, createdModel)
 	// Step2. Check that ASP, ASP binding, model infer, model server, model route are created
 	assert.True(t, waitForCondition(func() bool {
-		aspBindings, err := matrixinferClient.RegistryV1alpha1().AutoscalingPolicyBindings(model.Namespace).List(ctx, metav1.ListOptions{})
+		aspBindings, err := kthenaClient.RegistryV1alpha1().AutoscalingPolicyBindings(model.Namespace).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			return false
 		}
 		return len(aspBindings.Items) == 1
 	}))
 	// ASP should be created
-	aspList, err := matrixinferClient.RegistryV1alpha1().AutoscalingPolicies(model.Namespace).List(ctx, metav1.ListOptions{})
+	aspList, err := kthenaClient.RegistryV1alpha1().AutoscalingPolicies(model.Namespace).List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
 	assert.Len(t, aspList.Items, 1, "Expected 1 AutoscalingPolicy to be created")
 	// model infer should be created
-	modelInfers, err := matrixinferClient.WorkloadV1alpha1().ModelInfers(model.Namespace).List(ctx, metav1.ListOptions{})
+	modelInfers, err := kthenaClient.WorkloadV1alpha1().ModelInfers(model.Namespace).List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
 	assert.Len(t, modelInfers.Items, 1, "Expected 1 ModelInfer to be created")
 	// model server should be created
-	modelServers, err := matrixinferClient.NetworkingV1alpha1().ModelServers(model.Namespace).List(ctx, metav1.ListOptions{})
+	modelServers, err := kthenaClient.NetworkingV1alpha1().ModelServers(model.Namespace).List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
 	assert.Len(t, modelServers.Items, 1, "Expected 1 ModelServer to be created")
 	// model route should be created
-	modelRoutes, err := matrixinferClient.NetworkingV1alpha1().ModelRoutes(model.Namespace).List(ctx, metav1.ListOptions{})
+	modelRoutes, err := kthenaClient.NetworkingV1alpha1().ModelRoutes(model.Namespace).List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
 	assert.Len(t, modelRoutes.Items, 1, "Expected 1 ModelRoute to be create")
 	// Step3. mock model infer status available
 	modelInfer := &modelInfers.Items[0]
 	meta.SetStatusCondition(&modelInfer.Status.Conditions, newCondition(string(workload.ModelInferAvailable),
 		metav1.ConditionTrue, "AllGroupsReady", "AllGroupsReady"))
-	_, err = matrixinferClient.WorkloadV1alpha1().ModelInfers(model.Namespace).UpdateStatus(ctx, modelInfer, metav1.UpdateOptions{})
+	_, err = kthenaClient.WorkloadV1alpha1().ModelInfers(model.Namespace).UpdateStatus(ctx, modelInfer, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 	// Step4. Check that model condition should be active
 	assert.True(t, waitForCondition(func() bool {
-		model, err = matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Get(ctx, model.Name, metav1.GetOptions{})
+		model, err = kthenaClient.RegistryV1alpha1().Models(model.Namespace).Get(ctx, model.Name, metav1.GetOptions{})
 		if err != nil {
 			return false
 		}
@@ -97,11 +97,11 @@ func TestReconcile(t *testing.T) {
 	weight := uint32(50)
 	model.Spec.Backends[0].RouteWeight = &weight
 	model.Generation += 1
-	_, err = matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Update(ctx, model, metav1.UpdateOptions{})
+	_, err = kthenaClient.RegistryV1alpha1().Models(model.Namespace).Update(ctx, model, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 	// Step2. Check that model route is updated
 	assert.True(t, waitForCondition(func() bool {
-		modelRoutes, err = matrixinferClient.NetworkingV1alpha1().ModelRoutes(model.Namespace).List(ctx, metav1.ListOptions{})
+		modelRoutes, err = kthenaClient.NetworkingV1alpha1().ModelRoutes(model.Namespace).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			return false
 		}
@@ -110,10 +110,10 @@ func TestReconcile(t *testing.T) {
 
 	// Case3: delete model. Because we are not running in a real K8s cluster, model server, model route, model infer,
 	// ASP and ASP binding will not be deleted automatically. So here only check if model is deleted.
-	err = matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Delete(ctx, model.Name, metav1.DeleteOptions{})
+	err = kthenaClient.RegistryV1alpha1().Models(model.Namespace).Delete(ctx, model.Name, metav1.DeleteOptions{})
 	assert.NoError(t, err)
 	assert.True(t, waitForCondition(func() bool {
-		modelList, err := matrixinferClient.RegistryV1alpha1().Models(model.Namespace).List(ctx, metav1.ListOptions{})
+		modelList, err := kthenaClient.RegistryV1alpha1().Models(model.Namespace).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			return false
 		}
@@ -124,10 +124,10 @@ func TestReconcile(t *testing.T) {
 func TestReconcile_ReturnsError(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	// Create fake clients for Kubernetes and MatrixInfer
+	// Create fake clients for Kubernetes and Kthena
 	kubeClient := fake.NewClientset()
-	matrixinferClient := matrixinferfake.NewSimpleClientset()
-	controller := NewModelController(kubeClient, matrixinferClient)
+	kthenaClient := kthenafake.NewSimpleClientset()
+	controller := NewModelController(kubeClient, kthenaClient)
 	assert.NotNil(t, &controller)
 	// start informers
 	go controller.modelsInformer.RunWithContext(ctx)
@@ -156,14 +156,14 @@ func TestReconcile_ReturnsError(t *testing.T) {
 				},
 			},
 		}
-		createdModel, err := matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Create(ctx, model, metav1.CreateOptions{})
+		createdModel, err := kthenaClient.RegistryV1alpha1().Models(model.Namespace).Create(ctx, model, metav1.CreateOptions{})
 		assert.NoError(t, err)
 		assert.NotNil(t, createdModel)
 		assert.True(t, waitForCondition(func() bool {
 			err = controller.reconcile(ctx, model.Namespace+"/"+model.Name)
 			return err.Error() == "not support model backend type: MindIEDisaggregated"
 		}))
-		get, err := matrixinferClient.RegistryV1alpha1().Models(model.Namespace).Get(ctx, model.Name, metav1.GetOptions{})
+		get, err := kthenaClient.RegistryV1alpha1().Models(model.Namespace).Get(ctx, model.Name, metav1.GetOptions{})
 		assert.NoError(t, err)
 		assert.Equal(t, true, meta.IsStatusConditionPresentAndEqual(get.Status.Conditions,
 			string(registry.ModelStatusConditionTypeFailed), metav1.ConditionTrue))
@@ -172,15 +172,15 @@ func TestReconcile_ReturnsError(t *testing.T) {
 
 func TestCreateModel(t *testing.T) {
 	kubeClient := fake.NewClientset()
-	matrixinferClient := matrixinferfake.NewClientset()
-	controller := NewModelController(kubeClient, matrixinferClient)
+	kthenaClient := kthenafake.NewClientset()
+	controller := NewModelController(kubeClient, kthenaClient)
 	controller.createModel("wrong")
 }
 
 func TestUpdateModel(t *testing.T) {
 	kubeClient := fake.NewClientset()
-	matrixinferClient := matrixinferfake.NewClientset()
-	controller := NewModelController(kubeClient, matrixinferClient)
+	kthenaClient := kthenafake.NewClientset()
+	controller := NewModelController(kubeClient, kthenaClient)
 	assert.NotNil(t, &controller)
 	model := loadYaml[registry.Model](t, "../convert/testdata/input/model.yaml")
 	// invalid old
@@ -193,15 +193,15 @@ func TestUpdateModel(t *testing.T) {
 
 func TestDeleteModel(t *testing.T) {
 	kubeClient := fake.NewClientset()
-	matrixinferClient := matrixinferfake.NewClientset()
-	controller := NewModelController(kubeClient, matrixinferClient)
+	kthenaClient := kthenafake.NewClientset()
+	controller := NewModelController(kubeClient, kthenaClient)
 	controller.deleteModel("invalid")
 }
 
 func TestTriggerModel(t *testing.T) {
 	kubeClient := fake.NewClientset()
-	matrixinferClient := matrixinferfake.NewClientset()
-	controller := NewModelController(kubeClient, matrixinferClient)
+	kthenaClient := kthenafake.NewClientset()
+	controller := NewModelController(kubeClient, kthenaClient)
 	assert.NotNil(t, &controller)
 	modelInfer := loadYaml[workload.ModelInfer](t, "../convert/testdata/expected/model-infer.yaml")
 	// invalid new
@@ -214,8 +214,8 @@ func TestTriggerModel(t *testing.T) {
 
 func TestHasOnlyLoraAdaptersChanged(t *testing.T) {
 	kubeClient := fake.NewClientset()
-	matrixinferClient := matrixinferfake.NewClientset()
-	controller := NewModelController(kubeClient, matrixinferClient)
+	kthenaClient := kthenafake.NewClientset()
+	controller := NewModelController(kubeClient, kthenaClient)
 
 	tests := []struct {
 		name     string

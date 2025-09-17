@@ -29,20 +29,20 @@ jobs:
           echo "Updating versions to: $VERSION"
           
           # Update main Chart.yaml
-          sed -i "s/^version: .*/version: $VERSION/" charts/matrixinfer/Chart.yaml
-          sed -i "s/^appVersion: .*/appVersion: \"$VERSION\"/" charts/matrixinfer/Chart.yaml
+          sed -i "s/^version: .*/version: $VERSION/" charts/kthena/Chart.yaml
+          sed -i "s/^appVersion: .*/appVersion: \"$VERSION\"/" charts/kthena/Chart.yaml
           
           # Update image tags in all subchart values.yaml files
-          find charts/matrixinfer/charts -name "values.yaml" -exec sed -i "s/tag: latest/tag: $VERSION/g" {} \;
+          find charts/kthena/charts -name "values.yaml" -exec sed -i "s/tag: latest/tag: $VERSION/g" {} \;
           
           # Verify changes
           echo "=== Updated Chart.yaml ==="
-          cat charts/matrixinfer/Chart.yaml
+          cat charts/kthena/Chart.yaml
           echo "=== Updated subchart versions ==="
-          grep -r "tag: $VERSION" charts/matrixinfer/charts/*/values.yaml || true
+          grep -r "tag: $VERSION" charts/kthena/charts/*/values.yaml || true
       - name: Helm package
         run: |
-          helm package ./charts/matrixinfer
+          helm package ./charts/kthena
       - name: Release
         uses: softprops/action-gh-release@v2
         with:

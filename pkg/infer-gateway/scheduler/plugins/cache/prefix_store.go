@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ import (
 	"istio.io/istio/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/types"
 
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/datastore"
 )
 
 // hashModelKey represents a composite key combining hash and model name

@@ -1,16 +1,16 @@
-apiVersion: networking.matrixinfer.ai/v1alpha1
+apiVersion: networking.volcano.sh/v1alpha1
 kind: ModelRoute
 metadata:
   name: test-model
   namespace: default
   labels:
-    registry.matrixinfer.ai/backend-name: ""
-    registry.matrixinfer.ai/managed-by: registry.matrixinfer.ai
-    registry.matrixinfer.ai/model-name: test-model
-    registry.matrixinfer.ai/model-uid: randomUID
-    registry.matrixinfer.ai/revision: 667ccbd788
+    registry.volcano.sh/backend-name: ""
+    registry.volcano.sh/managed-by: registry.volcano.sh
+    registry.volcano.sh/model-name: test-model
+    registry.volcano.sh/model-uid: randomUID
+    registry.volcano.sh/revision: 667ccbd788
   ownerReferences:
-    - apiVersion: registry.matrixinfer.ai/v1alpha1
+    - apiVersion: registry.volcano.sh/v1alpha1
       kind: Model
       name: test-model
       uid: randomUID

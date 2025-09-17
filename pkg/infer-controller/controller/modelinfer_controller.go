@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -40,13 +40,13 @@ import (
 	"k8s.io/klog/v2"
 	volcano "volcano.sh/apis/pkg/client/clientset/versioned"
 
-	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
-	informersv1alpha1 "matrixinfer.ai/matrixinfer/client-go/informers/externalversions"
-	listerv1alpha1 "matrixinfer.ai/matrixinfer/client-go/listers/workload/v1alpha1"
-	workloadv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
-	"matrixinfer.ai/matrixinfer/pkg/infer-controller/datastore"
-	"matrixinfer.ai/matrixinfer/pkg/infer-controller/gangscheduling"
-	"matrixinfer.ai/matrixinfer/pkg/infer-controller/utils"
+	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
+	informersv1alpha1 "github.com/volcano-sh/kthena/client-go/informers/externalversions"
+	listerv1alpha1 "github.com/volcano-sh/kthena/client-go/listers/workload/v1alpha1"
+	workloadv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
+	"github.com/volcano-sh/kthena/pkg/infer-controller/datastore"
+	"github.com/volcano-sh/kthena/pkg/infer-controller/gangscheduling"
+	"github.com/volcano-sh/kthena/pkg/infer-controller/utils"
 )
 
 const (

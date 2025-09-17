@@ -1,4 +1,4 @@
-apiVersion: networking.matrixinfer.ai/v1alpha1
+apiVersion: networking.volcano.sh/v1alpha1
 kind: ModelRoute
 metadata:
   name: deepseek-simple

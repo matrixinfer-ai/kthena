@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,8 +20,8 @@ import (
 	"reflect"
 	"strconv"
 
+	registry "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
-	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
 
 // Package env provides constants for environment variables used in the model controller.

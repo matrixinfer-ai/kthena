@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package auth provides JWT authentication and authorization functionality for the MatrixInfer gateway.
+// Package auth provides JWT authentication and authorization functionality for the Kthena gateway.
 // This package handles JWT token validation, JWKS rotation, and provides middleware for Gin HTTP framework.
 package auth
 
@@ -31,8 +31,8 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jwt"
 	"k8s.io/klog/v2"
 
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/common"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/common"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/scheduler/plugins/conf"
 )
 
 // JWT token extraction constants

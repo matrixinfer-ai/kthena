@@ -1,16 +1,16 @@
-apiVersion: workload.matrixinfer.ai/v1alpha1
+apiVersion: workload.volcano.sh/v1alpha1
 kind: modelinfer
 metadata:
   labels:
-    registry.matrixinfer.ai/backend-name: backend1
-    registry.matrixinfer.ai/managed-by: registry.matrixinfer.ai
-    registry.matrixinfer.ai/model-name: test-model
-    registry.matrixinfer.ai/model-uid: randomUID
-    registry.matrixinfer.ai/revision: 69978bb886
+    registry.volcano.sh/backend-name: backend1
+    registry.volcano.sh/managed-by: registry.volcano.sh
+    registry.volcano.sh/model-name: test-model
+    registry.volcano.sh/model-uid: randomUID
+    registry.volcano.sh/revision: 69978bb886
   name: test-model-backend1
   namespace: default
   ownerReferences:
-    - apiVersion: registry.matrixinfer.ai/v1alpha1
+    - apiVersion: registry.volcano.sh/v1alpha1
       kind: Model
       name: test-model
       uid: randomUID
@@ -26,11 +26,11 @@ spec:
       - entryTemplate:
           metadata:
             labels:
-              registry.matrixinfer.ai/backend-name: backend1
-              registry.matrixinfer.ai/managed-by: registry.matrixinfer.ai
-              registry.matrixinfer.ai/model-name: test-model
-              registry.matrixinfer.ai/model-uid: randomUID
-              registry.matrixinfer.ai/revision: 69978bb886
+              registry.volcano.sh/backend-name: backend1
+              registry.volcano.sh/managed-by: registry.volcano.sh
+              registry.volcano.sh/model-name: test-model
+              registry.volcano.sh/model-uid: randomUID
+              registry.volcano.sh/revision: 69978bb886
           spec:
             containers:
               - args:
@@ -82,7 +82,7 @@ spec:
                 envFrom:
                   - secretRef:
                       name: "test-secret"
-                image: matrixinfer/runtime:latest
+                image: kthena/runtime:latest
                 name: runtime
                 ports:
                   - containerPort: 8900
@@ -185,7 +185,7 @@ spec:
                   - s3://aios_models/deepseek-ai/DeepSeek-V3-W8A8/vllm-ascend
                   - --output-dir
                   - /tmp/test/13a7c4d58031cdc502ca1bb4a592f2b9
-                image: matrixinfer/downloader:latest
+                image: kthena/downloader:latest
                 env:
                   - name: "ENDPOINT"
                     value: "https://obs.test.com"
@@ -210,7 +210,7 @@ spec:
                 envFrom:
                   - secretRef:
                       name: "test-secret"
-                image: matrixinfer/downloader:latest
+                image: kthena/downloader:latest
                 name: test-model-lora-downloader-0
                 resources: { }
                 volumeMounts:
@@ -255,7 +255,7 @@ spec:
                   - s3://aios_models/deepseek-ai/DeepSeek-V3-W8A8/vllm-ascend
                   - --output-dir
                   - /tmp/test/13a7c4d58031cdc502ca1bb4a592f2b9
-                image: matrixinfer/downloader:latest
+                image: kthena/downloader:latest
                 env:
                   - name: "ENDPOINT"
                     value: "https://obs.test.com"
@@ -280,7 +280,7 @@ spec:
                 envFrom:
                   - secretRef:
                       name: "test-secret"
-                image: matrixinfer/downloader:latest
+                image: kthena/downloader:latest
                 name: test-model-lora-downloader-0
                 resources: { }
                 volumeMounts:

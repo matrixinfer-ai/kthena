@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,10 +22,10 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 
-	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
-	matrixinferinformers "matrixinfer.ai/matrixinfer/client-go/informers/externalversions"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/controller"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
+	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
+	kthenaInformers "github.com/volcano-sh/kthena/client-go/informers/externalversions"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/controller"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/datastore"
 )
 
 type Controller interface {
@@ -49,19 +49,19 @@ func startControllers(store datastore.Store, stop <-chan struct{}) Controller {
 		klog.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
 
-	matrixinferClient, err := clientset.NewForConfig(cfg)
+	kthenaClient, err := clientset.NewForConfig(cfg)
 	if err != nil {
-		klog.Fatalf("Error building matrixinfer clientset: %s", err.Error())
+		klog.Fatalf("Error building kthena clientset: %s", err.Error())
 	}
 
 	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, 0)
-	matrixinferInformerFactory := matrixinferinformers.NewSharedInformerFactory(matrixinferClient, 0)
+	kthenaInformerFactory := kthenaInformers.NewSharedInformerFactory(kthenaClient, 0)
 
-	modelRouteController := controller.NewModelRouteController(matrixinferInformerFactory, store)
-	modelServerController := controller.NewModelServerController(matrixinferInformerFactory, kubeInformerFactory, store)
+	modelRouteController := controller.NewModelRouteController(kthenaInformerFactory, store)
+	modelServerController := controller.NewModelServerController(kthenaInformerFactory, kubeInformerFactory, store)
 
 	kubeInformerFactory.Start(stop)
-	matrixinferInformerFactory.Start(stop)
+	kthenaInformerFactory.Start(stop)
 
 	go func() {
 		if err := modelRouteController.Run(stop); err != nil {

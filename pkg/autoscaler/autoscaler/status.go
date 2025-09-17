@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,10 +17,10 @@ limitations under the License.
 package autoscaler
 
 import (
-	"matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
-	"matrixinfer.ai/matrixinfer/pkg/autoscaler/algorithm"
-	"matrixinfer.ai/matrixinfer/pkg/autoscaler/datastructure"
-	"matrixinfer.ai/matrixinfer/pkg/autoscaler/util"
+	"github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	"github.com/volcano-sh/kthena/pkg/autoscaler/algorithm"
+	"github.com/volcano-sh/kthena/pkg/autoscaler/datastructure"
+	"github.com/volcano-sh/kthena/pkg/autoscaler/util"
 )
 
 type Status struct {

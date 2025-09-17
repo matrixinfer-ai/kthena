@@ -1,16 +1,16 @@
-apiVersion: networking.matrixinfer.ai/v1alpha1
+apiVersion: networking.volcano.sh/v1alpha1
 kind: ModelRoute
 metadata:
   name: multi-backend-model
   namespace: dev
   labels:
-    registry.matrixinfer.ai/backend-name: ""
-    registry.matrixinfer.ai/managed-by: registry.matrixinfer.ai
-    registry.matrixinfer.ai/model-name: multi-backend-model
-    registry.matrixinfer.ai/model-uid: randomUID
-    registry.matrixinfer.ai/revision: 7b67c97bcb
+    registry.volcano.sh/backend-name: ""
+    registry.volcano.sh/managed-by: registry.volcano.sh
+    registry.volcano.sh/model-name: multi-backend-model
+    registry.volcano.sh/model-uid: randomUID
+    registry.volcano.sh/revision: 7b67c97bcb
   ownerReferences:
-    - apiVersion: registry.matrixinfer.ai/v1alpha1
+    - apiVersion: registry.volcano.sh/v1alpha1
       kind: Model
       name: multi-backend-model
       uid: randomUID

@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ var describeCmd = &cobra.Command{
 	Short: "Show detailed information about a specific resource",
 	Long: `Show detailed information about a specific resource.
 
-You can describe templates and other MatrixInfer resources.
+You can describe templates and other kthena resources.
 
 Examples:
   minfer describe template deepseek-r1-distill-llama-8b
@@ -140,7 +140,7 @@ func runDescribeTemplate(cmd *cobra.Command, args []string) error {
 func runDescribeModel(cmd *cobra.Command, args []string) error {
 	modelName := args[0]
 
-	client, err := getGetMatrixInferClient()
+	client, err := getKthenaClient()
 	if err != nil {
 		return err
 	}
@@ -178,7 +178,7 @@ func runDescribeModel(cmd *cobra.Command, args []string) error {
 func runDescribeModelInfer(cmd *cobra.Command, args []string) error {
 	modelInferName := args[0]
 
-	client, err := getGetMatrixInferClient()
+	client, err := getKthenaClient()
 	if err != nil {
 		return err
 	}
@@ -216,7 +216,7 @@ func runDescribeModelInfer(cmd *cobra.Command, args []string) error {
 func runDescribeAutoscalingPolicy(cmd *cobra.Command, args []string) error {
 	policyName := args[0]
 
-	client, err := getGetMatrixInferClient()
+	client, err := getKthenaClient()
 	if err != nil {
 		return err
 	}

@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,16 +23,16 @@ import (
 	"strconv"
 	"strings"
 
+	registry "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
 
 const (
-	ModelNameLabelKey   = "registry.matrixinfer.ai/model-name"
-	BackendNameLabelKey = "registry.matrixinfer.ai/backend-name"
-	ManageBy            = "registry.matrixinfer.ai/managed-by"
-	RevisionLabelKey    = "registry.matrixinfer.ai/revision"
-	OwnerUIDKey         = "registry.matrixinfer.ai/model-uid"
+	ModelNameLabelKey   = "registry.volcano.sh/model-name"
+	BackendNameLabelKey = "registry.volcano.sh/backend-name"
+	ManageBy            = "registry.volcano.sh/managed-by"
+	RevisionLabelKey    = "registry.volcano.sh/revision"
+	OwnerUIDKey         = "registry.volcano.sh/model-uid"
 )
 
 func ReplaceEmbeddedPlaceholders(s string, values *map[string]interface{}) (string, error) {

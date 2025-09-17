@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -33,18 +33,18 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 
-	"matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/accesslog"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/common"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/connectors"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/filters/auth"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/filters/ratelimit"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/handlers"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
+	"github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/accesslog"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/common"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/connectors"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/datastore"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/filters/auth"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/filters/ratelimit"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/handlers"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/scheduler"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/scheduler/framework"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/scheduler/plugins/conf"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/utils"
 )
 
 var EnableFairnessScheduling = env.RegisterBoolVar("ENABLE_FAIRNESS_SCHEDULING", false, "Enable fairness scheduling for inference requests").Get()

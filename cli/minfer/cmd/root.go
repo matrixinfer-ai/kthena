@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,12 +25,12 @@ import (
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "minfer",
-	Short: "MatrixInfer CLI for managing AI inference workloads",
-	Long: `minfer is a CLI tool for managing MatrixInfer AI inference workloads.
+	Short: "Kthena CLI for managing AI inference workloads",
+	Long: `minfer is a CLI tool for managing Kthena AI inference workloads.
 
 It allows you to:
 - Create manifests from predefined templates with custom values
-- List and view MatrixInfer resources in Kubernetes clusters
+- List and view Kthena resources in Kubernetes clusters
 - Manage inference workloads, models, and autoscaling policies
 
 Examples:

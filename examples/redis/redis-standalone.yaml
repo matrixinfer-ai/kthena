@@ -1,6 +1,6 @@
-# Redis deployment for MatrixInfer
+# Redis deployment for Kthena
 # Deploy when using KV cache or other Redis-dependent features
-# Usage (deploy in the same namespace as MatrixInfer):
+# Usage (deploy in the same namespace as Kthena):
 #   kubectl apply -f redis-standalone.yaml -n <namespace>
 
 ---
