@@ -1,0 +1,52 @@
+registry:
+  # enabled is a flag to enable or disable the registry subchart. Default is true.
+  enabled: true
+  webhook:
+    enabled: true
+
+workload:
+  # enabled is a flag to enable or disable the workload subchart. Default is true.
+  enabled: true
+  webhook:
+    enabled: true
+
+networking:
+  # enabled is a flag to enable or disable the networking subchart. Default is true.
+  enabled: true
+  inferGateway:
+    enabled: true
+    port: 8080
+    tls:
+      enabled: false
+      # The DNS name to use for the certificate.
+      dnsName: "your-domain.com"
+      # The name of the secret to store the certificate and key.
+      secretName: "infer-gateway-tls"
+    # fairness configuration for request scheduling
+    fairness:
+      # enabled controls whether fairness scheduling is active
+      enabled: false
+      # windowSize is the sliding window duration for token usage tracking
+      windowSize: "1h"
+      # inputTokenWeight is the weight multiplier for input tokens
+      inputTokenWeight: 1.0
+      # outputTokenWeight is the weight multiplier for output tokens
+      outputTokenWeight: 2.0
+  webhook:
+    enabled: true
+
+global:
+  certManager:
+    # Enable or disable cert-manager integration for all subcharts.
+    # If set to true, this chart will attempt to create cert-manager resources (Issuer, Certificate, etc.)
+    # for all components that support it (e.g., admission webhooks).
+    #
+    # IMPORTANT:
+    # - cert-manager must be installed in your cluster before enabling this option.
+    #   See: https://cert-manager.io/docs/installation/
+    enabled: true
+  webhook:
+    # caBundle is the base64-encoded CA bundle for webhook server certificates.
+    # This is required when cert-manager is disabled (global.certManager.enabled=false).
+    # You can generate it with: cat /path/to/your/ca.crt | base64 | tr -d '\n'
+    # caBundle: ""

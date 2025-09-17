@@ -4,21 +4,21 @@ kind: Model
 metadata:
   annotations:
     api.kubernetes.io/name: {{ .Values.annotationName | default "example" | quote }}
-  name: {{ .Values.name | default "deepseek-r1-distill-llama-8b" | quote }}
+  name: {{ .Values.name | default "deepseek-r1-distill-qwen-32b" | quote }}
   {{- if .Values.namespace }}
   namespace: {{ .Values.namespace | quote }}
   {{- end }}
 spec:
-  name: {{ .Values.modelName | default .Values.name | default "deepseek-r1-distill-llama-8b" | quote }}
+  name: {{ .Values.modelName | default .Values.name | default "deepseek-r1-distill-qwen-32b" | quote }}
   owner: {{ .Values.owner | default "example" | quote }}
   autoscalingPolicy:
     metrics:
       - metricName: {{ .Values.metricName | default "matrixinfer:num_requests_waiting" | quote }}
         targetValue: {{ .Values.targetValue | default 10 }}
   backends:
-    - name: {{ .Values.backendName | default "deepseek-r1-distill-llama-8b-vllm" | quote }}
+    - name: {{ .Values.backendName | default "deepseek-r1-distill-qwen-32b-vllm" | quote }}
       type: {{ .Values.backendType | default "vLLM" | quote }}
-      modelURI: {{ .Values.modelURI | default "s3://model-bucket/deepseek-r1-distill-llama-8b" | quote }}
+      modelURI: {{ .Values.modelURI | default "s3://model-bucket/deepseek-r1-distill-qwen-32b" | quote }}
       cacheURI: {{ .Values.cacheURI | default "hostpath://tmp/test" | quote }}
       minReplicas: {{ .Values.minReplicas | default 1 }}
       maxReplicas: {{ .Values.maxReplicas | default 3 }}
