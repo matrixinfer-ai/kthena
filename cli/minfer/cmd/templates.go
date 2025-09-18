@@ -166,7 +166,28 @@ func extractTemplateVariables(content string) []string {
 
 	// Simple regex-like approach to find {{ .VariableName }} patterns
 	lines := strings.Split(content, "\n")
+	inRangeContext := false
+	rangeVariable := ""
+	
 	for _, line := range lines {
+		// Check for range context
+		if strings.Contains(line, "{{- range") {
+			inRangeContext = true
+			// Extract the range variable (e.g., .Values.loraAdapters)
+			start := strings.Index(line, "{{- range")
+			if start != -1 {
+				end := strings.Index(line[start:], "}}")
+				if end != -1 {
+					rangeVar := strings.TrimSpace(line[start+9 : start+end])
+					rangeVar = strings.TrimPrefix(rangeVar, ".")
+					rangeVariable = rangeVar
+				}
+			}
+		} else if strings.Contains(line, "{{- end }}") && inRangeContext {
+			inRangeContext = false
+			rangeVariable = ""
+		}
+		
 		for {
 			start := strings.Index(line, "{{")
 			if start == -1 {
@@ -178,7 +199,15 @@ func extractTemplateVariables(content string) []string {
 			}
 
 			variable := strings.TrimSpace(line[start+2 : start+end])
+			
+			// Skip control structures and empty variables
+			if strings.HasPrefix(variable, "-") || variable == "" {
+				line = line[start+end+2:]
+				continue
+			}
+			
 			// Remove leading dot and any function calls/pipes
+			originalVariable := variable
 			variable = strings.TrimPrefix(variable, ".")
 			if spaceIndex := strings.Index(variable, " "); spaceIndex != -1 {
 				variable = variable[:spaceIndex]
@@ -187,7 +216,17 @@ func extractTemplateVariables(content string) []string {
 				variable = variable[:pipeIndex]
 			}
 
-			if variable != "" && !variableMap[variable] {
+			// Handle variables in range context
+			if inRangeContext && !strings.HasPrefix(originalVariable, ".Values") && rangeVariable != "" {
+				// This is a nested variable within a range, show it with context
+				if variable != "" && !strings.HasPrefix(variable, "if") && !strings.HasPrefix(variable, "range") && !strings.HasPrefix(variable, "end") {
+					contextualVariable := rangeVariable + "[]." + variable
+					if !variableMap[contextualVariable] {
+						variables = append(variables, contextualVariable)
+						variableMap[contextualVariable] = true
+					}
+				}
+			} else if variable != "" && !variableMap[variable] && !strings.HasPrefix(variable, "if") && !strings.HasPrefix(variable, "range") && !strings.HasPrefix(variable, "end") {
 				variables = append(variables, variable)
 				variableMap[variable] = true
 			}
