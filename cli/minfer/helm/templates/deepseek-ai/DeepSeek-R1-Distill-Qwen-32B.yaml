@@ -1,4 +1,4 @@
-# Description: Template for DeepSeek R1 Distill Llama 8B model deployment with vLLM backend
+# Description: Template for DeepSeek R1 Distill Qwen 32B model deployment with vLLM backend
 apiVersion: registry.matrixinfer.ai/v1alpha1
 kind: Model
 metadata:
@@ -38,12 +38,8 @@ spec:
               nvidia.com/gpu: {{ .Values.gpuRequest | default "1" | quote }}
       {{- if .Values.loraAdapters }}
       loraAdapters:
-      {{- range .Values.loraAdapters }}
+        {{- range .Values.loraAdapters }}
         - name: {{ .name | quote }}
           artifactURL: {{ .artifactURL | quote }}
-      {{- end }}
-      {{- else }}
-      loraAdapters:
-        - name: {{ .Values.loraAdapterName | default "lora-sql" | quote }}
-          artifactURL: {{ .Values.loraAdapterURL | default "s3://aios_models/deepseek-ai/DeepSeek-V3-W8A8/vllm-ascend-lora" | quote }}
+        {{- end }}
       {{- end }}
