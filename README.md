@@ -57,7 +57,8 @@ Kthena delivers significant performance improvements and cost savings compared t
 
 // TODO: Add some perf stats
 
-> **Note**: Benchmark results may vary based on model size, hardware configuration, and workload patterns. Contact us for environment-specific performance testing.
+> [!Note]
+> Benchmark results may vary based on model size, hardware configuration, and workload patterns. Contact us for environment-specific performance testing.
 
 ## Getting Started
 
