@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,10 +20,10 @@ import (
 	"os"
 	"testing"
 
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
+	"github.com/volcano-sh/kthena/pkg/model-controller/utils"
 
 	"github.com/stretchr/testify/assert"
-	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
+	registry "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
 	"sigs.k8s.io/yaml"
 )
 

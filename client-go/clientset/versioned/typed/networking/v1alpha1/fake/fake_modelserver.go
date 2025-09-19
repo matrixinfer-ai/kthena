@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,10 +19,10 @@ limitations under the License.
 package fake
 
 import (
+	networkingv1alpha1 "github.com/volcano-sh/kthena/client-go/applyconfiguration/networking/v1alpha1"
+	typednetworkingv1alpha1 "github.com/volcano-sh/kthena/client-go/clientset/versioned/typed/networking/v1alpha1"
+	v1alpha1 "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
 	gentype "k8s.io/client-go/gentype"
-	networkingv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/networking/v1alpha1"
-	typednetworkingv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/networking/v1alpha1"
-	v1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 )
 
 // fakeModelServers implements ModelServerInterface

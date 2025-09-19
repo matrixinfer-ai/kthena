@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,20 +19,20 @@ limitations under the License.
 package fake
 
 import (
+	applyconfiguration "github.com/volcano-sh/kthena/client-go/applyconfiguration"
+	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
+	networkingv1alpha1 "github.com/volcano-sh/kthena/client-go/clientset/versioned/typed/networking/v1alpha1"
+	fakenetworkingv1alpha1 "github.com/volcano-sh/kthena/client-go/clientset/versioned/typed/networking/v1alpha1/fake"
+	registryv1alpha1 "github.com/volcano-sh/kthena/client-go/clientset/versioned/typed/registry/v1alpha1"
+	fakeregistryv1alpha1 "github.com/volcano-sh/kthena/client-go/clientset/versioned/typed/registry/v1alpha1/fake"
+	workloadv1alpha1 "github.com/volcano-sh/kthena/client-go/clientset/versioned/typed/workload/v1alpha1"
+	fakeworkloadv1alpha1 "github.com/volcano-sh/kthena/client-go/clientset/versioned/typed/workload/v1alpha1/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
 	fakediscovery "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/testing"
-	applyconfiguration "matrixinfer.ai/matrixinfer/client-go/applyconfiguration"
-	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
-	networkingv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/networking/v1alpha1"
-	fakenetworkingv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/networking/v1alpha1/fake"
-	registryv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/registry/v1alpha1"
-	fakeregistryv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/registry/v1alpha1/fake"
-	workloadv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/workload/v1alpha1"
-	fakeworkloadv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/workload/v1alpha1/fake"
 )
 
 // NewSimpleClientset returns a clientset that will respond with the provided objects.

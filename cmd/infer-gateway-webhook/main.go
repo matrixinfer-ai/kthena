@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,8 +28,8 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
-	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/webhook"
+	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/webhook"
 )
 
 func main() {
@@ -50,12 +50,12 @@ func main() {
 	if err != nil {
 		klog.Fatalf("Failed to get kube client: %v", err)
 	}
-	matrixInferClient, err := clientset.NewForConfig(config)
+	kthenaClient, err := clientset.NewForConfig(config)
 	if err != nil {
-		klog.Fatalf("Failed to get matrix infer client: %v", err)
+		klog.Fatalf("Failed to get kthena client: %v", err)
 	}
 
-	validator := webhook.NewInferGatewayValidator(kubeClient, matrixInferClient, *webhookPort)
+	validator := webhook.NewInferGatewayValidator(kubeClient, kthenaClient, *webhookPort)
 
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)

@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,9 +21,9 @@ package v1alpha1
 import (
 	http "net/http"
 
+	scheme "github.com/volcano-sh/kthena/client-go/clientset/versioned/scheme"
+	registryv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
 	rest "k8s.io/client-go/rest"
-	scheme "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/scheme"
-	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
 
 type RegistryV1alpha1Interface interface {
@@ -33,7 +33,7 @@ type RegistryV1alpha1Interface interface {
 	ModelsGetter
 }
 
-// RegistryV1alpha1Client is used to interact with features provided by the registry.matrixinfer.ai group.
+// RegistryV1alpha1Client is used to interact with features provided by the registry.volcano.sh group.
 type RegistryV1alpha1Client struct {
 	restClient rest.Interface
 }

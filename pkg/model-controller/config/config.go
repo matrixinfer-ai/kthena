@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,9 +23,9 @@ import (
 
 const (
 	// DefaultModelInferDownloaderImage is the default image used for downloading models.
-	DefaultModelInferDownloaderImage = "matrixinfer/downloader:latest"
+	DefaultModelInferDownloaderImage = "kthena/downloader:latest"
 	// DefaultModelInferRuntimeImage is the default image used for running model inference.
-	DefaultModelInferRuntimeImage = "matrixinfer/runtime:latest"
+	DefaultModelInferRuntimeImage = "kthena/runtime:latest"
 	DefaultKVEventsPublisher      = "zmq"
 	DefaultKVEventsTopic          = "kv-events"
 	DefaultKVEventsEndpoint       = "tcp://*:5557"

@@ -14,7 +14,7 @@ on:
 
 jobs:
   build:
-    if: github.repository == 'matrixinfer-ai/matrixinfer'
+    if: github.repository == 'volcano-sh/kthena'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -27,7 +27,6 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          # image name will be ghcr.io/matrixinfer-ai/downloader and ghcr.io/matrixinfer-ai/runtime
           images: ghcr.io/${{ github.repository_owner }}/${{matrix.service}}
           # tags based on git refs and semver, push to default branch will also get "latest" tag
           tags: |

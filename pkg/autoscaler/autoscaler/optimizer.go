@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,15 +20,15 @@ import (
 	"context"
 	"sort"
 
+	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
+	workloadLister "github.com/volcano-sh/kthena/client-go/listers/workload/v1alpha1"
+	"github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	workload "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
+	"github.com/volcano-sh/kthena/pkg/autoscaler/algorithm"
+	"github.com/volcano-sh/kthena/pkg/autoscaler/util"
 	listerv1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
-	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
-	workloadLister "matrixinfer.ai/matrixinfer/client-go/listers/workload/v1alpha1"
-	"matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
-	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
-	"matrixinfer.ai/matrixinfer/pkg/autoscaler/algorithm"
-	"matrixinfer.ai/matrixinfer/pkg/autoscaler/util"
 )
 
 type Optimizer struct {

@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -35,11 +35,11 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
-	informersv1alpha1 "matrixinfer.ai/matrixinfer/client-go/informers/externalversions"
-	listerv1alpha1 "matrixinfer.ai/matrixinfer/client-go/listers/networking/v1alpha1"
-	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
+	informersv1alpha1 "github.com/volcano-sh/kthena/client-go/informers/externalversions"
+	listerv1alpha1 "github.com/volcano-sh/kthena/client-go/listers/networking/v1alpha1"
+	aiv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/datastore"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/utils"
 )
 
 // ResourceType represents the type of Kubernetes resource
@@ -73,11 +73,11 @@ type ModelServerController struct {
 }
 
 func NewModelServerController(
-	matrixinferInformerFactory informersv1alpha1.SharedInformerFactory,
+	kthenaInformerFactory informersv1alpha1.SharedInformerFactory,
 	kubeInformerFactory informers.SharedInformerFactory,
 	store datastore.Store,
 ) *ModelServerController {
-	modelServerInformer := matrixinferInformerFactory.Networking().V1alpha1().ModelServers()
+	modelServerInformer := kthenaInformerFactory.Networking().V1alpha1().ModelServers()
 	podInformer := kubeInformerFactory.Core().V1().Pods()
 
 	controller := &ModelServerController{

@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,8 +19,8 @@ limitations under the License.
 package registry
 
 import (
-	internalinterfaces "matrixinfer.ai/matrixinfer/client-go/informers/externalversions/internalinterfaces"
-	v1alpha1 "matrixinfer.ai/matrixinfer/client-go/informers/externalversions/registry/v1alpha1"
+	internalinterfaces "github.com/volcano-sh/kthena/client-go/informers/externalversions/internalinterfaces"
+	v1alpha1 "github.com/volcano-sh/kthena/client-go/informers/externalversions/registry/v1alpha1"
 )
 
 // Interface provides access to each of this group's versions.

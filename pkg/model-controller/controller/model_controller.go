@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"time"
 
+	networkingv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -33,18 +34,17 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
-	networkingv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
-	informersv1alpha1 "matrixinfer.ai/matrixinfer/client-go/informers/externalversions"
-	networkingLister "matrixinfer.ai/matrixinfer/client-go/listers/networking/v1alpha1"
-	registryLister "matrixinfer.ai/matrixinfer/client-go/listers/registry/v1alpha1"
-	workloadLister "matrixinfer.ai/matrixinfer/client-go/listers/workload/v1alpha1"
-	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
-	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/config"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
+	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
+	informersv1alpha1 "github.com/volcano-sh/kthena/client-go/informers/externalversions"
+	networkingLister "github.com/volcano-sh/kthena/client-go/listers/networking/v1alpha1"
+	registryLister "github.com/volcano-sh/kthena/client-go/listers/registry/v1alpha1"
+	workloadLister "github.com/volcano-sh/kthena/client-go/listers/workload/v1alpha1"
+	registryv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	workload "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
+	"github.com/volcano-sh/kthena/pkg/model-controller/config"
+	"github.com/volcano-sh/kthena/pkg/model-controller/utils"
 )
 
 const (

@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -40,13 +40,13 @@ import (
 	"k8s.io/klog/v2"
 	volcano "volcano.sh/apis/pkg/client/clientset/versioned"
 
-	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
-	informersv1alpha1 "matrixinfer.ai/matrixinfer/client-go/informers/externalversions"
-	listerv1alpha1 "matrixinfer.ai/matrixinfer/client-go/listers/workload/v1alpha1"
-	workloadv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
-	"matrixinfer.ai/matrixinfer/pkg/infer-controller/datastore"
-	"matrixinfer.ai/matrixinfer/pkg/infer-controller/gangscheduling"
-	"matrixinfer.ai/matrixinfer/pkg/infer-controller/utils"
+	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
+	informersv1alpha1 "github.com/volcano-sh/kthena/client-go/informers/externalversions"
+	listerv1alpha1 "github.com/volcano-sh/kthena/client-go/listers/workload/v1alpha1"
+	workloadv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
+	"github.com/volcano-sh/kthena/pkg/infer-controller/datastore"
+	"github.com/volcano-sh/kthena/pkg/infer-controller/gangscheduling"
+	"github.com/volcano-sh/kthena/pkg/infer-controller/utils"
 )
 
 const (
@@ -668,7 +668,7 @@ func (c *ModelInferController) CreatePodByRole(ctx context.Context, role workloa
 		return nil
 	}
 	// Create headless service
-	err = utils.CreateHeadlessService(ctx, c.kubeClientSet, mi, entryPod.Spec.Subdomain, entryPod.ObjectMeta.Labels, groupName, role.Name, roleIndex)
+	err = utils.CreateHeadlessService(ctx, c.kubeClientSet, mi, entryPod.ObjectMeta.Labels, groupName, role.Name, roleIndex)
 	if err != nil {
 		klog.Errorf("create headless service failed: %v", err)
 		return err

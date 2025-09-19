@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	networkingv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/networking/v1alpha1"
+	networkingv1alpha1 "github.com/volcano-sh/kthena/client-go/applyconfiguration/networking/v1alpha1"
 )
 
 // ModelSpecApplyConfiguration represents a declarative configuration of the ModelSpec type for use

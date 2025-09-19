@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@ limitations under the License.
 
 package connectors
 
-import "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
+import "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
 
 // Factory creates KV connectors based on type
 type Factory struct {

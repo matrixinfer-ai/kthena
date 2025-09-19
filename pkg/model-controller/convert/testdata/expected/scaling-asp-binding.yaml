@@ -1,16 +1,16 @@
-apiVersion: registry.matrixinfer.ai/v1alpha1
+apiVersion: registry.volcano.sh/v1alpha1
 kind: AutoscalingPolicyBinding
 metadata:
   labels:
-    registry.matrixinfer.ai/backend-name: backend1
-    registry.matrixinfer.ai/managed-by: registry.matrixinfer.ai
-    registry.matrixinfer.ai/model-name: test-model
-    registry.matrixinfer.ai/revision: 556849fcfc
-    registry.matrixinfer.ai/model-uid: randomUID
+    registry.volcano.sh/backend-name: backend1
+    registry.volcano.sh/managed-by: registry.volcano.sh
+    registry.volcano.sh/model-name: test-model
+    registry.volcano.sh/revision: 556849fcfc
+    registry.volcano.sh/model-uid: randomUID
   name: test-model-backend1
   namespace: default
   ownerReferences:
-    - apiVersion: registry.matrixinfer.ai/v1alpha1
+    - apiVersion: registry.volcano.sh/v1alpha1
       kind: Model
       name: test-model
       uid: randomUID
@@ -24,7 +24,7 @@ spec:
     minReplicas: 0
     target:
       additionalMatchLabels:
-        modelinfer.matrixinfer.ai/role: leader
+        modelinfer.volcano.sh/role: leader
       targetRef:
         kind: ModelInfer
         name: test-model-backend1

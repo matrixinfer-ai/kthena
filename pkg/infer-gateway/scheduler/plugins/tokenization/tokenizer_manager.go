@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,9 +23,9 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/common"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/datastore"
 	"k8s.io/klog/v2"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/common"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
 )
 
 type TokenizerManagerConfig struct {

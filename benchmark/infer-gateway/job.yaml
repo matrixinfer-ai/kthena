@@ -7,11 +7,11 @@ spec:
     spec:
       containers:
       - name: benchmark
-        image: ghcr.io/matrixinfer-ai/benchmark:latest
+        image: ghcr.io/volcano-sh/benchmark:latest
         imagePullPolicy: IfNotPresent
         args:
         - --host
-        - "matrixinfer-infer-gateway.matrixinfer-system"
+        - "kthena-infer-gateway.kthena-system"
         - --backend
         - "vllm"
         - --port

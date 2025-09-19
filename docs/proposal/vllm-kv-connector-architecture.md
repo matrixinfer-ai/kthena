@@ -17,7 +17,7 @@
 
 ## 1. Introduction
 
-This document proposes an enhanced architecture for handling KV Connectors in the MatrixInfer gateway. The current implementation for PD (Prefill-Decode) disaggregated routing is based on a simple two-step HTTP request process, which is insufficient to support the diverse KV cache transfer mechanisms available in vLLM.
+This document proposes an enhanced architecture for handling KV Connectors in the Kthena gateway. The current implementation for PD (Prefill-Decode) disaggregated routing is based on a simple two-step HTTP request process, which is insufficient to support the diverse KV cache transfer mechanisms available in vLLM.
 
 Based on research of vLLM's actual implementation, the primary KV cache connectors include `LMCacheConnector` for distributed KV cache management with CPU/disk offloading capabilities, and `NIXLConnector` for high-performance distributed in-memory communication. Additionally, vLLM can integrate with `MooncakeStore`, Kimi's (Moonshot AI) KVCache-centric disaggregated architecture as described in their research paper "Mooncake: A KVCache-centric Disaggregated Architecture for LLM Serving".
 
@@ -187,7 +187,7 @@ type KVConnectorSpec struct {
 
 ### HTTP Connector (Default)
 ```yaml
-apiVersion: networking.matrixinfer.ai/v1alpha1
+apiVersion: networking.volcano.sh/v1alpha1
 kind: ModelServer  
 metadata:
   name: llama2-7b
@@ -208,7 +208,7 @@ spec:
 
 ### HTTP Connector with MooncakeStore
 ```yaml
-apiVersion: networking.matrixinfer.ai/v1alpha1
+apiVersion: networking.volcano.sh/v1alpha1
 kind: ModelServer  
 metadata:
   name: llama2-13b-mooncake
@@ -229,7 +229,7 @@ spec:
 
 ### NIXL Connector
 ```yaml
-apiVersion: networking.matrixinfer.ai/v1alpha1  
+apiVersion: networking.volcano.sh/v1alpha1  
 kind: ModelServer
 metadata:
   name: llama2-405b
@@ -250,7 +250,7 @@ spec:
 
 ### LMCache Connector
 ```yaml
-apiVersion: networking.matrixinfer.ai/v1alpha1  
+apiVersion: networking.volcano.sh/v1alpha1  
 kind: ModelServer
 metadata:
   name: llama2-70b
@@ -294,8 +294,8 @@ spec:
 
 ## 6. Conclusion
 
-The implemented architecture for vLLM KV Connectors addresses the limitations of a monolithic routing implementation by providing a robust, extensible, and production-ready solution. By introducing a `KVConnector` interface and providing implementations for different KV cache transfer strategies (`HTTP` and `NIXL`), this architecture significantly improves the flexibility and performance of PD disaggregated routing in MatrixInfer.
+The implemented architecture for vLLM KV Connectors addresses the limitations of a monolithic routing implementation by providing a robust, extensible, and production-ready solution. By introducing a `KVConnector` interface and providing implementations for different KV cache transfer strategies (`HTTP` and `NIXL`), this architecture significantly improves the flexibility and performance of PD disaggregated routing in Kthena.
 
 The design allows operators to select the appropriate connector (`http`, `lmcache`, `mooncake`, or `nixl`) via the `ModelServer` CRD. While `lmcache` and `mooncake` currently default to the `http` connector's behavior, the factory pattern makes it straightforward to add dedicated implementations as needed. This allows operators to choose between simple HTTP-based integration and high-performance in-memory caching with `NIXL`, optimizing for their specific use cases.
 
-This architecture positions MatrixInfer to fully leverage the diverse capabilities of vLLM's KV cache system while providing the operational excellence required for production deployments.
+This architecture positions Kthena to fully leverage the diverse capabilities of vLLM's KV cache system while providing the operational excellence required for production deployments.

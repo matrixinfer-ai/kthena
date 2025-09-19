@@ -1,4 +1,4 @@
-apiVersion: networking.matrixinfer.ai/v1alpha1
+apiVersion: networking.volcano.sh/v1alpha1
 kind: ModelRoute
 metadata:
   name: deepseek-global-rate-limit
@@ -17,5 +17,5 @@ spec:
     unit: minute
     global:
       redis:
-        address: "redis-server.matrixinfer-system.svc.cluster.local:6379"
+        address: "redis-server.kthena-system.svc.cluster.local:6379"
 

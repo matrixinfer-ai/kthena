@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -31,8 +31,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
+	aiv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/datastore"
 )
 
 // MockStore implements the datastore.Store interface for testing
@@ -76,9 +76,13 @@ func (m *MockStore) DeletePod(podName types.NamespacedName) error {
 	return args.Error(0)
 }
 
-func (m *MockStore) MatchModelServer(modelName string, request *http.Request) (types.NamespacedName, bool, error) {
+func (m *MockStore) MatchModelServer(modelName string, request *http.Request) (types.NamespacedName, bool, *aiv1alpha1.ModelRoute, error) {
 	args := m.Called(modelName, request)
-	return args.Get(0).(types.NamespacedName), args.Bool(1), args.Error(2)
+	var modelRoute *aiv1alpha1.ModelRoute
+	if args.Get(2) != nil {
+		modelRoute = args.Get(2).(*aiv1alpha1.ModelRoute)
+	}
+	return args.Get(0).(types.NamespacedName), args.Bool(1), modelRoute, args.Error(3)
 }
 
 func (m *MockStore) AddOrUpdateModelRoute(mr *aiv1alpha1.ModelRoute) error {

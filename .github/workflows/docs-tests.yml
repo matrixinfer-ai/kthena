@@ -5,12 +5,12 @@ on:
     branches:
       - main
     paths:
-      - 'docs/matrixinfer/**'
+      - '../../docs/kthena/**'
   push:
     branches:
       - main
     paths:
-      - 'docs/matrixinfer/**'
+      - '../../docs/kthena/**'
 
 jobs:
   docs_test:
@@ -23,13 +23,13 @@ jobs:
         with:
           node-version: '24.5.0'
           cache: 'npm'
-          cache-dependency-path: './docs/matrixinfer/package-lock.json'
+          cache-dependency-path: './docs/kthena/package-lock.json'
       - name: Install dependencies
-        working-directory: ./docs/matrixinfer
+        working-directory: ./docs/kthena
         run: npm ci
       - name: Type check
-        working-directory: ./docs/matrixinfer
+        working-directory: ./docs/kthena
         run: npm run typecheck
       - name: Build documentation
-        working-directory: ./docs/matrixinfer
+        working-directory: ./docs/kthena
         run: npm run build

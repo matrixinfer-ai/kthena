@@ -5,8 +5,8 @@ on:
 #    branches:
 #      - main
 #    paths:
-#      - 'docs/matrixinfer/**'
-  workflow_dispatch: # TODO: switch back to `push` once matrixInfer becomes public
+#      - 'docs/kthena/**'
+  workflow_dispatch: # TODO: switch back to `push` once kthena becomes public
 
 jobs:
   build:
@@ -20,19 +20,19 @@ jobs:
         with:
           node-version: '24.5.0'
           cache: npm
-          cache-dependency-path: ./docs/matrixinfer/package-lock.json
+          cache-dependency-path: ./docs/kthena/package-lock.json
 
       - name: Install dependencies
         run: npm ci
-        working-directory: ./docs/matrixinfer
+        working-directory: ./docs/kthena
       - name: Build website
         run: npm run build
-        working-directory: ./docs/matrixinfer
+        working-directory: ./docs/kthena
 
       - name: Upload Build Artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./docs/matrixinfer/build
+          path: ./docs/kthena/build
 
   deploy:
     name: Deploy to GitHub Pages

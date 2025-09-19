@@ -20,6 +20,6 @@ assignees: ''
 
 **Environment**:
 
-- MatrixInfer version:
+- Kthena version:
 - Kubernetes version:
 - Others:

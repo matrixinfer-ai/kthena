@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,8 +23,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/fake"
-	networkingv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
+	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned/fake"
+	networkingv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
 )
 
 func TestValidateModelRoute(t *testing.T) {
@@ -38,7 +38,7 @@ func TestValidateModelRoute(t *testing.T) {
 			name: "valid model route with model name",
 			modelRoute: &networkingv1alpha1.ModelRoute{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "networking.matrixinfer.ai/v1alpha1",
+					APIVersion: "networking.volcano.sh/v1alpha1",
 					Kind:       "ModelRoute",
 				},
 				ObjectMeta: metav1.ObjectMeta{
@@ -65,7 +65,7 @@ func TestValidateModelRoute(t *testing.T) {
 			name: "valid model route with lora adapters",
 			modelRoute: &networkingv1alpha1.ModelRoute{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "networking.matrixinfer.ai/v1alpha1",
+					APIVersion: "networking.volcano.sh/v1alpha1",
 					Kind:       "ModelRoute",
 				},
 				ObjectMeta: metav1.ObjectMeta{
@@ -92,7 +92,7 @@ func TestValidateModelRoute(t *testing.T) {
 			name: "valid model route with both model name and lora adapters",
 			modelRoute: &networkingv1alpha1.ModelRoute{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "networking.matrixinfer.ai/v1alpha1",
+					APIVersion: "networking.volcano.sh/v1alpha1",
 					Kind:       "ModelRoute",
 				},
 				ObjectMeta: metav1.ObjectMeta{
@@ -120,7 +120,7 @@ func TestValidateModelRoute(t *testing.T) {
 			name: "invalid model route - missing both model name and lora adapters",
 			modelRoute: &networkingv1alpha1.ModelRoute{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "networking.matrixinfer.ai/v1alpha1",
+					APIVersion: "networking.volcano.sh/v1alpha1",
 					Kind:       "ModelRoute",
 				},
 				ObjectMeta: metav1.ObjectMeta{
@@ -147,7 +147,7 @@ func TestValidateModelRoute(t *testing.T) {
 			name: "invalid model route - empty string in lora adapters",
 			modelRoute: &networkingv1alpha1.ModelRoute{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "networking.matrixinfer.ai/v1alpha1",
+					APIVersion: "networking.volcano.sh/v1alpha1",
 					Kind:       "ModelRoute",
 				},
 				ObjectMeta: metav1.ObjectMeta{
@@ -175,7 +175,7 @@ func TestValidateModelRoute(t *testing.T) {
 			name: "invalid model route - multiple empty strings in lora adapters",
 			modelRoute: &networkingv1alpha1.ModelRoute{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "networking.matrixinfer.ai/v1alpha1",
+					APIVersion: "networking.volcano.sh/v1alpha1",
 					Kind:       "ModelRoute",
 				},
 				ObjectMeta: metav1.ObjectMeta{
@@ -203,7 +203,7 @@ func TestValidateModelRoute(t *testing.T) {
 			name: "invalid model route - all lora adapters are empty",
 			modelRoute: &networkingv1alpha1.ModelRoute{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "networking.matrixinfer.ai/v1alpha1",
+					APIVersion: "networking.volcano.sh/v1alpha1",
 					Kind:       "ModelRoute",
 				},
 				ObjectMeta: metav1.ObjectMeta{
@@ -231,7 +231,7 @@ func TestValidateModelRoute(t *testing.T) {
 			name: "invalid model route - empty model name and empty lora adapters list",
 			modelRoute: &networkingv1alpha1.ModelRoute{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "networking.matrixinfer.ai/v1alpha1",
+					APIVersion: "networking.volcano.sh/v1alpha1",
 					Kind:       "ModelRoute",
 				},
 				ObjectMeta: metav1.ObjectMeta{

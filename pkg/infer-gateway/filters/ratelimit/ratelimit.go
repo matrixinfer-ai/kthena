@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -26,8 +26,8 @@ import (
 	"golang.org/x/time/rate"
 	"k8s.io/klog/v2"
 
-	networkingv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/filters/tokenizer"
+	networkingv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/filters/tokenizer"
 )
 
 type RateLimitExceededError struct{}
@@ -163,7 +163,7 @@ func (r *TokenRateLimiter) AddOrUpdateLimiter(model string, ratelimit *networkin
 		if ratelimit.InputTokensPerUnit != nil {
 			r.inputLimiter[model] = NewGlobalRateLimiter(
 				r.redisClient,
-				"matrixinfer:ratelimit",
+				"kthena:ratelimit",
 				model,
 				"input",
 				*ratelimit.InputTokensPerUnit,
@@ -174,7 +174,7 @@ func (r *TokenRateLimiter) AddOrUpdateLimiter(model string, ratelimit *networkin
 		if ratelimit.OutputTokensPerUnit != nil {
 			r.outputLimiter[model] = NewGlobalRateLimiter(
 				r.redisClient,
-				"matrixinfer:ratelimit",
+				"kthena:ratelimit",
 				model,
 				"output",
 				*ratelimit.OutputTokensPerUnit,

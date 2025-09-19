@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,9 +25,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"k8s.io/klog/v2"
 
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/debug"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/router"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/datastore"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/debug"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/router"
 )
 
 const (
@@ -50,6 +50,7 @@ func (s *Server) startRouter(ctx context.Context, router *router.Router, store d
 
 	// engine.Use(auth.Authenticate)
 	// engine.Use(auth.Authorize)
+	engine.Use(AccessLogMiddleware(router))
 	engine.Use(AuthMiddleware(router))
 
 	engine.GET("/healthz", func(c *gin.Context) {
@@ -117,6 +118,19 @@ func (s *Server) startRouter(ctx context.Context, router *router.Router, store d
 		klog.Errorf("Server shutdown failed: %v", err)
 	}
 	klog.Info("HTTP server exited")
+}
+
+func AccessLogMiddleware(gwRouter *router.Router) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Access log for "/v1/" only
+		if !strings.HasPrefix(c.Request.URL.Path, "/v1/") {
+			c.Next()
+			return
+		}
+
+		// Calling Middleware
+		gwRouter.AccessLog()(c)
+	}
 }
 
 func AuthMiddleware(gwRouter *router.Router) gin.HandlerFunc {

@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,12 +22,12 @@ import (
 	fmt "fmt"
 	http "net/http"
 
+	networkingv1alpha1 "github.com/volcano-sh/kthena/client-go/clientset/versioned/typed/networking/v1alpha1"
+	registryv1alpha1 "github.com/volcano-sh/kthena/client-go/clientset/versioned/typed/registry/v1alpha1"
+	workloadv1alpha1 "github.com/volcano-sh/kthena/client-go/clientset/versioned/typed/workload/v1alpha1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
-	networkingv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/networking/v1alpha1"
-	registryv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/registry/v1alpha1"
-	workloadv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/workload/v1alpha1"
 )
 
 type Interface interface {

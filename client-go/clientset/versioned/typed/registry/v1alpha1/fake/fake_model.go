@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,10 +19,10 @@ limitations under the License.
 package fake
 
 import (
+	registryv1alpha1 "github.com/volcano-sh/kthena/client-go/applyconfiguration/registry/v1alpha1"
+	typedregistryv1alpha1 "github.com/volcano-sh/kthena/client-go/clientset/versioned/typed/registry/v1alpha1"
+	v1alpha1 "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
 	gentype "k8s.io/client-go/gentype"
-	registryv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/registry/v1alpha1"
-	typedregistryv1alpha1 "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/typed/registry/v1alpha1"
-	v1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
 
 // fakeModels implements ModelInterface

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the design and implementation of the fairness scheduling system in MatrixInfer's inference gateway. The system ensures equitable resource allocation among users by prioritizing requests based on historical token usage, preventing any single user from monopolizing inference resources.
+This document describes the design and implementation of the fairness scheduling system in Kthena's inference gateway. The system ensures equitable resource allocation among users by prioritizing requests based on historical token usage, preventing any single user from monopolizing inference resources.
 
 ## Background
 

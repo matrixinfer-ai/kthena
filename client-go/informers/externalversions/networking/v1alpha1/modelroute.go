@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,14 +22,14 @@ import (
 	context "context"
 	time "time"
 
+	versioned "github.com/volcano-sh/kthena/client-go/clientset/versioned"
+	internalinterfaces "github.com/volcano-sh/kthena/client-go/informers/externalversions/internalinterfaces"
+	networkingv1alpha1 "github.com/volcano-sh/kthena/client-go/listers/networking/v1alpha1"
+	apisnetworkingv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
 	cache "k8s.io/client-go/tools/cache"
-	versioned "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
-	internalinterfaces "matrixinfer.ai/matrixinfer/client-go/informers/externalversions/internalinterfaces"
-	networkingv1alpha1 "matrixinfer.ai/matrixinfer/client-go/listers/networking/v1alpha1"
-	apisnetworkingv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 )
 
 // ModelRouteInformer provides access to a shared informer and lister for

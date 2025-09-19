@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import (
 	"log"
 	"os"
 
-	"matrixinfer.ai/matrixinfer/cli/minfer/cmd"
+	"github.com/volcano-sh/kthena/cli/minfer/cmd"
 
 	"github.com/spf13/cobra/doc"
 )
@@ -34,8 +34,8 @@ func main() {
 	rootCmd.DisableAutoGenTag = true
 
 	// Define output directory relative to the project root (assumes running from repo root)
-	// Target: docs/matrixinfer/docs/reference/cli
-	outputDir := "docs/matrixinfer/docs/reference/cli"
+	// Target: docs/kthena/docs/reference/cli
+	outputDir := "docs/kthena/docs/reference/cli"
 
 	if err := os.MkdirAll(outputDir, 0o755); err != nil {
 		log.Fatalf("Error creating doc output directory: %v", err)
