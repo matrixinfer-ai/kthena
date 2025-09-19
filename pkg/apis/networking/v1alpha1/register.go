@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import (
 )
 
 // GroupName specifies the group name used to register the objects.
-const GroupName = "networking.matrixinfer.ai"
+const GroupName = "networking.volcano.sh"
 
 const ModelServerKind = "ModelServer"
 

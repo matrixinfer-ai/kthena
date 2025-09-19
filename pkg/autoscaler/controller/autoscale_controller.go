@@ -1,5 +1,37 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+/*
+Copyright Kthena-AI Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+/*
+Copyright Kthena-AI Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,8 +52,16 @@ import (
 	"context"
 	"time"
 
-	"matrixinfer.ai/matrixinfer/pkg/autoscaler/autoscaler"
+	"github.com/volcano-sh/kthena/pkg/autoscaler/autoscaler"
 
+	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
+	informersv1alpha1 "github.com/volcano-sh/kthena/client-go/informers/externalversions"
+	registryLister "github.com/volcano-sh/kthena/client-go/listers/registry/v1alpha1"
+	workloadLister "github.com/volcano-sh/kthena/client-go/listers/workload/v1alpha1"
+	"github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	workload "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
+	"github.com/volcano-sh/kthena/pkg/autoscaler/algorithm"
+	"github.com/volcano-sh/kthena/pkg/autoscaler/util"
 	"istio.io/istio/pkg/util/sets"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -33,14 +73,6 @@ import (
 	listerv1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
-	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
-	informersv1alpha1 "matrixinfer.ai/matrixinfer/client-go/informers/externalversions"
-	registryLister "matrixinfer.ai/matrixinfer/client-go/listers/registry/v1alpha1"
-	workloadLister "matrixinfer.ai/matrixinfer/client-go/listers/workload/v1alpha1"
-	"matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
-	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
-	"matrixinfer.ai/matrixinfer/pkg/autoscaler/algorithm"
-	"matrixinfer.ai/matrixinfer/pkg/autoscaler/util"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

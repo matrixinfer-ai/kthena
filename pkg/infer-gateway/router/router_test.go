@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -40,14 +40,14 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 
-	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/accesslog"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/common"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/connectors"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/conf"
+	aiv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/accesslog"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/common"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/connectors"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/datastore"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/scheduler"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/scheduler/framework"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/scheduler/plugins/conf"
 )
 
 func TestMain(m *testing.M) {

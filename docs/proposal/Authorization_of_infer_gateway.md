@@ -240,7 +240,7 @@ data:
   api_key2: "c2stZmVkY2JhMDk4NzY1NDMyMQ=="  # base64 encoded "sk-fedcba0987654321"
 
 ---
-apiVersion: networking.matrixinfer.ai/v1alpha1
+apiVersion: networking.volcano.sh/v1alpha1
 kind: ModelServer
 metadata:
   name: deepseek-r1-1-5b

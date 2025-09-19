@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,8 +21,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	registryv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
 )
 
 func TestValidateModel_ErrorFormatting(t *testing.T) {

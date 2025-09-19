@@ -1,4 +1,4 @@
-module matrixinfer.ai/matrixinfer
+module github.com/volcano-sh/kthena
 
 go 1.24.0
 

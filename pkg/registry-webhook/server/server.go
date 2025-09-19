@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,35 +23,35 @@ import (
 	"net/http"
 	"time"
 
+	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
+	"github.com/volcano-sh/kthena/pkg/registry-webhook/handlers"
 	"k8s.io/klog/v2"
-	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
-	"matrixinfer.ai/matrixinfer/pkg/registry-webhook/handlers"
 )
 
 // WebhookServer contains the server configuration
 type WebhookServer struct {
-	matrixInferClient clientset.Interface
-	server            *http.Server
-	tlsCertFile       string
-	tlsPrivateKey     string
-	port              int
-	timeout           int
+	kthenaClient  clientset.Interface
+	server        *http.Server
+	tlsCertFile   string
+	tlsPrivateKey string
+	port          int
+	timeout       int
 }
 
 // NewWebhookServer creates a new webhook server
 func NewWebhookServer(
-	matrixinferClient clientset.Interface,
+	kthenaClient clientset.Interface,
 	tlsCertFile string,
 	tlsPrivateKey string,
 	port int,
 	timeout int,
 ) *WebhookServer {
 	return &WebhookServer{
-		matrixInferClient: matrixinferClient,
-		tlsCertFile:       tlsCertFile,
-		tlsPrivateKey:     tlsPrivateKey,
-		port:              port,
-		timeout:           timeout,
+		kthenaClient:  kthenaClient,
+		tlsCertFile:   tlsCertFile,
+		tlsPrivateKey: tlsPrivateKey,
+		port:          port,
+		timeout:       timeout,
 	}
 }
 
@@ -65,14 +65,14 @@ func (ws *WebhookServer) Start(stopCh <-chan struct{}) error {
 	autoscalingPolicyMutator := handlers.NewAutoscalingPolicyMutator()
 
 	// Create mux and register handlers
-	mux.HandleFunc("/validate-registry-matrixinfer-ai-v1alpha1-model", modelValidator.Handle)
-	mux.HandleFunc("/mutate-registry-matrixinfer-ai-v1alpha1-model", modelMutator.Handle)
-	mux.HandleFunc("/validate-registry-matrixinfer-ai-v1alpha1-autoscalingpolicy", autoscalingPolicyValidator.Handle)
-	mux.HandleFunc("/mutate-registry-matrixinfer-ai-v1alpha1-autoscalingpolicy", autoscalingPolicyMutator.Handle)
+	mux.HandleFunc("/validate-registry-volcano-sh-v1alpha1-model", modelValidator.Handle)
+	mux.HandleFunc("/mutate-registry-volcano-sh-v1alpha1-model", modelMutator.Handle)
+	mux.HandleFunc("/validate-registry-volcano-sh-v1alpha1-autoscalingpolicy", autoscalingPolicyValidator.Handle)
+	mux.HandleFunc("/mutate-registry-volcano-sh-v1alpha1-autoscalingpolicy", autoscalingPolicyMutator.Handle)
 
 	// Create autoscalingBinding handlers
-	autoscalingBindingValidator := handlers.NewAutoscalingBindingValidator(ws.matrixInferClient)
-	mux.HandleFunc("/validate-registry-matrixinfer-ai-v1alpha1-autoscalingpolicybinding", autoscalingBindingValidator.Handle)
+	autoscalingBindingValidator := handlers.NewAutoscalingBindingValidator(ws.kthenaClient)
+	mux.HandleFunc("/validate-registry-volcano-sh-v1alpha1-autoscalingpolicybinding", autoscalingBindingValidator.Handle)
 
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

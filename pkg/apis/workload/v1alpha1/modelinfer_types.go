@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,18 +23,18 @@ import (
 
 const (
 	// ModelInferNameLabelKey is the pod label key for the model infer name.
-	ModelInferNameLabelKey = "modelinfer.matrixinfer.ai/name"
+	ModelInferNameLabelKey = "modelinfer.volcano.sh/name"
 	// GroupNameLabelKey is the pod label key for the group name.
-	GroupNameLabelKey = "modelinfer.matrixinfer.ai/group-name"
+	GroupNameLabelKey = "modelinfer.volcano.sh/group-name"
 	// RoleLabelKey is the pod label key for the role.
-	RoleLabelKey = "modelinfer.matrixinfer.ai/role"
+	RoleLabelKey = "modelinfer.volcano.sh/role"
 	// RoleIDKey is the pod label key for the role serial number.
-	RoleIDKey = "modelinfer.matrixinfer.ai/role-id"
+	RoleIDKey = "modelinfer.volcano.sh/role-id"
 	// EntryLabelKey is the entry pod label key.
-	EntryLabelKey = "modelinfer.matrixinfer.ai/entry"
+	EntryLabelKey = "modelinfer.volcano.sh/entry"
 
 	// RevisionLabelKey is the revision label for the model infer.
-	RevisionLabelKey = "modelinfer.matrixinfer.ai/revision"
+	RevisionLabelKey = "modelinfer.volcano.sh/revision"
 
 	// Environment injected to the worker pods.
 	EntryAddressEnv = "ENTRY_ADDRESS"

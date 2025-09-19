@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,9 +22,9 @@ import (
 	"io"
 	"net/http"
 
+	networkingv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
 	admissionv1 "k8s.io/api/admission/v1"
 	"k8s.io/klog/v2"
-	networkingv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 )
 
 // parseAdmissionReviewFromRequest parses the HTTP request and extracts the AdmissionReview.

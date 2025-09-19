@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	networkingv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
+	networkingv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
 )
 
 func setupMiniRedis(t *testing.T) (*miniredis.Miniredis, *networkingv1alpha1.RedisConfig) {
@@ -150,7 +150,7 @@ func TestTokenRateLimiter_OutputTokens(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Verify the tokens were recorded in Redis
-	key := "matrixinfer:ratelimit:test-model:output"
+	key := "kthena:ratelimit:test-model:output"
 	exists := mr.Exists(key)
 	assert.True(t, exists)
 }

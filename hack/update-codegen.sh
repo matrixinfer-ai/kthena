@@ -27,7 +27,7 @@ CODEGEN_ROOT=$(go env GOMODCACHE)/k8s.io/code-generator@${CODEGEN_VERSION}
 # Use kube_codegen.sh directly from the module cache (no copying needed)
 source "${CODEGEN_ROOT}/kube_codegen.sh"
 
-THIS_PKG="matrixinfer.ai/matrixinfer"
+THIS_PKG="github.com/volcano-sh/kthena"
 
 # Generate deepcopy, defaulter, conversion functions
 kube::codegen::gen_helpers \

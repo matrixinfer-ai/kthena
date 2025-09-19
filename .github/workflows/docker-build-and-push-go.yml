@@ -20,7 +20,7 @@ on:
 
 jobs:
   build:
-    if: github.repository == 'matrixinfer-ai/matrixinfer'
+    if: github.repository == 'volcano-sh/kthena'
     runs-on: ubuntu-latest
     strategy:
       matrix:

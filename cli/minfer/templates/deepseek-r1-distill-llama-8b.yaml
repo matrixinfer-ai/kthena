@@ -1,5 +1,5 @@
 # Description: Template for DeepSeek R1 Distill Llama 8B model deployment with vLLM backend
-apiVersion: registry.matrixinfer.ai/v1alpha1
+apiVersion: registry.volcano.sh/v1alpha1
 kind: Model
 metadata:
   annotations:

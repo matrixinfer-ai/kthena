@@ -1,3 +1,3 @@
 #!/bin/bash
 
-docker build --no-cache -t ghcr.io/matrixinfer-ai/benchmark:latest .
+docker build --no-cache -t ghcr.io/volcano-sh/benchmark:latest .

@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ limitations under the License.
 /*
 KV Cache Aware Plugin
 
-The KV Cache Aware Plugin is a scoring plugin for the MatrixInfer gateway scheduler that implements
+The KV Cache Aware Plugin is a scoring plugin for the Kthena gateway scheduler that implements
 intelligent pod scheduling based on KV cache hit potential using token-level block matching
 with Redis-based distributed coordination.
 
@@ -36,12 +36,12 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/datastore"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/scheduler/framework"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/scheduler/plugins/tokenization"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/utils"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/tokenization"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 	"sigs.k8s.io/yaml"
 )
 

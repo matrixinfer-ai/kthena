@@ -1,4 +1,4 @@
-apiVersion: registry.matrixinfer.ai/v1alpha1
+apiVersion: registry.volcano.sh/v1alpha1
 kind: Model
 metadata:
   annotations:
@@ -9,7 +9,7 @@ spec:
   owner: "example"
   autoscalingPolicy:
     metrics:
-      - metricName: "matrixinfer:num_requests_waiting"
+      - metricName: "kthena:num_requests_waiting"
         targetValue: 10
   backends:
     - name: "deepseek-r1-distill-llama-8b-vllm"

@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kthena.name" . }}-model-controller
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/component: model-controller
+    {{- include "kthena.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.modelController.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: model-controller
+      {{- include "kthena.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: model-controller
+        {{- include "kthena.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: model-controller
+          image: "{{ .Values.modelController.image.repository }}:{{ .Values.modelController.image.tag }}"
+          args:
+            {{- toYaml .Values.modelController.image.args | nindent 12 }}
+          imagePullPolicy: {{ .Values.modelController.image.pullPolicy }}
+          resources:
+            {{- toYaml .Values.modelController.resource | nindent 12 }}
+      serviceAccountName: {{ include "kthena.name" . }}-model-controller

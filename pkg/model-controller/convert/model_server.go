@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,13 +20,13 @@ import (
 	"fmt"
 	"time"
 
+	networking "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
+	registry "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	workload "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
+	icUtils "github.com/volcano-sh/kthena/pkg/infer-controller/utils"
+	"github.com/volcano-sh/kthena/pkg/model-controller/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
-	networking "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
-	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
-	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
-	icUtils "matrixinfer.ai/matrixinfer/pkg/infer-controller/utils"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
 )
 
 var VLLMKvConnectorType = map[string]networking.KVConnectorType{

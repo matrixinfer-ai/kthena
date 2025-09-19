@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -30,11 +30,11 @@ import (
 	"k8s.io/utils/ptr"
 	volcanofake "volcano.sh/apis/pkg/client/clientset/versioned/fake"
 
-	matrixinferfake "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/fake"
-	informersv1alpha1 "matrixinfer.ai/matrixinfer/client-go/informers/externalversions"
-	workloadv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
-	"matrixinfer.ai/matrixinfer/pkg/infer-controller/datastore"
-	"matrixinfer.ai/matrixinfer/pkg/infer-controller/utils"
+	kthenafake "github.com/volcano-sh/kthena/client-go/clientset/versioned/fake"
+	informersv1alpha1 "github.com/volcano-sh/kthena/client-go/informers/externalversions"
+	workloadv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
+	"github.com/volcano-sh/kthena/pkg/infer-controller/datastore"
+	"github.com/volcano-sh/kthena/pkg/infer-controller/utils"
 )
 
 type resourceSpec struct {
@@ -730,15 +730,15 @@ func TestIsRoleDeleted(t *testing.T) {
 func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 	// Create fake clients
 	kubeClient := kubefake.NewSimpleClientset()
-	matrixinferClient := matrixinferfake.NewSimpleClientset()
+	kthenaClient := kthenafake.NewSimpleClientset()
 	volcanoClient := volcanofake.NewSimpleClientset()
 
 	// Create informer factories
 	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, 0)
-	matrixinferInformerFactory := informersv1alpha1.NewSharedInformerFactory(matrixinferClient, 0)
+	kthenaInformerFactory := informersv1alpha1.NewSharedInformerFactory(kthenaClient, 0)
 
 	// Create controller
-	controller, err := NewModelInferController(kubeClient, matrixinferClient, volcanoClient)
+	controller, err := NewModelInferController(kubeClient, kthenaClient, volcanoClient)
 	assert.NoError(t, err)
 
 	stop := make(chan struct{})
@@ -747,7 +747,7 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 	go controller.Run(context.Background(), 5)
 
 	// Start informers
-	matrixinferInformerFactory.Start(stop)
+	kthenaInformerFactory.Start(stop)
 	kubeInformerFactory.Start(stop)
 
 	// Wait for cache sync
@@ -761,7 +761,7 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 	t.Run("ModelInferCreate", func(t *testing.T) {
 		mi := createStandardModelInfer("test-mi", 2, 3)
 		// Add ModelInfer to fake client
-		_, err := matrixinferClient.WorkloadV1alpha1().ModelInfers("default").Create(
+		_, err := kthenaClient.WorkloadV1alpha1().ModelInfers("default").Create(
 			context.Background(), mi, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
@@ -799,7 +799,7 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 	t.Run("ModelInferScaleUp", func(t *testing.T) {
 		mi := createStandardModelInfer("test-mi-scale-up", 1, 2)
 		// Create initial ModelInfer
-		_, err := matrixinferClient.WorkloadV1alpha1().ModelInfers("default").Create(
+		_, err := kthenaClient.WorkloadV1alpha1().ModelInfers("default").Create(
 			context.Background(), mi, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
@@ -821,7 +821,7 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		updatedMI := mi.DeepCopy()
 		updatedMI.Spec.Replicas = ptr.To[int32](3) // Scale up to 3 InferGroups
 
-		_, err = matrixinferClient.WorkloadV1alpha1().ModelInfers("default").Update(
+		_, err = kthenaClient.WorkloadV1alpha1().ModelInfers("default").Update(
 			context.Background(), updatedMI, metav1.UpdateOptions{})
 		assert.NoError(t, err)
 
@@ -859,7 +859,7 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 	t.Run("ModelInferUpdateScaleDown", func(t *testing.T) {
 		mi := createStandardModelInfer("test-mi-scale-down", 3, 2)
 		// Create initial ModelInfer
-		_, err := matrixinferClient.WorkloadV1alpha1().ModelInfers("default").Create(
+		_, err := kthenaClient.WorkloadV1alpha1().ModelInfers("default").Create(
 			context.Background(), mi, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
@@ -894,7 +894,7 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		updatedMI := mi.DeepCopy()
 		updatedMI.Spec.Replicas = ptr.To[int32](1) // Scale up to 1 InferGroups
 
-		_, err = matrixinferClient.WorkloadV1alpha1().ModelInfers("default").Update(
+		_, err = kthenaClient.WorkloadV1alpha1().ModelInfers("default").Update(
 			context.Background(), updatedMI, metav1.UpdateOptions{})
 		assert.NoError(t, err)
 
@@ -966,7 +966,7 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 	t.Run("ModelInferRoleReplicasScaleUp", func(t *testing.T) {
 		mi := createStandardModelInfer("test-role-scale-up", 2, 1)
 		// Create initial ModelInfer
-		_, err := matrixinferClient.WorkloadV1alpha1().ModelInfers("default").Create(
+		_, err := kthenaClient.WorkloadV1alpha1().ModelInfers("default").Create(
 			context.Background(), mi, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
@@ -988,7 +988,7 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		updatedMI := mi.DeepCopy()
 		updatedMI.Spec.Template.Roles[0].Replicas = ptr.To[int32](3) // Scale up to 3 roles
 
-		_, err = matrixinferClient.WorkloadV1alpha1().ModelInfers("default").Update(
+		_, err = kthenaClient.WorkloadV1alpha1().ModelInfers("default").Update(
 			context.Background(), updatedMI, metav1.UpdateOptions{})
 		assert.NoError(t, err)
 
@@ -1027,7 +1027,7 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		mi := createStandardModelInfer("test-role-scale-down", 2, 3)
 
 		// Create initial ModelInfer
-		_, err := matrixinferClient.WorkloadV1alpha1().ModelInfers("default").Create(
+		_, err := kthenaClient.WorkloadV1alpha1().ModelInfers("default").Create(
 			context.Background(), mi, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
@@ -1062,7 +1062,7 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		updatedMI := mi.DeepCopy()
 		updatedMI.Spec.Template.Roles[0].Replicas = ptr.To[int32](1) // Scale down to 1 role
 
-		_, err = matrixinferClient.WorkloadV1alpha1().ModelInfers("default").Update(
+		_, err = kthenaClient.WorkloadV1alpha1().ModelInfers("default").Update(
 			context.Background(), updatedMI, metav1.UpdateOptions{})
 		assert.NoError(t, err)
 

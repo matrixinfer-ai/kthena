@@ -49,7 +49,7 @@ List the specific goals of the KEP. What is it trying to achieve? How will we
 know that this has succeeded?
 -->
 
-**gang scheduling**: Implement gang scheduling at [InferGroup level](https://github.com/matrixinfer-ai/matrixinfer/blob/main/pkg/apis/workload/v1alpha1/infergroup_types.go)
+**gang scheduling**: Implement gang scheduling at [InferGroup level](https://github.com/volcano-sh/kthena/blob/main/pkg/apis/workload/v1alpha1/infergroup_types.go)
 **InferGroup Level NetworkTopology**: Implement InferGroup level [network topology](https://volcano.sh/en/docs/network_topology_aware_scheduling/)
 
 #### Non-Goals
@@ -271,7 +271,7 @@ metadata:
   name: {modelinfer-name}-{inferGroup-index}
   namespace: {modelinfer-namespace}
   labels:
-    modelinfer.matrixinfer.ai/name: {modelinfer-name}-{inferGroup-index}
+    modelinfer.volcano.sh/name: {modelinfer-name}-{inferGroup-index}
   annotations:
     scheduling.k8s.io/group-name: {modelinfer-name}
 spec:

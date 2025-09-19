@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,8 +22,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/datastore"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/scheduler/framework"
 )
 
 const LeastRequestPluginName = "least-request"

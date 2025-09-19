@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,13 +28,13 @@ import (
 	"github.com/agiledragon/gomonkey/v2"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
+	aiv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/backend"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/utils"
 	"istio.io/istio/pkg/util/sets"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	aiv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/backend"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
 )
 
 // ptr is a helper function to get pointer to a value

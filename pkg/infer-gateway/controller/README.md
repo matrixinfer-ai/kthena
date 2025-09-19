@@ -49,7 +49,7 @@ type QueueItem struct {
 ```go
 // Create the merged controller
 controller := NewModelServerController(
-    matrixinferInformerFactory,
+    kthenaInformerFactory,
     kubeInformerFactory,
     store,
 )

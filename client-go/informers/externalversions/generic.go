@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,11 +21,11 @@ package externalversions
 import (
 	fmt "fmt"
 
+	v1alpha1 "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
+	registryv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	workloadv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
-	v1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
-	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
-	workloadv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 )
 
 // GenericInformer is type of SharedIndexInformer which will locate and delegate to other
@@ -54,13 +54,13 @@ func (f *genericInformer) Lister() cache.GenericLister {
 // TODO extend this to unknown resources with a client pool
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
-	// Group=networking.matrixinfer.ai, Version=v1alpha1
+	// Group=networking.volcano.sh, Version=v1alpha1
 	case v1alpha1.SchemeGroupVersion.WithResource("modelroutes"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Networking().V1alpha1().ModelRoutes().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("modelservers"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Networking().V1alpha1().ModelServers().Informer()}, nil
 
-		// Group=registry.matrixinfer.ai, Version=v1alpha1
+		// Group=registry.volcano.sh, Version=v1alpha1
 	case registryv1alpha1.SchemeGroupVersion.WithResource("autoscalingpolicies"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Registry().V1alpha1().AutoscalingPolicies().Informer()}, nil
 	case registryv1alpha1.SchemeGroupVersion.WithResource("autoscalingpolicybindings"):
@@ -68,7 +68,7 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 	case registryv1alpha1.SchemeGroupVersion.WithResource("models"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Registry().V1alpha1().Models().Informer()}, nil
 
-		// Group=workload.matrixinfer.ai, Version=v1alpha1
+		// Group=workload.volcano.sh, Version=v1alpha1
 	case workloadv1alpha1.SchemeGroupVersion.WithResource("modelinfers"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Workload().V1alpha1().ModelInfers().Informer()}, nil
 

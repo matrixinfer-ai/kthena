@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -34,9 +34,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
-	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
-	workloadv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
-	"matrixinfer.ai/matrixinfer/pkg/infer-controller/utils"
+	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
+	workloadv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
+	"github.com/volcano-sh/kthena/pkg/infer-controller/utils"
 )
 
 const timeout = 30 * time.Second

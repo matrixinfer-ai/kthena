@@ -1,0 +1,68 @@
+inferGateway:
+  # replicas is the number of infer-gateway instances to run.
+  replicas: 1
+  enabled: true
+  tls:
+    enabled: false
+    # The DNS name to use for the certificate.
+    dnsName: ""
+    # The name of the secret to store the certificate and key.
+    secretName: "infer-gateway-tls"
+  image:
+    # repository is the container image repository for the infer-gateway.
+    repository: ghcr.io/volcano-sh/infer-gateway
+    # tag is the container image tag for the infer-gateway.
+    # node: edit by CI. No need to modify manually
+    tag: latest
+    # pullPolicy is the image pull policy for the infer-gateway.
+    pullPolicy: IfNotPresent
+  # resource defines the resource limits and requests for the infer-gateway.
+  resource:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  # fairness configuration for request scheduling
+  fairness:
+    # enabled controls whether fairness scheduling is active
+    enabled: false
+    # windowSize is the sliding window duration for token usage tracking
+    # Valid formats: 1m, 5m, 10m, 30m, 1h (default: 1h)
+    windowSize: "1h"
+    # inputTokenWeight is the weight multiplier for input tokens in priority calculation (default: 1.0)
+    inputTokenWeight: 1.0
+    # outputTokenWeight is the weight multiplier for output tokens in priority calculation (default: 2.0)
+    outputTokenWeight: 2.0
+  # accessLog configuration for request logging
+  accessLog:
+    # enabled controls whether access logging is active
+    enabled: true
+    # format specifies the log output format: "json" or "text" (default: text)
+    format: "text"
+    # output specifies where to write logs: "stdout", "stderr", or file path (default: stdout)
+    output: "stdout"
+
+webhook:
+  enabled: true
+  # replicas is the number of gateway-webhook instances to run.
+  replicas: 1
+  image:
+    # repository is the container image repository for the gateway-webhook.
+    repository: ghcr.io/volcano-sh/infer-gateway-webhook
+    # tag is the container image tag for the gateway-webhook.
+    # node: edit by CI. No need to modify manually
+    tag: latest
+    # pullPolicy is the image pull policy for the gateway-webhook.
+    pullPolicy: IfNotPresent
+    # args are the command line arguments for the gateway-webhook.
+    args: [ "--port=8443" ]
+  # resource defines the resource limits and requests for the gateway-webhook.
+  resource:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi

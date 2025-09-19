@@ -1,16 +1,16 @@
-apiVersion: workload.matrixinfer.ai/v1alpha1
+apiVersion: workload.volcano.sh/v1alpha1
 kind: modelinfer
 metadata:
   labels:
-    registry.matrixinfer.ai/backend-name: ds-r1-qwen-7b-pd
-    registry.matrixinfer.ai/managed-by: registry.matrixinfer.ai
-    registry.matrixinfer.ai/model-name: ds-r1-qwen-7b-pd
-    registry.matrixinfer.ai/model-uid: randomUID
-    registry.matrixinfer.ai/revision: 67cc57ffd4
+    registry.volcano.sh/backend-name: ds-r1-qwen-7b-pd
+    registry.volcano.sh/managed-by: registry.volcano.sh
+    registry.volcano.sh/model-name: ds-r1-qwen-7b-pd
+    registry.volcano.sh/model-uid: randomUID
+    registry.volcano.sh/revision: 67cc57ffd4
   name: ds-r1-qwen-7b-pd-ds-r1-qwen-7b-pd
   namespace: demo
   ownerReferences:
-    - apiVersion: registry.matrixinfer.ai/v1alpha1
+    - apiVersion: registry.volcano.sh/v1alpha1
       kind: Model
       name: ds-r1-qwen-7b-pd
       uid: randomUID
@@ -85,7 +85,7 @@ spec:
                     valueFrom:
                       fieldRef:
                         fieldPath: status.podIP
-                image: matrixinfer/runtime:latest
+                image: kthena/runtime:latest
                 name: runtime
                 ports:
                   - containerPort: 8100
@@ -193,7 +193,7 @@ spec:
                 envFrom:
                   - secretRef:
                       name: downloader-secrets
-                image: matrixinfer/downloader:latest
+                image: kthena/downloader:latest
                 name: ds-r1-qwen-7b-pd-model-downloader
                 resources: {}
                 volumeMounts:
@@ -277,7 +277,7 @@ spec:
                 envFrom:
                 - secretRef:
                     name: downloader-secrets
-                image: matrixinfer/runtime:latest
+                image: kthena/runtime:latest
                 name: runtime
                 ports:
                   - containerPort: 8100
@@ -387,7 +387,7 @@ spec:
                 envFrom:
                   - secretRef:
                       name: downloader-secrets
-                image: matrixinfer/downloader:latest
+                image: kthena/downloader:latest
                 name: ds-r1-qwen-7b-pd-model-downloader
                 resources: { }
                 volumeMounts:

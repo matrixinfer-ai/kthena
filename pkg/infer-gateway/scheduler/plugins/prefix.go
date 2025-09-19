@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ package plugins
 Prefix Cache Plugin Design
 
 Overview:
-The Prefix Cache Plugin is a scoring plugin for the matrixinfer gateway scheduler that implements a prefix-based matching mechanism
+The Prefix Cache Plugin is a scoring plugin for the kthena gateway scheduler that implements a prefix-based matching mechanism
 for model inference requests. It helps optimize pod scheduling by identifying pods that have previously processed similar
 prompts, potentially improving inference performance through cache hits.
 
@@ -59,7 +59,7 @@ Core Features:
    - Configurable cache capacity and top-K results
 
 Usage:
-The plugin is used in the matrixinfer gateway scheduler framework to score pods based on their potential
+The plugin is used in the kthena gateway scheduler framework to score pods based on their potential
 for cache hits. It's particularly useful for inference workloads where similar prompts are
 likely to be processed multiple times.
 
@@ -79,10 +79,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/datastore"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/framework"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/scheduler/plugins/cache"
-	"matrixinfer.ai/matrixinfer/pkg/infer-gateway/utils"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/datastore"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/scheduler/framework"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/scheduler/plugins/cache"
+	"github.com/volcano-sh/kthena/pkg/infer-gateway/utils"
 )
 
 const PrefixCachePluginName = "prefix-cache"

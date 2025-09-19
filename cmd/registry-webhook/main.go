@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,10 +23,10 @@ import (
 	"syscall"
 
 	"github.com/spf13/pflag"
+	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
+	"github.com/volcano-sh/kthena/pkg/registry-webhook/server"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
-	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
-	"matrixinfer.ai/matrixinfer/pkg/registry-webhook/server"
 )
 
 type config struct {
@@ -61,14 +61,14 @@ func main() {
 		klog.Fatalf("Error building kubeconfig: %s", err.Error())
 	}
 
-	matrixinferClient, err := clientset.NewForConfig(cfg)
+	kthenaClient, err := clientset.NewForConfig(cfg)
 	if err != nil {
-		klog.Fatalf("Error building matrixinfer clientset: %s", err.Error())
+		klog.Fatalf("Error building kthena clientset: %s", err.Error())
 	}
 
 	// Create webhook server
 	webhookServer := server.NewWebhookServer(
-		matrixinferClient,
+		kthenaClient,
 		config.tlsCertFile,
 		config.tlsPrivateKey,
 		config.port,
