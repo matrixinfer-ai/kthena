@@ -8,7 +8,7 @@ metadata:
     registry.volcano.sh/managed-by: registry.volcano.sh
     registry.volcano.sh/model-name: ds-r1-qwen-7b-pd
     registry.volcano.sh/model-uid: randomUID
-    registry.volcano.sh/revision: 76cdf44cd5
+    registry.volcano.sh/revision: 78767dc65
   ownerReferences:
     - apiVersion: registry.volcano.sh/v1alpha1
       blockOwnerDeletion: true
