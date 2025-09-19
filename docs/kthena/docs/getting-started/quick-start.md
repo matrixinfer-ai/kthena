@@ -80,8 +80,8 @@ curl -X POST http://<model-route-ip>/v1/chat/completions \
 Use the following command to get the `<model-route-ip>`:
 
 ```bash
-kubectl get svc networking-infer-gateway -o jsonpath='{.spec.clusterIP}' -n <your-namespace>
+kubectl get svc networking-infer-router -o jsonpath='{.spec.clusterIP}' -n <your-namespace>
 ```
 
 This IP can only be used inside the cluster. If you want to chat from outside the cluster, you can use the `EXTERNAL-IP`
-of `networking-infer-gateway` after you bind it.
+of `networking-infer-router` after you bind it.

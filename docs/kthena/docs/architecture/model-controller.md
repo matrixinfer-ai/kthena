@@ -4,7 +4,7 @@ import LightboxImage from '@site/src/components/LightboxImage';
 
 ## Overview
 
-As an optional component of the Kthena project, the Model Controller primarily provides users with a convenient deployment form - `Model`. Based on the `Model CR` (Model Custom Resource) information provided by users, this component can automatically configure and deploy the components required for inference services, such as gateway routing rules, inference engine instances, and dynamic scaling configurations.
+As an optional component of the Kthena project, the Model Controller primarily provides users with a convenient deployment form - `Model`. Based on the `Model CR` (Model Custom Resource) information provided by users, this component can automatically configure and deploy the components required for inference services, such as router routing rules, inference engine instances, and dynamic scaling configurations.
 
 ## Feature Description
 

@@ -21,7 +21,7 @@ networking:
       # The DNS name to use for the certificate.
       dnsName: "your-domain.com"
       # The name of the secret to store the certificate and key.
-      secretName: "infer-gateway-tls"
+      secretName: "infer-router-tls"
     # fairness configuration for request scheduling
     fairness:
       # enabled controls whether fairness scheduling is active

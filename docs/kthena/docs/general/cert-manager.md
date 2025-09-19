@@ -8,7 +8,7 @@ Kthena supports integration with [cert-manager](https://cert-manager.io/) to aut
 
 The integration covers:
 - **Admission Webhooks**: TLS certificates for registry, workload, and networking webhook servers
-- **Infer Gateway**: TLS certificates for external API access
+- **Infer Router**: TLS certificates for external API access
 - **Internal Communication**: Service-to-service encrypted communication
 
 ## Prerequisites
@@ -38,20 +38,20 @@ When enabled, Kthena will automatically create:
 
 ### Component-Specific Configuration
 
-#### Infer Gateway TLS
+#### Infer Router TLS
 
-For external API access, configure the infer gateway TLS settings:
+For external API access, configure the infer router TLS settings:
 
 ```yaml
 networking:
-  inferGateway:
+  inferRouter:
     enabled: true
     tls:
       enabled: true
       # The DNS name for your external domain
       dnsName: "your-domain.com"
       # Secret name to store the TLS certificate
-      secretName: "infer-gateway-tls"
+      secretName: "infer-router-tls"
 ```
 
 #### Webhook Certificates
@@ -85,15 +85,15 @@ When cert-manager integration is enabled, the following resources are created:
 
 ### Issuers
 - `<subchart-name>-webhook-issuer` (per subchart: registry, workload, networking)
-- `<subchart-name>-gateway-issuer` (for infer gateway)
+- `<subchart-name>-router-issuer` (for infer router)
 
 ### Certificates
 - `<subchart-name>-webhook-cert` (per subchart: registry, workload, networking)
-- `<subchart-name>-gateway-cert` (for infer gateway)
+- `<subchart-name>-router-cert` (for infer router)
 
 ### Secrets
 - `<subchart-name>-webhook-certs` (per subchart: registry, workload, networking)
-- `<secretName>` (configurable for infer gateway)
+- `<secretName>` (configurable for infer router)
 
 ## Troubleshooting
 

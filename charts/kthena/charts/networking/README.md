@@ -1,21 +1,21 @@
 # Kthena Networking Chart
 
-This chart deploys the Kthena networking components, including the infer-gateway and webhook.
+This chart deploys the Kthena networking components, including the infer-router and webhook.
 
 ## Configuration
 
-### Infer Gateway
+### Infer Router
 
-The infer-gateway is the main component that handles inference requests and provides fairness scheduling.
+The infer-router is the main component that handles inference requests and provides fairness scheduling.
 
 #### Basic Configuration
 
 ```yaml
-inferGateway:
+inferRouter:
   enabled: true
   replicas: 1
   image:
-    repository: ghcr.io/volcano-sh/infer-gateway
+    repository: ghcr.io/volcano-sh/infer-router
     tag: latest
     pullPolicy: IfNotPresent
 ```
@@ -25,7 +25,7 @@ inferGateway:
 The fairness scheduling system ensures equitable resource allocation among users based on their token usage history.
 
 ```yaml
-inferGateway:
+inferRouter:
   fairness:
     # Enable fairness scheduling (default: false)
     enabled: true
@@ -47,16 +47,16 @@ inferGateway:
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `inferGateway.fairness.enabled` | boolean | `false` | Enable fairness scheduling |
-| `inferGateway.fairness.windowSize` | string | `"5m"` | Sliding window duration (1m-1h) |
-| `inferGateway.fairness.inputTokenWeight` | float | `1.0` | Weight for input tokens (≥0) |
-| `inferGateway.fairness.outputTokenWeight` | float | `2.0` | Weight for output tokens (≥0) |
+| `inferRouter.fairness.enabled` | boolean | `false` | Enable fairness scheduling |
+| `inferRouter.fairness.windowSize` | string | `"5m"` | Sliding window duration (1m-1h) |
+| `inferRouter.fairness.inputTokenWeight` | float | `1.0` | Weight for input tokens (≥0) |
+| `inferRouter.fairness.outputTokenWeight` | float | `2.0` | Weight for output tokens (≥0) |
 
 #### Configuration Scenarios
 
 ##### Development Environment
 ```yaml
-inferGateway:
+inferRouter:
   fairness:
     enabled: true
     windowSize: "2m"          # Short window for quick feedback
@@ -66,7 +66,7 @@ inferGateway:
 
 ##### Production Environment
 ```yaml
-inferGateway:
+inferRouter:
   fairness:
     enabled: true
     windowSize: "10m"         # Balanced window size
@@ -76,7 +76,7 @@ inferGateway:
 
 ##### Cost-Sensitive Environment
 ```yaml
-inferGateway:
+inferRouter:
   fairness:
     enabled: true
     windowSize: "30m"         # Longer window for stability
@@ -87,17 +87,17 @@ inferGateway:
 ### TLS Configuration
 
 ```yaml
-inferGateway:
+inferRouter:
   tls:
     enabled: true
     dnsName: "your-domain.com"
-    secretName: "infer-gateway-tls"
+    secretName: "infer-router-tls"
 ```
 
 ### Resource Configuration
 
 ```yaml
-inferGateway:
+inferRouter:
   resource:
     limits:
       cpu: 500m
@@ -117,7 +117,7 @@ helm install kthena ./charts/kthena
 ### With Fairness Scheduling
 ```bash
 helm install kthena ./charts/kthena \
-  --set networking.inferGateway.fairness.enabled=true \
-  --set networking.inferGateway.fairness.windowSize=10m \
-  --set networking.inferGateway.fairness.outputTokenWeight=3.0
+  --set networking.inferRouter.fairness.enabled=true \
+  --set networking.inferRouter.fairness.windowSize=10m \
+  --set networking.inferRouter.fairness.outputTokenWeight=3.0
 ```

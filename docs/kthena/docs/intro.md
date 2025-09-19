@@ -29,6 +29,6 @@ Kthena enables you to deploy, manage, and scale AI models in Kubernetes environm
 -   **Policy Binding**: Granular autoscaling policy assignment to specific model deployments not limited to `ModelInfer`
 
 ### **Observability & Monitoring**
--   **Prometheus Metrics**: Built-in metrics collection for gateway performance and model serving
+-   **Prometheus Metrics**: Built-in metrics collection for router performance and model serving
 -   **Request Tracking**: Detailed request routing and performance monitoring
 -   **Health Checks**: Comprehensive health checks for all model servers

@@ -65,7 +65,7 @@ helm install kthena oci://ghcr.io/volcano-sh/charts/kthena \
   --namespace kthena-system \
   --create-namespace \
   --set controller.replicas=2 \
-  --set gateway.service.type=LoadBalancer
+  --set router.service.type=LoadBalancer
 ```
 
 ### Common Configuration Parameters
@@ -73,7 +73,7 @@ helm install kthena oci://ghcr.io/volcano-sh/charts/kthena \
 | Parameter | Description | Default |
 | :------------------ | :---------------------------- | :-------- |
 | `controller.replicas` | Number of controller replicas | `1` |
-| `gateway.service.type` | Gateway service type | `ClusterIP` |
+| `router.service.type` | Router service type | `ClusterIP` |
 | `registry.enabled` | Enable model registry | `true` |
 | `autoscaler.enabled` | Enable auto-scaling | `true` |
 
@@ -94,7 +94,7 @@ kubectl get svc -n kthena-system
 
 ## Certificate Management
 
-Kthena components such as webhooks and the gateway require certificates for secure communication. You might need to install a certificate manager to handle certificate provisioning and management automatically.
+Kthena components such as webhooks and the router require certificates for secure communication. You might need to install a certificate manager to handle certificate provisioning and management automatically.
 
 If you need certificate management capabilities, you can install cert-manager by following the official installation guide of [Cert Manager](https://cert-manager.io/docs/installation/).
 
