@@ -54,4 +54,4 @@ You can find examples of model CR [here](https://github.com/matrixinfer-ai/matri
 
 ### Gang Scheduling
 
-`GangSchedule` is disabled by default, if you want to enable it, see [here](https://github.com/matrixinfer-ai/matrixinfer/blob/main/docs/matrixinfer/docs/user-guide/multi-node-inference.md#gang-scheduling-and-network-topology)
+`GangSchedule` is disabled by default, if you want to enable it, see [here](multi-node-inference.md#gang-scheduling-and-network-topology)
