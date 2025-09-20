@@ -20,7 +20,7 @@ package plugins
 Prefix Cache Plugin Design
 
 Overview:
-The Prefix Cache Plugin is a scoring plugin for the kthena gateway scheduler that implements a prefix-based matching mechanism
+The Prefix Cache Plugin is a scoring plugin for the kthena router scheduler that implements a prefix-based matching mechanism
 for model inference requests. It helps optimize pod scheduling by identifying pods that have previously processed similar
 prompts, potentially improving inference performance through cache hits.
 
@@ -59,7 +59,7 @@ Core Features:
    - Configurable cache capacity and top-K results
 
 Usage:
-The plugin is used in the kthena gateway scheduler framework to score pods based on their potential
+The plugin is used in the kthena router scheduler framework to score pods based on their potential
 for cache hits. It's particularly useful for inference workloads where similar prompts are
 likely to be processed multiple times.
 

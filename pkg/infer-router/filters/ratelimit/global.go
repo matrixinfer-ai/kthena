@@ -30,13 +30,13 @@ import (
 // GlobalRateLimiter Architecture and Algorithm Overview
 //
 // The GlobalRateLimiter provides distributed rate limiting capabilities across multiple
-// gateway instances using Redis as a centralized coordination layer. This ensures
-// consistent rate limiting behavior regardless of which gateway instance handles
+// router instances using Redis as a centralized coordination layer. This ensures
+// consistent rate limiting behavior regardless of which router instance handles
 // a particular request.
 //
 // Architecture:
 // ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-// │   Gateway-1     │    │   Gateway-2     │    │   Gateway-N     │
+// │   Router-1     │    │   Router-2     │    │   Router-N     │
 // │ ┌─────────────┐ │    │ ┌─────────────┐ │    │ ┌─────────────┐ │
 // │ │GlobalRateL..│ │    │ │GlobalRateL..│ │    │ │GlobalRateL..│ │
 // │ └─────────────┘ │    │ └─────────────┘ │    │ └─────────────┘ │
@@ -58,7 +58,7 @@ import (
 // 4. Atomicity: All operations use Redis Lua scripts for atomic execution
 //
 // Key Features:
-// - Distributed consistency: All gateway instances share the same token bucket state
+// - Distributed consistency: All router instances share the same token bucket state
 // - Time-based refill: Tokens are added based on elapsed time since last access
 // - Burst handling: Allows temporary traffic spikes up to bucket capacity
 // - Memory efficiency: Unused buckets automatically expire to save Redis memory

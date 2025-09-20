@@ -27,7 +27,7 @@ import (
 	"github.com/volcano-sh/kthena/pkg/infer-router/datastore"
 )
 
-// DebugHandler provides debug endpoints for the gateway
+// DebugHandler provides debug endpoints for the router
 type DebugHandler struct {
 	store datastore.Store
 }

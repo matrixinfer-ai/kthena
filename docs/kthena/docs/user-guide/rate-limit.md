@@ -73,12 +73,12 @@ kubectl apply -f https://github.com/volcano-sh/kthena/blob/main/examples/infer-r
 kubectl scale deployment networking-infer-router -n kthena-system --replicas=1
 
 # 3. Get public ip of the router pod
-export GATEWAY_IP=$(kubectl get svc networking-infer-router -n kthena-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+export ROUTER_IP=$(kubectl get svc networking-infer-router -n kthena-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 
 # 4. Request router three times, the final request will be rejected
 export MODEL="deepseek-r1-with-rate-limit"
 
-curl http://$GATEWAY_IP/v1/completions \
+curl http://$ROUTER_IP/v1/completions \
     -H "Content-Type: application/json" \
     -d "{
         \"model\": \"$MODEL\",
@@ -144,12 +144,12 @@ kubectl apply -f https://github.com/volcano-sh/kthena/blob/main/examples/infer-r
 kubectl scale deployment networking-infer-router -n kthena-system --replicas=3
 
 # 4. Get public ip of the router pod
-export GATEWAY_IP=$(kubectl get svc networking-infer-router -n kthena-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+export ROUTER_IP=$(kubectl get svc networking-infer-router -n kthena-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 
 # 5. Request router three times, the final request will be rejected
 export MODEL="deepseek-r1-with-global-rate-limit"
 
-curl http://$GATEWAY_IP/v1/completions \
+curl http://$ROUTER_IP/v1/completions \
     -H "Content-Type: application/json" \
     -d "{
         \"model\": \"$MODEL\",

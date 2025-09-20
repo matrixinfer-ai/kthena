@@ -13,7 +13,7 @@ workload:
 networking:
   # enabled is a flag to enable or disable the networking subchart. Default is true.
   enabled: true
-  inferGateway:
+  inferRouter:
     enabled: true
     port: 8080
     tls:

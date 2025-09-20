@@ -67,7 +67,7 @@ spec:
 ```bash
 export MODEL="deepseek-simple"
 
-curl http://$GATEWAY_IP/v1/completions \
+curl http://$ROUTER_IP/v1/completions \
     -H "Content-Type: application/json" \
     -d "{
         \"model\": \"$MODEL\",
@@ -110,7 +110,7 @@ spec:
 ```bash
 export MODEL="lora-A"
 
-curl http://$GATEWAY_IP/v1/completions \
+curl http://$ROUTER_IP/v1/completions \
     -H "Content-Type: application/json" \
     -d "{
         \"model\": \"$MODEL\",
@@ -159,7 +159,7 @@ export MODEL="deepseek-subset"
 
 for i in $(seq 1 100);
 do
-    curl http://$GATEWAY_IP/v1/completions \
+    curl http://$ROUTER_IP/v1/completions \
         -H "Content-Type: application/json" \
         -d "{
             \"model\": \"$MODEL\",
@@ -216,7 +216,7 @@ spec:
 ```bash
 export MODEL="deepseek-multi-models"
 
-curl http://$GATEWAY_IP/v1/completions \
+curl http://$ROUTER_IP/v1/completions \
     -H "Content-Type: application/json" \
     -H "user-type: premium" \
     -d "{

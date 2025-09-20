@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package auth provides JWT authentication and authorization functionality for the Kthena gateway.
+// Package auth provides JWT authentication and authorization functionality for the Kthena router.
 // This package handles JWT token validation, JWKS rotation, and provides middleware for Gin HTTP framework.
 package auth
 

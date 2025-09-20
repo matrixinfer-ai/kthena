@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-// AccessLogEntry represents a structured access log entry for AI gateway requests
+// AccessLogEntry represents a structured access log entry for AI router requests
 type AccessLogEntry struct {
 	// Standard HTTP fields (following Envoy format)
 	Timestamp  time.Time `json:"timestamp"`

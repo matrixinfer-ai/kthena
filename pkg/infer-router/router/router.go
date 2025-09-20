@@ -85,7 +85,7 @@ func NewRouter(store datastore.Store, routerConfigPath string) *Router {
 
 	routerConfig, err := conf.ParseRouterConfig(routerConfigPath)
 	if err != nil {
-		klog.Fatalf("failed to parse gateway config: %v", err)
+		klog.Fatalf("failed to parse router config: %v", err)
 	}
 
 	// Initialize access logger with configuration from environment variables
@@ -439,7 +439,7 @@ func proxyRequest(
 				if parsed.Usage.CompletionTokens > 0 {
 					klog.V(4).Infof("Parsed usage: %+v", parsed.Usage)
 
-					// The token usage is set by gateway, so remove it before sending to downstream
+					// The token usage is set by router, so remove it before sending to downstream
 					if v, ok := c.Get(common.TokenUsageKey); ok && v.(bool) {
 						return true
 					}

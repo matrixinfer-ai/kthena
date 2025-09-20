@@ -17,7 +17,7 @@ limitations under the License.
 /*
 KV Cache Aware Plugin
 
-The KV Cache Aware Plugin is a scoring plugin for the Kthena gateway scheduler that implements
+The KV Cache Aware Plugin is a scoring plugin for the Kthena router scheduler that implements
 intelligent pod scheduling based on KV cache hit potential using token-level block matching
 with Redis-based distributed coordination.
 

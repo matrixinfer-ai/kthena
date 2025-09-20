@@ -46,13 +46,13 @@ func TestLoadSchedulerConfig(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			gatewayConf, err := ParseRouterConfig(tc.configFile)
+			routerConf, err := ParseRouterConfig(tc.configFile)
 			if err != nil {
 				if !strings.Contains(err.Error(), tc.expectErrs) {
 					t.Errorf("expected error %q, got %q", tc.expectErrs, err.Error())
 				}
 			} else {
-				_, _, _, err = LoadSchedulerConfig(&gatewayConf.Scheduler)
+				_, _, _, err = LoadSchedulerConfig(&routerConf.Scheduler)
 				if err != nil {
 					if !strings.Contains(err.Error(), tc.expectErrs) {
 						t.Errorf("expected error %q, got %q", tc.expectErrs, err.Error())
