@@ -60,7 +60,7 @@ type Router struct {
 	connectorFactory *connectors.Factory
 }
 
-func NewRouter(store datastore.Store, gatewayConfigPath string) *Router {
+func NewRouter(store datastore.Store, routerConfigPath string) *Router {
 	// Create a unified rate limiter for all models
 	loadRateLimiter := ratelimit.NewTokenRateLimiter()
 
@@ -83,7 +83,7 @@ func NewRouter(store datastore.Store, gatewayConfigPath string) *Router {
 		}
 	})
 
-	gatewayConfig, err := conf.ParseGatewayConfig(gatewayConfigPath)
+	routerConfig, err := conf.ParseRouterConfig(routerConfigPath)
 	if err != nil {
 		klog.Fatalf("failed to parse gateway config: %v", err)
 	}
@@ -121,8 +121,8 @@ func NewRouter(store datastore.Store, gatewayConfigPath string) *Router {
 
 	return &Router{
 		store:            store,
-		scheduler:        scheduler.NewScheduler(store, gatewayConfig),
-		authenticator:    auth.NewJWTAuthenticator(gatewayConfig),
+		scheduler:        scheduler.NewScheduler(store, routerConfig),
+		authenticator:    auth.NewJWTAuthenticator(routerConfig),
 		loadRateLimiter:  loadRateLimiter,
 		accessLogger:     accessLogger,
 		connectorFactory: connectors.NewDefaultFactory(),

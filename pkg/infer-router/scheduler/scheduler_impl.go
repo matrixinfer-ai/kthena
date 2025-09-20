@@ -86,7 +86,7 @@ type podInfoWithValue struct {
 	score int
 }
 
-func NewScheduler(store datastore.Store, gatewayConfig *conf.GatewayConfiguration) Scheduler {
+func NewScheduler(store datastore.Store, routerConfig *conf.RouterConfiguration) Scheduler {
 	// For backward compatibility, use the default registry and ensure plugins are registered
 	registry := NewPluginRegistry()
 	registerDefaultPlugins(registry)
@@ -107,11 +107,11 @@ func NewScheduler(store datastore.Store, gatewayConfig *conf.GatewayConfiguratio
 	}
 
 	var err error
-	if gatewayConfig == nil {
+	if routerConfig == nil {
 		// If no scheduler configuration is provided, use the default configuration
 		klog.Warning("No scheduler configuration found, using default configuration")
 	} else {
-		scorePluginMap, filterPluginMap, pluginsArgMap, err = conf.LoadSchedulerConfig(&gatewayConfig.Scheduler)
+		scorePluginMap, filterPluginMap, pluginsArgMap, err = conf.LoadSchedulerConfig(&routerConfig.Scheduler)
 		if err != nil {
 			klog.Fatalf("failed to Load Scheduler: %v", err)
 		}

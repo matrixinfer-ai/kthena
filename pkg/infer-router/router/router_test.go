@@ -56,13 +56,13 @@ func TestMain(m *testing.M) {
 	// Set klog verbosity level to 4
 	flag.Set("v", "4")
 	flag.Parse() // Parse flags to apply the klog level
-	gatewayConfig, _ := conf.ParseGatewayConfig("../scheduler/testdata/configmap.yaml")
-	patch1 := gomonkey.ApplyFunc(conf.ParseGatewayConfig, func(configMapPath string) (*conf.GatewayConfiguration, error) {
-		return gatewayConfig, nil
+	routerConfig, _ := conf.ParseRouterConfig("../scheduler/testdata/configmap.yaml")
+	patch1 := gomonkey.ApplyFunc(conf.ParseRouterConfig, func(configMapPath string) (*conf.RouterConfiguration, error) {
+		return routerConfig, nil
 	})
 	defer patch1.Reset()
 
-	pluginsWeight, plugins, pluginConfig, _ := conf.LoadSchedulerConfig(&gatewayConfig.Scheduler)
+	pluginsWeight, plugins, pluginConfig, _ := conf.LoadSchedulerConfig(&routerConfig.Scheduler)
 	patch2 := gomonkey.ApplyFunc(conf.LoadSchedulerConfig, func() (map[string]int, []string, map[string]runtime.RawExtension, error) {
 		return pluginsWeight, plugins, pluginConfig, nil
 	})

@@ -76,7 +76,7 @@ func TestNewJWTAuthenticatorConfig(t *testing.T) {
 	})
 
 	t.Run("empty JWKS URI", func(t *testing.T) {
-		config := &conf.GatewayConfiguration{
+		config := &conf.RouterConfiguration{
 			Auth: conf.AuthenticationConfig{
 				JwksUri: "",
 				Issuer:  "test-issuer",
@@ -88,7 +88,7 @@ func TestNewJWTAuthenticatorConfig(t *testing.T) {
 	})
 
 	t.Run("invalid JWKS URI", func(t *testing.T) {
-		config := &conf.GatewayConfiguration{
+		config := &conf.RouterConfiguration{
 			Auth: conf.AuthenticationConfig{
 				JwksUri: "invalid-url",
 				Issuer:  "test-issuer",

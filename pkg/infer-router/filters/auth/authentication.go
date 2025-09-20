@@ -54,14 +54,14 @@ type JWTAuthenticator struct {
 }
 
 // NewJWTAuthenticator creates a new JWTAuthenticator with JWKS rotation support
-func NewJWTAuthenticator(gatewayConfig *conf.GatewayConfiguration) *JWTAuthenticator {
-	if gatewayConfig == nil || gatewayConfig.Auth.JwksUri == "" {
+func NewJWTAuthenticator(routerConfig *conf.RouterConfiguration) *JWTAuthenticator {
+	if routerConfig == nil || routerConfig.Auth.JwksUri == "" {
 		klog.V(4).Info("JWKS URI not configured, authentication disabled")
 		return &JWTAuthenticator{enabled: false}
 	}
 
 	// Create and configure the JWKS rotator
-	rotator := NewJWKSRotator(gatewayConfig.Auth)
+	rotator := NewJWKSRotator(routerConfig.Auth)
 	if rotator != nil {
 		rotator.Start(context.TODO())
 	}

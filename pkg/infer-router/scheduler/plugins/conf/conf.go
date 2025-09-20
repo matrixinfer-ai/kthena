@@ -25,7 +25,7 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-type GatewayConfiguration struct {
+type RouterConfiguration struct {
 	Scheduler SchedulerConfiguration `yaml:"scheduler"`
 	Auth      AuthenticationConfig   `yaml:"auth"`
 }
@@ -66,17 +66,17 @@ type AuthenticationConfig struct {
 	JwksUri   string   `yaml:"jwksUri"`
 }
 
-func ParseGatewayConfig(configMapPath string) (*GatewayConfiguration, error) {
+func ParseRouterConfig(configMapPath string) (*RouterConfiguration, error) {
 	data, err := os.ReadFile(configMapPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file %s: %w", configMapPath, err)
 	}
-	var gatewayConfig GatewayConfiguration
-	if err := yaml.Unmarshal(data, &gatewayConfig); err != nil {
-		klog.Errorf("failed to Unmarshal gatewayConfiguration: %v", err)
-		return nil, fmt.Errorf("failed to Unmarshal gatewayConfiguration: %v", err)
+	var routerConfig RouterConfiguration
+	if err := yaml.Unmarshal(data, &routerConfig); err != nil {
+		klog.Errorf("failed to Unmarshal routerConfiguration: %v", err)
+		return nil, fmt.Errorf("failed to Unmarshal routerConfiguration: %v", err)
 	}
-	return &gatewayConfig, nil
+	return &routerConfig, nil
 }
 
 func LoadSchedulerConfig(schedulerConfig *SchedulerConfiguration) (map[string]int, []string, map[string]runtime.RawExtension, error) {

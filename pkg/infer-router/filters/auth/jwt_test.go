@@ -28,7 +28,7 @@ import (
 func TestNewJWTAuthenticator(t *testing.T) {
 	tests := []struct {
 		name          string
-		config        *conf.GatewayConfiguration
+		config        *conf.RouterConfiguration
 		expectEnabled bool
 		expectRotator bool
 	}{
@@ -40,7 +40,7 @@ func TestNewJWTAuthenticator(t *testing.T) {
 		},
 		{
 			name: "empty JWKS URI",
-			config: &conf.GatewayConfiguration{
+			config: &conf.RouterConfiguration{
 				Auth: conf.AuthenticationConfig{
 					JwksUri: "",
 				},
