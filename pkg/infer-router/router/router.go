@@ -165,11 +165,11 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 		path := c.Request.URL.Path
 		metricsRecorder := metrics.NewRequestMetricsRecorder(r.metrics, modelName, path)
 
-		// Increment downstream connection count at request start
-		r.metrics.IncActiveDownstreamConnections(modelName)
+		// Increment downstream request count at request start
+		r.metrics.IncActiveDownstreamRequests(modelName)
 		defer func() {
-			// Decrement downstream connection count when request completes
-			r.metrics.DecActiveDownstreamConnections(modelName)
+			// Decrement downstream request count when request completes
+			r.metrics.DecActiveDownstreamRequests(modelName)
 		}()
 
 		prompt, err := utils.ParsePrompt(modelRequest)
@@ -382,14 +382,14 @@ func (r *Router) proxy(
 	}
 
 	for i := 0; i < len(ctx.BestPods); i++ {
-		// Increment upstream connection count with both modelServer and modelRoute
-		r.metrics.IncActiveUpstreamConnections(modelServerName, modelRouteName)
+		// Increment upstream request count with both modelServer and modelRoute
+		r.metrics.IncActiveUpstreamRequests(modelServerName, modelRouteName)
 
 		// Request dispatched to the pod.
 		err := proxyRequest(c, req, ctx.BestPods[i].Pod.Status.PodIP, port, stream, onUsage)
 
-		// Decrement upstream connection count when request completes
-		r.metrics.DecActiveUpstreamConnections(modelServerName, modelRouteName)
+		// Decrement upstream request count when request completes
+		r.metrics.DecActiveUpstreamRequests(modelServerName, modelRouteName)
 
 		if err != nil {
 			klog.Errorf(" pod request error: %v", err)

@@ -80,26 +80,26 @@ func (h *HTTPConnector) Proxy(c *gin.Context, reqBody map[string]interface{}, pr
 		h.prefillRequest = buildPrefillRequest(c.Request, reqBody)
 	}
 
-	// Start prefill phase metrics and increment upstream connection
+	// Start prefill phase metrics and increment upstream request
 	if metricsRecorder != nil {
 		metricsRecorder.StartPrefillPhase()
-		metricsRecorder.IncActiveUpstreamConnections()
+		metricsRecorder.IncActiveUpstreamRequests()
 	}
 
 	err := h.prefill(h.prefillRequest, prefillAddr)
 
-	// End prefill phase metrics and handle upstream connections
+	// End prefill phase metrics and handle upstream requests
 	if metricsRecorder != nil {
 		statusCode := "200" // Default status code for successful prefill
 		if err != nil {
 			statusCode = "500"
 		}
 		metricsRecorder.FinishPrefillPhase(statusCode)
-		metricsRecorder.DecActiveUpstreamConnections()
+		metricsRecorder.DecActiveUpstreamRequests()
 
 		if err == nil {
 			metricsRecorder.StartDecodePhase()
-			metricsRecorder.IncActiveUpstreamConnections()
+			metricsRecorder.IncActiveUpstreamRequests()
 		}
 	}
 
@@ -109,14 +109,14 @@ func (h *HTTPConnector) Proxy(c *gin.Context, reqBody map[string]interface{}, pr
 
 	result, decodeErr := h.decode(c, h.decodeRequest, decodeAddr)
 
-	// End decode phase metrics and decrement upstream connection
+	// End decode phase metrics and decrement upstream request
 	if metricsRecorder != nil {
 		statusCode := "200" // Default status code, will be updated by response
 		if decodeErr != nil {
 			statusCode = "500"
 		}
 		metricsRecorder.FinishDecodePhase(statusCode)
-		metricsRecorder.DecActiveUpstreamConnections()
+		metricsRecorder.DecActiveUpstreamRequests()
 	}
 
 	return result, decodeErr

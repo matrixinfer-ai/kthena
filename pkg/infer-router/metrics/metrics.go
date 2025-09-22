@@ -51,7 +51,7 @@ const (
 	LimitTypeRequests     = "requests"
 )
 
-// Metrics holds all Prometheus metrics for the infer-gateway
+// Metrics holds all Prometheus metrics for the infer-router
 type Metrics struct {
 	// Request counters
 	RequestsTotal prometheus.CounterVec
@@ -70,11 +70,11 @@ type Metrics struct {
 	// Rate limiting metrics
 	RateLimitExceeded prometheus.CounterVec
 
-	// Connection and scheduling metrics
-	ActiveDownstreamConnections prometheus.GaugeVec
-	ActiveUpstreamConnections   prometheus.GaugeVec
-	FairnessQueueSize           prometheus.GaugeVec
-	FairnessQueueDuration       prometheus.HistogramVec
+	// Request and scheduling metrics
+	ActiveDownstreamRequests prometheus.GaugeVec
+	ActiveUpstreamRequests   prometheus.GaugeVec
+	FairnessQueueSize        prometheus.GaugeVec
+	FairnessQueueDuration    prometheus.HistogramVec
 }
 
 // NewMetrics creates a new Metrics instance with all Prometheus metrics registered
@@ -82,15 +82,15 @@ func NewMetrics() *Metrics {
 	return &Metrics{
 		RequestsTotal: *promauto.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: "infer_gateway_requests_total",
-				Help: "Total number of HTTP requests processed by the gateway",
+				Name: "infer_router_requests_total",
+				Help: "Total number of HTTP requests processed by the router",
 			},
 			[]string{LabelModel, LabelPath, LabelStatusCode, LabelErrorType},
 		),
 
 		RequestDuration: *promauto.NewHistogramVec(
 			prometheus.HistogramOpts{
-				Name:    "infer_gateway_request_duration_seconds",
+				Name:    "infer_router_request_duration_seconds",
 				Help:    "End-to-end request processing latency distribution for all requests",
 				Buckets: []float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60},
 			},
@@ -99,7 +99,7 @@ func NewMetrics() *Metrics {
 
 		RequestPrefillDuration: *promauto.NewHistogramVec(
 			prometheus.HistogramOpts{
-				Name:    "infer_gateway_request_prefill_duration_seconds",
+				Name:    "infer_router_request_prefill_duration_seconds",
 				Help:    "Prefill phase processing latency distribution for PD-disaggregated requests",
 				Buckets: []float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60},
 			},
@@ -108,7 +108,7 @@ func NewMetrics() *Metrics {
 
 		RequestDecodeDuration: *promauto.NewHistogramVec(
 			prometheus.HistogramOpts{
-				Name:    "infer_gateway_request_decode_duration_seconds",
+				Name:    "infer_router_request_decode_duration_seconds",
 				Help:    "Decode phase processing latency distribution for PD-disaggregated requests",
 				Buckets: []float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60},
 			},
@@ -117,7 +117,7 @@ func NewMetrics() *Metrics {
 
 		TokensTotal: *promauto.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: "infer_gateway_tokens_total",
+				Name: "infer_router_tokens_total",
 				Help: "Total tokens processed/generated",
 			},
 			[]string{LabelModel, LabelPath, LabelTokenType},
@@ -125,7 +125,7 @@ func NewMetrics() *Metrics {
 
 		SchedulerPluginDuration: *promauto.NewHistogramVec(
 			prometheus.HistogramOpts{
-				Name:    "infer_gateway_scheduler_plugin_duration_seconds",
+				Name:    "infer_router_scheduler_plugin_duration_seconds",
 				Help:    "Processing time per scheduler plugin",
 				Buckets: []float64{0.001, 0.005, 0.01, 0.05, 0.1, 0.5},
 			},
@@ -134,31 +134,31 @@ func NewMetrics() *Metrics {
 
 		RateLimitExceeded: *promauto.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: "infer_gateway_rate_limit_exceeded_total",
+				Name: "infer_router_rate_limit_exceeded_total",
 				Help: "Number of requests rejected due to rate limiting",
 			},
 			[]string{LabelModel, LabelLimitType, LabelPath},
 		),
 
-		ActiveDownstreamConnections: *promauto.NewGaugeVec(
+		ActiveDownstreamRequests: *promauto.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Name: "infer_gateway_active_downstream_connections",
-				Help: "Current number of active downstream connections (from clients to gateway)",
+				Name: "infer_router_active_downstream_requests",
+				Help: "Current number of active downstream requests (from clients to router)",
 			},
 			[]string{LabelModel},
 		),
 
-		ActiveUpstreamConnections: *promauto.NewGaugeVec(
+		ActiveUpstreamRequests: *promauto.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Name: "infer_gateway_active_upstream_connections",
-				Help: "Current number of active upstream connections (from gateway to backend pods)",
+				Name: "infer_router_active_upstream_requests",
+				Help: "Current number of active upstream requests (from router to backend pods)",
 			},
 			[]string{LabelModelServer, LabelModelRoute},
 		),
 
 		FairnessQueueSize: *promauto.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Name: "infer_gateway_fairness_queue_size",
+				Name: "infer_router_fairness_queue_size",
 				Help: "Current fairness queue size for pending requests",
 			},
 			[]string{LabelModel, LabelUserID},
@@ -166,7 +166,7 @@ func NewMetrics() *Metrics {
 
 		FairnessQueueDuration: *promauto.NewHistogramVec(
 			prometheus.HistogramOpts{
-				Name:    "infer_gateway_fairness_queue_duration_seconds",
+				Name:    "infer_router_fairness_queue_duration_seconds",
 				Help:    "Time requests spend in fairness queue before processing",
 				Buckets: []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5},
 			},
@@ -211,34 +211,34 @@ func (m *Metrics) RecordSchedulerPluginDuration(model, pluginName, pluginType st
 	m.SchedulerPluginDuration.WithLabelValues(model, pluginName, pluginType).Observe(duration.Seconds())
 }
 
-// SetActiveDownstreamConnections sets the current number of active downstream connections
-func (m *Metrics) SetActiveDownstreamConnections(model string, count float64) {
-	m.ActiveDownstreamConnections.WithLabelValues(model).Set(count)
+// SetActiveDownstreamRequests sets the current number of active downstream requests
+func (m *Metrics) SetActiveDownstreamRequests(model string, count float64) {
+	m.ActiveDownstreamRequests.WithLabelValues(model).Set(count)
 }
 
-// SetActiveUpstreamConnections sets the current number of active upstream connections
-func (m *Metrics) SetActiveUpstreamConnections(modelServer, modelRoute string, count float64) {
-	m.ActiveUpstreamConnections.WithLabelValues(modelServer, modelRoute).Set(count)
+// SetActiveUpstreamRequests sets the current number of active upstream requests
+func (m *Metrics) SetActiveUpstreamRequests(modelServer, modelRoute string, count float64) {
+	m.ActiveUpstreamRequests.WithLabelValues(modelServer, modelRoute).Set(count)
 }
 
-// IncActiveDownstreamConnections increments the active downstream connections counter
-func (m *Metrics) IncActiveDownstreamConnections(model string) {
-	m.ActiveDownstreamConnections.WithLabelValues(model).Inc()
+// IncActiveDownstreamRequests increments the active downstream requests counter
+func (m *Metrics) IncActiveDownstreamRequests(model string) {
+	m.ActiveDownstreamRequests.WithLabelValues(model).Inc()
 }
 
-// DecActiveDownstreamConnections decrements the active downstream connections counter
-func (m *Metrics) DecActiveDownstreamConnections(model string) {
-	m.ActiveDownstreamConnections.WithLabelValues(model).Dec()
+// DecActiveDownstreamRequests decrements the active downstream requests counter
+func (m *Metrics) DecActiveDownstreamRequests(model string) {
+	m.ActiveDownstreamRequests.WithLabelValues(model).Dec()
 }
 
-// IncActiveUpstreamConnections increments the active upstream connections counter
-func (m *Metrics) IncActiveUpstreamConnections(modelServer, modelRoute string) {
-	m.ActiveUpstreamConnections.WithLabelValues(modelServer, modelRoute).Inc()
+// IncActiveUpstreamRequests increments the active upstream requests counter
+func (m *Metrics) IncActiveUpstreamRequests(modelServer, modelRoute string) {
+	m.ActiveUpstreamRequests.WithLabelValues(modelServer, modelRoute).Inc()
 }
 
-// DecActiveUpstreamConnections decrements the active upstream connections counter
-func (m *Metrics) DecActiveUpstreamConnections(modelServer, modelRoute string) {
-	m.ActiveUpstreamConnections.WithLabelValues(modelServer, modelRoute).Dec()
+// DecActiveUpstreamRequests decrements the active upstream requests counter
+func (m *Metrics) DecActiveUpstreamRequests(modelServer, modelRoute string) {
+	m.ActiveUpstreamRequests.WithLabelValues(modelServer, modelRoute).Dec()
 }
 
 // IncFairnessQueueSize increments the fairness queue size
@@ -352,17 +352,17 @@ func (r *RequestMetricsRecorder) RecordFairnessQueueDuration(userID string, dura
 	r.metrics.RecordFairnessQueueDuration(r.model, userID, duration)
 }
 
-// IncActiveUpstreamConnections increments the active upstream connections counter for this request
-func (r *RequestMetricsRecorder) IncActiveUpstreamConnections() {
+// IncActiveUpstreamRequests increments the active upstream requests counter for this request
+func (r *RequestMetricsRecorder) IncActiveUpstreamRequests() {
 	if r.modelServer != "" && r.modelRoute != "" {
-		r.metrics.IncActiveUpstreamConnections(r.modelServer, r.modelRoute)
+		r.metrics.IncActiveUpstreamRequests(r.modelServer, r.modelRoute)
 	}
 }
 
-// DecActiveUpstreamConnections decrements the active upstream connections counter for this request
-func (r *RequestMetricsRecorder) DecActiveUpstreamConnections() {
+// DecActiveUpstreamRequests decrements the active upstream requests counter for this request
+func (r *RequestMetricsRecorder) DecActiveUpstreamRequests() {
 	if r.modelServer != "" && r.modelRoute != "" {
-		r.metrics.DecActiveUpstreamConnections(r.modelServer, r.modelRoute)
+		r.metrics.DecActiveUpstreamRequests(r.modelServer, r.modelRoute)
 	}
 }
 

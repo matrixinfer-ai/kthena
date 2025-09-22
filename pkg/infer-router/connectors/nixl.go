@@ -69,27 +69,27 @@ func (n *NIXLConnector) Proxy(c *gin.Context, reqBody map[string]interface{}, pr
 		n.decodeRequestBody = addTokenUsage(c, reqBody)
 	}
 
-	// Start prefill phase metrics and increment upstream connection
+	// Start prefill phase metrics and increment upstream request
 	if metricsRecorder != nil {
 		metricsRecorder.StartPrefillPhase()
-		metricsRecorder.IncActiveUpstreamConnections()
+		metricsRecorder.IncActiveUpstreamRequests()
 	}
 
 	// 1. send prefill request
 	kvTransferParams, err := n.prefill(n.prefillRequest, prefillAddr)
 
-	// End prefill phase metrics and handle upstream connections
+	// End prefill phase metrics and handle upstream requests
 	if metricsRecorder != nil {
 		statusCode := "200" // Default status code for successful prefill
 		if err != nil {
 			statusCode = "500"
 		}
 		metricsRecorder.FinishPrefillPhase(statusCode)
-		metricsRecorder.DecActiveUpstreamConnections()
+		metricsRecorder.DecActiveUpstreamRequests()
 
 		if err == nil {
 			metricsRecorder.StartDecodePhase()
-			metricsRecorder.IncActiveUpstreamConnections()
+			metricsRecorder.IncActiveUpstreamRequests()
 		}
 	}
 
@@ -101,14 +101,14 @@ func (n *NIXLConnector) Proxy(c *gin.Context, reqBody map[string]interface{}, pr
 	decodeReq := n.buildDecodeRequest(c, n.decodeRequestBody, kvTransferParams)
 	result, decodeErr := n.decode(c, decodeReq, decodeAddr)
 
-	// End decode phase metrics and decrement upstream connection
+	// End decode phase metrics and decrement upstream request
 	if metricsRecorder != nil {
 		statusCode := "200" // Default status code, will be updated by response
 		if decodeErr != nil {
 			statusCode = "500"
 		}
 		metricsRecorder.FinishDecodePhase(statusCode)
-		metricsRecorder.DecActiveUpstreamConnections()
+		metricsRecorder.DecActiveUpstreamRequests()
 	}
 
 	return result, decodeErr
