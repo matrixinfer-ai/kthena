@@ -1,4 +1,5 @@
 # Model Controller
+
 ### The rules of generated resource name
 
 - The name of the `Model Infer` is in the format of `<model-name>-<backend-name>`.
@@ -47,4 +48,11 @@ the related resources will be deleted as well.
 
 ## Examples of Model CR
 
-You can find examples of model CR [here](https://github.com/volcano-sh/kthena/tree/main/examples/model)
+You can find examples of model CR [here](/examples/model)
+
+## Advanced features
+
+### Gang Scheduling
+
+`GangSchedule` is disabled by default, if you want to enable it,
+see [here](multi-node-inference.md#gang-scheduling-and-network-topology)
