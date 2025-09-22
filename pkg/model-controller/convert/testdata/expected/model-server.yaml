@@ -8,7 +8,7 @@ metadata:
     registry.volcano.sh/managed-by: registry.volcano.sh
     registry.volcano.sh/model-name: test-model
     registry.volcano.sh/model-uid: randomUID
-    registry.volcano.sh/revision: 57db76469c
+    registry.volcano.sh/revision: 6f7564b9f
   ownerReferences:
     - apiVersion: registry.volcano.sh/v1alpha1
       blockOwnerDeletion: true

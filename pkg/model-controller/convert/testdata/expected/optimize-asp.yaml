@@ -5,7 +5,7 @@ metadata:
     registry.volcano.sh/backend-name: ""
     registry.volcano.sh/managed-by: registry.volcano.sh
     registry.volcano.sh/model-name: multi-backend-model
-    registry.volcano.sh/revision: 6b6dcc55dc
+    registry.volcano.sh/revision: 85879f66b9
     registry.volcano.sh/model-uid: randomUID
   name: multi-backend-model
   namespace: dev

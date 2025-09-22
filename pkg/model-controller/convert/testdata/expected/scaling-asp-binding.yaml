@@ -5,7 +5,7 @@ metadata:
     registry.volcano.sh/backend-name: backend1
     registry.volcano.sh/managed-by: registry.volcano.sh
     registry.volcano.sh/model-name: test-model
-    registry.volcano.sh/revision: 556849fcfc
+    registry.volcano.sh/revision: 777f8c578c
     registry.volcano.sh/model-uid: randomUID
   name: test-model-backend1
   namespace: default
