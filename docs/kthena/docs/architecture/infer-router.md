@@ -67,7 +67,7 @@ Initial scheduling plugins include:
 
 **Comprehensive Rate Limiting**: Implements diverse rate limiting strategies for input tokens, output tokens, and role-based limiting.
 
-**Kubernetes Router API Compatibility**: Compatible with the inference extension of the upstream Kubernetes community's Router API.
+**Kubernetes Gateway API Compatibility**: Compatible with the inference extension of the upstream Kubernetes community's Gateway API.
 
 
 ## API
