@@ -9,7 +9,7 @@ Kthena Router provides sophisticated traffic routing capabilities that enable in
 - **ModelServer**: Defines backend inference service instances with their associated pods, models, and traffic policies
 - **ModelRoute**: Defines routing rules based on request characteristics such as model name, LoRA adapters, HTTP headers, and weight distribution
 
-For a detailed definition of the ModelServer and ModelRoute CRs, please refer to the [ModelRoute and ModelRoute Reference](../reference/crd/networking.volcano.sh.md) pages.
+For a detailed definition of the ModelServer and ModelRoute CRs, please refer to the [ModelRoute and ModelRoute Reference](../reference/crd/networking.serving.volcano.sh.md) pages.
 
 The router supports various routing strategies, from simple model-based forwarding to complex weighted distribution and header-based routing. This flexibility allows for advanced deployment patterns including canary releases, A/B testing, and load balancing across heterogeneous model deployments.
 
@@ -44,7 +44,7 @@ To simplify deployment and reduce the requirements for demonstration environment
 **Traffic Processing**: When a request comes in for model "deepseek-r1", the router matches this criterion and forwards all traffic to the 1.5B ModelServer. This is the most straightforward routing pattern.
 
 ```yaml
-apiVersion: networking.volcano.sh/v1alpha1
+apiVersion: networking.serving.volcano.sh/v1alpha1
 kind: ModelRoute
 metadata:
   name: deepseek-simple
@@ -85,7 +85,7 @@ curl http://$ROUTER_IP/v1/completions \
 **Traffic Processing**: When a request specifies LoRA adapters (lora-A or lora-B), the router routes it to ModelServers configured to handle these specific adapters.
 
 ```yaml
-apiVersion: networking.volcano.sh/v1alpha1
+apiVersion: networking.serving.volcano.sh/v1alpha1
 kind: ModelRoute
 metadata:
   name: deepseek-lora
@@ -128,7 +128,7 @@ curl http://$ROUTER_IP/v1/completions \
 **Traffic Processing**: The router uses weighted round-robin to distribute requests. For every 100 requests, approximately 70 will go to version 1 and 30 to version 2. This allows safe validation of new model versions with controlled risk.
 
 ```yaml
-apiVersion: networking.volcano.sh/v1alpha1
+apiVersion: networking.serving.volcano.sh/v1alpha1
 kind: ModelRoute
 metadata:
   name: deepseek-subset
@@ -185,7 +185,7 @@ done
 **Traffic Processing**: The router evaluates incoming requests in the order rules are defined. Premium users (identified by `user-type: premium` header) are routed to the 7B model, while regular users fall back to the 1.5B model.
 
 ```yaml
-apiVersion: networking.volcano.sh/v1alpha1
+apiVersion: networking.serving.volcano.sh/v1alpha1
 kind: ModelRoute
 metadata:
   name: deepseek-multi-models

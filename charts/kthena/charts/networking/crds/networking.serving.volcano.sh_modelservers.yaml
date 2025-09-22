@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.17.2
-  name: modelservers.networking.volcano.sh
+  name: modelservers.networking.serving.volcano.sh
 spec:
-  group: networking.volcano.sh
+  group: networking.serving.volcano.sh
   names:
     kind: ModelServer
     listKind: ModelServerList

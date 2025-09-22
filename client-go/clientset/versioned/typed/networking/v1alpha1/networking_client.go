@@ -32,7 +32,7 @@ type NetworkingV1alpha1Interface interface {
 	ModelServersGetter
 }
 
-// NetworkingV1alpha1Client is used to interact with features provided by the networking.volcano.sh group.
+// NetworkingV1alpha1Client is used to interact with features provided by the networking.serving.volcano.sh group.
 type NetworkingV1alpha1Client struct {
 	restClient rest.Interface
 }

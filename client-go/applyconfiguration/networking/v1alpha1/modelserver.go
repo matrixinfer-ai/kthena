@@ -41,7 +41,7 @@ func ModelServer(name, namespace string) *ModelServerApplyConfiguration {
 	b.WithName(name)
 	b.WithNamespace(namespace)
 	b.WithKind("ModelServer")
-	b.WithAPIVersion("networking.volcano.sh/v1alpha1")
+	b.WithAPIVersion("networking.serving.volcano.sh/v1alpha1")
 	return b
 }
 

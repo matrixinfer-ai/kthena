@@ -1,10 +1,10 @@
 # API Reference
 
 ## Packages
-- [networking.volcano.sh/v1alpha1](#networkingvolcanoshv1alpha1)
+- [networking.serving.volcano.sh/v1alpha1](#networkingservingvolcanoshv1alpha1)
 
 
-## networking.volcano.sh/v1alpha1
+## networking.serving.volcano.sh/v1alpha1
 
 
 ### Resource Types
@@ -134,7 +134,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `apiVersion` _string_ | `networking.volcano.sh/v1alpha1` | | |
+| `apiVersion` _string_ | `networking.serving.volcano.sh/v1alpha1` | | |
 | `kind` _string_ | `ModelRoute` | | |
 | `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  |  |
 | `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  |  |
@@ -155,7 +155,7 @@ ModelRouteList contains a list of ModelRoute.
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `apiVersion` _string_ | `networking.volcano.sh/v1alpha1` | | |
+| `apiVersion` _string_ | `networking.serving.volcano.sh/v1alpha1` | | |
 | `kind` _string_ | `ModelRouteList` | | |
 | `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  |  |
 | `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  |  |
@@ -208,7 +208,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `apiVersion` _string_ | `networking.volcano.sh/v1alpha1` | | |
+| `apiVersion` _string_ | `networking.serving.volcano.sh/v1alpha1` | | |
 | `kind` _string_ | `ModelServer` | | |
 | `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  |  |
 | `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  |  |
@@ -229,7 +229,7 @@ ModelServerList contains a list of ModelServer.
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `apiVersion` _string_ | `networking.volcano.sh/v1alpha1` | | |
+| `apiVersion` _string_ | `networking.serving.volcano.sh/v1alpha1` | | |
 | `kind` _string_ | `ModelServerList` | | |
 | `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  |  |
 | `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  |  |

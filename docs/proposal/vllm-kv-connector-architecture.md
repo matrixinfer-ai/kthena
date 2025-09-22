@@ -187,7 +187,7 @@ type KVConnectorSpec struct {
 
 ### HTTP Connector (Default)
 ```yaml
-apiVersion: networking.volcano.sh/v1alpha1
+apiVersion: networking.serving.volcano.sh/v1alpha1
 kind: ModelServer  
 metadata:
   name: llama2-7b
@@ -208,7 +208,7 @@ spec:
 
 ### HTTP Connector with MooncakeStore
 ```yaml
-apiVersion: networking.volcano.sh/v1alpha1
+apiVersion: networking.serving.volcano.sh/v1alpha1
 kind: ModelServer  
 metadata:
   name: llama2-13b-mooncake
@@ -229,7 +229,7 @@ spec:
 
 ### NIXL Connector
 ```yaml
-apiVersion: networking.volcano.sh/v1alpha1  
+apiVersion: networking.serving.volcano.sh/v1alpha1  
 kind: ModelServer
 metadata:
   name: llama2-405b
@@ -250,7 +250,7 @@ spec:
 
 ### LMCache Connector
 ```yaml
-apiVersion: networking.volcano.sh/v1alpha1  
+apiVersion: networking.serving.volcano.sh/v1alpha1  
 kind: ModelServer
 metadata:
   name: llama2-70b
