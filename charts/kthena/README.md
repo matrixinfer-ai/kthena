@@ -8,7 +8,7 @@ Files in `crds/` are custom resource definitions, which are used to define the c
 Visit [here](https://helm.sh/docs/topics/charts/#the-chartyaml-file) for more information.
 
 `charts/` is a directory containing the dependencies of the chart. There are three subcharts `registry`, `workload` and
-`gateway` in
+`networking` in
 it.
 
 `values.yaml` is a YAML file containing the default configuration values for this chart.

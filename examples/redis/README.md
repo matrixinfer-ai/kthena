@@ -6,7 +6,7 @@ This directory contains Redis deployment configuration for Kthena.
 
 Redis is required when using the following Kthena features:
 - **KV Cache Aware Plugin** - For caching key-value pairs to improve performance
-- **Global Rate Limit** - To share and synchronize the token counts across all gateway pods
+- **Global Rate Limit** - To share and synchronize the token counts across all router pods
 
 ## Quick Start
 

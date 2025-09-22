@@ -17,7 +17,7 @@
 
 **Kthena** is a Kubernetes-native LLM inference platform that provides declarative model lifecycle management and intelligent request routing for production deployments.
 
-The platform extends Kubernetes with Custom Resource Definitions (CRDs) for managing LLM workloads, supporting multiple inference engines (vLLM, SGLang) and advanced serving patterns like prefill-decode disaggregation. Kthena's architecture separates control plane operations (model lifecycle, autoscaling policies) from data plane traffic routing through an intelligent gateway.
+The platform extends Kubernetes with Custom Resource Definitions (CRDs) for managing LLM workloads, supporting multiple inference engines (vLLM, SGLang) and advanced serving patterns like prefill-decode disaggregation. Kthena's architecture separates control plane operations (model lifecycle, autoscaling policies) from data plane traffic routing through an intelligent router.
 
 ## Key Features
 
@@ -40,13 +40,13 @@ The platform extends Kubernetes with Custom Resource Definitions (CRDs) for mana
 -   **Policy Binding**: Granular autoscaling policy assignment to specific model deployments not limited to `ModelInfer`
 
 ### **Observability & Monitoring**
--   **Prometheus Metrics**: Built-in metrics collection for gateway performance and model serving
+-   **Prometheus Metrics**: Built-in metrics collection for router performance and model serving
 -   **Request Tracking**: Detailed request routing and performance monitoring
 -   **Health Checks**: Comprehensive health checks for all model servers
 
 ## Architecture
 
-Kthena implements a Kubernetes-native architecture with separate control plane and data plane components. The platform manages LLM inference workloads through CRD and provides intelligent request routing through a dedicated gateway.
+Kthena implements a Kubernetes-native architecture with separate control plane and data plane components. The platform manages LLM inference workloads through CRD and provides intelligent request routing through a dedicated router.
 
 For more details, please refer to [Kthena Architecture](docs/kthena/docs/architecture/architecture.md)
 

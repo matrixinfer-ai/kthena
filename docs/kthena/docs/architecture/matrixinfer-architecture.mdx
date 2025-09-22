@@ -9,7 +9,7 @@ Kthena is a Kubernetes-native AI inference platform built on a **two-plane archi
 The platform comprises two primary planes:
 
 - **Control Plane**: Kthena’s model-aware brain. It coordinates models, routes, and servers; validates and stages changes; applies rollout/rollback logic with safety guardrails; and surfaces status/health for clear visibility—focused on model lifecycle and traffic safety rather than cluster mechanics.
-- **Data Plane**: Kthena’s runtime path. The Infer Gateway authenticates requests, enforces rate limits and fairness, and uses a pluggable, model-aware Scheduler (e.g., LoRA affinity, KV/GPU cache and latency plugins) to pick the best replica. Role-based **Prefill/Decode** replica groups enable disaggregation and independent scaling for lower latency, higher throughput, and better cost.
+- **Data Plane**: Kthena’s runtime path. The Infer Router authenticates requests, enforces rate limits and fairness, and uses a pluggable, model-aware Scheduler (e.g., LoRA affinity, KV/GPU cache and latency plugins) to pick the best replica. Role-based **Prefill/Decode** replica groups enable disaggregation and independent scaling for lower latency, higher throughput, and better cost.
 
 <LightboxImage src="/img/diagrams/architecture/architecture_overview.svg" alt="Architecture Overview"/>
 

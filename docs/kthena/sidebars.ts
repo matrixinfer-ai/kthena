@@ -27,7 +27,7 @@ const sidebars: SidebarsConfig = {
       items: [
         'architecture/matrixinfer-architecture',
         'architecture/infer-controller',
-        'architecture/infer-gateway',
+        'architecture/infer-router',
         'architecture/autoscaler',
         'architecture/model-controller',
       ],
@@ -41,10 +41,10 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'User Guide',
       items: [
-        'user-guide/gateway-routing',
+        'user-guide/router-routing',
         'user-guide/prefill-decode-disaggregation',
         'user-guide/multi-node-inference',
-        'user-guide/config-gateway',
+        'user-guide/config-router',
         'user-guide/autoscaler',
         'user-guide/rate-limit',
         'user-guide/runtime',
@@ -71,8 +71,8 @@ const sidebars: SidebarsConfig = {
       items: [
         {
           type: 'doc',
-          id: 'reference/gateway-access-log-fields',
-          label: 'Gateway Access Log Fields',
+          id: 'reference/router-access-log-fields',
+          label: 'Router Access Log Fields',
         },
         {
           type: 'category',

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the design and implementation of the fairness scheduling system in Kthena's inference gateway. The system ensures equitable resource allocation among users by prioritizing requests based on historical token usage, preventing any single user from monopolizing inference resources.
+This document describes the design and implementation of the fairness scheduling system in Kthena's inference router. The system ensures equitable resource allocation among users by prioritizing requests based on historical token usage, preventing any single user from monopolizing inference resources.
 
 ## Background
 
@@ -23,12 +23,12 @@ In multi-tenant AI inference environments, different users may have varying requ
 
 ### Non-Goals
 
-1. **Cross-Gateway Coordination**
-   - The initial implementation will not coordinate fairness state across multiple gateway instances
-   - Each gateway maintains independent fairness state and scheduling decisions
+1. **Cross-Router Coordination**
+   - The initial implementation will not coordinate fairness state across multiple router instances
+   - Each router maintains independent fairness state and scheduling decisions
 
 2. **Persistent State Management**
-   - Token usage history will not persist across gateway restarts
+   - Token usage history will not persist across router restarts
    - The system prioritizes performance over state durability for the initial version
 
 3. **Advanced Queuing Algorithms**
@@ -218,7 +218,7 @@ Different deployment scenarios require different configuration approaches:
 
 ### Scalability
 
-- **Horizontal**: Each gateway instance maintains independent state
+- **Horizontal**: Each router instance maintains independent state
 - **Vertical**: Memory usage scales linearly with active users and models
 - **Cleanup**: Automatic pruning prevents unbounded memory growth
 
@@ -246,8 +246,8 @@ type QueueStat struct {
 
 1. **Memory Overhead**: Requires tracking per-user, per-model statistics
 2. **Cold Start**: New users may experience slight delays during queue processing
-3. **State Loss**: Gateway restarts reset token usage history
-4. **Single Instance**: No cross-gateway coordination of fairness state
+3. **State Loss**: Router restarts reset token usage history
+4. **Single Instance**: No cross-router coordination of fairness state
 
 ### Design Decisions
 
@@ -266,7 +266,7 @@ type QueueStat struct {
 
 ### Long Term
 
-1. **Cross-Gateway Coordination**: Distributed fairness across multiple instances
+1. **Cross-Router Coordination**: Distributed fairness across multiple instances
 2. **Advanced Algorithms**: Weighted fair queuing or deficit round-robin
 3. **User Classes**: Different fairness policies for different user tiers
 4. **Predictive Scheduling**: ML-based request arrival prediction

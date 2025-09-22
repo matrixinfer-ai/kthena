@@ -1,5 +1,5 @@
-inferGateway:
-  # replicas is the number of infer-gateway instances to run.
+inferRouter:
+  # replicas is the number of infer-router instances to run.
   replicas: 1
   enabled: true
   tls:
@@ -7,16 +7,16 @@ inferGateway:
     # The DNS name to use for the certificate.
     dnsName: ""
     # The name of the secret to store the certificate and key.
-    secretName: "infer-gateway-tls"
+    secretName: "infer-router-tls"
   image:
-    # repository is the container image repository for the infer-gateway.
-    repository: ghcr.io/volcano-sh/infer-gateway
-    # tag is the container image tag for the infer-gateway.
+    # repository is the container image repository for the infer-router.
+    repository: ghcr.io/volcano-sh/infer-router
+    # tag is the container image tag for the infer-router.
     # node: edit by CI. No need to modify manually
     tag: latest
-    # pullPolicy is the image pull policy for the infer-gateway.
+    # pullPolicy is the image pull policy for the infer-router.
     pullPolicy: IfNotPresent
-  # resource defines the resource limits and requests for the infer-gateway.
+  # resource defines the resource limits and requests for the infer-router.
   resource:
     limits:
       cpu: 500m
@@ -46,19 +46,19 @@ inferGateway:
 
 webhook:
   enabled: true
-  # replicas is the number of gateway-webhook instances to run.
+  # replicas is the number of router-webhook instances to run.
   replicas: 1
   image:
-    # repository is the container image repository for the gateway-webhook.
-    repository: ghcr.io/volcano-sh/infer-gateway-webhook
-    # tag is the container image tag for the gateway-webhook.
+    # repository is the container image repository for the router-webhook.
+    repository: ghcr.io/volcano-sh/infer-router-webhook
+    # tag is the container image tag for the router-webhook.
     # node: edit by CI. No need to modify manually
     tag: latest
-    # pullPolicy is the image pull policy for the gateway-webhook.
+    # pullPolicy is the image pull policy for the router-webhook.
     pullPolicy: IfNotPresent
-    # args are the command line arguments for the gateway-webhook.
+    # args are the command line arguments for the router-webhook.
     args: [ "--port=8443" ]
-  # resource defines the resource limits and requests for the gateway-webhook.
+  # resource defines the resource limits and requests for the router-webhook.
   resource:
     limits:
       cpu: 100m
