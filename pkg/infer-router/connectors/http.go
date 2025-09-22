@@ -21,6 +21,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"k8s.io/klog/v2"
+
+	"github.com/volcano-sh/kthena/pkg/infer-router/metrics"
 )
 
 // HTTPConnector implements simple HTTP-based KV transfer
@@ -60,6 +62,14 @@ func (h *HTTPConnector) decode(c *gin.Context, req *http.Request, decodeAddr str
 
 // Proxy executes the complete prefill-decode flow for HTTP connector
 func (h *HTTPConnector) Proxy(c *gin.Context, reqBody map[string]interface{}, prefillAddr, decodeAddr string) (int, error) {
+	// Get metrics recorder from context
+	var metricsRecorder *metrics.RequestMetricsRecorder
+	if recorder, exists := c.Get("metricsRecorder"); exists {
+		if rec, ok := recorder.(*metrics.RequestMetricsRecorder); ok {
+			metricsRecorder = rec
+		}
+	}
+
 	if h.decodeRequest == nil {
 		h.decodeRequest = BuildDecodeRequest(c, c.Request, reqBody)
 	}
@@ -70,9 +80,44 @@ func (h *HTTPConnector) Proxy(c *gin.Context, reqBody map[string]interface{}, pr
 		h.prefillRequest = buildPrefillRequest(c.Request, reqBody)
 	}
 
-	if err := h.prefill(h.prefillRequest, prefillAddr); err != nil {
+	// Start prefill phase metrics and increment upstream request
+	if metricsRecorder != nil {
+		metricsRecorder.StartPrefillPhase()
+		metricsRecorder.IncActiveUpstreamRequests()
+	}
+
+	err := h.prefill(h.prefillRequest, prefillAddr)
+
+	// End prefill phase metrics and handle upstream requests
+	if metricsRecorder != nil {
+		statusCode := "200" // Default status code for successful prefill
+		if err != nil {
+			statusCode = "500"
+		}
+		metricsRecorder.FinishPrefillPhase(statusCode)
+		metricsRecorder.DecActiveUpstreamRequests()
+
+		if err == nil {
+			metricsRecorder.StartDecodePhase()
+			metricsRecorder.IncActiveUpstreamRequests()
+		}
+	}
+
+	if err != nil {
 		return 0, err
 	}
 
-	return h.decode(c, h.decodeRequest, decodeAddr)
+	result, decodeErr := h.decode(c, h.decodeRequest, decodeAddr)
+
+	// End decode phase metrics and decrement upstream request
+	if metricsRecorder != nil {
+		statusCode := "200" // Default status code, will be updated by response
+		if decodeErr != nil {
+			statusCode = "500"
+		}
+		metricsRecorder.FinishDecodePhase(statusCode)
+		metricsRecorder.DecActiveUpstreamRequests()
+	}
+
+	return result, decodeErr
 }

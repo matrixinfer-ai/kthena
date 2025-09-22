@@ -83,6 +83,17 @@ The router exposes the following metrics to monitor request processing:
     - `status_code`: HTTP response status code (200, 400, 500, etc.)
   - Buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60]
 
+- `infer_router_active_downstream_requests{model="<model_name>"}` (Gauge)
+  - Current number of active downstream requests (from clients to router)
+  - Labels:
+    - `model`: AI model name
+
+- `infer_router_active_upstream_requests{model_route="<route_name>",model_server="<server_name>"}` (Gauge)
+  - Current number of active upstream requests (from router to backend pods)
+  - Labels:
+    - `model_route`: ModelRoute name handling the requests
+    - `model_server`: ModelServer name processing the requests
+
 **AI-Specific Token Metrics**
 - `infer_router_tokens_total{model="<model_name>",path="<path>",token_type="input|output"}` (Counter)
   - Total tokens processed/generated
@@ -108,18 +119,7 @@ The router exposes the following metrics to monitor request processing:
     - `limit_type`: Type of rate limit (input_tokens, output_tokens, requests)
     - `path`: Request path (/v1/chat/completions, /v1/completions, etc.)
 
-**Connection and Scheduling Metrics**
-- `infer_router_active_downstream_connections{model="<model_name>",model_route="<route_name>"}` (Gauge)
-  - Current number of active downstream connections (from clients to router)
-  - Labels:
-    - `model`: AI model name
-    - `model_route`: ModelRoute name handling the connections
-
-- `infer_router_active_upstream_connections{model_server="<server_name>"}` (Gauge)
-  - Current number of active upstream connections (from router to backend pods)
-  - Labels:
-    - `model_server`: ModelServer name processing the connections
-  
+**Fairness Queue Metrics**
 - `infer_router_fairness_queue_size{model="<model_name>",user_id="<user_id>"}` (Gauge)
   - Current fairness queue size for pending requests
   - Labels:

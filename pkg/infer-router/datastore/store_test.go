@@ -488,7 +488,7 @@ func TestStoreDeleteModelRoute(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Add a request queue
-		s.requestWaitingQueue.Store("test-model", NewRequestPriorityQueue())
+		s.requestWaitingQueue.Store("test-model", NewRequestPriorityQueue(nil))
 
 		// Track delete callbacks
 		var deleteCallbackCalled atomic.Bool
@@ -619,8 +619,8 @@ func TestStoreDeleteModelRoute(t *testing.T) {
 		err = s.AddOrUpdateModelRoute(mr2)
 		assert.NoError(t, err)
 
-		s.requestWaitingQueue.Store("model1", NewRequestPriorityQueue())
-		s.requestWaitingQueue.Store("model2", NewRequestPriorityQueue())
+		s.requestWaitingQueue.Store("model1", NewRequestPriorityQueue(nil))
+		s.requestWaitingQueue.Store("model2", NewRequestPriorityQueue(nil))
 
 		// Delete route1
 		err = s.DeleteModelRoute("default/route1")
@@ -670,7 +670,7 @@ func TestStoreDeleteModelRoute_RequestQueueCleanup(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Create and setup a request queue
-	queue := NewRequestPriorityQueue()
+	queue := NewRequestPriorityQueue(nil)
 	s.requestWaitingQueue.Store("cleanup-model", queue)
 
 	// Verify queue exists
@@ -711,7 +711,7 @@ func TestStoreDeleteModelRoute_ConcurrentAccess(t *testing.T) {
 		err := s.AddOrUpdateModelRoute(mr)
 		assert.NoError(t, err)
 
-		s.requestWaitingQueue.Store(fmt.Sprintf("model%d", i), NewRequestPriorityQueue())
+		s.requestWaitingQueue.Store(fmt.Sprintf("model%d", i), NewRequestPriorityQueue(nil))
 	}
 
 	// Concurrently delete routes

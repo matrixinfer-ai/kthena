@@ -27,6 +27,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"k8s.io/klog/v2"
+
+	"github.com/volcano-sh/kthena/pkg/infer-router/metrics"
 )
 
 // NIXLConnector implements high-performance distributed in-memory KV cache using NIXL
@@ -50,6 +52,14 @@ func (n *NIXLConnector) Name() string {
 
 // Proxy executes the complete prefill-decode flow using NIXL for high-performance KV transfer
 func (n *NIXLConnector) Proxy(c *gin.Context, reqBody map[string]interface{}, prefillAddr, decodeAddr string) (int, error) {
+	// Get metrics recorder from context
+	var metricsRecorder *metrics.RequestMetricsRecorder
+	if recorder, exists := c.Get("metricsRecorder"); exists {
+		if rec, ok := recorder.(*metrics.RequestMetricsRecorder); ok {
+			metricsRecorder = rec
+		}
+	}
+
 	req := c.Request
 	if n.prefillRequest == nil {
 		prefillBody := cloneReqBody(reqBody)
@@ -59,14 +69,49 @@ func (n *NIXLConnector) Proxy(c *gin.Context, reqBody map[string]interface{}, pr
 		n.decodeRequestBody = addTokenUsage(c, reqBody)
 	}
 
+	// Start prefill phase metrics and increment upstream request
+	if metricsRecorder != nil {
+		metricsRecorder.StartPrefillPhase()
+		metricsRecorder.IncActiveUpstreamRequests()
+	}
+
 	// 1. send prefill request
 	kvTransferParams, err := n.prefill(n.prefillRequest, prefillAddr)
+
+	// End prefill phase metrics and handle upstream requests
+	if metricsRecorder != nil {
+		statusCode := "200" // Default status code for successful prefill
+		if err != nil {
+			statusCode = "500"
+		}
+		metricsRecorder.FinishPrefillPhase(statusCode)
+		metricsRecorder.DecActiveUpstreamRequests()
+
+		if err == nil {
+			metricsRecorder.StartDecodePhase()
+			metricsRecorder.IncActiveUpstreamRequests()
+		}
+	}
+
 	if err != nil {
 		return 0, err
 	}
+
 	// 2. send decode request
 	decodeReq := n.buildDecodeRequest(c, n.decodeRequestBody, kvTransferParams)
-	return n.decode(c, decodeReq, decodeAddr)
+	result, decodeErr := n.decode(c, decodeReq, decodeAddr)
+
+	// End decode phase metrics and decrement upstream request
+	if metricsRecorder != nil {
+		statusCode := "200" // Default status code, will be updated by response
+		if decodeErr != nil {
+			statusCode = "500"
+		}
+		metricsRecorder.FinishDecodePhase(statusCode)
+		metricsRecorder.DecActiveUpstreamRequests()
+	}
+
+	return result, decodeErr
 }
 
 // prefill send prefill request, returns kv_transfer_params

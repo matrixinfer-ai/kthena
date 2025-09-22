@@ -22,6 +22,8 @@ import (
 	"errors"
 	"sync"
 	"time"
+
+	"github.com/volcano-sh/kthena/pkg/infer-router/metrics"
 )
 
 // Request represents a request item in the priority queue
@@ -36,19 +38,24 @@ type Request struct {
 
 // RequestPriorityQueue implements the heap.Interface
 type RequestPriorityQueue struct {
-	stopCh   chan struct{} // Context for cancellation
-	notifyCh chan struct{} // Channel for item availability notification
-	mu       sync.RWMutex  // Ensure concurrent safety with read/write locks
-	heap     []*Request    // Underlying storage structure
+	stopCh   chan struct{}    // Context for cancellation
+	notifyCh chan struct{}    // Channel for item availability notification
+	mu       sync.RWMutex     // Ensure concurrent safety with read/write locks
+	heap     []*Request       // Underlying storage structure
+	metrics  *metrics.Metrics // Metrics instance for recording queue stats
 }
 
 var _ heap.Interface = &RequestPriorityQueue{}
 
-func NewRequestPriorityQueue() *RequestPriorityQueue {
+func NewRequestPriorityQueue(metricsInstance *metrics.Metrics) *RequestPriorityQueue {
+	if metricsInstance == nil {
+		metricsInstance = metrics.DefaultMetrics
+	}
 	pq := &RequestPriorityQueue{
 		stopCh:   make(chan struct{}),
 		notifyCh: make(chan struct{}, 1), // Buffered to prevent blocking
 		heap:     make([]*Request, 0),
+		metrics:  metricsInstance,
 	}
 	return pq
 }
@@ -93,6 +100,12 @@ func (pq *RequestPriorityQueue) PushRequest(r *Request) error {
 	pq.mu.Lock()
 	defer pq.mu.Unlock()
 	heap.Push(pq, r)
+
+	// Update fairness queue size metrics
+	if pq.metrics != nil {
+		pq.metrics.IncFairnessQueueSize(r.ModelName, r.UserID)
+	}
+
 	// Signal that a new item is available
 	select {
 	case pq.notifyCh <- struct{}{}:
@@ -107,6 +120,14 @@ func (pq *RequestPriorityQueue) popWhenAvailable(ctx context.Context) (*Request,
 		pq.mu.Lock()
 		if len(pq.heap) > 0 {
 			req := heap.Pop(pq).(*Request)
+
+			// Update fairness queue size metrics and record queue duration
+			if pq.metrics != nil {
+				pq.metrics.DecFairnessQueueSize(req.ModelName, req.UserID)
+				queueDuration := time.Since(req.RequestTime)
+				pq.metrics.RecordFairnessQueueDuration(req.ModelName, req.UserID, queueDuration)
+			}
+
 			pq.mu.Unlock()
 			return req, nil
 		}

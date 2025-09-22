@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"k8s.io/klog/v2"
 
 	"github.com/volcano-sh/kthena/pkg/infer-router/datastore"
@@ -43,13 +44,9 @@ func NewRouter(store datastore.Store) *router.Router {
 func (s *Server) startRouter(ctx context.Context, router *router.Router, store datastore.Store) {
 	gin.SetMode(gin.ReleaseMode)
 	engine := gin.New()
-	engine.Use(gin.LoggerWithWriter(gin.DefaultWriter, "/healthz", "readyz"), gin.Recovery())
+	engine.Use(gin.LoggerWithWriter(gin.DefaultWriter, "/healthz", "/readyz", "/metrics"), gin.Recovery())
 
-	// TODO: add middle ware
-	// engine.Use()
-
-	// engine.Use(auth.Authenticate)
-	// engine.Use(auth.Authorize)
+	// Add middleware
 	engine.Use(AccessLogMiddleware(router))
 	engine.Use(AuthMiddleware(router))
 
@@ -70,6 +67,9 @@ func (s *Server) startRouter(ctx context.Context, router *router.Router, store d
 			})
 		}
 	})
+
+	// Prometheus metrics endpoint
+	engine.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// Handle all paths under /v1/
 	engine.Any("/v1/*path", router.HandlerFunc())
