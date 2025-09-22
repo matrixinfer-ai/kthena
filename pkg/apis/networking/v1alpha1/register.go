@@ -23,7 +23,7 @@ import (
 )
 
 // GroupName specifies the group name used to register the objects.
-const GroupName = "networking.volcano.sh"
+const GroupName = "networking.serving.volcano.sh"
 
 const ModelServerKind = "ModelServer"
 

@@ -41,7 +41,7 @@ func ModelRoute(name, namespace string) *ModelRouteApplyConfiguration {
 	b.WithName(name)
 	b.WithNamespace(namespace)
 	b.WithKind("ModelRoute")
-	b.WithAPIVersion("networking.volcano.sh/v1alpha1")
+	b.WithAPIVersion("networking.serving.volcano.sh/v1alpha1")
 	return b
 }
 

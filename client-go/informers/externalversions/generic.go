@@ -54,7 +54,7 @@ func (f *genericInformer) Lister() cache.GenericLister {
 // TODO extend this to unknown resources with a client pool
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
-	// Group=networking.volcano.sh, Version=v1alpha1
+	// Group=networking.serving.volcano.sh, Version=v1alpha1
 	case v1alpha1.SchemeGroupVersion.WithResource("modelroutes"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Networking().V1alpha1().ModelRoutes().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("modelservers"):

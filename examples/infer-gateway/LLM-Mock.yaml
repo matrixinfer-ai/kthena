@@ -31,7 +31,7 @@ spec:
             - python3
             - app.py
 ---
-apiVersion: networking.volcano.sh/v1alpha1
+apiVersion: networking.serving.volcano.sh/v1alpha1
 kind: ModelRoute
 metadata:
   name: llama
@@ -42,7 +42,7 @@ spec:
     targetModels:
     - modelServerName: "llama"
 ---
-apiVersion: networking.volcano.sh/v1alpha1
+apiVersion: networking.serving.volcano.sh/v1alpha1
 kind: ModelServer
 metadata:
   name: llama

@@ -38,7 +38,7 @@ func TestValidateModelRoute(t *testing.T) {
 			name: "valid model route with model name",
 			modelRoute: &networkingv1alpha1.ModelRoute{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "networking.volcano.sh/v1alpha1",
+					APIVersion: "networking.serving.volcano.sh/v1alpha1",
 					Kind:       "ModelRoute",
 				},
 				ObjectMeta: metav1.ObjectMeta{
@@ -65,7 +65,7 @@ func TestValidateModelRoute(t *testing.T) {
 			name: "valid model route with lora adapters",
 			modelRoute: &networkingv1alpha1.ModelRoute{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "networking.volcano.sh/v1alpha1",
+					APIVersion: "networking.serving.volcano.sh/v1alpha1",
 					Kind:       "ModelRoute",
 				},
 				ObjectMeta: metav1.ObjectMeta{
@@ -92,7 +92,7 @@ func TestValidateModelRoute(t *testing.T) {
 			name: "valid model route with both model name and lora adapters",
 			modelRoute: &networkingv1alpha1.ModelRoute{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "networking.volcano.sh/v1alpha1",
+					APIVersion: "networking.serving.volcano.sh/v1alpha1",
 					Kind:       "ModelRoute",
 				},
 				ObjectMeta: metav1.ObjectMeta{
@@ -120,7 +120,7 @@ func TestValidateModelRoute(t *testing.T) {
 			name: "invalid model route - missing both model name and lora adapters",
 			modelRoute: &networkingv1alpha1.ModelRoute{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "networking.volcano.sh/v1alpha1",
+					APIVersion: "networking.serving.volcano.sh/v1alpha1",
 					Kind:       "ModelRoute",
 				},
 				ObjectMeta: metav1.ObjectMeta{
@@ -147,7 +147,7 @@ func TestValidateModelRoute(t *testing.T) {
 			name: "invalid model route - empty string in lora adapters",
 			modelRoute: &networkingv1alpha1.ModelRoute{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "networking.volcano.sh/v1alpha1",
+					APIVersion: "networking.serving.volcano.sh/v1alpha1",
 					Kind:       "ModelRoute",
 				},
 				ObjectMeta: metav1.ObjectMeta{
@@ -175,7 +175,7 @@ func TestValidateModelRoute(t *testing.T) {
 			name: "invalid model route - multiple empty strings in lora adapters",
 			modelRoute: &networkingv1alpha1.ModelRoute{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "networking.volcano.sh/v1alpha1",
+					APIVersion: "networking.serving.volcano.sh/v1alpha1",
 					Kind:       "ModelRoute",
 				},
 				ObjectMeta: metav1.ObjectMeta{
@@ -203,7 +203,7 @@ func TestValidateModelRoute(t *testing.T) {
 			name: "invalid model route - all lora adapters are empty",
 			modelRoute: &networkingv1alpha1.ModelRoute{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "networking.volcano.sh/v1alpha1",
+					APIVersion: "networking.serving.volcano.sh/v1alpha1",
 					Kind:       "ModelRoute",
 				},
 				ObjectMeta: metav1.ObjectMeta{
@@ -231,7 +231,7 @@ func TestValidateModelRoute(t *testing.T) {
 			name: "invalid model route - empty model name and empty lora adapters list",
 			modelRoute: &networkingv1alpha1.ModelRoute{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "networking.volcano.sh/v1alpha1",
+					APIVersion: "networking.serving.volcano.sh/v1alpha1",
 					Kind:       "ModelRoute",
 				},
 				ObjectMeta: metav1.ObjectMeta{

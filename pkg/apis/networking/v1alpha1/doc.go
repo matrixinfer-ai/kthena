@@ -16,5 +16,5 @@ limitations under the License.
 
 // +k8s:openai-gen=true
 // +kubebuilder:object:generate=true
-// +groupName=networking.volcano.sh
+// +groupName=networking.serving.volcano.sh
 package v1alpha1

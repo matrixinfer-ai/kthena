@@ -35,7 +35,7 @@ import (
 // apply configuration type exists for the given GroupVersionKind.
 func ForKind(kind schema.GroupVersionKind) interface{} {
 	switch kind {
-	// Group=networking.volcano.sh, Version=v1alpha1
+	// Group=networking.serving.volcano.sh, Version=v1alpha1
 	case v1alpha1.SchemeGroupVersion.WithKind("BodyMatch"):
 		return &networkingv1alpha1.BodyMatchApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("GlobalRateLimit"):

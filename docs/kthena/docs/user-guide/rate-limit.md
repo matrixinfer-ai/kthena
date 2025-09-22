@@ -37,7 +37,7 @@ Before diving into the rate-limiting configurations, let's set up the environmen
 **Traffic Processing**: The router inspects the number of tokens in each request. If the cumulative number of input or output tokens within a minute exceeds the defined limits, the router will reject the request with an `HTTP 429 Too Many Requests` error. This limit is tracked independently by each router pod.
 
 ```yaml
-apiVersion: networking.volcano.sh/v1alpha1
+apiVersion: networking.serving.volcano.sh/v1alpha1
 kind: ModelRoute
 metadata:
   name: deepseek-rate-limit
@@ -99,7 +99,7 @@ kubectl delete -f https://github.com/volcano-sh/kthena/blob/main/examples/infer-
 **Traffic Processing**: This works similarly to local rate limiting, but instead of using local in-memory counters, the router uses a Redis instance to share and synchronize the token counts across all router pods. This ensures the rate limit is applied globally and accurately, regardless of how many router replicas are running.
 
 ```yaml
-apiVersion: networking.volcano.sh/v1alpha1
+apiVersion: networking.serving.volcano.sh/v1alpha1
 kind: ModelRoute
 metadata:
   name: deepseek-global-rate-limit

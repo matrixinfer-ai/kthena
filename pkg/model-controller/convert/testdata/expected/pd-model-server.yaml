@@ -1,4 +1,4 @@
-apiVersion: networking.volcano.sh/v1alpha1
+apiVersion: networking.serving.volcano.sh/v1alpha1
 kind: ModelServer
 metadata:
   name: ds-r1-qwen-7b-pd-ds-r1-qwen-7b-pd
