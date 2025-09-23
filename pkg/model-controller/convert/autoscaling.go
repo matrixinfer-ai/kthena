@@ -49,10 +49,10 @@ func BuildScalingPolicyBindingSpec(backend *workload.ModelBackend, name string) 
 			Target: workload.Target{
 				TargetRef: corev1.ObjectReference{
 					Name: name,
-					Kind: workload.ModelInferKind.Kind,
+					Kind: workload.ModelServingKind.Kind,
 				},
 				AdditionalMatchLabels: map[string]string{
-					workload.RoleLabelKey: workload.ModelInferEntryPodLeaderLabel,
+					workload.RoleLabelKey: workload.ModelServingEntryPodLeaderLabel,
 				},
 			},
 			MinReplicas: backend.MinReplicas,
@@ -99,10 +99,10 @@ func BuildOptimizePolicyBindingSpec(model *workload.ModelBooster, name string) *
 			Target: workload.Target{
 				TargetRef: corev1.ObjectReference{
 					Name: targetName,
-					Kind: workload.ModelInferKind.Kind,
+					Kind: workload.ModelServingKind.Kind,
 				},
 				AdditionalMatchLabels: map[string]string{
-					workload.RoleLabelKey: workload.ModelInferEntryPodLeaderLabel,
+					workload.RoleLabelKey: workload.ModelServingEntryPodLeaderLabel,
 				},
 			},
 			MinReplicas: backend.MinReplicas,

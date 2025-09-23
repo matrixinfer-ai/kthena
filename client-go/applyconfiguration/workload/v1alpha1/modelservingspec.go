@@ -27,7 +27,7 @@ import (
 type ModelServingSpecApplyConfiguration struct {
 	Replicas                  *int32                                       `json:"replicas,omitempty"`
 	SchedulerName             *string                                      `json:"schedulerName,omitempty"`
-	Template                  *InferGroupApplyConfiguration                `json:"template,omitempty"`
+	Template                  *ServingGroupApplyConfiguration              `json:"template,omitempty"`
 	RolloutStrategy           *RolloutStrategyApplyConfiguration           `json:"rolloutStrategy,omitempty"`
 	RecoveryPolicy            *workloadv1alpha1.RecoveryPolicy             `json:"recoveryPolicy,omitempty"`
 	TopologySpreadConstraints []TopologySpreadConstraintApplyConfiguration `json:"topologySpreadConstraints,omitempty"`
@@ -58,7 +58,7 @@ func (b *ModelServingSpecApplyConfiguration) WithSchedulerName(value string) *Mo
 // WithTemplate sets the Template field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Template field is set to the value of the last call.
-func (b *ModelServingSpecApplyConfiguration) WithTemplate(value *InferGroupApplyConfiguration) *ModelServingSpecApplyConfiguration {
+func (b *ModelServingSpecApplyConfiguration) WithTemplate(value *ServingGroupApplyConfiguration) *ModelServingSpecApplyConfiguration {
 	b.Template = value
 	return b
 }

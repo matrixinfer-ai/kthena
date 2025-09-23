@@ -5,7 +5,7 @@ metadata:
     workload.serving.volcano.sh/backend-name: ""
     workload.serving.volcano.sh/managed-by: workload.serving.volcano.sh
     workload.serving.volcano.sh/model-name: multi-backend-model
-    workload.serving.volcano.sh/revision: 77999cff7c
+    workload.serving.volcano.sh/revision: 6f5c67b457
     workload.serving.volcano.sh/model-uid: randomUID
   name: multi-backend-model
   namespace: dev
@@ -27,7 +27,7 @@ spec:
         cost: 0
         target:
           additionalMatchLabels:
-            modelinfer.volcano.sh/role: leader
+            modelserving.volcano.sh/role: leader
           targetRef:
             name: multi-backend-model-backend1
             kind: ModelServing
@@ -37,7 +37,7 @@ spec:
         cost: 0
         target:
           additionalMatchLabels:
-            modelinfer.volcano.sh/role: leader
+            modelserving.volcano.sh/role: leader
           targetRef:
             name: multi-backend-model-backend2
             kind: ModelServing

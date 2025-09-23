@@ -948,7 +948,7 @@ func (c *ModelInferController) handlePodAfterGraceTime(mi *workloadv1alpha1.Mode
 func (c *ModelInferController) handleDeletedPod(mi *workloadv1alpha1.ModelServing, inferGroupName string, pod *corev1.Pod) error {
 	// pod is deleted due to failure or other reasons and needs to be rebuilt according to the RecoveryPolicy
 	switch mi.Spec.RecoveryPolicy {
-	case workloadv1alpha1.InferGroupRecreate:
+	case workloadv1alpha1.ServingGroupRecreate:
 		// Rebuild the entire inferGroup directly
 		c.DeleteInferGroup(mi, inferGroupName)
 	case workloadv1alpha1.RoleRecreate:

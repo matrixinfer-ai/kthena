@@ -45,14 +45,14 @@ spec:
                 description: RecoveryPolicy defines the recovery policy for the failed
                   Pod to be rebuilt
                 enum:
-                - InferGroupRecreate
+                - ServingGroupRecreate
                 - RoleRecreate
                 - None
                 type: string
               replicas:
                 default: 1
                 description: |-
-                  Number of InferGroups. That is the number of instances that run infer tasks
+                  Number of ServingGroups. That is the number of instances that run serving tasks
                   Default to 1.
                 format: int32
                 type: integer
@@ -100,11 +100,11 @@ spec:
                         type: integer
                     type: object
                   type:
-                    default: InferGroupRollingUpdate
+                    default: ServingGroupRollingUpdate
                     description: Type defines the rollout strategy, it can only be
-                      “InferGroupRollingUpdate” for now.
+                      “ServingGroupRollingUpdate” for now.
                     enum:
-                    - InferGroupRollingUpdate
+                    - ServingGroupRollingUpdate
                     type: string
                 required:
                 - type
@@ -114,7 +114,7 @@ spec:
                   by ModelServing
                 type: string
               template:
-                description: Template defines the template for InferGroup
+                description: Template defines the template for ServingGroup
                 properties:
                   gangSchedule:
                     description: GangSchedule defines the GangSchedule config.
@@ -16763,10 +16763,10 @@ spec:
             - template
             type: object
           status:
-            description: ModelInferStatus defines the observed state of ModelServing
+            description: ModelServingStatus defines the observed state of ModelServing
             properties:
               availableReplicas:
-                description: AvailableReplicas track the number of InferGroup that
+                description: AvailableReplicas track the number of ServingGroup that
                   are in ready state (updated or not).
                 format: int32
                 type: integer
@@ -16828,8 +16828,8 @@ spec:
                   type: object
                 type: array
               currentReplicas:
-                description: CurrentReplicas is the number of InferGroup created by
-                  the ModelServing controller from the ModelServing version
+                description: CurrentReplicas is the number of ServingGroup created
+                  by the ModelServing controller from the ModelServing version
                 format: int32
                 type: integer
               observedGeneration:
@@ -16839,13 +16839,13 @@ spec:
                 format: int64
                 type: integer
               replicas:
-                description: Replicas track the total number of InferGroup that have
-                  been created (updated or not, ready or not)
+                description: Replicas track the total number of ServingGroup that
+                  have been created (updated or not, ready or not)
                 format: int32
                 type: integer
               updatedReplicas:
-                description: UpdatedReplicas track the number of InferGroup that have
-                  been updated (ready or not).
+                description: UpdatedReplicas track the number of ServingGroup that
+                  have been updated (ready or not).
                 format: int32
                 type: integer
             type: object

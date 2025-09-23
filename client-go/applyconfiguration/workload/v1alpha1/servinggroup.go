@@ -18,24 +18,24 @@ limitations under the License.
 
 package v1alpha1
 
-// InferGroupApplyConfiguration represents a declarative configuration of the InferGroup type for use
+// ServingGroupApplyConfiguration represents a declarative configuration of the ServingGroup type for use
 // with apply.
-type InferGroupApplyConfiguration struct {
+type ServingGroupApplyConfiguration struct {
 	RestartGracePeriodSeconds *int64                          `json:"restartGracePeriodSeconds,omitempty"`
 	GangSchedule              *GangScheduleApplyConfiguration `json:"gangSchedule,omitempty"`
 	Roles                     []RoleApplyConfiguration        `json:"roles,omitempty"`
 }
 
-// InferGroupApplyConfiguration constructs a declarative configuration of the InferGroup type for use with
+// ServingGroupApplyConfiguration constructs a declarative configuration of the ServingGroup type for use with
 // apply.
-func InferGroup() *InferGroupApplyConfiguration {
-	return &InferGroupApplyConfiguration{}
+func ServingGroup() *ServingGroupApplyConfiguration {
+	return &ServingGroupApplyConfiguration{}
 }
 
 // WithRestartGracePeriodSeconds sets the RestartGracePeriodSeconds field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the RestartGracePeriodSeconds field is set to the value of the last call.
-func (b *InferGroupApplyConfiguration) WithRestartGracePeriodSeconds(value int64) *InferGroupApplyConfiguration {
+func (b *ServingGroupApplyConfiguration) WithRestartGracePeriodSeconds(value int64) *ServingGroupApplyConfiguration {
 	b.RestartGracePeriodSeconds = &value
 	return b
 }
@@ -43,7 +43,7 @@ func (b *InferGroupApplyConfiguration) WithRestartGracePeriodSeconds(value int64
 // WithGangSchedule sets the GangSchedule field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the GangSchedule field is set to the value of the last call.
-func (b *InferGroupApplyConfiguration) WithGangSchedule(value *GangScheduleApplyConfiguration) *InferGroupApplyConfiguration {
+func (b *ServingGroupApplyConfiguration) WithGangSchedule(value *GangScheduleApplyConfiguration) *ServingGroupApplyConfiguration {
 	b.GangSchedule = value
 	return b
 }
@@ -51,7 +51,7 @@ func (b *InferGroupApplyConfiguration) WithGangSchedule(value *GangScheduleApply
 // WithRoles adds the given value to the Roles field in the declarative configuration
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, values provided by each call will be appended to the Roles field.
-func (b *InferGroupApplyConfiguration) WithRoles(values ...*RoleApplyConfiguration) *InferGroupApplyConfiguration {
+func (b *ServingGroupApplyConfiguration) WithRoles(values ...*RoleApplyConfiguration) *ServingGroupApplyConfiguration {
 	for i := range values {
 		if values[i] == nil {
 			panic("nil value passed to WithRoles")

@@ -92,8 +92,6 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &applyconfigurationworkloadv1alpha1.AutoscalingPolicyStablePolicyApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("GangSchedule"):
 		return &applyconfigurationworkloadv1alpha1.GangScheduleApplyConfiguration{}
-	case workloadv1alpha1.SchemeGroupVersion.WithKind("InferGroup"):
-		return &applyconfigurationworkloadv1alpha1.InferGroupApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("LoraAdapter"):
 		return &applyconfigurationworkloadv1alpha1.LoraAdapterApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("Metadata"):
@@ -108,12 +106,12 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &applyconfigurationworkloadv1alpha1.ModelBoosterApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelBoosterSpec"):
 		return &applyconfigurationworkloadv1alpha1.ModelBoosterSpecApplyConfiguration{}
-	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelInferStatus"):
-		return &applyconfigurationworkloadv1alpha1.ModelInferStatusApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelServing"):
 		return &applyconfigurationworkloadv1alpha1.ModelServingApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelServingSpec"):
 		return &applyconfigurationworkloadv1alpha1.ModelServingSpecApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelServingStatus"):
+		return &applyconfigurationworkloadv1alpha1.ModelServingStatusApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelStatus"):
 		return &applyconfigurationworkloadv1alpha1.ModelStatusApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelWorker"):
@@ -132,6 +130,8 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &applyconfigurationworkloadv1alpha1.RolloutStrategyApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("ScalingConfiguration"):
 		return &applyconfigurationworkloadv1alpha1.ScalingConfigurationApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("ServingGroup"):
+		return &applyconfigurationworkloadv1alpha1.ServingGroupApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("Target"):
 		return &applyconfigurationworkloadv1alpha1.TargetApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("TopologySpreadConstraint"):

@@ -68,12 +68,12 @@ func UpdateModelInfer(ctx context.Context, client clientset.Interface, modelInfe
 }
 
 func GetTargetLabels(target *workload.Target) map[string]string {
-	if target.TargetRef.Kind == workload.ModelInferKind.Kind {
+	if target.TargetRef.Kind == workload.ModelServingKind.Kind {
 		lbs := map[string]string{}
 		if target.AdditionalMatchLabels != nil {
 			lbs = maps.Clone(target.AdditionalMatchLabels)
 		}
-		lbs[workload.ModelInferNameLabelKey] = target.TargetRef.Name
+		lbs[workload.ModelServingNameLabelKey] = target.TargetRef.Name
 		lbs[workload.RoleLabelKey] = ModelInferEntryPodLabel
 		return lbs
 	}

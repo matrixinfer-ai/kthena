@@ -77,7 +77,7 @@ func TestReconcile(t *testing.T) {
 	assert.Len(t, modelRoutes.Items, 1, "Expected 1 ModelRoute to be create")
 	// Step3. mock model infer status available
 	modelInfer := &modelInfers.Items[0]
-	meta.SetStatusCondition(&modelInfer.Status.Conditions, newCondition(string(workload.ModelInferAvailable),
+	meta.SetStatusCondition(&modelInfer.Status.Conditions, newCondition(string(workload.ModelServingAvailable),
 		metav1.ConditionTrue, "AllGroupsReady", "AllGroupsReady"))
 	_, err = kthenaClient.WorkloadV1alpha1().ModelServings(model.Namespace).UpdateStatus(ctx, modelInfer, metav1.UpdateOptions{})
 	assert.NoError(t, err)

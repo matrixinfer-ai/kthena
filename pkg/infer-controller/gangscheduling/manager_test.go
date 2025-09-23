@@ -60,7 +60,7 @@ func TestCalculateRequirements(t *testing.T) {
 				Namespace: "default",
 			},
 			Spec: workloadv1alpha1.ModelServingSpec{
-				Template: workloadv1alpha1.InferGroup{
+				Template: workloadv1alpha1.ServingGroup{
 					Roles: []workloadv1alpha1.Role{
 						{
 							Name:           "prefill",
@@ -452,7 +452,7 @@ func TestGetExistingPodGroups(t *testing.T) {
 			Name:      "test-model-0",
 			Namespace: "default",
 			Labels: map[string]string{
-				workloadv1alpha1.ModelInferNameLabelKey: "test-model",
+				workloadv1alpha1.ModelServingNameLabelKey: "test-model",
 			},
 		},
 	}
@@ -462,7 +462,7 @@ func TestGetExistingPodGroups(t *testing.T) {
 			Name:      "test-model-1",
 			Namespace: "default",
 			Labels: map[string]string{
-				workloadv1alpha1.ModelInferNameLabelKey: "test-model",
+				workloadv1alpha1.ModelServingNameLabelKey: "test-model",
 			},
 		},
 	}
@@ -472,7 +472,7 @@ func TestGetExistingPodGroups(t *testing.T) {
 			Name:      "other-model-0",
 			Namespace: "default",
 			Labels: map[string]string{
-				workloadv1alpha1.ModelInferNameLabelKey: "other-model",
+				workloadv1alpha1.ModelServingNameLabelKey: "other-model",
 			},
 		},
 	}
@@ -482,7 +482,7 @@ func TestGetExistingPodGroups(t *testing.T) {
 			Name:      "test-model-0",
 			Namespace: "other-namespace",
 			Labels: map[string]string{
-				workloadv1alpha1.ModelInferNameLabelKey: "test-model",
+				workloadv1alpha1.ModelServingNameLabelKey: "test-model",
 			},
 		},
 	}

@@ -39,12 +39,12 @@ func Resource(resource string) schema.GroupResource {
 
 // GroupVersionKind definitions
 var (
-	ModelInferKind                = SchemeGroupVersion.WithKind("ModelServing")
-	ModelInferListKind            = SchemeGroupVersion.WithKind("ModelServingList")
-	ModelKind                     = SchemeGroupVersion.WithKind("ModelBooster")
-	AutoscalingPolicyKind         = SchemeGroupVersion.WithKind("AutoscalingPolicy")
-	AutoscalingPolicyBindingKind  = SchemeGroupVersion.WithKind("AutoscalingPolicyBinding")
-	ModelInferEntryPodLeaderLabel = "leader"
+	ModelServingKind                = SchemeGroupVersion.WithKind("ModelServing")
+	ModelServingListKind            = SchemeGroupVersion.WithKind("ModelServingList")
+	ModelKind                       = SchemeGroupVersion.WithKind("ModelBooster")
+	AutoscalingPolicyKind           = SchemeGroupVersion.WithKind("AutoscalingPolicy")
+	AutoscalingPolicyBindingKind    = SchemeGroupVersion.WithKind("AutoscalingPolicyBinding")
+	ModelServingEntryPodLeaderLabel = "leader"
 )
 
 var (

@@ -8,7 +8,7 @@ metadata:
     workload.serving.volcano.sh/managed-by: workload.serving.volcano.sh
     workload.serving.volcano.sh/model-name: ds-r1-qwen-7b-pd
     workload.serving.volcano.sh/model-uid: randomUID
-    workload.serving.volcano.sh/revision: 7497dd8fdf
+    workload.serving.volcano.sh/revision: 757f69bc97
   ownerReferences:
     - apiVersion: workload.serving.volcano.sh/v1alpha1
       blockOwnerDeletion: true
@@ -23,11 +23,11 @@ spec:
     matchLabels:
       workload.serving.volcano.sh/model-uid: randomUID
     pdGroup:
-      groupKey: "modelinfer.volcano.sh/group-name"
+      groupKey: "modelserving.volcano.sh/group-name"
       prefillLabels:
-        modelinfer.volcano.sh/role: prefill
+        modelserving.volcano.sh/role: prefill
       decodeLabels:
-        modelinfer.volcano.sh/role: decode
+        modelserving.volcano.sh/role: decode
   workloadPort:
     port: 8000
   trafficPolicy:

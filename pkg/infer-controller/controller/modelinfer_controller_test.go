@@ -160,7 +160,7 @@ func TestCheckInferGroupReady(t *testing.T) {
 			Name:      "test-mi",
 		},
 		Spec: workloadv1alpha1.ModelServingSpec{
-			Template: workloadv1alpha1.InferGroup{
+			Template: workloadv1alpha1.ServingGroup{
 				Roles: []workloadv1alpha1.Role{
 					{
 						Replicas: &expectedPodNum,
@@ -780,7 +780,7 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		expectedPodCount := utils.ExpectedPodNum(mi) * int(*mi.Spec.Replicas)
 		found = waitForObjectInCache(t, 2*time.Second, func() bool {
 			selector := labels.SelectorFromSet(map[string]string{
-				workloadv1alpha1.ModelInferNameLabelKey: mi.Name,
+				workloadv1alpha1.ModelServingNameLabelKey: mi.Name,
 			})
 			pods, _ := controller.podsLister.Pods("default").List(selector)
 			return len(pods) == expectedPodCount
@@ -840,7 +840,7 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		expectedPodCount := utils.ExpectedPodNum(updatedMI) * int(*updatedMI.Spec.Replicas)
 		found = waitForObjectInCache(t, 2*time.Second, func() bool {
 			selector := labels.SelectorFromSet(map[string]string{
-				workloadv1alpha1.ModelInferNameLabelKey: updatedMI.Name,
+				workloadv1alpha1.ModelServingNameLabelKey: updatedMI.Name,
 			})
 			pods, _ := controller.podsLister.Pods("default").List(selector)
 			return len(pods) == expectedPodCount
@@ -878,7 +878,7 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		expectedPodCount := utils.ExpectedPodNum(mi) * int(*mi.Spec.Replicas)
 		found = waitForObjectInCache(t, 2*time.Second, func() bool {
 			selector := labels.SelectorFromSet(map[string]string{
-				workloadv1alpha1.ModelInferNameLabelKey: mi.Name,
+				workloadv1alpha1.ModelServingNameLabelKey: mi.Name,
 			})
 			pods, _ := controller.podsLister.Pods("default").List(selector)
 			return len(pods) == expectedPodCount
@@ -947,7 +947,7 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		expectedPodCount = utils.ExpectedPodNum(updatedMI) * int(*updatedMI.Spec.Replicas)
 		found = waitForObjectInCache(t, 2*time.Second, func() bool {
 			selector := labels.SelectorFromSet(map[string]string{
-				workloadv1alpha1.ModelInferNameLabelKey: updatedMI.Name,
+				workloadv1alpha1.ModelServingNameLabelKey: updatedMI.Name,
 			})
 			pods, _ := controller.podsLister.Pods("default").List(selector)
 			return len(pods) == expectedPodCount
@@ -1007,7 +1007,7 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		expectedPodCount := utils.ExpectedPodNum(updatedMI) * int(*updatedMI.Spec.Replicas)
 		found = waitForObjectInCache(t, 2*time.Second, func() bool {
 			selector := labels.SelectorFromSet(map[string]string{
-				workloadv1alpha1.ModelInferNameLabelKey: updatedMI.Name,
+				workloadv1alpha1.ModelServingNameLabelKey: updatedMI.Name,
 			})
 			pods, _ := controller.podsLister.Pods("default").List(selector)
 			return len(pods) == expectedPodCount
@@ -1046,7 +1046,7 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		expectedPodCount := utils.ExpectedPodNum(mi) * int(*mi.Spec.Replicas)
 		found = waitForObjectInCache(t, 2*time.Second, func() bool {
 			selector := labels.SelectorFromSet(map[string]string{
-				workloadv1alpha1.ModelInferNameLabelKey: mi.Name,
+				workloadv1alpha1.ModelServingNameLabelKey: mi.Name,
 			})
 			pods, _ := controller.podsLister.Pods("default").List(selector)
 			return len(pods) == expectedPodCount
@@ -1115,7 +1115,7 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		expectedPodCount = utils.ExpectedPodNum(updatedMI) * int(*updatedMI.Spec.Replicas)
 		found = waitForObjectInCache(t, 2*time.Second, func() bool {
 			selector := labels.SelectorFromSet(map[string]string{
-				workloadv1alpha1.ModelInferNameLabelKey: updatedMI.Name,
+				workloadv1alpha1.ModelServingNameLabelKey: updatedMI.Name,
 			})
 			pods, _ := controller.podsLister.Pods("default").List(selector)
 			return len(pods) == expectedPodCount
@@ -1162,7 +1162,7 @@ func createStandardModelInfer(name string, replicas int32, roleReplicas int32) *
 		Spec: workloadv1alpha1.ModelServingSpec{
 			Replicas:      ptr.To[int32](replicas),
 			SchedulerName: "volcano",
-			Template: workloadv1alpha1.InferGroup{
+			Template: workloadv1alpha1.ServingGroup{
 				Roles: []workloadv1alpha1.Role{
 					{
 						Name:     "prefill",
