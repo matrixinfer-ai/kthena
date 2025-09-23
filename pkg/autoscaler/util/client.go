@@ -22,7 +22,6 @@ import (
 
 	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
 	workloadLister "github.com/volcano-sh/kthena/client-go/listers/workload/v1alpha1"
-	"github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
 	workload "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	"istio.io/istio/pkg/maps"
 	corev1 "k8s.io/api/core/v1"
@@ -68,7 +67,7 @@ func UpdateModelInfer(ctx context.Context, client clientset.Interface, modelInfe
 	return nil
 }
 
-func GetTargetLabels(target *v1alpha1.Target) map[string]string {
+func GetTargetLabels(target *workload.Target) map[string]string {
 	if target.TargetRef.Kind == workload.ModelInferKind.Kind {
 		lbs := map[string]string{}
 		if target.AdditionalMatchLabels != nil {

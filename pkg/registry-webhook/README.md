@@ -81,7 +81,7 @@ To add new validation rules to the validation webhook:
 
 1. **Create a new validation function** in `pkg/registry-webhook/handlers/validator.go`:
    ```go
-   func validateNewRule(model *registryv1alpha1.Model) field.ErrorList {
+   func validateNewRule(model *workloadv1alpha1.Model) field.ErrorList {
        var allErrs field.ErrorList
        // Add your validation logic here
        // Use field.Invalid() to create validation errors
@@ -91,7 +91,7 @@ To add new validation rules to the validation webhook:
 
 2. **Add the validation function** to the `validateModel` method:
    ```go
-   func (v *ModelValidator) validateModel(model *registryv1alpha1.Model) (bool, string) {
+   func (v *ModelValidator) validateModel(model *workloadv1alpha1.Model) (bool, string) {
        // ... existing code ...
        allErrs = append(allErrs, validateNewRule(model)...)
        // ... rest of the method ...
@@ -106,7 +106,7 @@ To add new default values to the mutating webhook:
 
 1. **Modify the `mutateModel` function** in `pkg/registry-webhook/handlers/mutator.go`:
    ```go
-   func (m *ModelMutator) mutateModel(model *registryv1alpha1.Model) {
+   func (m *ModelMutator) mutateModel(model *workloadv1alpha1.Model) {
        // ... existing code ...
        
        // Add your new default value logic

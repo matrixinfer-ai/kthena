@@ -29,7 +29,6 @@ import (
 	"github.com/volcano-sh/kthena/pkg/model-controller/env"
 	"k8s.io/utils/ptr"
 
-	registry "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
 	workload "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	"github.com/volcano-sh/kthena/pkg/model-controller/config"
 	"github.com/volcano-sh/kthena/pkg/model-controller/utils"
@@ -53,15 +52,15 @@ const (
 var templateFS embed.FS
 
 // BuildModelInfer creates ModelInfer objects based on the model's backends.
-func BuildModelInfer(model *registry.Model) ([]*workload.ModelInfer, error) {
+func BuildModelInfer(model *workload.Model) ([]*workload.ModelInfer, error) {
 	var infers []*workload.ModelInfer
 	for idx, backend := range model.Spec.Backends {
 		var infer *workload.ModelInfer
 		var err error
 		switch backend.Type {
-		case registry.ModelBackendTypeVLLM:
+		case workload.ModelBackendTypeVLLM:
 			infer, err = buildVllmModelInfer(model, idx)
-		case registry.ModelBackendTypeVLLMDisaggregated:
+		case workload.ModelBackendTypeVLLMDisaggregated:
 			infer, err = buildVllmDisaggregatedModelInfer(model, idx)
 		default:
 			return nil, fmt.Errorf("not support model backend type: %s", backend.Type)
@@ -75,13 +74,13 @@ func BuildModelInfer(model *registry.Model) ([]*workload.ModelInfer, error) {
 }
 
 // buildVllmDisaggregatedModelInfer handles VLLM disaggregated backend creation.
-func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, error) {
+func buildVllmDisaggregatedModelInfer(model *workload.Model, idx int) (*workload.ModelInfer, error) {
 	backend := &model.Spec.Backends[idx]
 	workersMap := mapWorkers(backend.Workers)
-	if workersMap[registry.ModelWorkerTypePrefill] == nil {
+	if workersMap[workload.ModelWorkerTypePrefill] == nil {
 		return nil, fmt.Errorf("prefill worker not found in backend: %s", backend.Name)
 	}
-	if workersMap[registry.ModelWorkerTypeDecode] == nil {
+	if workersMap[workload.ModelWorkerTypeDecode] == nil {
 		return nil, fmt.Errorf("decode worker not found in backend: %s", backend.Name)
 	}
 	cacheVolume, err := buildCacheVolume(backend)
@@ -124,12 +123,12 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 	var preFillCommand []string
 	var decodeCommand []string
 	for _, worker := range backend.Workers {
-		if worker.Type == registry.ModelWorkerTypePrefill {
+		if worker.Type == workload.ModelWorkerTypePrefill {
 			preFillCommand, err = buildCommands(&worker.Config, modelDownloadPath, workersMap)
 			if err != nil {
 				return nil, err
 			}
-		} else if worker.Type == registry.ModelWorkerTypeDecode {
+		} else if worker.Type == workload.ModelWorkerTypeDecode {
 			decodeCommand, err = buildCommands(&worker.Config, modelDownloadPath, workersMap)
 			if err != nil {
 				return nil, err
@@ -166,8 +165,8 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 			Labels:    utils.GetModelControllerLabels(model, backend.Name, icUtils.Revision(backend)),
 			OwnerReferences: []metav1.OwnerReference{
 				{
-					APIVersion: registry.GroupVersion.String(),
-					Kind:       registry.ModelKind.Kind,
+					APIVersion: workload.GroupVersion.String(),
+					Kind:       workload.ModelKind.Kind,
 					Name:       model.Name,
 					UID:        model.UID,
 				},
@@ -194,21 +193,21 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 		"ENGINE_DECODE_ENV":                decodeEngineEnv,
 		"MODEL_INFER_RUNTIME_ENGINE":       strings.ToLower(string(backend.Type)),
 		"MODEL_INFER_RUNTIME_POD":          "$(POD_NAME).$(NAMESPACE)",
-		"PREFILL_REPLICAS":                 workersMap[registry.ModelWorkerTypePrefill].Replicas,
-		"DECODE_REPLICAS":                  workersMap[registry.ModelWorkerTypeDecode].Replicas,
-		"ENGINE_DECODE_RESOURCES":          workersMap[registry.ModelWorkerTypeDecode].Resources,
-		"ENGINE_DECODE_IMAGE":              workersMap[registry.ModelWorkerTypeDecode].Image,
-		"ENGINE_PREFILL_RESOURCES":         workersMap[registry.ModelWorkerTypePrefill].Resources,
-		"ENGINE_PREFILL_IMAGE":             workersMap[registry.ModelWorkerTypePrefill].Image,
+		"PREFILL_REPLICAS":                 workersMap[workload.ModelWorkerTypePrefill].Replicas,
+		"DECODE_REPLICAS":                  workersMap[workload.ModelWorkerTypeDecode].Replicas,
+		"ENGINE_DECODE_RESOURCES":          workersMap[workload.ModelWorkerTypeDecode].Resources,
+		"ENGINE_DECODE_IMAGE":              workersMap[workload.ModelWorkerTypeDecode].Image,
+		"ENGINE_PREFILL_RESOURCES":         workersMap[workload.ModelWorkerTypePrefill].Resources,
+		"ENGINE_PREFILL_IMAGE":             workersMap[workload.ModelWorkerTypePrefill].Image,
 	}
 	return loadModelInferTemplate(VllmDisaggregatedTemplatePath, &data)
 }
 
 // buildVllmModelInfer handles VLLM backend creation.
-func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, error) {
+func buildVllmModelInfer(model *workload.Model, idx int) (*workload.ModelInfer, error) {
 	backend := &model.Spec.Backends[idx]
 	workersMap := mapWorkers(backend.Workers)
-	if workersMap[registry.ModelWorkerTypeServer] == nil {
+	if workersMap[workload.ModelWorkerTypeServer] == nil {
 		return nil, fmt.Errorf("server worker not found in backend: %s", backend.Name)
 	}
 	cacheVolume, err := buildCacheVolume(backend)
@@ -268,8 +267,8 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 			// model owns model infer. ModelInfer will be deleted when the model is deleted
 			OwnerReferences: []metav1.OwnerReference{
 				{
-					APIVersion: registry.GroupVersion.String(),
-					Kind:       registry.ModelKind.Kind,
+					APIVersion: workload.GroupVersion.String(),
+					Kind:       workload.ModelKind.Kind,
 					Name:       model.Name,
 					UID:        model.UID,
 				},
@@ -281,7 +280,7 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 		"BACKEND_TYPE":     strings.ToLower(string(backend.Type)),
 		"ENGINE_ENV":       engineEnv,
 		"WORKER_ENV":       backend.Env,
-		"SERVER_REPLICAS":  workersMap[registry.ModelWorkerTypeServer].Replicas,
+		"SERVER_REPLICAS":  workersMap[workload.ModelWorkerTypeServer].Replicas,
 		"SERVER_ENTRY_TEMPLATE_METADATA": &metav1.ObjectMeta{
 			Labels: utils.GetModelControllerLabels(model, backend.Name, icUtils.Revision(backend)),
 		},
@@ -301,17 +300,17 @@ func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, 
 		"MODEL_INFER_RUNTIME_METRICS_PATH": env.GetEnvValueOrDefault[string](backend, env.RuntimeMetricsPath, "/metrics"),
 		"MODEL_INFER_RUNTIME_ENGINE":       strings.ToLower(string(backend.Type)),
 		"MODEL_INFER_RUNTIME_POD":          "$(POD_NAME).$(NAMESPACE)",
-		"ENGINE_SERVER_RESOURCES":          workersMap[registry.ModelWorkerTypeServer].Resources,
-		"ENGINE_SERVER_IMAGE":              workersMap[registry.ModelWorkerTypeServer].Image,
+		"ENGINE_SERVER_RESOURCES":          workersMap[workload.ModelWorkerTypeServer].Resources,
+		"ENGINE_SERVER_IMAGE":              workersMap[workload.ModelWorkerTypeServer].Image,
 		"ENGINE_SERVER_COMMAND":            commands,
-		"WORKER_REPLICAS":                  workersMap[registry.ModelWorkerTypeServer].Pods - 1,
+		"WORKER_REPLICAS":                  workersMap[workload.ModelWorkerTypeServer].Pods - 1,
 	}
 	return loadModelInferTemplate(VllmTemplatePath, &data)
 }
 
 // mapWorkers creates a map of workers by type.
-func mapWorkers(workers []registry.ModelWorker) map[registry.ModelWorkerType]*registry.ModelWorker {
-	workersMap := make(map[registry.ModelWorkerType]*registry.ModelWorker, len(workers))
+func mapWorkers(workers []workload.ModelWorker) map[workload.ModelWorkerType]*workload.ModelWorker {
+	workersMap := make(map[workload.ModelWorkerType]*workload.ModelWorker, len(workers))
 	for _, worker := range workers {
 		workersMap[worker.Type] = &worker
 	}
@@ -320,13 +319,13 @@ func mapWorkers(workers []registry.ModelWorker) map[registry.ModelWorkerType]*re
 
 // buildCommands constructs the command list for the backend.
 func buildCommands(workerConfig *apiextensionsv1.JSON, modelDownloadPath string,
-	workersMap map[registry.ModelWorkerType]*registry.ModelWorker) ([]string, error) {
+	workersMap map[workload.ModelWorkerType]*workload.ModelWorker) ([]string, error) {
 	commands := []string{"python", "-m", "vllm.entrypoints.openai.api_server", "--model", modelDownloadPath}
 	args, err := utils.ConvertVLLMArgsFromJson(workerConfig)
 	commands = append(commands, args...)
-	if workersMap[registry.ModelWorkerTypeServer] != nil && workersMap[registry.ModelWorkerTypeServer].Pods > 1 {
+	if workersMap[workload.ModelWorkerTypeServer] != nil && workersMap[workload.ModelWorkerTypeServer].Pods > 1 {
 		commands = append(commands, "--distributed_executor_backend", "ray")
-		commands = []string{"bash", "-c", fmt.Sprintf("chmod u+x %s && %s leader --ray_cluster_size=%d --num-gpus=%d && %s", VllmMultiNodeServingScriptPath, VllmMultiNodeServingScriptPath, workersMap[registry.ModelWorkerTypeServer].Pods, utils.GetDeviceNum(workersMap[registry.ModelWorkerTypeServer]), strings.Join(commands, " "))}
+		commands = []string{"bash", "-c", fmt.Sprintf("chmod u+x %s && %s leader --ray_cluster_size=%d --num-gpus=%d && %s", VllmMultiNodeServingScriptPath, VllmMultiNodeServingScriptPath, workersMap[workload.ModelWorkerTypeServer].Pods, utils.GetDeviceNum(workersMap[workload.ModelWorkerTypeServer]), strings.Join(commands, " "))}
 	}
 	commands = append(commands, "--kv-events-config", config.GetDefaultKVEventsConfig())
 	commands = append(commands, "--enforce-eager")
@@ -342,7 +341,7 @@ func GetMountPath(modelURI string) string {
 	return "/" + hashHex
 }
 
-func buildCacheVolume(backend *registry.ModelBackend) (*corev1.Volume, error) {
+func buildCacheVolume(backend *workload.ModelBackend) (*corev1.Volume, error) {
 	volumeName := getVolumeName(backend.Name)
 	switch {
 	case backend.CacheURI == "":
@@ -417,7 +416,7 @@ func loadModelInferTemplate(templatePath string, data *map[string]interface{}) (
 }
 
 // buildDownloaderContainer builds downloader container to reduce code duplication
-func buildDownloaderContainer(name, image, source, outputDir string, backend *registry.ModelBackend, cacheVolumeName string) corev1.Container {
+func buildDownloaderContainer(name, image, source, outputDir string, backend *workload.ModelBackend, cacheVolumeName string) corev1.Container {
 	return corev1.Container{
 		Name:  name,
 		Image: image,
@@ -434,7 +433,7 @@ func buildDownloaderContainer(name, image, source, outputDir string, backend *re
 	}
 }
 
-func buildEngineEnvVars(backend *registry.ModelBackend, additionalEnvs ...corev1.EnvVar) []corev1.EnvVar {
+func buildEngineEnvVars(backend *workload.ModelBackend, additionalEnvs ...corev1.EnvVar) []corev1.EnvVar {
 	standardEnvs := []corev1.EnvVar{
 		{
 			Name: "POD_NAME",
@@ -484,7 +483,7 @@ func buildEngineEnvVars(backend *registry.ModelBackend, additionalEnvs ...corev1
 }
 
 // buildLoraComponents builds LoRA related commands and containers
-func buildLoraComponents(model *registry.Model, backend *registry.ModelBackend, cacheVolumeName string) ([]string, []corev1.Container) {
+func buildLoraComponents(model *workload.Model, backend *workload.ModelBackend, cacheVolumeName string) ([]string, []corev1.Container) {
 	adapterCount := len(backend.LoraAdapters)
 	loras := make([]string, 0, adapterCount)
 	loraContainers := make([]corev1.Container, 0, adapterCount)

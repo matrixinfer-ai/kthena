@@ -28,7 +28,6 @@ import (
 	"strings"
 	"time"
 
-	registryv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
 	workload "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	"github.com/volcano-sh/kthena/pkg/model-controller/convert"
 	"github.com/volcano-sh/kthena/pkg/model-controller/env"
@@ -39,7 +38,7 @@ import (
 )
 
 // getPreviousModelVersion gets the previous version of the model from cache for comparison
-func (mc *ModelController) getPreviousModelVersion(model *registryv1alpha1.Model) (*registryv1alpha1.Model, error) {
+func (mc *ModelController) getPreviousModelVersion(model *workload.Model) (*workload.Model, error) {
 	cacheKey := fmt.Sprintf("%s/%s:%d", model.Namespace, model.Name, model.Generation)
 
 	// Get the previous model from cache
@@ -53,7 +52,7 @@ func (mc *ModelController) getPreviousModelVersion(model *registryv1alpha1.Model
 }
 
 // hasOnlyLoraAdaptersChanged checks if only LoRA adapters have changed between old and new model
-func (mc *ModelController) hasOnlyLoraAdaptersChanged(oldModel, newModel *registryv1alpha1.Model) bool {
+func (mc *ModelController) hasOnlyLoraAdaptersChanged(oldModel, newModel *workload.Model) bool {
 	if len(oldModel.Spec.Backends) != len(newModel.Spec.Backends) {
 		return false
 	}
@@ -75,7 +74,7 @@ func (mc *ModelController) hasOnlyLoraAdaptersChanged(oldModel, newModel *regist
 		}
 
 		// Check if LoraAdapters changed for VLLM backends
-		if newBackend.Type == registryv1alpha1.ModelBackendTypeVLLM {
+		if newBackend.Type == workload.ModelBackendTypeVLLM {
 			if !reflect.DeepEqual(oldBackend.LoraAdapters, newBackend.LoraAdapters) {
 				hasLoraChanges = true
 			}
@@ -100,7 +99,7 @@ type LoraUpdateResult struct {
 }
 
 // updateLoraAdapters updates LoRA adapters for a specific backend across all replicas
-func (mc *ModelController) updateLoraAdapters(ctx context.Context, newBackend, oldBackend *registryv1alpha1.ModelBackend, modelInfer *workload.ModelInfer) error {
+func (mc *ModelController) updateLoraAdapters(ctx context.Context, newBackend, oldBackend *workload.ModelBackend, modelInfer *workload.ModelInfer) error {
 	// Get runtime service URLs for all replicas
 	runtimeURLs, err := mc.getModelInferRuntimeURLs(modelInfer, newBackend)
 	if err != nil {
@@ -110,12 +109,12 @@ func (mc *ModelController) updateLoraAdapters(ctx context.Context, newBackend, o
 	klog.Infof("Updating LoRA adapters for ModelInfer %s across %d replicas", modelInfer.Name, len(runtimeURLs))
 
 	// Prepare adapter maps for comparison
-	oldAdapterMap := make(map[string]registryv1alpha1.LoraAdapter)
+	oldAdapterMap := make(map[string]workload.LoraAdapter)
 	for _, adapter := range oldBackend.LoraAdapters {
 		oldAdapterMap[adapter.Name] = adapter
 	}
 
-	newAdapterMap := make(map[string]registryv1alpha1.LoraAdapter)
+	newAdapterMap := make(map[string]workload.LoraAdapter)
 	for _, adapter := range newBackend.LoraAdapters {
 		newAdapterMap[adapter.Name] = adapter
 	}
@@ -145,7 +144,7 @@ func (mc *ModelController) updateLoraAdapters(ctx context.Context, newBackend, o
 	}
 
 	// Phase 2: Load new or updated adapters
-	adaptersToLoad := make([]registryv1alpha1.LoraAdapter, 0)
+	adaptersToLoad := make([]workload.LoraAdapter, 0)
 	for _, adapter := range newBackend.LoraAdapters {
 		oldAdapter, existed := oldAdapterMap[adapter.Name]
 		// Load adapter if it's new or if the artifact URL changed
@@ -208,7 +207,7 @@ func (mc *ModelController) unloadLoraAdaptersFromAllReplicas(ctx context.Context
 }
 
 // loadLoraAdaptersToAllReplicas loads LoRA adapters to all replicas
-func (mc *ModelController) loadLoraAdaptersToAllReplicas(ctx context.Context, runtimeURLs []string, adapters []registryv1alpha1.LoraAdapter, backend *registryv1alpha1.ModelBackend) LoraUpdateResult {
+func (mc *ModelController) loadLoraAdaptersToAllReplicas(ctx context.Context, runtimeURLs []string, adapters []workload.LoraAdapter, backend *workload.ModelBackend) LoraUpdateResult {
 	result := LoraUpdateResult{
 		TotalReplicas:   len(runtimeURLs),
 		PartialFailures: make([]string, 0),
@@ -240,7 +239,7 @@ func (mc *ModelController) loadLoraAdaptersToAllReplicas(ctx context.Context, ru
 }
 
 // getModelInferRuntimeURLs constructs the runtime service URLs for all ModelInfer pods
-func (mc *ModelController) getModelInferRuntimeURLs(modelInfer *workload.ModelInfer, backend *registryv1alpha1.ModelBackend) ([]string, error) {
+func (mc *ModelController) getModelInferRuntimeURLs(modelInfer *workload.ModelInfer, backend *workload.ModelBackend) ([]string, error) {
 	// Get port from backend environment variables with default fallback to 8100
 	port := env.GetEnvValueOrDefault[int32](backend, env.RuntimePort, 8100)
 
@@ -290,7 +289,7 @@ func (mc *ModelController) getModelInferPodIPs(modelInfer *workload.ModelInfer) 
 }
 
 // loadLoraAdapter calls the load_lora_adapter API
-func (mc *ModelController) loadLoraAdapter(ctx context.Context, runtimeURL string, adapter registryv1alpha1.LoraAdapter, backend *registryv1alpha1.ModelBackend) error {
+func (mc *ModelController) loadLoraAdapter(ctx context.Context, runtimeURL string, adapter workload.LoraAdapter, backend *workload.ModelBackend) error {
 	url := fmt.Sprintf("%s/v1/load_lora_adapter", runtimeURL)
 	outputDir := convert.GetCachePath(backend.CacheURI) + convert.GetMountPath(adapter.ArtifactURL)
 
@@ -393,7 +392,7 @@ func (mc *ModelController) unloadLoraAdapter(ctx context.Context, runtimeURL str
 
 // cleanupOutdatedLoraUpdateCache removes all cache entries for the specified model
 // that have a generation less than the current model generation
-func (mc *ModelController) cleanupOutdatedLoraUpdateCache(model *registryv1alpha1.Model) {
+func (mc *ModelController) cleanupOutdatedLoraUpdateCache(model *workload.Model) {
 	modelPrefix := fmt.Sprintf("%s/%s:", model.Namespace, model.Name)
 	currentGeneration := model.Generation
 
@@ -420,11 +419,11 @@ func (mc *ModelController) cleanupOutdatedLoraUpdateCache(model *registryv1alpha
 }
 
 // getDynamicLoraUpdateBackends returns a list of backend names that can use dynamic LoRA updates
-func (mc *ModelController) getDynamicLoraUpdateBackends(oldModel, newModel *registryv1alpha1.Model) []string {
+func (mc *ModelController) getDynamicLoraUpdateBackends(oldModel, newModel *workload.Model) []string {
 	var dynamicUpdateBackends []string
 
 	// Create maps for easier lookup by backend name
-	oldBackendMap := make(map[string]*registryv1alpha1.ModelBackend)
+	oldBackendMap := make(map[string]*workload.ModelBackend)
 
 	for i := range oldModel.Spec.Backends {
 		backend := &oldModel.Spec.Backends[i]
@@ -449,9 +448,9 @@ func (mc *ModelController) getDynamicLoraUpdateBackends(oldModel, newModel *regi
 }
 
 // canUseDynamicLoraUpdate checks if a specific backend can use dynamic LoRA update
-func (mc *ModelController) canUseDynamicLoraUpdate(oldBackend, newBackend *registryv1alpha1.ModelBackend) bool {
+func (mc *ModelController) canUseDynamicLoraUpdate(oldBackend, newBackend *workload.ModelBackend) bool {
 	// Only VLLM backends support dynamic LoRA updates
-	if newBackend.Type != registryv1alpha1.ModelBackendTypeVLLM {
+	if newBackend.Type != workload.ModelBackendTypeVLLM {
 		return false
 	}
 
@@ -476,7 +475,7 @@ func (mc *ModelController) canUseDynamicLoraUpdate(oldBackend, newBackend *regis
 }
 
 // isRuntimeLoraUpdateEnabled checks if runtime LoRA update is enabled for a backend
-func (mc *ModelController) isRuntimeLoraUpdateEnabled(backend *registryv1alpha1.ModelBackend) bool {
+func (mc *ModelController) isRuntimeLoraUpdateEnabled(backend *workload.ModelBackend) bool {
 	for _, envVar := range backend.Env {
 		if envVar.Name == "VLLM_ALLOW_RUNTIME_LORA_UPDATING" {
 			return strings.ToLower(envVar.Value) == "true"
@@ -486,15 +485,15 @@ func (mc *ModelController) isRuntimeLoraUpdateEnabled(backend *registryv1alpha1.
 }
 
 // handleDynamicLoraUpdates handles runtime LoRA adapter updates for specified backends
-func (mc *ModelController) handleDynamicLoraUpdates(oldModel, newModel *registryv1alpha1.Model, backendNames []string) []string {
+func (mc *ModelController) handleDynamicLoraUpdates(oldModel, newModel *workload.Model, backendNames []string) []string {
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
 	defer cancel()
 
 	var successfullyUpdated []string
 
 	// Create maps for easier lookup by backend name
-	oldBackendMap := make(map[string]*registryv1alpha1.ModelBackend)
-	newBackendMap := make(map[string]*registryv1alpha1.ModelBackend)
+	oldBackendMap := make(map[string]*workload.ModelBackend)
+	newBackendMap := make(map[string]*workload.ModelBackend)
 
 	for i := range oldModel.Spec.Backends {
 		backend := &oldModel.Spec.Backends[i]

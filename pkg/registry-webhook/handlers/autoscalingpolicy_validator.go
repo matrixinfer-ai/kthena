@@ -22,7 +22,7 @@ import (
 	"net/http"
 	"strings"
 
-	registryv1 "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	registryv1 "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	admissionv1 "k8s.io/api/admission/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"

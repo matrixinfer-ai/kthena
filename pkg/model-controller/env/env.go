@@ -20,7 +20,7 @@ import (
 	"reflect"
 	"strconv"
 
-	registry "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	registry "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 )
 

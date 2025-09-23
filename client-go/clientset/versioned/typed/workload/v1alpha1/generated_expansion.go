@@ -18,4 +18,10 @@ limitations under the License.
 
 package v1alpha1
 
+type AutoscalingPolicyExpansion interface{}
+
+type AutoscalingPolicyBindingExpansion interface{}
+
+type ModelExpansion interface{}
+
 type ModelInferExpansion interface{}

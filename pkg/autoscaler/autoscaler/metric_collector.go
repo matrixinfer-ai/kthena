@@ -26,7 +26,7 @@ import (
 
 	io_prometheus_client "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
-	"github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	"github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	"github.com/volcano-sh/kthena/pkg/autoscaler/algorithm"
 	"github.com/volcano-sh/kthena/pkg/autoscaler/datastructure"
 	"github.com/volcano-sh/kthena/pkg/autoscaler/histogram"

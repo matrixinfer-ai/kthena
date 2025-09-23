@@ -20,13 +20,13 @@ import (
 	"slices"
 
 	networking "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
-	registry "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	workload "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	icUtils "github.com/volcano-sh/kthena/pkg/infer-controller/utils"
 	"github.com/volcano-sh/kthena/pkg/model-controller/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func BuildModelRoute(model *registry.Model) *networking.ModelRoute {
+func BuildModelRoute(model *workload.Model) *networking.ModelRoute {
 	routeName := model.Name
 	rules, loraAdapters := getRulesAndLoraAdapters(model)
 	route := &networking.ModelRoute{
@@ -39,8 +39,8 @@ func BuildModelRoute(model *registry.Model) *networking.ModelRoute {
 			Namespace: model.Namespace,
 			OwnerReferences: []metav1.OwnerReference{
 				{
-					APIVersion: registry.GroupVersion.String(),
-					Kind:       registry.ModelKind.Kind,
+					APIVersion: workload.GroupVersion.String(),
+					Kind:       workload.ModelKind.Kind,
 					Name:       model.Name,
 					UID:        model.UID,
 				},
@@ -57,7 +57,7 @@ func BuildModelRoute(model *registry.Model) *networking.ModelRoute {
 }
 
 // getRulesAndLoraAdapters generates routing rules and LoRA adapter names based on the model's backends and LoRA adapters.
-func getRulesAndLoraAdapters(model *registry.Model) ([]*networking.Rule, []string) {
+func getRulesAndLoraAdapters(model *workload.Model) ([]*networking.Rule, []string) {
 	targetModels, loraMap, loraMapNum := getTargetModelAndLoraMap(model)
 
 	var rules []*networking.Rule
@@ -96,7 +96,7 @@ func getRulesAndLoraAdapters(model *registry.Model) ([]*networking.Rule, []strin
 }
 
 // getModelMatchWithBody ensures that the ModelMatch has a Body field with the model/lora name set.
-func getModelMatchWithBody(model *registry.Model, name string) *networking.ModelMatch {
+func getModelMatchWithBody(model *workload.Model, name string) *networking.ModelMatch {
 	var modelMatch *networking.ModelMatch
 	modelMatch = model.Spec.ModelMatch.DeepCopy()
 	if modelMatch == nil {
@@ -110,7 +110,7 @@ func getModelMatchWithBody(model *registry.Model, name string) *networking.Model
 }
 
 // getTargetModelAndLoraMap returns the target models, a map of lora adapter names to backend names.
-func getTargetModelAndLoraMap(model *registry.Model) ([]*networking.TargetModel, map[string]string, map[string][]int) {
+func getTargetModelAndLoraMap(model *workload.Model) ([]*networking.TargetModel, map[string]string, map[string][]int) {
 	var targetModels []*networking.TargetModel
 	// Use map to deduplicate lora adapters
 	loraMap := make(map[string]string)

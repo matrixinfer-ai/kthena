@@ -19,7 +19,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	registryv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	registryv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 )

@@ -17,7 +17,6 @@ limitations under the License.
 package convert
 
 import (
-	registry "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
 	workload "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	icUtils "github.com/volcano-sh/kthena/pkg/infer-controller/utils"
 	"github.com/volcano-sh/kthena/pkg/model-controller/utils"
@@ -26,11 +25,11 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func BuildAutoscalingPolicy(autoscalingConfig *registry.AutoscalingPolicySpec, model *registry.Model, backendName string) *registry.AutoscalingPolicy {
-	return &registry.AutoscalingPolicy{
+func BuildAutoscalingPolicy(autoscalingConfig *workload.AutoscalingPolicySpec, model *workload.Model, backendName string) *workload.AutoscalingPolicy {
+	return &workload.AutoscalingPolicy{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: registry.AutoscalingPolicyKind.GroupVersion().String(),
-			Kind:       registry.AutoscalingPolicyKind.Kind,
+			APIVersion: workload.AutoscalingPolicyKind.GroupVersion().String(),
+			Kind:       workload.AutoscalingPolicyKind.Kind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   utils.GetBackendResourceName(model.Name, backendName),
@@ -44,16 +43,16 @@ func BuildAutoscalingPolicy(autoscalingConfig *registry.AutoscalingPolicySpec, m
 	}
 }
 
-func BuildScalingPolicyBindingSpec(backend *registry.ModelBackend, name string) *registry.AutoscalingPolicyBindingSpec {
-	return &registry.AutoscalingPolicyBindingSpec{
-		ScalingConfiguration: &registry.ScalingConfiguration{
-			Target: registry.Target{
+func BuildScalingPolicyBindingSpec(backend *workload.ModelBackend, name string) *workload.AutoscalingPolicyBindingSpec {
+	return &workload.AutoscalingPolicyBindingSpec{
+		ScalingConfiguration: &workload.ScalingConfiguration{
+			Target: workload.Target{
 				TargetRef: corev1.ObjectReference{
 					Name: name,
 					Kind: workload.ModelInferKind.Kind,
 				},
 				AdditionalMatchLabels: map[string]string{
-					workload.RoleLabelKey: registry.ModelInferEntryPodLeaderLabel,
+					workload.RoleLabelKey: workload.ModelInferEntryPodLeaderLabel,
 				},
 			},
 			MinReplicas: backend.MinReplicas,
@@ -65,7 +64,7 @@ func BuildScalingPolicyBindingSpec(backend *registry.ModelBackend, name string) 
 	}
 }
 
-func BuildPolicyBindingMeta(spec *registry.AutoscalingPolicyBindingSpec, model *registry.Model, backendName string, name string) *metav1.ObjectMeta {
+func BuildPolicyBindingMeta(spec *workload.AutoscalingPolicyBindingSpec, model *workload.Model, backendName string, name string) *metav1.ObjectMeta {
 	return &metav1.ObjectMeta{
 		Name:      name,
 		Namespace: model.Namespace,
@@ -76,34 +75,34 @@ func BuildPolicyBindingMeta(spec *registry.AutoscalingPolicyBindingSpec, model *
 	}
 }
 
-func BuildScalingPolicyBinding(model *registry.Model, backend *registry.ModelBackend, name string) *registry.AutoscalingPolicyBinding {
+func BuildScalingPolicyBinding(model *workload.Model, backend *workload.ModelBackend, name string) *workload.AutoscalingPolicyBinding {
 	spec := BuildScalingPolicyBindingSpec(backend, name)
-	return &registry.AutoscalingPolicyBinding{
+	return &workload.AutoscalingPolicyBinding{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: registry.AutoscalingPolicyBindingKind.GroupVersion().String(),
-			Kind:       registry.AutoscalingPolicyBindingKind.Kind,
+			APIVersion: workload.AutoscalingPolicyBindingKind.GroupVersion().String(),
+			Kind:       workload.AutoscalingPolicyBindingKind.Kind,
 		},
 		ObjectMeta: *BuildPolicyBindingMeta(spec, model, backend.Name, name),
 		Spec:       *spec,
 	}
 }
 
-func BuildOptimizePolicyBindingSpec(model *registry.Model, name string) *registry.AutoscalingPolicyBindingSpec {
-	params := make([]registry.OptimizerParam, 0, len(model.Spec.Backends))
+func BuildOptimizePolicyBindingSpec(model *workload.Model, name string) *workload.AutoscalingPolicyBindingSpec {
+	params := make([]workload.OptimizerParam, 0, len(model.Spec.Backends))
 	if model.Spec.CostExpansionRatePercent == nil {
 		klog.Error("Model", model.Name, "Spec.CostExpansionRatePercent can not be nil when set optimize autoscaling policy")
 		return nil
 	}
 	for _, backend := range model.Spec.Backends {
 		targetName := utils.GetBackendResourceName(model.Name, backend.Name)
-		params = append(params, registry.OptimizerParam{
-			Target: registry.Target{
+		params = append(params, workload.OptimizerParam{
+			Target: workload.Target{
 				TargetRef: corev1.ObjectReference{
 					Name: targetName,
 					Kind: workload.ModelInferKind.Kind,
 				},
 				AdditionalMatchLabels: map[string]string{
-					workload.RoleLabelKey: registry.ModelInferEntryPodLeaderLabel,
+					workload.RoleLabelKey: workload.ModelInferEntryPodLeaderLabel,
 				},
 			},
 			MinReplicas: backend.MinReplicas,
@@ -111,8 +110,8 @@ func BuildOptimizePolicyBindingSpec(model *registry.Model, name string) *registr
 			Cost:        backend.ScalingCost,
 		})
 	}
-	return &registry.AutoscalingPolicyBindingSpec{
-		OptimizerConfiguration: &registry.OptimizerConfiguration{
+	return &workload.AutoscalingPolicyBindingSpec{
+		OptimizerConfiguration: &workload.OptimizerConfiguration{
 			Params:                   params,
 			CostExpansionRatePercent: *model.Spec.CostExpansionRatePercent,
 		},
@@ -122,12 +121,12 @@ func BuildOptimizePolicyBindingSpec(model *registry.Model, name string) *registr
 	}
 }
 
-func BuildOptimizePolicyBinding(model *registry.Model, name string) *registry.AutoscalingPolicyBinding {
+func BuildOptimizePolicyBinding(model *workload.Model, name string) *workload.AutoscalingPolicyBinding {
 	spec := BuildOptimizePolicyBindingSpec(model, name)
-	return &registry.AutoscalingPolicyBinding{
+	return &workload.AutoscalingPolicyBinding{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: registry.AutoscalingPolicyBindingKind.GroupVersion().String(),
-			Kind:       registry.AutoscalingPolicyBindingKind.Kind,
+			APIVersion: workload.AutoscalingPolicyBindingKind.GroupVersion().String(),
+			Kind:       workload.AutoscalingPolicyBindingKind.Kind,
 		},
 		ObjectMeta: *BuildPolicyBindingMeta(spec, model, "", name),
 		Spec:       *spec,

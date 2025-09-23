@@ -151,7 +151,7 @@ func runDescribeModel(cmd *cobra.Command, args []string) error {
 	}
 	ctx := context.Background()
 
-	model, err := client.RegistryV1alpha1().Models(namespace).Get(ctx, modelName, metav1.GetOptions{})
+	model, err := client.WorkloadV1alpha1().Models(namespace).Get(ctx, modelName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get Model '%s': %v", modelName, err)
 	}
@@ -227,7 +227,7 @@ func runDescribeAutoscalingPolicy(cmd *cobra.Command, args []string) error {
 	}
 	ctx := context.Background()
 
-	policy, err := client.RegistryV1alpha1().AutoscalingPolicies(namespace).Get(ctx, policyName, metav1.GetOptions{})
+	policy, err := client.WorkloadV1alpha1().AutoscalingPolicies(namespace).Get(ctx, policyName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get AutoscalingPolicy '%s': %v", policyName, err)
 	}

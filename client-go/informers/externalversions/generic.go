@@ -22,7 +22,6 @@ import (
 	fmt "fmt"
 
 	v1alpha1 "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
-	registryv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
 	workloadv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
@@ -60,15 +59,13 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 	case v1alpha1.SchemeGroupVersion.WithResource("modelservers"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Networking().V1alpha1().ModelServers().Informer()}, nil
 
-		// Group=registry.volcano.sh, Version=v1alpha1
-	case registryv1alpha1.SchemeGroupVersion.WithResource("autoscalingpolicies"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Registry().V1alpha1().AutoscalingPolicies().Informer()}, nil
-	case registryv1alpha1.SchemeGroupVersion.WithResource("autoscalingpolicybindings"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Registry().V1alpha1().AutoscalingPolicyBindings().Informer()}, nil
-	case registryv1alpha1.SchemeGroupVersion.WithResource("models"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Registry().V1alpha1().Models().Informer()}, nil
-
-		// Group=workload.volcano.sh, Version=v1alpha1
+		// Group=workload.serving.volcano.sh, Version=v1alpha1
+	case workloadv1alpha1.SchemeGroupVersion.WithResource("autoscalingpolicies"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Workload().V1alpha1().AutoscalingPolicies().Informer()}, nil
+	case workloadv1alpha1.SchemeGroupVersion.WithResource("autoscalingpolicybindings"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Workload().V1alpha1().AutoscalingPolicyBindings().Informer()}, nil
+	case workloadv1alpha1.SchemeGroupVersion.WithResource("models"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Workload().V1alpha1().Models().Informer()}, nil
 	case workloadv1alpha1.SchemeGroupVersion.WithResource("modelinfers"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Workload().V1alpha1().ModelInfers().Informer()}, nil
 

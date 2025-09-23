@@ -28,6 +28,18 @@ type FakeWorkloadV1alpha1 struct {
 	*testing.Fake
 }
 
+func (c *FakeWorkloadV1alpha1) AutoscalingPolicies(namespace string) v1alpha1.AutoscalingPolicyInterface {
+	return newFakeAutoscalingPolicies(c, namespace)
+}
+
+func (c *FakeWorkloadV1alpha1) AutoscalingPolicyBindings(namespace string) v1alpha1.AutoscalingPolicyBindingInterface {
+	return newFakeAutoscalingPolicyBindings(c, namespace)
+}
+
+func (c *FakeWorkloadV1alpha1) Models(namespace string) v1alpha1.ModelInterface {
+	return newFakeModels(c, namespace)
+}
+
 func (c *FakeWorkloadV1alpha1) ModelInfers(namespace string) v1alpha1.ModelInferInterface {
 	return newFakeModelInfers(c, namespace)
 }

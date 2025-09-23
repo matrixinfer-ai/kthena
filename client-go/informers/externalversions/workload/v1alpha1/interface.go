@@ -24,6 +24,12 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
+	// AutoscalingPolicies returns a AutoscalingPolicyInformer.
+	AutoscalingPolicies() AutoscalingPolicyInformer
+	// AutoscalingPolicyBindings returns a AutoscalingPolicyBindingInformer.
+	AutoscalingPolicyBindings() AutoscalingPolicyBindingInformer
+	// Models returns a ModelInformer.
+	Models() ModelInformer
 	// ModelInfers returns a ModelInferInformer.
 	ModelInfers() ModelInferInformer
 }
@@ -37,6 +43,21 @@ type version struct {
 // New returns a new Interface.
 func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakListOptions internalinterfaces.TweakListOptionsFunc) Interface {
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
+}
+
+// AutoscalingPolicies returns a AutoscalingPolicyInformer.
+func (v *version) AutoscalingPolicies() AutoscalingPolicyInformer {
+	return &autoscalingPolicyInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// AutoscalingPolicyBindings returns a AutoscalingPolicyBindingInformer.
+func (v *version) AutoscalingPolicyBindings() AutoscalingPolicyBindingInformer {
+	return &autoscalingPolicyBindingInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// Models returns a ModelInformer.
+func (v *version) Models() ModelInformer {
+	return &modelInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // ModelInfers returns a ModelInferInformer.

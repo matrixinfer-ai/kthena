@@ -19,7 +19,7 @@ package controller
 import (
 	"context"
 
-	registryv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	registryv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	"github.com/volcano-sh/kthena/pkg/model-controller/convert"
 	"github.com/volcano-sh/kthena/pkg/model-controller/utils"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"

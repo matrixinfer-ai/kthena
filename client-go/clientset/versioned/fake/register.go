@@ -20,7 +20,6 @@ package fake
 
 import (
 	networkingv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
-	registryv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
 	workloadv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
@@ -34,7 +33,6 @@ var codecs = serializer.NewCodecFactory(scheme)
 
 var localSchemeBuilder = runtime.SchemeBuilder{
 	networkingv1alpha1.AddToScheme,
-	registryv1alpha1.AddToScheme,
 	workloadv1alpha1.AddToScheme,
 }
 

@@ -21,7 +21,7 @@ import (
 
 	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
 	workloadLister "github.com/volcano-sh/kthena/client-go/listers/workload/v1alpha1"
-	"github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	v1alpha2 "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	"github.com/volcano-sh/kthena/pkg/autoscaler/algorithm"
 	"github.com/volcano-sh/kthena/pkg/autoscaler/util"
 	"k8s.io/apimachinery/pkg/types"
@@ -35,13 +35,13 @@ type Autoscaler struct {
 	Meta      *ScalingMeta
 }
 type ScalingMeta struct {
-	Config        *v1alpha1.ScalingConfiguration
+	Config        *v1alpha2.ScalingConfiguration
 	MetricTargets map[string]float64
 	BindingId     types.UID
 	Namespace     string
 }
 
-func NewAutoscaler(behavior *v1alpha1.AutoscalingPolicyBehavior, binding *v1alpha1.AutoscalingPolicyBinding, metricTargets map[string]float64) *Autoscaler {
+func NewAutoscaler(behavior *v1alpha2.AutoscalingPolicyBehavior, binding *v1alpha2.AutoscalingPolicyBinding, metricTargets map[string]float64) *Autoscaler {
 	return &Autoscaler{
 		Status:    NewStatus(behavior),
 		Collector: NewMetricCollector(&binding.Spec.ScalingConfiguration.Target, binding, metricTargets),
@@ -54,7 +54,7 @@ func NewAutoscaler(behavior *v1alpha1.AutoscalingPolicyBehavior, binding *v1alph
 	}
 }
 
-func (autoscaler *Autoscaler) Scale(ctx context.Context, client clientset.Interface, modelInferLister workloadLister.ModelInferLister, podLister listerv1.PodLister, autoscalePolicy *v1alpha1.AutoscalingPolicy) error {
+func (autoscaler *Autoscaler) Scale(ctx context.Context, client clientset.Interface, modelInferLister workloadLister.ModelInferLister, podLister listerv1.PodLister, autoscalePolicy *v1alpha2.AutoscalingPolicy) error {
 	// Get autoscaler target(model infer) instance
 	modelInfer, err := util.GetModelInferTarget(modelInferLister, autoscaler.Meta.Namespace, autoscaler.Meta.Config.Target.TargetRef.Name)
 	if err != nil {

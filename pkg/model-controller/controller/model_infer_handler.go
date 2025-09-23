@@ -19,7 +19,6 @@ package controller
 import (
 	"context"
 
-	registryv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
 	workload "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	"github.com/volcano-sh/kthena/pkg/model-controller/convert"
 	"github.com/volcano-sh/kthena/pkg/model-controller/utils"
@@ -31,7 +30,7 @@ import (
 
 // createOrUpdateModelInfer attempts to create model infer if model infer does not exist, or update it if it is different from model.
 // Meanwhile, delete model infer if it is not in the model spec anymore.
-func (mc *ModelController) createOrUpdateModelInfer(ctx context.Context, model *registryv1alpha1.Model, excludedBackends []string) error {
+func (mc *ModelController) createOrUpdateModelInfer(ctx context.Context, model *workload.Model, excludedBackends []string) error {
 	existingModelInfers, err := mc.listModelInferByLabel(model)
 	if err != nil {
 		return err
@@ -42,7 +41,7 @@ func (mc *ModelController) createOrUpdateModelInfer(ctx context.Context, model *
 		excludedSet[backendName] = true
 	}
 
-	var filteredBackends []registryv1alpha1.ModelBackend
+	var filteredBackends []workload.ModelBackend
 	for _, backend := range model.Spec.Backends {
 		if !excludedSet[backend.Name] {
 			filteredBackends = append(filteredBackends, backend)
@@ -104,7 +103,7 @@ func (mc *ModelController) createOrUpdateModelInfer(ctx context.Context, model *
 }
 
 // listModelInferByLabel list all model infer which label key is "owner" and label value is model uid
-func (mc *ModelController) listModelInferByLabel(model *registryv1alpha1.Model) ([]*workload.ModelInfer, error) {
+func (mc *ModelController) listModelInferByLabel(model *workload.Model) ([]*workload.ModelInfer, error) {
 	if modelInfers, err := mc.modelInfersLister.ModelInfers(model.Namespace).List(labels.SelectorFromSet(map[string]string{
 		utils.OwnerUIDKey: string(model.UID),
 	})); err != nil {

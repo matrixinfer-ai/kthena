@@ -19,7 +19,7 @@ package controller
 import (
 	"context"
 
-	registryv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	"github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	"github.com/volcano-sh/kthena/pkg/model-controller/convert"
 	"github.com/volcano-sh/kthena/pkg/model-controller/utils"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -27,7 +27,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func (mc *ModelController) createOrUpdateAutoscalingPolicyAndBinding(ctx context.Context, model *registryv1alpha1.Model) error {
+func (mc *ModelController) createOrUpdateAutoscalingPolicyAndBinding(ctx context.Context, model *v1alpha1.Model) error {
 	if model.Spec.AutoscalingPolicy != nil {
 		// Create autoscaling policy and optimize policy binding
 		asp := convert.BuildAutoscalingPolicy(model.Spec.AutoscalingPolicy, model, "")
@@ -57,11 +57,11 @@ func (mc *ModelController) createOrUpdateAutoscalingPolicyAndBinding(ctx context
 	return nil
 }
 
-func (mc *ModelController) createOrUpdateAsp(ctx context.Context, policy *registryv1alpha1.AutoscalingPolicy) error {
+func (mc *ModelController) createOrUpdateAsp(ctx context.Context, policy *v1alpha1.AutoscalingPolicy) error {
 	oldPolicy, err := mc.autoscalingPoliciesLister.AutoscalingPolicies(policy.Namespace).Get(policy.Name)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			if _, err := mc.client.RegistryV1alpha1().AutoscalingPolicies(policy.Namespace).Create(ctx, policy, metav1.CreateOptions{}); err != nil {
+			if _, err := mc.client.WorkloadV1alpha1().AutoscalingPolicies(policy.Namespace).Create(ctx, policy, metav1.CreateOptions{}); err != nil {
 				klog.Errorf("failed to create ASP %s,%v", klog.KObj(policy), err)
 				return err
 			}
@@ -73,17 +73,17 @@ func (mc *ModelController) createOrUpdateAsp(ctx context.Context, policy *regist
 		klog.Infof("Autoscaling policy %s does not need to update", policy.Name)
 		return nil
 	}
-	if _, err := mc.client.RegistryV1alpha1().AutoscalingPolicies(policy.Namespace).Update(ctx, policy, metav1.UpdateOptions{}); err != nil {
+	if _, err := mc.client.WorkloadV1alpha1().AutoscalingPolicies(policy.Namespace).Update(ctx, policy, metav1.UpdateOptions{}); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (mc *ModelController) createOrUpdateAspBinding(ctx context.Context, binding *registryv1alpha1.AutoscalingPolicyBinding) error {
+func (mc *ModelController) createOrUpdateAspBinding(ctx context.Context, binding *v1alpha1.AutoscalingPolicyBinding) error {
 	oldPolicy, err := mc.autoscalingPolicyBindingsLister.AutoscalingPolicyBindings(binding.Namespace).Get(binding.Name)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			if _, err := mc.client.RegistryV1alpha1().AutoscalingPolicyBindings(binding.Namespace).Create(ctx, binding, metav1.CreateOptions{}); err != nil {
+			if _, err := mc.client.WorkloadV1alpha1().AutoscalingPolicyBindings(binding.Namespace).Create(ctx, binding, metav1.CreateOptions{}); err != nil {
 				klog.Errorf("failed to create bindings %s,%v", klog.KObj(binding), err)
 				return err
 			}
@@ -95,7 +95,7 @@ func (mc *ModelController) createOrUpdateAspBinding(ctx context.Context, binding
 		klog.Infof("Bindings %s does not need to update", binding.Name)
 		return nil
 	}
-	if _, err := mc.client.RegistryV1alpha1().AutoscalingPolicyBindings(binding.Namespace).Update(ctx, binding, metav1.UpdateOptions{}); err != nil {
+	if _, err := mc.client.WorkloadV1alpha1().AutoscalingPolicyBindings(binding.Namespace).Update(ctx, binding, metav1.UpdateOptions{}); err != nil {
 		return err
 	}
 	return nil

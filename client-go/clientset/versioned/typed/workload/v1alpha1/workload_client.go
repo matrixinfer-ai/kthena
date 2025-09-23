@@ -28,12 +28,27 @@ import (
 
 type WorkloadV1alpha1Interface interface {
 	RESTClient() rest.Interface
+	AutoscalingPoliciesGetter
+	AutoscalingPolicyBindingsGetter
+	ModelsGetter
 	ModelInfersGetter
 }
 
-// WorkloadV1alpha1Client is used to interact with features provided by the workload.volcano.sh group.
+// WorkloadV1alpha1Client is used to interact with features provided by the workload.serving.volcano.sh group.
 type WorkloadV1alpha1Client struct {
 	restClient rest.Interface
+}
+
+func (c *WorkloadV1alpha1Client) AutoscalingPolicies(namespace string) AutoscalingPolicyInterface {
+	return newAutoscalingPolicies(c, namespace)
+}
+
+func (c *WorkloadV1alpha1Client) AutoscalingPolicyBindings(namespace string) AutoscalingPolicyBindingInterface {
+	return newAutoscalingPolicyBindings(c, namespace)
+}
+
+func (c *WorkloadV1alpha1Client) Models(namespace string) ModelInterface {
+	return newModels(c, namespace)
 }
 
 func (c *WorkloadV1alpha1Client) ModelInfers(namespace string) ModelInferInterface {

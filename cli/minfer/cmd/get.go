@@ -250,7 +250,7 @@ func runGetModels(cmd *cobra.Command, args []string) error {
 	namespace := resolveGetNamespace()
 	ctx := context.Background()
 
-	models, err := client.RegistryV1alpha1().Models(namespace).List(ctx, metav1.ListOptions{})
+	models, err := client.WorkloadV1alpha1().Models(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to list Models: %v", err)
 	}
@@ -358,7 +358,7 @@ func runGetAutoscalingPolicies(cmd *cobra.Command, args []string) error {
 	namespace := resolveGetNamespace()
 	ctx := context.Background()
 
-	policies, err := client.RegistryV1alpha1().AutoscalingPolicies(namespace).List(ctx, metav1.ListOptions{})
+	policies, err := client.WorkloadV1alpha1().AutoscalingPolicies(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to list AutoscalingPolicies: %v", err)
 	}
@@ -402,7 +402,7 @@ func runGetAutoscalingPolicyBindings(cmd *cobra.Command, args []string) error {
 	namespace := resolveGetNamespace()
 	ctx := context.Background()
 
-	bindings, err := client.RegistryV1alpha1().AutoscalingPolicyBindings(namespace).List(ctx, metav1.ListOptions{})
+	bindings, err := client.WorkloadV1alpha1().AutoscalingPolicyBindings(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to list AutoscalingPolicyBindings: %v", err)
 	}

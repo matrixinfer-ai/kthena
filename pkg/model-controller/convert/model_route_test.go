@@ -21,7 +21,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	networking "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
-	registry "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	registry "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 )
 
 func TestBuildModelRoute(t *testing.T) {

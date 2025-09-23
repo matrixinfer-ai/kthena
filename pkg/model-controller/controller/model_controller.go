@@ -39,9 +39,7 @@ import (
 	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
 	informersv1alpha1 "github.com/volcano-sh/kthena/client-go/informers/externalversions"
 	networkingLister "github.com/volcano-sh/kthena/client-go/listers/networking/v1alpha1"
-	registryLister "github.com/volcano-sh/kthena/client-go/listers/registry/v1alpha1"
 	workloadLister "github.com/volcano-sh/kthena/client-go/listers/workload/v1alpha1"
-	registryv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
 	workload "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	"github.com/volcano-sh/kthena/pkg/model-controller/config"
 	"github.com/volcano-sh/kthena/pkg/model-controller/utils"
@@ -60,7 +58,7 @@ type ModelController struct {
 	httpClient *http.Client
 
 	syncHandler                       func(ctx context.Context, miKey string) error
-	modelsLister                      registryLister.ModelLister
+	modelsLister                      workloadLister.ModelLister
 	modelsInformer                    cache.Controller
 	modelInfersLister                 workloadLister.ModelInferLister
 	modelInfersInformer               cache.SharedIndexInformer
@@ -68,9 +66,9 @@ type ModelController struct {
 	modelServersInformer              cache.SharedIndexInformer
 	modelRoutesLister                 networkingLister.ModelRouteLister
 	modelRoutesInformer               cache.SharedIndexInformer
-	autoscalingPoliciesLister         registryLister.AutoscalingPolicyLister
+	autoscalingPoliciesLister         workloadLister.AutoscalingPolicyLister
 	autoscalingPoliciesInformer       cache.SharedIndexInformer
-	autoscalingPolicyBindingsLister   registryLister.AutoscalingPolicyBindingLister
+	autoscalingPolicyBindingsLister   workloadLister.AutoscalingPolicyBindingLister
 	autoscalingPolicyBindingsInformer cache.SharedIndexInformer
 	podsLister                        listerv1.PodLister
 	podsInformer                      cache.SharedIndexInformer
@@ -78,7 +76,7 @@ type ModelController struct {
 	workQueue                         workqueue.TypedRateLimitingInterface[any]
 	// loraUpdateCache stores the previous model version for LoRA adapter comparison
 	// Key format: "namespace/name:generation" to avoid version conflicts
-	loraUpdateCache map[string]*registryv1alpha1.Model
+	loraUpdateCache map[string]*workload.Model
 }
 
 func (mc *ModelController) Run(ctx context.Context, workers int) {
@@ -138,7 +136,7 @@ func (mc *ModelController) processNextWorkItem(ctx context.Context) bool {
 }
 
 func (mc *ModelController) createModel(obj any) {
-	model, ok := obj.(*registryv1alpha1.Model)
+	model, ok := obj.(*workload.Model)
 	if !ok {
 		klog.Error("failed to parse Model when createModel")
 		return
@@ -147,7 +145,7 @@ func (mc *ModelController) createModel(obj any) {
 	mc.enqueueModel(model)
 }
 
-func (mc *ModelController) enqueueModel(model *registryv1alpha1.Model) {
+func (mc *ModelController) enqueueModel(model *workload.Model) {
 	if key, err := cache.MetaNamespaceKeyFunc(model); err != nil {
 		utilruntime.HandleError(err)
 	} else {
@@ -156,12 +154,12 @@ func (mc *ModelController) enqueueModel(model *registryv1alpha1.Model) {
 }
 
 func (mc *ModelController) updateModel(old any, new any) {
-	newModel, ok := new.(*registryv1alpha1.Model)
+	newModel, ok := new.(*workload.Model)
 	if !ok {
 		klog.Error("failed to parse new Model when updateModel")
 		return
 	}
-	oldModel, ok := old.(*registryv1alpha1.Model)
+	oldModel, ok := old.(*workload.Model)
 	if !ok {
 		klog.Error("failed to parse old Model when updateModel")
 		return
@@ -178,7 +176,7 @@ func (mc *ModelController) updateModel(old any, new any) {
 }
 
 func (mc *ModelController) deleteModel(obj any) {
-	model, ok := obj.(*registryv1alpha1.Model)
+	model, ok := obj.(*workload.Model)
 	if !ok {
 		klog.Error("failed to parse Model when deleteModel")
 		return
@@ -251,7 +249,7 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 }
 
 // isModelInferActive returns true if all Model Infers are available.
-func (mc *ModelController) isModelInferActive(model *registryv1alpha1.Model) (bool, error) {
+func (mc *ModelController) isModelInferActive(model *workload.Model) (bool, error) {
 	// List all Model Infers associated with the model
 	modelInfers, err := mc.listModelInferByLabel(model)
 	if err != nil {
@@ -274,21 +272,21 @@ func (mc *ModelController) isModelInferActive(model *registryv1alpha1.Model) (bo
 }
 
 // updateModelStatus updates model status.
-func (mc *ModelController) updateModelStatus(ctx context.Context, model *registryv1alpha1.Model) error {
+func (mc *ModelController) updateModelStatus(ctx context.Context, model *workload.Model) error {
 	modelInfers, err := mc.listModelInferByLabel(model)
 	if err != nil {
 		return err
 	}
-	var backendStatus []registryv1alpha1.ModelBackendStatus
+	var backendStatus []workload.ModelBackendStatus
 	for _, infer := range modelInfers {
-		backendStatus = append(backendStatus, registryv1alpha1.ModelBackendStatus{
+		backendStatus = append(backendStatus, workload.ModelBackendStatus{
 			Name:     infer.Name,
 			Replicas: infer.Status.Replicas,
 		})
 	}
 	model.Status.BackendStatuses = backendStatus
 	model.Status.ObservedGeneration = model.Generation
-	if _, err := mc.client.RegistryV1alpha1().Models(model.Namespace).UpdateStatus(ctx, model, metav1.UpdateOptions{}); err != nil {
+	if _, err := mc.client.WorkloadV1alpha1().Models(model.Namespace).UpdateStatus(ctx, model, metav1.UpdateOptions{}); err != nil {
 		klog.Errorf("update model status failed: %v", err)
 		return err
 	}
@@ -299,7 +297,7 @@ func (mc *ModelController) updateModelStatus(ctx context.Context, model *registr
 }
 
 func NewModelController(kubeClient kubernetes.Interface, client clientset.Interface) *ModelController {
-	selector, err := labels.NewRequirement(utils.ManageBy, selection.Equals, []string{registryv1alpha1.GroupName})
+	selector, err := labels.NewRequirement(utils.ManageBy, selection.Equals, []string{workload.GroupName})
 	if err != nil {
 		klog.Errorf("cannot create label selector, err: %v", err)
 		return nil
@@ -314,12 +312,12 @@ func NewModelController(kubeClient kubernetes.Interface, client clientset.Interf
 	)
 
 	informerFactory := informersv1alpha1.NewSharedInformerFactory(client, 0)
-	modelInformer := informerFactory.Registry().V1alpha1().Models()
+	modelInformer := informerFactory.Workload().V1alpha1().Models()
 	modelInferInformer := filterInformerFactory.Workload().V1alpha1().ModelInfers()
 	modelServerInformer := filterInformerFactory.Networking().V1alpha1().ModelServers()
 	modelRouteInformer := filterInformerFactory.Networking().V1alpha1().ModelRoutes()
-	autoscalingPoliciesInformer := filterInformerFactory.Registry().V1alpha1().AutoscalingPolicies()
-	autoscalingPolicyBindingsInformer := filterInformerFactory.Registry().V1alpha1().AutoscalingPolicyBindings()
+	autoscalingPoliciesInformer := filterInformerFactory.Workload().V1alpha1().AutoscalingPolicies()
+	autoscalingPolicyBindingsInformer := filterInformerFactory.Workload().V1alpha1().AutoscalingPolicyBindings()
 
 	// Initialize Kubernetes informer factory for pods
 	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, 0)
@@ -356,7 +354,7 @@ func NewModelController(kubeClient kubernetes.Interface, client clientset.Interf
 		podsLister:                        podsLister,
 		podsInformer:                      podsInformer,
 		kubeInformerFactory:               kubeInformerFactory,
-		loraUpdateCache:                   make(map[string]*registryv1alpha1.Model),
+		loraUpdateCache:                   make(map[string]*workload.Model),
 
 		workQueue: workqueue.NewTypedRateLimitingQueueWithConfig(workqueue.DefaultTypedControllerRateLimiter[any](),
 			workqueue.TypedRateLimitingQueueConfig[any]{}),

@@ -40,7 +40,7 @@ func ModelInfer(name, namespace string) *ModelInferApplyConfiguration {
 	b.WithName(name)
 	b.WithNamespace(namespace)
 	b.WithKind("ModelInfer")
-	b.WithAPIVersion("workload.volcano.sh/v1alpha1")
+	b.WithAPIVersion("workload.serving.volcano.sh/v1alpha1")
 	return b
 }
 

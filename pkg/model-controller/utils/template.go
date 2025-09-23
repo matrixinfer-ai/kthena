@@ -23,7 +23,7 @@ import (
 	"strconv"
 	"strings"
 
-	registry "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	workload "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 )
 
@@ -185,11 +185,11 @@ func GetBackendResourceName(modelName string, backendName string) string {
 	return fmt.Sprintf("%s-%s", modelName, backendName)
 }
 
-func GetModelControllerLabels(model *registry.Model, backendName string, revision string) map[string]string {
+func GetModelControllerLabels(model *workload.Model, backendName string, revision string) map[string]string {
 	return map[string]string{
 		ModelNameLabelKey:   model.Name,
 		BackendNameLabelKey: backendName,
-		ManageBy:            registry.GroupName,
+		ManageBy:            workload.GroupName,
 		RevisionLabelKey:    revision,
 		OwnerUIDKey:         string(model.UID),
 	}

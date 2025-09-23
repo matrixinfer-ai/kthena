@@ -23,7 +23,7 @@ import (
 	"strings"
 
 	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
-	registryv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	registryv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	admissionv1 "k8s.io/api/admission/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -101,7 +101,7 @@ func (v *AutoscalingBindingValidator) validateAutoscalingBinding(asp_binding *re
 func (v *AutoscalingBindingValidator) validateAutoscalingPolicyExistence(ctx context.Context, asp_binding *registryv1alpha1.AutoscalingPolicyBinding) field.ErrorList {
 	var allErrs field.ErrorList
 
-	if _, err := v.client.RegistryV1alpha1().AutoscalingPolicies(asp_binding.Namespace).Get(ctx, asp_binding.Spec.PolicyRef.Name, metav1.GetOptions{}); err != nil {
+	if _, err := v.client.WorkloadV1alpha1().AutoscalingPolicies(asp_binding.Namespace).Get(ctx, asp_binding.Spec.PolicyRef.Name, metav1.GetOptions{}); err != nil {
 		if apierrors.IsNotFound(err) {
 			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("PolicyRef"), asp_binding.Spec.PolicyRef.Name, fmt.Sprintf("autoscaling policy resource %s does not exist", asp_binding.Spec.PolicyRef.Name)))
 		} else {
