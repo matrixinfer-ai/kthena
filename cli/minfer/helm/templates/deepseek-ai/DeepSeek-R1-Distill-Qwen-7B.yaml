@@ -18,7 +18,7 @@ spec:
   backends:
     - name: {{ .Values.backendName | default "deepseek-r1-distill-qwen-7b-vllm" | quote }}
       type: {{ .Values.backendType | default "vLLM" | quote }}
-      modelURI: {{ .Values.modelURI | default "s3://model-bucket/deepseek-r1-distill-qwen-7b" | quote }}
+      modelURI: {{ .Values.modelURI | default "https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B" | quote }}
       cacheURI: {{ .Values.cacheURI | default "hostpath://tmp/test" | quote }}
       minReplicas: {{ .Values.minReplicas | default 1 }}
       maxReplicas: {{ .Values.maxReplicas | default 3 }}

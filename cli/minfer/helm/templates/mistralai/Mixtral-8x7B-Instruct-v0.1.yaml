@@ -18,7 +18,7 @@ spec:
   backends:
     - name: {{ .Values.backendName | default "mixtral-8x7b-instruct-v0.1-vllm" | quote }}
       type: {{ .Values.backendType | default "vLLM" | quote }}
-      modelURI: {{ .Values.modelURI | default "s3://model-bucket/mixtral-8x7b-instruct-v0.1" | quote }}
+      modelURI: {{ .Values.modelURI | default "https://huggingface.co/mistralai/Mixtral-8x7B-Instruct-v0.1" | quote }}
       cacheURI: {{ .Values.cacheURI | default "hostpath://tmp/test" | quote }}
       minReplicas: {{ .Values.minReplicas | default 1 }}
       maxReplicas: {{ .Values.maxReplicas | default 3 }}

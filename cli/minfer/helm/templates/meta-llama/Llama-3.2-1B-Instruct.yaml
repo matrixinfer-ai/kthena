@@ -18,7 +18,7 @@ spec:
   backends:
     - name: {{ .Values.backendName | default "llama-3.2-1b-instruct-vllm" | quote }}
       type: {{ .Values.backendType | default "vLLM" | quote }}
-      modelURI: {{ .Values.modelURI | default "s3://model-bucket/llama-3.2-1b-instruct" | quote }}
+      modelURI: {{ .Values.modelURI | default "https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct" | quote }}
       cacheURI: {{ .Values.cacheURI | default "hostpath://tmp/test" | quote }}
       minReplicas: {{ .Values.minReplicas | default 1 }}
       maxReplicas: {{ .Values.maxReplicas | default 5 }}

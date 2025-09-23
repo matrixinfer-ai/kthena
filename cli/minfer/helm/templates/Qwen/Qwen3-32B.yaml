@@ -18,7 +18,7 @@ spec:
   backends:
     - name: {{ .Values.backendName | default "qwen3-32b-vllm" | quote }}
       type: {{ .Values.backendType | default "vLLM" | quote }}
-      modelURI: {{ .Values.modelURI | default "s3://model-bucket/qwen3-32b" | quote }}
+      modelURI: {{ .Values.modelURI | default "https://huggingface.co/Qwen/Qwen3-32B" | quote }}
       cacheURI: {{ .Values.cacheURI | default "hostpath://tmp/test" | quote }}
       minReplicas: {{ .Values.minReplicas | default 1 }}
       maxReplicas: {{ .Values.maxReplicas | default 3 }}

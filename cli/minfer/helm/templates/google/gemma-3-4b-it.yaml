@@ -18,7 +18,7 @@ spec:
   backends:
     - name: {{ .Values.backendName | default "gemma-3-4b-it-vllm" | quote }}
       type: {{ .Values.backendType | default "vLLM" | quote }}
-      modelURI: {{ .Values.modelURI | default "s3://model-bucket/gemma-3-4b-it" | quote }}
+      modelURI: {{ .Values.modelURI | default "https://huggingface.co/google/gemma-3-4b-it" | quote }}
       cacheURI: {{ .Values.cacheURI | default "hostpath://tmp/test" | quote }}
       minReplicas: {{ .Values.minReplicas | default 1 }}
       maxReplicas: {{ .Values.maxReplicas | default 5 }}
