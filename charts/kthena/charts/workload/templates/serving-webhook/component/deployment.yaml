@@ -1,4 +1,4 @@
-{{- if .Values.webhook.enabled }}
+{{- if .Values.servingWebhook.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/component: webhook
     {{- include "kthena.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.webhook.replicas | default 1 }}
+  replicas: {{ .Values.servingWebhook.replicas | default 1 }}
   selector:
     matchLabels:
       app.kubernetes.io/component: webhook
@@ -21,16 +21,16 @@ spec:
     spec:
       containers:
         - name: webhook
-          image: "{{ .Values.webhook.image.repository }}:{{ .Values.webhook.image.tag }}"
-          imagePullPolicy: {{ .Values.webhook.image.pullPolicy }}
-          args: {{- toYaml .Values.webhook.image.args | nindent 12 }}
+          image: "{{ .Values.servingWebhook.image.repository }}:{{ .Values.servingWebhook.image.tag }}"
+          imagePullPolicy: {{ .Values.servingWebhook.image.pullPolicy }}
+          args: {{- toYaml .Values.servingWebhook.image.args | nindent 12 }}
           ports:
             - containerPort: 8443
           volumeMounts:
             - name: webhook-certs
               mountPath: /etc/webhook/certs
               readOnly: true
-          resources: {{- toYaml .Values.webhook.resource | nindent 12 }}
+          resources: {{- toYaml .Values.servingWebhook.resource | nindent 12 }}
           livenessProbe:
             httpGet:
               path: /healthz

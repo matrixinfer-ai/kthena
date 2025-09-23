@@ -1,4 +1,4 @@
-## minfer get modelServingList
+## minfer get modelinfers
 
 List model inference workloads
 
@@ -7,13 +7,13 @@ List model inference workloads
 List ModelInfer resources in the cluster.
 
 ```
-minfer get modelServingList [flags]
+minfer get modelinfers [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for modelServingList
+  -h, --help   help for modelinfers
 ```
 
 ### Options inherited from parent commands

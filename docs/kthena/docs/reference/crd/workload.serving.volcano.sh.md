@@ -13,9 +13,9 @@
 - [AutoscalingPolicyBindingList](#autoscalingpolicybindinglist)
 - [AutoscalingPolicyList](#autoscalingpolicylist)
 - [ModelBooster](#modelbooster)
-- [ModelInferList](#modelinferlist)
-- [ModelList](#modellist)
+- [ModelBoosterList](#modelboosterlist)
 - [ModelServing](#modelserving)
+- [ModelServingList](#modelservinglist)
 
 
 
@@ -359,7 +359,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `name` _string_ | Name is the name of the backend. Can't duplicate with other ModelBackend name in the same ModelBooster CR.<br />Note: update name will cause the old modelServing deletion and a new modelServing creation. |  | Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?$` <br /> |
+| `name` _string_ | Name is the name of the backend. Can't duplicate with other ModelBackend name in the same ModelBooster CR.<br />Note: update name will cause the old modelInfer deletion and a new modelInfer creation. |  | Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?$` <br /> |
 | `type` _[ModelBackendType](#modelbackendtype)_ | Type is the type of the backend. |  | Enum: [vLLM vLLMDisaggregated SGLang MindIE MindIEDisaggregated] <br /> |
 | `modelURI` _string_ | ModelURI is the URI where you download the model. Support hf://, s3://, pvc://. |  | Pattern: `^(hf://\|s3://\|pvc://).+` <br /> |
 | `cacheURI` _string_ | CacheURI is the URI where the downloaded model stored. Support hostpath://, pvc://. |  | Pattern: `^(hostpath://\|pvc://).+` <br /> |
@@ -422,7 +422,7 @@ ModelBooster is the Schema for the models API.
 
 
 _Appears in:_
-- [ModelList](#modellist)
+- [ModelBoosterList](#modelboosterlist)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
@@ -433,6 +433,26 @@ _Appears in:_
 | `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `spec` _[ModelBoosterSpec](#modelboosterspec)_ |  |  |  |
 | `status` _[ModelStatus](#modelstatus)_ |  |  |  |
+
+
+#### ModelBoosterList
+
+
+
+ModelBoosterList contains a list of ModelBooster.
+
+
+
+
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `workload.serving.volcano.sh/v1alpha1` | | |
+| `kind` _string_ | `ModelBoosterList` | | |
+| `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  |  |
+| `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  |  |
+| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `items` _[ModelBooster](#modelbooster) array_ |  |  |  |
 
 
 #### ModelBoosterSpec
@@ -458,26 +478,6 @@ _Appears in:_
 
 
 
-#### ModelInferList
-
-
-
-ModelInferList contains a list of ModelServing
-
-
-
-
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `apiVersion` _string_ | `workload.serving.volcano.sh/v1alpha1` | | |
-| `kind` _string_ | `ModelInferList` | | |
-| `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  |  |
-| `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  |  |
-| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
-| `items` _[ModelServing](#modelserving) array_ |  |  |  |
-
-
 #### ModelInferStatus
 
 
@@ -499,26 +499,6 @@ _Appears in:_
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#condition-v1-meta) array_ | Conditions track the condition of the ModelServing. |  |  |
 
 
-#### ModelList
-
-
-
-ModelList contains a list of ModelBooster.
-
-
-
-
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `apiVersion` _string_ | `workload.serving.volcano.sh/v1alpha1` | | |
-| `kind` _string_ | `ModelList` | | |
-| `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  |  |
-| `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  |  |
-| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
-| `items` _[ModelBooster](#modelbooster) array_ |  |  |  |
-
-
 #### ModelServing
 
 
@@ -528,7 +508,7 @@ ModelServing is the Schema for the LLM infer API
 
 
 _Appears in:_
-- [ModelInferList](#modelinferlist)
+- [ModelServingList](#modelservinglist)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
@@ -539,6 +519,26 @@ _Appears in:_
 | `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `spec` _[ModelServingSpec](#modelservingspec)_ |  |  |  |
 | `status` _[ModelInferStatus](#modelinferstatus)_ |  |  |  |
+
+
+#### ModelServingList
+
+
+
+ModelServingList contains a list of ModelServing
+
+
+
+
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `workload.serving.volcano.sh/v1alpha1` | | |
+| `kind` _string_ | `ModelServingList` | | |
+| `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  |  |
+| `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  |  |
+| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `items` _[ModelServing](#modelserving) array_ |  |  |  |
 
 
 #### ModelServingSpec
