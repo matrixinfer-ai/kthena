@@ -21,35 +21,35 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	networking "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
-	registry "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	registry "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestBuildModelServer(t *testing.T) {
 	tests := []struct {
 		name         string
-		input        *registry.Model
+		input        *registry.ModelBooster
 		expected     []*networking.ModelServer
 		expectErrMsg string
 	}{
 		{
 			name:     "normal case with VLLM backend",
-			input:    loadYaml[registry.Model](t, "testdata/input/model.yaml"),
+			input:    loadYaml[registry.ModelBooster](t, "testdata/input/model.yaml"),
 			expected: []*networking.ModelServer{loadYaml[networking.ModelServer](t, "testdata/expected/model-server.yaml")},
 		},
 		{
 			name:     "PD disaggregation case",
-			input:    loadYaml[registry.Model](t, "testdata/input/pd-disaggregated-model.yaml"),
+			input:    loadYaml[registry.ModelBooster](t, "testdata/input/pd-disaggregated-model.yaml"),
 			expected: []*networking.ModelServer{loadYaml[networking.ModelServer](t, "testdata/expected/pd-model-server.yaml")},
 		},
 		{
 			name: "invalid backend type",
-			input: &registry.Model{
+			input: &registry.ModelBooster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "invalid-backend",
 					Namespace: "default",
 				},
-				Spec: registry.ModelSpec{
+				Spec: registry.ModelBoosterSpec{
 					Backends: []registry.ModelBackend{
 						{
 							Name: "invalid",

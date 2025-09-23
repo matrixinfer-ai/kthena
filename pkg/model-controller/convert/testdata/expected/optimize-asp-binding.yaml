@@ -1,17 +1,17 @@
-apiVersion: registry.volcano.sh/v1alpha1
+apiVersion: workload.serving.volcano.sh/v1alpha1
 kind: AutoscalingPolicyBinding
 metadata:
   labels:
-    registry.volcano.sh/backend-name: ""
-    registry.volcano.sh/managed-by: registry.volcano.sh
-    registry.volcano.sh/model-name: multi-backend-model
-    registry.volcano.sh/revision: 5dc7674f6f
-    registry.volcano.sh/model-uid: randomUID
+    workload.serving.volcano.sh/backend-name: ""
+    workload.serving.volcano.sh/managed-by: workload.serving.volcano.sh
+    workload.serving.volcano.sh/model-name: multi-backend-model
+    workload.serving.volcano.sh/revision: 77999cff7c
+    workload.serving.volcano.sh/model-uid: randomUID
   name: multi-backend-model
   namespace: dev
   ownerReferences:
-    - apiVersion: registry.volcano.sh/v1alpha1
-      kind: Model
+    - apiVersion: workload.serving.volcano.sh/v1alpha1
+      kind: ModelBooster
       name: multi-backend-model
       uid: randomUID
       controller: true
@@ -30,7 +30,7 @@ spec:
             modelinfer.volcano.sh/role: leader
           targetRef:
             name: multi-backend-model-backend1
-            kind: ModelInfer
+            kind: ModelServing
           metricFrom: {}
       - maxReplicas: 1
         minReplicas: 0
@@ -40,7 +40,7 @@ spec:
             modelinfer.volcano.sh/role: leader
           targetRef:
             name: multi-backend-model-backend2
-            kind: ModelInfer
+            kind: ModelServing
           metricFrom: { }
 
 

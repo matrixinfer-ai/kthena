@@ -20,7 +20,7 @@ import (
 	"context"
 
 	networking "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
-	registryv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	registryv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	"github.com/volcano-sh/kthena/pkg/model-controller/convert"
 	"github.com/volcano-sh/kthena/pkg/model-controller/utils"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -29,7 +29,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func (mc *ModelController) createOrUpdateModelServer(ctx context.Context, model *registryv1alpha1.Model) error {
+func (mc *ModelController) createOrUpdateModelServer(ctx context.Context, model *registryv1alpha1.ModelBooster) error {
 	existingModelServers, err := mc.listModelServerByLabel(model)
 	if err != nil {
 		return err
@@ -44,7 +44,7 @@ func (mc *ModelController) createOrUpdateModelServer(ctx context.Context, model 
 		oldModelServer, err := mc.modelServersLister.ModelServers(modelServer.Namespace).Get(modelServer.Name)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
-				klog.V(4).Infof("Create Model Server %s", modelServer.Name)
+				klog.V(4).Infof("Create ModelBooster Server %s", modelServer.Name)
 				if _, err := mc.client.NetworkingV1alpha1().ModelServers(model.Namespace).Create(ctx, modelServer, metav1.CreateOptions{}); err != nil {
 					klog.Errorf("failed to create ModelServer %s: %v", klog.KObj(modelServer), err)
 					return err
@@ -55,7 +55,7 @@ func (mc *ModelController) createOrUpdateModelServer(ctx context.Context, model 
 			return err
 		}
 		if oldModelServer.Labels[utils.RevisionLabelKey] == modelServer.Labels[utils.RevisionLabelKey] {
-			klog.Infof("Model Server %s of model %s does not need to update", modelServer.Name, model.Name)
+			klog.Infof("ModelBooster Server %s of model %s does not need to update", modelServer.Name, model.Name)
 			continue
 		}
 		modelServer.ResourceVersion = oldModelServer.ResourceVersion
@@ -63,7 +63,7 @@ func (mc *ModelController) createOrUpdateModelServer(ctx context.Context, model 
 			klog.Errorf("failed to update ModelServer %s: %v", klog.KObj(modelServer), err)
 			return err
 		}
-		klog.V(4).Infof("Updated Model Server %s for model %s", modelServer.Name, model.Name)
+		klog.V(4).Infof("Updated ModelBooster Server %s for model %s", modelServer.Name, model.Name)
 	}
 	for _, existingModelServer := range existingModelServers {
 		if _, ok := modelServersToKeep[existingModelServer.Name]; !ok {
@@ -76,7 +76,7 @@ func (mc *ModelController) createOrUpdateModelServer(ctx context.Context, model 
 	return nil
 }
 
-func (mc *ModelController) listModelServerByLabel(model *registryv1alpha1.Model) ([]*networking.ModelServer, error) {
+func (mc *ModelController) listModelServerByLabel(model *registryv1alpha1.ModelBooster) ([]*networking.ModelServer, error) {
 	if modelServers, err := mc.modelServersLister.ModelServers(model.Namespace).List(labels.SelectorFromSet(map[string]string{
 		utils.OwnerUIDKey: string(model.UID),
 	})); err != nil {

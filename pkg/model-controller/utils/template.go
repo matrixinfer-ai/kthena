@@ -23,16 +23,16 @@ import (
 	"strconv"
 	"strings"
 
-	registry "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	workload "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 )
 
 const (
-	ModelNameLabelKey   = "registry.volcano.sh/model-name"
-	BackendNameLabelKey = "registry.volcano.sh/backend-name"
-	ManageBy            = "registry.volcano.sh/managed-by"
-	RevisionLabelKey    = "registry.volcano.sh/revision"
-	OwnerUIDKey         = "registry.volcano.sh/model-uid"
+	ModelNameLabelKey   = workload.GroupName + "/model-name"
+	BackendNameLabelKey = workload.GroupName + "/backend-name"
+	ManageBy            = workload.GroupName + "/managed-by"
+	RevisionLabelKey    = workload.GroupName + "/revision"
+	OwnerUIDKey         = workload.GroupName + "/model-uid"
 )
 
 func ReplaceEmbeddedPlaceholders(s string, values *map[string]interface{}) (string, error) {
@@ -185,11 +185,11 @@ func GetBackendResourceName(modelName string, backendName string) string {
 	return fmt.Sprintf("%s-%s", modelName, backendName)
 }
 
-func GetModelControllerLabels(model *registry.Model, backendName string, revision string) map[string]string {
+func GetModelControllerLabels(model *workload.ModelBooster, backendName string, revision string) map[string]string {
 	return map[string]string{
 		ModelNameLabelKey:   model.Name,
 		BackendNameLabelKey: backendName,
-		ManageBy:            registry.GroupName,
+		ManageBy:            workload.GroupName,
 		RevisionLabelKey:    revision,
 		OwnerUIDKey:         string(model.UID),
 	}

@@ -25,7 +25,6 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/volcano-sh/kthena/client-go/clientset/versioned"
-	registryv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
 	workloadv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/engine"
@@ -287,54 +286,54 @@ func applyKthenaResource(ctx context.Context, client *versioned.Clientset, obj *
 
 	// Convert unstructured to the appropriate typed resource
 	switch gvk.Kind {
-	case "ModelInfer":
-		fmt.Printf("  Creating ModelInfer: %s in namespace %s\n", resourceName, resourceNamespace)
-		modelInfer := &workloadv1alpha1.ModelInfer{}
+	case "ModelServing":
+		fmt.Printf("  Creating ModelServing: %s in namespace %s\n", resourceName, resourceNamespace)
+		modelInfer := &workloadv1alpha1.ModelServing{}
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, modelInfer)
 		if err != nil {
-			return fmt.Errorf("failed to convert unstructured object to ModelInfer: %v", err)
+			return fmt.Errorf("failed to convert unstructured object to ModelServing: %v", err)
 		}
 
-		_, err = client.WorkloadV1alpha1().ModelInfers(resourceNamespace).Create(ctx, modelInfer, metav1.CreateOptions{})
+		_, err = client.WorkloadV1alpha1().ModelServings(resourceNamespace).Create(ctx, modelInfer, metav1.CreateOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to create ModelInfer: %v", err)
+			return fmt.Errorf("failed to create ModelServing: %v", err)
 		}
 
-	case "Model":
-		fmt.Printf("  Creating Model: %s in namespace %s\n", resourceName, resourceNamespace)
-		model := &registryv1alpha1.Model{}
+	case "ModelBooster":
+		fmt.Printf("  Creating ModelBooster: %s in namespace %s\n", resourceName, resourceNamespace)
+		model := &workloadv1alpha1.ModelBooster{}
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, model)
 		if err != nil {
-			return fmt.Errorf("failed to convert unstructured object to Model: %v", err)
+			return fmt.Errorf("failed to convert unstructured object to ModelBooster: %v", err)
 		}
 
-		_, err = client.RegistryV1alpha1().Models(resourceNamespace).Create(ctx, model, metav1.CreateOptions{})
+		_, err = client.WorkloadV1alpha1().ModelBoosters(resourceNamespace).Create(ctx, model, metav1.CreateOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to create Model: %v", err)
+			return fmt.Errorf("failed to create ModelBooster: %v", err)
 		}
 
 	case "AutoscalingPolicy":
 		fmt.Printf("  Creating AutoscalingPolicy: %s in namespace %s\n", resourceName, resourceNamespace)
-		policy := &registryv1alpha1.AutoscalingPolicy{}
+		policy := &workloadv1alpha1.AutoscalingPolicy{}
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, policy)
 		if err != nil {
 			return fmt.Errorf("failed to convert unstructured object to AutoscalingPolicy: %v", err)
 		}
 
-		_, err = client.RegistryV1alpha1().AutoscalingPolicies(resourceNamespace).Create(ctx, policy, metav1.CreateOptions{})
+		_, err = client.WorkloadV1alpha1().AutoscalingPolicies(resourceNamespace).Create(ctx, policy, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to create AutoscalingPolicy: %v", err)
 		}
 
 	case "AutoscalingPolicyBinding":
 		fmt.Printf("  Creating AutoscalingPolicyBinding: %s in namespace %s\n", resourceName, resourceNamespace)
-		binding := &registryv1alpha1.AutoscalingPolicyBinding{}
+		binding := &workloadv1alpha1.AutoscalingPolicyBinding{}
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, binding)
 		if err != nil {
 			return fmt.Errorf("failed to convert unstructured object to AutoscalingPolicyBinding: %v", err)
 		}
 
-		_, err = client.RegistryV1alpha1().AutoscalingPolicyBindings(resourceNamespace).Create(ctx, binding, metav1.CreateOptions{})
+		_, err = client.WorkloadV1alpha1().AutoscalingPolicyBindings(resourceNamespace).Create(ctx, binding, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to create AutoscalingPolicyBinding: %v", err)
 		}

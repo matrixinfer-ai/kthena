@@ -28,7 +28,7 @@ import (
 
 func TestValidateScheduler(t *testing.T) {
 	type args struct {
-		mi *workloadv1alpha1.ModelInfer
+		mi *workloadv1alpha1.ModelServing
 	}
 	tests := []struct {
 		name string
@@ -38,8 +38,8 @@ func TestValidateScheduler(t *testing.T) {
 		{
 			name: "valid scheduler",
 			args: args{
-				mi: &workloadv1alpha1.ModelInfer{
-					Spec: workloadv1alpha1.ModelInferSpec{
+				mi: &workloadv1alpha1.ModelServing{
+					Spec: workloadv1alpha1.ModelServingSpec{
 						SchedulerName: "vo",
 					},
 				},
@@ -51,8 +51,8 @@ func TestValidateScheduler(t *testing.T) {
 		{
 			name: "empty scheduler",
 			args: args{
-				mi: &workloadv1alpha1.ModelInfer{
-					Spec: workloadv1alpha1.ModelInferSpec{
+				mi: &workloadv1alpha1.ModelServing{
+					Spec: workloadv1alpha1.ModelServingSpec{
 						SchedulerName: "",
 					},
 				},
@@ -64,8 +64,8 @@ func TestValidateScheduler(t *testing.T) {
 		{
 			name: "formal scheduler",
 			args: args{
-				mi: &workloadv1alpha1.ModelInfer{
-					Spec: workloadv1alpha1.ModelInferSpec{
+				mi: &workloadv1alpha1.ModelServing{
+					Spec: workloadv1alpha1.ModelServingSpec{
 						SchedulerName: "volcano",
 					},
 				},
@@ -84,7 +84,7 @@ func TestValidateScheduler(t *testing.T) {
 func TestValidPodNameLength(t *testing.T) {
 	replicas := int32(3)
 	type args struct {
-		mi *workloadv1alpha1.ModelInfer
+		mi *workloadv1alpha1.ModelServing
 	}
 	tests := []struct {
 		name string
@@ -94,11 +94,11 @@ func TestValidPodNameLength(t *testing.T) {
 		{
 			name: "normal name length",
 			args: args{
-				mi: &workloadv1alpha1.ModelInfer{
+				mi: &workloadv1alpha1.ModelServing{
 					ObjectMeta: v1.ObjectMeta{
 						Name: "valid-name",
 					},
-					Spec: workloadv1alpha1.ModelInferSpec{
+					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: &replicas,
 						Template: workloadv1alpha1.InferGroup{
 							Roles: []workloadv1alpha1.Role{
@@ -113,11 +113,11 @@ func TestValidPodNameLength(t *testing.T) {
 		{
 			name: "name length exceeds limit",
 			args: args{
-				mi: &workloadv1alpha1.ModelInfer{
+				mi: &workloadv1alpha1.ModelServing{
 					ObjectMeta: v1.ObjectMeta{
 						Name: "this-is-a-very-long-name-that-exceeds-the-allowed-length-for-generated-name",
 					},
-					Spec: workloadv1alpha1.ModelInferSpec{
+					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: &replicas,
 						Template: workloadv1alpha1.InferGroup{
 							Roles: []workloadv1alpha1.Role{
@@ -150,7 +150,7 @@ func TestValidPodNameLength(t *testing.T) {
 func TestValidateRollingUpdateConfiguration(t *testing.T) {
 	replicas := int32(3)
 	type args struct {
-		mi *workloadv1alpha1.ModelInfer
+		mi *workloadv1alpha1.ModelServing
 	}
 	tests := []struct {
 		name string
@@ -160,8 +160,8 @@ func TestValidateRollingUpdateConfiguration(t *testing.T) {
 		{
 			name: "normal rolling update configuration",
 			args: args{
-				mi: &workloadv1alpha1.ModelInfer{
-					Spec: workloadv1alpha1.ModelInferSpec{
+				mi: &workloadv1alpha1.ModelServing{
+					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: &replicas,
 						RolloutStrategy: &workloadv1alpha1.RolloutStrategy{
 							RollingUpdateConfiguration: &workloadv1alpha1.RollingUpdateConfiguration{
@@ -183,8 +183,8 @@ func TestValidateRollingUpdateConfiguration(t *testing.T) {
 		{
 			name: "invalid maxUnavailable format",
 			args: args{
-				mi: &workloadv1alpha1.ModelInfer{
-					Spec: workloadv1alpha1.ModelInferSpec{
+				mi: &workloadv1alpha1.ModelServing{
+					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: &replicas,
 						RolloutStrategy: &workloadv1alpha1.RolloutStrategy{
 							RollingUpdateConfiguration: &workloadv1alpha1.RollingUpdateConfiguration{
@@ -223,8 +223,8 @@ func TestValidateRollingUpdateConfiguration(t *testing.T) {
 		{
 			name: "invalid maxSurge format",
 			args: args{
-				mi: &workloadv1alpha1.ModelInfer{
-					Spec: workloadv1alpha1.ModelInferSpec{
+				mi: &workloadv1alpha1.ModelServing{
+					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: &replicas,
 						RolloutStrategy: &workloadv1alpha1.RolloutStrategy{
 							RollingUpdateConfiguration: &workloadv1alpha1.RollingUpdateConfiguration{
@@ -263,8 +263,8 @@ func TestValidateRollingUpdateConfiguration(t *testing.T) {
 		{
 			name: "both maxUnavailable and maxSurge are zero",
 			args: args{
-				mi: &workloadv1alpha1.ModelInfer{
-					Spec: workloadv1alpha1.ModelInferSpec{
+				mi: &workloadv1alpha1.ModelServing{
+					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: &replicas,
 						RolloutStrategy: &workloadv1alpha1.RolloutStrategy{
 							RollingUpdateConfiguration: &workloadv1alpha1.RollingUpdateConfiguration{
@@ -292,8 +292,8 @@ func TestValidateRollingUpdateConfiguration(t *testing.T) {
 		{
 			name: "valid partition - within range",
 			args: args{
-				mi: &workloadv1alpha1.ModelInfer{
-					Spec: workloadv1alpha1.ModelInferSpec{
+				mi: &workloadv1alpha1.ModelServing{
+					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: &replicas,
 						RolloutStrategy: &workloadv1alpha1.RolloutStrategy{
 							RollingUpdateConfiguration: &workloadv1alpha1.RollingUpdateConfiguration{
@@ -316,8 +316,8 @@ func TestValidateRollingUpdateConfiguration(t *testing.T) {
 		{
 			name: "invalid partition - negative value",
 			args: args{
-				mi: &workloadv1alpha1.ModelInfer{
-					Spec: workloadv1alpha1.ModelInferSpec{
+				mi: &workloadv1alpha1.ModelServing{
+					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: &replicas,
 						RolloutStrategy: &workloadv1alpha1.RolloutStrategy{
 							RollingUpdateConfiguration: &workloadv1alpha1.RollingUpdateConfiguration{
@@ -346,8 +346,8 @@ func TestValidateRollingUpdateConfiguration(t *testing.T) {
 		{
 			name: "invalid partition - equal to replicas",
 			args: args{
-				mi: &workloadv1alpha1.ModelInfer{
-					Spec: workloadv1alpha1.ModelInferSpec{
+				mi: &workloadv1alpha1.ModelServing{
+					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: &replicas,
 						RolloutStrategy: &workloadv1alpha1.RolloutStrategy{
 							RollingUpdateConfiguration: &workloadv1alpha1.RollingUpdateConfiguration{
@@ -376,8 +376,8 @@ func TestValidateRollingUpdateConfiguration(t *testing.T) {
 		{
 			name: "invalid partition - greater than replicas",
 			args: args{
-				mi: &workloadv1alpha1.ModelInfer{
-					Spec: workloadv1alpha1.ModelInferSpec{
+				mi: &workloadv1alpha1.ModelServing{
+					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: &replicas,
 						RolloutStrategy: &workloadv1alpha1.RolloutStrategy{
 							RollingUpdateConfiguration: &workloadv1alpha1.RollingUpdateConfiguration{
@@ -406,8 +406,8 @@ func TestValidateRollingUpdateConfiguration(t *testing.T) {
 		{
 			name: "valid partition - zero value",
 			args: args{
-				mi: &workloadv1alpha1.ModelInfer{
-					Spec: workloadv1alpha1.ModelInferSpec{
+				mi: &workloadv1alpha1.ModelServing{
+					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: &replicas,
 						RolloutStrategy: &workloadv1alpha1.RolloutStrategy{
 							RollingUpdateConfiguration: &workloadv1alpha1.RollingUpdateConfiguration{
@@ -442,7 +442,7 @@ func TestValidateRollingUpdateConfiguration(t *testing.T) {
 
 func TestValidatorReplicas(t *testing.T) {
 	type args struct {
-		mi *workloadv1alpha1.ModelInfer
+		mi *workloadv1alpha1.ModelServing
 	}
 	tests := []struct {
 		name string
@@ -452,8 +452,8 @@ func TestValidatorReplicas(t *testing.T) {
 		{
 			name: "normal replicas",
 			args: args{
-				mi: &workloadv1alpha1.ModelInfer{
-					Spec: workloadv1alpha1.ModelInferSpec{
+				mi: &workloadv1alpha1.ModelServing{
+					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: int32Ptr(3),
 						Template: workloadv1alpha1.InferGroup{
 							Roles: []workloadv1alpha1.Role{
@@ -469,8 +469,8 @@ func TestValidatorReplicas(t *testing.T) {
 		{
 			name: "replicas is nil",
 			args: args{
-				mi: &workloadv1alpha1.ModelInfer{
-					Spec: workloadv1alpha1.ModelInferSpec{
+				mi: &workloadv1alpha1.ModelServing{
+					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: int32PtrNil(),
 						Template: workloadv1alpha1.InferGroup{
 							Roles: []workloadv1alpha1.Role{
@@ -492,8 +492,8 @@ func TestValidatorReplicas(t *testing.T) {
 		{
 			name: "replicas is less than 0",
 			args: args{
-				mi: &workloadv1alpha1.ModelInfer{
-					Spec: workloadv1alpha1.ModelInferSpec{
+				mi: &workloadv1alpha1.ModelServing{
+					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: int32Ptr(-1),
 						Template: workloadv1alpha1.InferGroup{
 							Roles: []workloadv1alpha1.Role{
@@ -515,8 +515,8 @@ func TestValidatorReplicas(t *testing.T) {
 		{
 			name: "role replicas is less than 0",
 			args: args{
-				mi: &workloadv1alpha1.ModelInfer{
-					Spec: workloadv1alpha1.ModelInferSpec{
+				mi: &workloadv1alpha1.ModelServing{
+					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: int32Ptr(3),
 						Template: workloadv1alpha1.InferGroup{
 							Roles: []workloadv1alpha1.Role{
@@ -538,8 +538,8 @@ func TestValidatorReplicas(t *testing.T) {
 		{
 			name: "role replicas is nil",
 			args: args{
-				mi: &workloadv1alpha1.ModelInfer{
-					Spec: workloadv1alpha1.ModelInferSpec{
+				mi: &workloadv1alpha1.ModelServing{
+					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: int32Ptr(3),
 						Template: workloadv1alpha1.InferGroup{
 							Roles: []workloadv1alpha1.Role{
@@ -561,8 +561,8 @@ func TestValidatorReplicas(t *testing.T) {
 		{
 			name: "no role",
 			args: args{
-				mi: &workloadv1alpha1.ModelInfer{
-					Spec: workloadv1alpha1.ModelInferSpec{
+				mi: &workloadv1alpha1.ModelServing{
+					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: int32Ptr(3),
 						Template: workloadv1alpha1.InferGroup{
 							Roles: []workloadv1alpha1.Role{},
@@ -595,7 +595,7 @@ func TestValidateGangSchedule(t *testing.T) {
 	replicas := int32(3)
 	roleReplicas := int32(2)
 	type args struct {
-		mi *workloadv1alpha1.ModelInfer
+		mi *workloadv1alpha1.ModelServing
 	}
 	tests := []struct {
 		name string
@@ -605,8 +605,8 @@ func TestValidateGangSchedule(t *testing.T) {
 		{
 			name: "valid minRoleReplicas",
 			args: args{
-				mi: &workloadv1alpha1.ModelInfer{
-					Spec: workloadv1alpha1.ModelInferSpec{
+				mi: &workloadv1alpha1.ModelServing{
+					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: &replicas,
 						Template: workloadv1alpha1.InferGroup{
 							Roles: []workloadv1alpha1.Role{
@@ -630,8 +630,8 @@ func TestValidateGangSchedule(t *testing.T) {
 		{
 			name: "invalid minRoleReplicas - role not exist",
 			args: args{
-				mi: &workloadv1alpha1.ModelInfer{
-					Spec: workloadv1alpha1.ModelInferSpec{
+				mi: &workloadv1alpha1.ModelServing{
+					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: &replicas,
 						Template: workloadv1alpha1.InferGroup{
 							Roles: []workloadv1alpha1.Role{
@@ -661,8 +661,8 @@ func TestValidateGangSchedule(t *testing.T) {
 		{
 			name: "invalid minRoleReplicas - exceeds total replicas",
 			args: args{
-				mi: &workloadv1alpha1.ModelInfer{
-					Spec: workloadv1alpha1.ModelInferSpec{
+				mi: &workloadv1alpha1.ModelServing{
+					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: &replicas,
 						Template: workloadv1alpha1.InferGroup{
 							Roles: []workloadv1alpha1.Role{
@@ -692,8 +692,8 @@ func TestValidateGangSchedule(t *testing.T) {
 		{
 			name: "invalid minRoleReplicas - negative value",
 			args: args{
-				mi: &workloadv1alpha1.ModelInfer{
-					Spec: workloadv1alpha1.ModelInferSpec{
+				mi: &workloadv1alpha1.ModelServing{
+					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: &replicas,
 						Template: workloadv1alpha1.InferGroup{
 							Roles: []workloadv1alpha1.Role{
@@ -723,8 +723,8 @@ func TestValidateGangSchedule(t *testing.T) {
 		{
 			name: "nil gang schedule",
 			args: args{
-				mi: &workloadv1alpha1.ModelInfer{
-					Spec: workloadv1alpha1.ModelInferSpec{
+				mi: &workloadv1alpha1.ModelServing{
+					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: &replicas,
 						Template: workloadv1alpha1.InferGroup{
 							Roles: []workloadv1alpha1.Role{
@@ -744,8 +744,8 @@ func TestValidateGangSchedule(t *testing.T) {
 		{
 			name: "nil minRoleReplicas",
 			args: args{
-				mi: &workloadv1alpha1.ModelInfer{
-					Spec: workloadv1alpha1.ModelInferSpec{
+				mi: &workloadv1alpha1.ModelServing{
+					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: &replicas,
 						Template: workloadv1alpha1.InferGroup{
 							Roles: []workloadv1alpha1.Role{
@@ -781,7 +781,7 @@ func TestValidateWorkerReplicas(t *testing.T) {
 	replicas := int32(3)
 	roleReplicas := int32(2)
 	type args struct {
-		mi *workloadv1alpha1.ModelInfer
+		mi *workloadv1alpha1.ModelServing
 	}
 	tests := []struct {
 		name string
@@ -791,8 +791,8 @@ func TestValidateWorkerReplicas(t *testing.T) {
 		{
 			name: "valid worker replicas",
 			args: args{
-				mi: &workloadv1alpha1.ModelInfer{
-					Spec: workloadv1alpha1.ModelInferSpec{
+				mi: &workloadv1alpha1.ModelServing{
+					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: &replicas,
 						Template: workloadv1alpha1.InferGroup{
 							Roles: []workloadv1alpha1.Role{
@@ -811,8 +811,8 @@ func TestValidateWorkerReplicas(t *testing.T) {
 		{
 			name: "valid zero worker replicas",
 			args: args{
-				mi: &workloadv1alpha1.ModelInfer{
-					Spec: workloadv1alpha1.ModelInferSpec{
+				mi: &workloadv1alpha1.ModelServing{
+					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: &replicas,
 						Template: workloadv1alpha1.InferGroup{
 							Roles: []workloadv1alpha1.Role{
@@ -831,8 +831,8 @@ func TestValidateWorkerReplicas(t *testing.T) {
 		{
 			name: "invalid negative worker replicas",
 			args: args{
-				mi: &workloadv1alpha1.ModelInfer{
-					Spec: workloadv1alpha1.ModelInferSpec{
+				mi: &workloadv1alpha1.ModelServing{
+					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: &replicas,
 						Template: workloadv1alpha1.InferGroup{
 							Roles: []workloadv1alpha1.Role{
@@ -857,8 +857,8 @@ func TestValidateWorkerReplicas(t *testing.T) {
 		{
 			name: "multiple roles with one invalid worker replicas",
 			args: args{
-				mi: &workloadv1alpha1.ModelInfer{
-					Spec: workloadv1alpha1.ModelInferSpec{
+				mi: &workloadv1alpha1.ModelServing{
+					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: &replicas,
 						Template: workloadv1alpha1.InferGroup{
 							Roles: []workloadv1alpha1.Role{

@@ -4,16 +4,16 @@ metadata:
   name: test-model-backend1
   namespace: default
   labels:
-    registry.volcano.sh/backend-name: backend1
-    registry.volcano.sh/managed-by: registry.volcano.sh
-    registry.volcano.sh/model-name: test-model
-    registry.volcano.sh/model-uid: randomUID
-    registry.volcano.sh/revision: 6f7564b9f
+    workload.serving.volcano.sh/backend-name: backend1
+    workload.serving.volcano.sh/managed-by: workload.serving.volcano.sh
+    workload.serving.volcano.sh/model-name: test-model
+    workload.serving.volcano.sh/model-uid: randomUID
+    workload.serving.volcano.sh/revision: 587ff8c655
   ownerReferences:
-    - apiVersion: registry.volcano.sh/v1alpha1
+    - apiVersion: workload.serving.volcano.sh/v1alpha1
       blockOwnerDeletion: true
       controller: true
-      kind: Model
+      kind: ModelBooster
       name: test-model
       uid: randomUID
 spec:
@@ -21,7 +21,7 @@ spec:
   inferenceEngine: "vLLM"
   workloadSelector:
     matchLabels:
-      registry.volcano.sh/model-uid: randomUID
+      workload.serving.volcano.sh/model-uid: randomUID
   workloadPort:
     port: 8000
   trafficPolicy:

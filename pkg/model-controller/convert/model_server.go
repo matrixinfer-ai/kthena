@@ -21,7 +21,6 @@ import (
 	"time"
 
 	networking "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
-	registry "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
 	workload "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	icUtils "github.com/volcano-sh/kthena/pkg/infer-controller/utils"
 	"github.com/volcano-sh/kthena/pkg/model-controller/utils"
@@ -36,12 +35,12 @@ var VLLMKvConnectorType = map[string]networking.KVConnectorType{
 
 // BuildModelServer creates arrays of ModelServer for the given model.
 // Each model backend will create one model server.
-func BuildModelServer(model *registry.Model) ([]*networking.ModelServer, error) {
+func BuildModelServer(model *workload.ModelBooster) ([]*networking.ModelServer, error) {
 	var modelServers []*networking.ModelServer
 	for _, backend := range model.Spec.Backends {
 		var inferenceEngine networking.InferenceEngine
 		switch backend.Type {
-		case registry.ModelBackendTypeVLLM, registry.ModelBackendTypeVLLMDisaggregated:
+		case workload.ModelBackendTypeVLLM, workload.ModelBackendTypeVLLMDisaggregated:
 			inferenceEngine = networking.VLLM
 		default:
 			return nil, fmt.Errorf("not support %s backend yet, please use vLLM backend", backend.Type)
@@ -94,11 +93,11 @@ func BuildModelServer(model *registry.Model) ([]*networking.ModelServer, error) 
 	return modelServers, nil
 }
 
-func getKvConnectorSpec(backend registry.ModelBackend) (*networking.KVConnectorSpec, error) {
+func getKvConnectorSpec(backend workload.ModelBackend) (*networking.KVConnectorSpec, error) {
 	var connectorType *networking.KVConnectorType
 	foundConfig := false
 	for _, worker := range backend.Workers {
-		if worker.Type != registry.ModelWorkerTypePrefill && worker.Type != registry.ModelWorkerTypeDecode {
+		if worker.Type != workload.ModelWorkerTypePrefill && worker.Type != workload.ModelWorkerTypeDecode {
 			continue
 		}
 
@@ -144,16 +143,16 @@ func getKvConnectorSpec(backend registry.ModelBackend) (*networking.KVConnectorS
 	return nil, nil
 }
 
-func getPdGroup(backend registry.ModelBackend) *networking.PDGroup {
+func getPdGroup(backend workload.ModelBackend) *networking.PDGroup {
 	switch backend.Type {
-	case registry.ModelBackendTypeVLLMDisaggregated, registry.ModelBackendTypeMindIEDisaggregated:
+	case workload.ModelBackendTypeVLLMDisaggregated, workload.ModelBackendTypeMindIEDisaggregated:
 		return &networking.PDGroup{
 			GroupKey: workload.GroupNameLabelKey,
 			PrefillLabels: map[string]string{
-				workload.RoleLabelKey: string(registry.ModelWorkerTypePrefill),
+				workload.RoleLabelKey: string(workload.ModelWorkerTypePrefill),
 			},
 			DecodeLabels: map[string]string{
-				workload.RoleLabelKey: string(registry.ModelWorkerTypeDecode),
+				workload.RoleLabelKey: string(workload.ModelWorkerTypeDecode),
 			},
 		}
 	}
@@ -161,11 +160,11 @@ func getPdGroup(backend registry.ModelBackend) *networking.PDGroup {
 }
 
 // getServedModelName gets served model name from the worker config. Default is the model name.
-func getServedModelName(model *registry.Model, backend registry.ModelBackend) (string, error) {
+func getServedModelName(model *workload.ModelBooster, backend workload.ModelBackend) (string, error) {
 	servedModelName := model.Name
 	for _, worker := range backend.Workers {
-		if worker.Type == registry.ModelWorkerTypeServer ||
-			worker.Type == registry.ModelWorkerTypeDecode {
+		if worker.Type == workload.ModelWorkerTypeServer ||
+			worker.Type == workload.ModelWorkerTypeDecode {
 			valStr, err := utils.TryGetField(worker.Config.Raw, "served-model-name")
 			if err != nil {
 				return "", err

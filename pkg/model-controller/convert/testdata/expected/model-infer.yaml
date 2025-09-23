@@ -2,16 +2,16 @@ apiVersion: workload.volcano.sh/v1alpha1
 kind: modelinfer
 metadata:
   labels:
-    registry.volcano.sh/backend-name: backend1
-    registry.volcano.sh/managed-by: registry.volcano.sh
-    registry.volcano.sh/model-name: test-model
-    registry.volcano.sh/model-uid: randomUID
-    registry.volcano.sh/revision: 69978bb886
+    workload.serving.volcano.sh/backend-name: backend1
+    workload.serving.volcano.sh/managed-by: workload.serving.volcano.sh
+    workload.serving.volcano.sh/model-name: test-model
+    workload.serving.volcano.sh/model-uid: randomUID
+    workload.serving.volcano.sh/revision: 69978bb886
   name: test-model-backend1
   namespace: default
   ownerReferences:
-    - apiVersion: registry.volcano.sh/v1alpha1
-      kind: Model
+    - apiVersion: workload.serving.volcano.sh/v1alpha1
+      kind: ModelBooster
       name: test-model
       uid: randomUID
 spec:
@@ -26,11 +26,11 @@ spec:
       - entryTemplate:
           metadata:
             labels:
-              registry.volcano.sh/backend-name: backend1
-              registry.volcano.sh/managed-by: registry.volcano.sh
-              registry.volcano.sh/model-name: test-model
-              registry.volcano.sh/model-uid: randomUID
-              registry.volcano.sh/revision: 69978bb886
+              workload.serving.volcano.sh/backend-name: backend1
+              workload.serving.volcano.sh/managed-by: workload.serving.volcano.sh
+              workload.serving.volcano.sh/model-name: test-model
+              workload.serving.volcano.sh/model-uid: randomUID
+              workload.serving.volcano.sh/revision: 69978bb886
           spec:
             containers:
               - args:

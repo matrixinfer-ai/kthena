@@ -21,7 +21,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
-	registry "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
 	workload "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/ptr"
@@ -97,19 +96,19 @@ func TestGetCachePath(t *testing.T) {
 func TestCreateModelInferResources(t *testing.T) {
 	tests := []struct {
 		name         string
-		input        *registry.Model
-		expected     []*workload.ModelInfer
+		input        *workload.ModelBooster
+		expected     []*workload.ModelServing
 		expectErrMsg string
 	}{
 		{
 			name:     "CacheVolume_HuggingFace_HostPath",
-			input:    loadYaml[registry.Model](t, "testdata/input/model.yaml"),
-			expected: []*workload.ModelInfer{loadYaml[workload.ModelInfer](t, "testdata/expected/model-infer.yaml")},
+			input:    loadYaml[workload.ModelBooster](t, "testdata/input/model.yaml"),
+			expected: []*workload.ModelServing{loadYaml[workload.ModelServing](t, "testdata/expected/model-infer.yaml")},
 		},
 		{
 			name:     "PD disaggregation",
-			input:    loadYaml[registry.Model](t, "testdata/input/pd-disaggregated-model.yaml"),
-			expected: []*workload.ModelInfer{loadYaml[workload.ModelInfer](t, "testdata/expected/disaggregated-model-infer.yaml")},
+			input:    loadYaml[workload.ModelBooster](t, "testdata/input/pd-disaggregated-model.yaml"),
+			expected: []*workload.ModelServing{loadYaml[workload.ModelServing](t, "testdata/expected/disaggregated-model-infer.yaml")},
 		},
 	}
 	for _, tt := range tests {
@@ -123,7 +122,7 @@ func TestCreateModelInferResources(t *testing.T) {
 			}
 			diff := cmp.Diff(tt.expected, got)
 			if diff != "" {
-				t.Errorf("ModelInfer mismatch (-expected +actual):\n%s", diff)
+				t.Errorf("ModelServing mismatch (-expected +actual):\n%s", diff)
 			}
 		})
 	}
@@ -132,13 +131,13 @@ func TestCreateModelInferResources(t *testing.T) {
 func TestBuildCacheVolume(t *testing.T) {
 	tests := []struct {
 		name         string
-		input        *registry.ModelBackend
+		input        *workload.ModelBackend
 		expected     *corev1.Volume
 		expectErrMsg string
 	}{
 		{
 			name: "empty cache URI",
-			input: &registry.ModelBackend{
+			input: &workload.ModelBackend{
 				Name:     "test-backend",
 				CacheURI: "",
 			},
@@ -151,7 +150,7 @@ func TestBuildCacheVolume(t *testing.T) {
 		},
 		{
 			name: "PVC URI",
-			input: &registry.ModelBackend{
+			input: &workload.ModelBackend{
 				Name:     "test-backend",
 				CacheURI: "pvc://test-pvc",
 			},
@@ -166,7 +165,7 @@ func TestBuildCacheVolume(t *testing.T) {
 		},
 		{
 			name: "HostPath URI",
-			input: &registry.ModelBackend{
+			input: &workload.ModelBackend{
 				Name:     "test-backend",
 				CacheURI: "hostpath://test/path",
 			},
@@ -182,7 +181,7 @@ func TestBuildCacheVolume(t *testing.T) {
 		},
 		{
 			name: "invalid URI",
-			input: &registry.ModelBackend{
+			input: &workload.ModelBackend{
 				Name:     "test-backend",
 				CacheURI: "hostPath://invalid/path",
 			},

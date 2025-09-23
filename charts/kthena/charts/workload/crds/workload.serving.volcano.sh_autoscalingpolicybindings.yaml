@@ -1,0 +1,278 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.17.2
+  name: autoscalingpolicybindings.workload.serving.volcano.sh
+spec:
+  group: workload.serving.volcano.sh
+  names:
+    kind: AutoscalingPolicyBinding
+    listKind: AutoscalingPolicyBindingList
+    plural: autoscalingpolicybindings
+    singular: autoscalingpolicybinding
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: AutoscalingPolicyBinding is the Schema for the autoscalingpolicybindings
+          API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: AutoscalingPolicyBindingSpec defines the desired state of
+              AutoscalingPolicyBinding.
+            properties:
+              optimizerConfiguration:
+                description: |-
+                  It dynamically schedules replicas across different ModelBooster Infer groups based on overall computing power requirements - referred to as "optimize" behavior in the code.
+                  For example:
+                  When dealing with two types of ModelBooster Infer instances corresponding to heterogeneous hardware resources with different computing capabilities (e.g., H100/A100), the "optimize" behavior aims to:
+                  Dynamically adjust the deployment ratio of H100/A100 instances based on real-time computing power demands
+                  Use integer programming and similar methods to precisely meet computing requirements
+                  Maximize hardware utilization efficiency
+                properties:
+                  costExpansionRatePercent:
+                    default: 200
+                    description: CostExpansionRatePercent is the percentage rate at
+                      which the cost expands.
+                    format: int32
+                    minimum: 0
+                    type: integer
+                  params:
+                    description: Parameters of multiple ModelBooster Infer Groups
+                      to be optimized.
+                    items:
+                      properties:
+                        cost:
+                          description: Cost is the cost associated with running this
+                            backend.
+                          format: int32
+                          minimum: 0
+                          type: integer
+                        maxReplicas:
+                          description: MaxReplicas is the maximum number of replicas
+                            for the backend.
+                          format: int32
+                          maximum: 1000000
+                          minimum: 1
+                          type: integer
+                        minReplicas:
+                          description: MinReplicas is the minimum number of replicas
+                            for the backend.
+                          format: int32
+                          maximum: 1000000
+                          minimum: 0
+                          type: integer
+                        target:
+                          description: The scaling instance configuration
+                          properties:
+                            additionalMatchLabels:
+                              additionalProperties:
+                                type: string
+                              description: AdditionalMatchLabels is the additional
+                                labels to match the target object.
+                              type: object
+                            metricEndpoint:
+                              description: MetricEndpoint is the metric source.
+                              properties:
+                                port:
+                                  default: 8100
+                                  description: The port of pods exposing metric endpoints
+                                  format: int32
+                                  type: integer
+                                uri:
+                                  default: /metrics
+                                  description: The metric uri, e.g. /metrics
+                                  type: string
+                              type: object
+                            targetRef:
+                              description: TargetRef references the target object.
+                              properties:
+                                apiVersion:
+                                  description: API version of the referent.
+                                  type: string
+                                fieldPath:
+                                  description: |-
+                                    If referring to a piece of an object instead of an entire object, this string
+                                    should contain a valid JSON/Go field access statement, such as desiredState.manifest.containers[2].
+                                    For example, if the object reference is to a container within a pod, this would take on a value like:
+                                    "spec.containers{name}" (where "name" refers to the name of the container that triggered
+                                    the event) or if no container name is specified "spec.containers[2]" (container with
+                                    index 2 in this pod). This syntax is chosen only to have some well-defined way of
+                                    referencing a part of an object.
+                                  type: string
+                                kind:
+                                  description: |-
+                                    Kind of the referent.
+                                    More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+                                  type: string
+                                name:
+                                  description: |-
+                                    Name of the referent.
+                                    More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                  type: string
+                                namespace:
+                                  description: |-
+                                    Namespace of the referent.
+                                    More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/
+                                  type: string
+                                resourceVersion:
+                                  description: |-
+                                    Specific resourceVersion to which this reference is made, if any.
+                                    More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency
+                                  type: string
+                                uid:
+                                  description: |-
+                                    UID of the referent.
+                                    More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids
+                                  type: string
+                              type: object
+                              x-kubernetes-map-type: atomic
+                          required:
+                          - targetRef
+                          type: object
+                      required:
+                      - maxReplicas
+                      - minReplicas
+                      type: object
+                    minItems: 1
+                    type: array
+                type: object
+              policyRef:
+                description: PolicyRef references the autoscaling policy to be optimized
+                  scaling base on multiple targets.
+                properties:
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+              scalingConfiguration:
+                description: Adjust the number of related instances based on specified
+                  monitoring metrics and their target values.
+                properties:
+                  maxReplicas:
+                    description: MaxReplicas is the maximum number of replicas.
+                    format: int32
+                    maximum: 1000000
+                    minimum: 1
+                    type: integer
+                  minReplicas:
+                    description: MinReplicas is the minimum number of replicas.
+                    format: int32
+                    maximum: 1000000
+                    minimum: 0
+                    type: integer
+                  target:
+                    description: Target represents the objects be monitored and scaled.
+                    properties:
+                      additionalMatchLabels:
+                        additionalProperties:
+                          type: string
+                        description: AdditionalMatchLabels is the additional labels
+                          to match the target object.
+                        type: object
+                      metricEndpoint:
+                        description: MetricEndpoint is the metric source.
+                        properties:
+                          port:
+                            default: 8100
+                            description: The port of pods exposing metric endpoints
+                            format: int32
+                            type: integer
+                          uri:
+                            default: /metrics
+                            description: The metric uri, e.g. /metrics
+                            type: string
+                        type: object
+                      targetRef:
+                        description: TargetRef references the target object.
+                        properties:
+                          apiVersion:
+                            description: API version of the referent.
+                            type: string
+                          fieldPath:
+                            description: |-
+                              If referring to a piece of an object instead of an entire object, this string
+                              should contain a valid JSON/Go field access statement, such as desiredState.manifest.containers[2].
+                              For example, if the object reference is to a container within a pod, this would take on a value like:
+                              "spec.containers{name}" (where "name" refers to the name of the container that triggered
+                              the event) or if no container name is specified "spec.containers[2]" (container with
+                              index 2 in this pod). This syntax is chosen only to have some well-defined way of
+                              referencing a part of an object.
+                            type: string
+                          kind:
+                            description: |-
+                              Kind of the referent.
+                              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+                            type: string
+                          name:
+                            description: |-
+                              Name of the referent.
+                              More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                            type: string
+                          namespace:
+                            description: |-
+                              Namespace of the referent.
+                              More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/
+                            type: string
+                          resourceVersion:
+                            description: |-
+                              Specific resourceVersion to which this reference is made, if any.
+                              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency
+                            type: string
+                          uid:
+                            description: |-
+                              UID of the referent.
+                              More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids
+                            type: string
+                        type: object
+                        x-kubernetes-map-type: atomic
+                    required:
+                    - targetRef
+                    type: object
+                required:
+                - maxReplicas
+                - minReplicas
+                type: object
+            required:
+            - policyRef
+            type: object
+            x-kubernetes-validations:
+            - message: Either optimizerConfiguration or scalingConfiguration must
+                be set, but not both.
+              rule: has(self.optimizerConfiguration) != has(self.scalingConfiguration)
+          status:
+            description: AutoscalingPolicyBindingStatus defines the status of a autoscaling
+              policy binding.
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

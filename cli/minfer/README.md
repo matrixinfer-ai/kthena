@@ -123,8 +123,8 @@ minfer get models -n production
 
 List model inference workloads:
 ```bash
-minfer get modelinfers
-minfer get modelinfers --all-namespaces
+minfer get modelServingList
+minfer get modelServingList --all-namespaces
 ```
 
 List autoscaling policies:

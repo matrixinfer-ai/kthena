@@ -21,10 +21,8 @@ package applyconfiguration
 import (
 	internal "github.com/volcano-sh/kthena/client-go/applyconfiguration/internal"
 	networkingv1alpha1 "github.com/volcano-sh/kthena/client-go/applyconfiguration/networking/v1alpha1"
-	applyconfigurationregistryv1alpha1 "github.com/volcano-sh/kthena/client-go/applyconfiguration/registry/v1alpha1"
 	applyconfigurationworkloadv1alpha1 "github.com/volcano-sh/kthena/client-go/applyconfiguration/workload/v1alpha1"
 	v1alpha1 "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
-	registryv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
 	workloadv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -73,63 +71,57 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 	case v1alpha1.SchemeGroupVersion.WithKind("WorkloadSelector"):
 		return &networkingv1alpha1.WorkloadSelectorApplyConfiguration{}
 
-		// Group=registry.volcano.sh, Version=v1alpha1
-	case registryv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicy"):
-		return &applyconfigurationregistryv1alpha1.AutoscalingPolicyApplyConfiguration{}
-	case registryv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyBehavior"):
-		return &applyconfigurationregistryv1alpha1.AutoscalingPolicyBehaviorApplyConfiguration{}
-	case registryv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyBinding"):
-		return &applyconfigurationregistryv1alpha1.AutoscalingPolicyBindingApplyConfiguration{}
-	case registryv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyBindingSpec"):
-		return &applyconfigurationregistryv1alpha1.AutoscalingPolicyBindingSpecApplyConfiguration{}
-	case registryv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyMetric"):
-		return &applyconfigurationregistryv1alpha1.AutoscalingPolicyMetricApplyConfiguration{}
-	case registryv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyPanicPolicy"):
-		return &applyconfigurationregistryv1alpha1.AutoscalingPolicyPanicPolicyApplyConfiguration{}
-	case registryv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyScaleUpPolicy"):
-		return &applyconfigurationregistryv1alpha1.AutoscalingPolicyScaleUpPolicyApplyConfiguration{}
-	case registryv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicySpec"):
-		return &applyconfigurationregistryv1alpha1.AutoscalingPolicySpecApplyConfiguration{}
-	case registryv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyStablePolicy"):
-		return &applyconfigurationregistryv1alpha1.AutoscalingPolicyStablePolicyApplyConfiguration{}
-	case registryv1alpha1.SchemeGroupVersion.WithKind("LoraAdapter"):
-		return &applyconfigurationregistryv1alpha1.LoraAdapterApplyConfiguration{}
-	case registryv1alpha1.SchemeGroupVersion.WithKind("MetricEndpoint"):
-		return &applyconfigurationregistryv1alpha1.MetricEndpointApplyConfiguration{}
-	case registryv1alpha1.SchemeGroupVersion.WithKind("Model"):
-		return &applyconfigurationregistryv1alpha1.ModelApplyConfiguration{}
-	case registryv1alpha1.SchemeGroupVersion.WithKind("ModelBackend"):
-		return &applyconfigurationregistryv1alpha1.ModelBackendApplyConfiguration{}
-	case registryv1alpha1.SchemeGroupVersion.WithKind("ModelBackendStatus"):
-		return &applyconfigurationregistryv1alpha1.ModelBackendStatusApplyConfiguration{}
-	case registryv1alpha1.SchemeGroupVersion.WithKind("ModelSpec"):
-		return &applyconfigurationregistryv1alpha1.ModelSpecApplyConfiguration{}
-	case registryv1alpha1.SchemeGroupVersion.WithKind("ModelStatus"):
-		return &applyconfigurationregistryv1alpha1.ModelStatusApplyConfiguration{}
-	case registryv1alpha1.SchemeGroupVersion.WithKind("ModelWorker"):
-		return &applyconfigurationregistryv1alpha1.ModelWorkerApplyConfiguration{}
-	case registryv1alpha1.SchemeGroupVersion.WithKind("OptimizerConfiguration"):
-		return &applyconfigurationregistryv1alpha1.OptimizerConfigurationApplyConfiguration{}
-	case registryv1alpha1.SchemeGroupVersion.WithKind("OptimizerParam"):
-		return &applyconfigurationregistryv1alpha1.OptimizerParamApplyConfiguration{}
-	case registryv1alpha1.SchemeGroupVersion.WithKind("ScalingConfiguration"):
-		return &applyconfigurationregistryv1alpha1.ScalingConfigurationApplyConfiguration{}
-	case registryv1alpha1.SchemeGroupVersion.WithKind("Target"):
-		return &applyconfigurationregistryv1alpha1.TargetApplyConfiguration{}
-
-		// Group=workload.volcano.sh, Version=v1alpha1
+		// Group=workload.serving.volcano.sh, Version=v1alpha1
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicy"):
+		return &applyconfigurationworkloadv1alpha1.AutoscalingPolicyApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyBehavior"):
+		return &applyconfigurationworkloadv1alpha1.AutoscalingPolicyBehaviorApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyBinding"):
+		return &applyconfigurationworkloadv1alpha1.AutoscalingPolicyBindingApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyBindingSpec"):
+		return &applyconfigurationworkloadv1alpha1.AutoscalingPolicyBindingSpecApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyMetric"):
+		return &applyconfigurationworkloadv1alpha1.AutoscalingPolicyMetricApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyPanicPolicy"):
+		return &applyconfigurationworkloadv1alpha1.AutoscalingPolicyPanicPolicyApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyScaleUpPolicy"):
+		return &applyconfigurationworkloadv1alpha1.AutoscalingPolicyScaleUpPolicyApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicySpec"):
+		return &applyconfigurationworkloadv1alpha1.AutoscalingPolicySpecApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyStablePolicy"):
+		return &applyconfigurationworkloadv1alpha1.AutoscalingPolicyStablePolicyApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("GangSchedule"):
 		return &applyconfigurationworkloadv1alpha1.GangScheduleApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("InferGroup"):
 		return &applyconfigurationworkloadv1alpha1.InferGroupApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("LoraAdapter"):
+		return &applyconfigurationworkloadv1alpha1.LoraAdapterApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("Metadata"):
 		return &applyconfigurationworkloadv1alpha1.MetadataApplyConfiguration{}
-	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelInfer"):
-		return &applyconfigurationworkloadv1alpha1.ModelInferApplyConfiguration{}
-	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelInferSpec"):
-		return &applyconfigurationworkloadv1alpha1.ModelInferSpecApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("MetricEndpoint"):
+		return &applyconfigurationworkloadv1alpha1.MetricEndpointApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelBackend"):
+		return &applyconfigurationworkloadv1alpha1.ModelBackendApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelBackendStatus"):
+		return &applyconfigurationworkloadv1alpha1.ModelBackendStatusApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelBooster"):
+		return &applyconfigurationworkloadv1alpha1.ModelBoosterApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelBoosterSpec"):
+		return &applyconfigurationworkloadv1alpha1.ModelBoosterSpecApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelInferStatus"):
 		return &applyconfigurationworkloadv1alpha1.ModelInferStatusApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelServing"):
+		return &applyconfigurationworkloadv1alpha1.ModelServingApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelServingSpec"):
+		return &applyconfigurationworkloadv1alpha1.ModelServingSpecApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelStatus"):
+		return &applyconfigurationworkloadv1alpha1.ModelStatusApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelWorker"):
+		return &applyconfigurationworkloadv1alpha1.ModelWorkerApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("OptimizerConfiguration"):
+		return &applyconfigurationworkloadv1alpha1.OptimizerConfigurationApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("OptimizerParam"):
+		return &applyconfigurationworkloadv1alpha1.OptimizerParamApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("PodTemplateSpec"):
 		return &applyconfigurationworkloadv1alpha1.PodTemplateSpecApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("Role"):
@@ -138,6 +130,10 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &applyconfigurationworkloadv1alpha1.RollingUpdateConfigurationApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("RolloutStrategy"):
 		return &applyconfigurationworkloadv1alpha1.RolloutStrategyApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("ScalingConfiguration"):
+		return &applyconfigurationworkloadv1alpha1.ScalingConfigurationApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("Target"):
+		return &applyconfigurationworkloadv1alpha1.TargetApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("TopologySpreadConstraint"):
 		return &applyconfigurationworkloadv1alpha1.TopologySpreadConstraintApplyConfiguration{}
 

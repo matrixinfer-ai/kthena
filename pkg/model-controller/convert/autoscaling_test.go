@@ -20,23 +20,23 @@ import (
 	"os"
 	"testing"
 
+	"github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	"github.com/volcano-sh/kthena/pkg/model-controller/utils"
 
 	"github.com/stretchr/testify/assert"
-	registry "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
 	"sigs.k8s.io/yaml"
 )
 
 func TestBuildScalingPolicyBinding(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    *registry.Model
-		expected *registry.AutoscalingPolicyBinding
+		input    *v1alpha1.ModelBooster
+		expected *v1alpha1.AutoscalingPolicyBinding
 	}{
 		{
 			name:     "simple backend",
-			input:    loadYaml[registry.Model](t, "testdata/input/model.yaml"),
-			expected: loadYaml[registry.AutoscalingPolicyBinding](t, "testdata/expected/scaling-asp-binding.yaml"),
+			input:    loadYaml[v1alpha1.ModelBooster](t, "testdata/input/model.yaml"),
+			expected: loadYaml[v1alpha1.AutoscalingPolicyBinding](t, "testdata/expected/scaling-asp-binding.yaml"),
 		},
 	}
 	for _, tt := range tests {
@@ -52,13 +52,13 @@ func TestBuildScalingPolicyBinding(t *testing.T) {
 func TestBuildOptimizePolicyBinding(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    *registry.Model
-		expected *registry.AutoscalingPolicyBinding
+		input    *v1alpha1.ModelBooster
+		expected *v1alpha1.AutoscalingPolicyBinding
 	}{
 		{
 			name:     "model with multiple backends",
-			input:    loadYaml[registry.Model](t, "testdata/input/multi-backends-model.yaml"),
-			expected: loadYaml[registry.AutoscalingPolicyBinding](t, "testdata/expected/optimize-asp-binding.yaml"),
+			input:    loadYaml[v1alpha1.ModelBooster](t, "testdata/input/multi-backends-model.yaml"),
+			expected: loadYaml[v1alpha1.AutoscalingPolicyBinding](t, "testdata/expected/optimize-asp-binding.yaml"),
 		},
 	}
 	for _, tt := range tests {
@@ -72,18 +72,18 @@ func TestBuildOptimizePolicyBinding(t *testing.T) {
 func TestBuildAutoscalingPolicy(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    *registry.Model
-		expected *registry.AutoscalingPolicy
+		input    *v1alpha1.ModelBooster
+		expected *v1alpha1.AutoscalingPolicy
 	}{
 		{
 			name:     "simple-backend",
-			input:    loadYaml[registry.Model](t, "testdata/input/model.yaml"),
-			expected: loadYaml[registry.AutoscalingPolicy](t, "testdata/expected/scaling-asp.yaml"),
+			input:    loadYaml[v1alpha1.ModelBooster](t, "testdata/input/model.yaml"),
+			expected: loadYaml[v1alpha1.AutoscalingPolicy](t, "testdata/expected/scaling-asp.yaml"),
 		},
 		{
 			name:     "multi-backends",
-			input:    loadYaml[registry.Model](t, "testdata/input/multi-backends-model.yaml"),
-			expected: loadYaml[registry.AutoscalingPolicy](t, "testdata/expected/optimize-asp.yaml"),
+			input:    loadYaml[v1alpha1.ModelBooster](t, "testdata/input/multi-backends-model.yaml"),
+			expected: loadYaml[v1alpha1.AutoscalingPolicy](t, "testdata/expected/optimize-asp.yaml"),
 		},
 	}
 	for _, tt := range tests {

@@ -62,12 +62,12 @@ default     llama-multinode-0-405b-1-1    1/1     Running   0          15m     1
 
 ModelInfer supports scale strategies at two levels: `InferGroup` and `Role`.
 
-You can modify `modelInfer.Spec.Replicas` to trigger scaling at the group level.
-Additionally, modifying `modelInfer.Spec.Template.Role.Replicas` triggers role-level scaling.
+You can modify `modelServing.Spec.Replicas` to trigger scaling at the group level.
+Additionally, modifying `modelServing.Spec.Template.Role.Replicas` triggers role-level scaling.
 
 ### Role Level Scale Down
 
-Reduce the `modelInfer.Spec.Template.Role.Replicas` from 2 to 1. To trigger a `Role Level` scale down.
+Reduce the `modelServing.Spec.Template.Role.Replicas` from 2 to 1. To trigger a `Role Level` scale down.
 
 You can see the result:
 
@@ -83,7 +83,7 @@ You can see that all pods in `Role1` have been deleted.
 
 ### InferGroup Level Scale Up
 
-Add the `modelInfer.Spec.Replicas` from 1 to 2. To trigger a `InferGroup Level` scale up.
+Add the `modelServing.Spec.Replicas` from 1 to 2. To trigger a `InferGroup Level` scale up.
 
 You can see the result:
 

@@ -22,7 +22,6 @@ import (
 
 	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
 	workloadLister "github.com/volcano-sh/kthena/client-go/listers/workload/v1alpha1"
-	"github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
 	workload "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	"github.com/volcano-sh/kthena/pkg/autoscaler/algorithm"
 	"github.com/volcano-sh/kthena/pkg/autoscaler/util"
@@ -38,7 +37,7 @@ type Optimizer struct {
 }
 
 type OptimizerMeta struct {
-	Config        *v1alpha1.OptimizerConfiguration
+	Config        *workload.OptimizerConfiguration
 	MetricTargets map[string]float64
 	ScalingOrder  []*ReplicaBlock
 	MinReplicas   int32
@@ -71,7 +70,7 @@ func (meta *OptimizerMeta) RestoreReplicasOfEachBackend(replicas int32) map[stri
 	return replicasMap
 }
 
-func NewOptimizerMeta(binding *v1alpha1.AutoscalingPolicyBinding) *OptimizerMeta {
+func NewOptimizerMeta(binding *workload.AutoscalingPolicyBinding) *OptimizerMeta {
 	if binding.Spec.OptimizerConfiguration == nil {
 		klog.Warningf("OptimizerConfig not configured in binding: %s", binding.Name)
 		return nil
@@ -127,7 +126,7 @@ func NewOptimizerMeta(binding *v1alpha1.AutoscalingPolicyBinding) *OptimizerMeta
 	}
 }
 
-func NewOptimizer(behavior *v1alpha1.AutoscalingPolicyBehavior, binding *v1alpha1.AutoscalingPolicyBinding, metricTargets map[string]float64) *Optimizer {
+func NewOptimizer(behavior *workload.AutoscalingPolicyBehavior, binding *workload.AutoscalingPolicyBinding, metricTargets map[string]float64) *Optimizer {
 	collectors := make(map[string]*MetricCollector)
 	for _, param := range binding.Spec.OptimizerConfiguration.Params {
 		collectors[param.Target.TargetRef.Name] = NewMetricCollector(&param.Target, binding, metricTargets)
@@ -140,12 +139,12 @@ func NewOptimizer(behavior *v1alpha1.AutoscalingPolicyBehavior, binding *v1alpha
 	}
 }
 
-func (optimizer *Optimizer) Optimize(ctx context.Context, client clientset.Interface, modelInferLister workloadLister.ModelInferLister, podLister listerv1.PodLister, autoscalePolicy *v1alpha1.AutoscalingPolicy) error {
+func (optimizer *Optimizer) Optimize(ctx context.Context, client clientset.Interface, modelInferLister workloadLister.ModelServingLister, podLister listerv1.PodLister, autoscalePolicy *workload.AutoscalingPolicy) error {
 	size := len(optimizer.Meta.Config.Params)
 	unreadyInstancesCount := int32(0)
 	readyInstancesMetrics := make([]algorithm.Metrics, 0, size)
 	currentInstancesCount := int32(0)
-	modelInferList := make([]*workload.ModelInfer, 0, size)
+	modelInferList := make([]*workload.ModelServing, 0, size)
 	// Update all model infer instances' metrics
 	for _, param := range optimizer.Meta.Config.Params {
 		collector, exists := optimizer.Collectors[param.Target.TargetRef.Name]
@@ -161,7 +160,7 @@ func (optimizer *Optimizer) Optimize(ctx context.Context, client clientset.Inter
 			return err
 		}
 		currentInstancesCount += *modelInfer.Spec.Replicas
-		klog.Infof("Model infer:%s, current replicas:%d", modelInfer.Name, modelInfer.Spec.Replicas)
+		klog.Infof("ModelBooster infer:%s, current replicas:%d", modelInfer.Name, modelInfer.Spec.Replicas)
 
 		currentUnreadyInstancesCount, currentReadyInstancesMetrics, err := collector.UpdateMetrics(ctx, podLister)
 		if err != nil {

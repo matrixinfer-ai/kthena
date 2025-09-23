@@ -23,7 +23,7 @@ import (
 	"strings"
 
 	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
-	registryv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	workloadv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	admissionv1 "k8s.io/api/admission/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -47,14 +47,14 @@ func (v *AutoscalingBindingValidator) Handle(w http.ResponseWriter, r *http.Requ
 	klog.V(3).Infof("received request: %s", r.URL.String())
 
 	// Parse the admission request
-	admissionReview, asp_binding, err := parseAdmissionRequest[registryv1alpha1.AutoscalingPolicyBinding](r)
+	admissionReview, asp_binding, err := parseAdmissionRequest[workloadv1alpha1.AutoscalingPolicyBinding](r)
 	if err != nil {
 		klog.Errorf("Failed to parse admission request: %v", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// Validate the Model
+	// Validate the ModelBooster
 	allowed, reason := v.validateAutoscalingBinding(asp_binding)
 	// Create the admission response
 	admissionResponse := admissionv1.AdmissionResponse{
@@ -80,7 +80,7 @@ func (v *AutoscalingBindingValidator) Handle(w http.ResponseWriter, r *http.Requ
 }
 
 // validateModel validates the AutoscalingBinding resource
-func (v *AutoscalingBindingValidator) validateAutoscalingBinding(asp_binding *registryv1alpha1.AutoscalingPolicyBinding) (bool, string) {
+func (v *AutoscalingBindingValidator) validateAutoscalingBinding(asp_binding *workloadv1alpha1.AutoscalingPolicyBinding) (bool, string) {
 	ctx := context.Background()
 	var allErrs field.ErrorList
 
@@ -98,10 +98,10 @@ func (v *AutoscalingBindingValidator) validateAutoscalingBinding(asp_binding *re
 	return true, ""
 }
 
-func (v *AutoscalingBindingValidator) validateAutoscalingPolicyExistence(ctx context.Context, asp_binding *registryv1alpha1.AutoscalingPolicyBinding) field.ErrorList {
+func (v *AutoscalingBindingValidator) validateAutoscalingPolicyExistence(ctx context.Context, asp_binding *workloadv1alpha1.AutoscalingPolicyBinding) field.ErrorList {
 	var allErrs field.ErrorList
 
-	if _, err := v.client.RegistryV1alpha1().AutoscalingPolicies(asp_binding.Namespace).Get(ctx, asp_binding.Spec.PolicyRef.Name, metav1.GetOptions{}); err != nil {
+	if _, err := v.client.WorkloadV1alpha1().AutoscalingPolicies(asp_binding.Namespace).Get(ctx, asp_binding.Spec.PolicyRef.Name, metav1.GetOptions{}); err != nil {
 		if apierrors.IsNotFound(err) {
 			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("PolicyRef"), asp_binding.Spec.PolicyRef.Name, fmt.Sprintf("autoscaling policy resource %s does not exist", asp_binding.Spec.PolicyRef.Name)))
 		} else {
@@ -112,7 +112,7 @@ func (v *AutoscalingBindingValidator) validateAutoscalingPolicyExistence(ctx con
 	return allErrs
 }
 
-func validateOptimizeAndScalingPolicyExistence(asp_binding *registryv1alpha1.AutoscalingPolicyBinding) field.ErrorList {
+func validateOptimizeAndScalingPolicyExistence(asp_binding *workloadv1alpha1.AutoscalingPolicyBinding) field.ErrorList {
 	var allErrs field.ErrorList
 	if asp_binding.Spec.OptimizerConfiguration == nil && asp_binding.Spec.ScalingConfiguration == nil {
 		allErrs = append(allErrs, field.Required(field.NewPath("spec").Child("ScalingConfiguration"), "spec.ScalingConfiguration should be set if spec.OptimizerConfiguration does not exist"))

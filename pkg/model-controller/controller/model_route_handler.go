@@ -19,7 +19,7 @@ package controller
 import (
 	"context"
 
-	registryv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	registryv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	"github.com/volcano-sh/kthena/pkg/model-controller/convert"
 	"github.com/volcano-sh/kthena/pkg/model-controller/utils"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -27,12 +27,12 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func (mc *ModelController) createOrUpdateModelRoute(ctx context.Context, model *registryv1alpha1.Model) error {
+func (mc *ModelController) createOrUpdateModelRoute(ctx context.Context, model *registryv1alpha1.ModelBooster) error {
 	modelRoute := convert.BuildModelRoute(model)
 	oldModelRoute, err := mc.modelRoutesLister.ModelRoutes(modelRoute.Namespace).Get(modelRoute.Name)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.V(4).Infof("Create Model Route %s", modelRoute.Name)
+			klog.V(4).Infof("Create ModelBooster Route %s", modelRoute.Name)
 			if _, err := mc.client.NetworkingV1alpha1().ModelRoutes(model.Namespace).Create(ctx, modelRoute, metav1.CreateOptions{}); err != nil {
 				klog.Errorf("failed to create ModelRoute %s: %v", klog.KObj(modelRoute), err)
 				return err
@@ -43,7 +43,7 @@ func (mc *ModelController) createOrUpdateModelRoute(ctx context.Context, model *
 		return err
 	}
 	if oldModelRoute.Labels[utils.RevisionLabelKey] == modelRoute.Labels[utils.RevisionLabelKey] {
-		klog.Infof("Model Route %s of model %s does not need to update", modelRoute.Name, model.Name)
+		klog.Infof("ModelBooster Route %s of model %s does not need to update", modelRoute.Name, model.Name)
 		return nil
 	}
 	modelRoute.ResourceVersion = oldModelRoute.ResourceVersion

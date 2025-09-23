@@ -21,28 +21,28 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	networking "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
-	registry "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	registry "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 )
 
 func TestBuildModelRoute(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    *registry.Model
+		input    *registry.ModelBooster
 		expected *networking.ModelRoute
 	}{
 		{
 			name:     "simple backend",
-			input:    loadYaml[registry.Model](t, "testdata/input/model.yaml"),
+			input:    loadYaml[registry.ModelBooster](t, "testdata/input/model.yaml"),
 			expected: loadYaml[networking.ModelRoute](t, "testdata/expected/model-route.yaml"),
 		},
 		{
 			name:     "model with multiple backends",
-			input:    loadYaml[registry.Model](t, "testdata/input/multi-backends-model.yaml"),
+			input:    loadYaml[registry.ModelBooster](t, "testdata/input/multi-backends-model.yaml"),
 			expected: loadYaml[networking.ModelRoute](t, "testdata/expected/model-route-subset.yaml"),
 		},
 		{
 			name:     "model with multiple backend-loras",
-			input:    loadYaml[registry.Model](t, "testdata/input/multi-lora-model.yaml"),
+			input:    loadYaml[registry.ModelBooster](t, "testdata/input/multi-lora-model.yaml"),
 			expected: loadYaml[networking.ModelRoute](t, "testdata/expected/model-route-loras-subset.yaml"),
 		},
 	}

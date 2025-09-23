@@ -26,7 +26,6 @@ import (
 	versioned "github.com/volcano-sh/kthena/client-go/clientset/versioned"
 	internalinterfaces "github.com/volcano-sh/kthena/client-go/informers/externalversions/internalinterfaces"
 	networking "github.com/volcano-sh/kthena/client-go/informers/externalversions/networking"
-	registry "github.com/volcano-sh/kthena/client-go/informers/externalversions/registry"
 	workload "github.com/volcano-sh/kthena/client-go/informers/externalversions/workload"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
@@ -257,16 +256,11 @@ type SharedInformerFactory interface {
 	InformerFor(obj runtime.Object, newFunc internalinterfaces.NewInformerFunc) cache.SharedIndexInformer
 
 	Networking() networking.Interface
-	Registry() registry.Interface
 	Workload() workload.Interface
 }
 
 func (f *sharedInformerFactory) Networking() networking.Interface {
 	return networking.New(f, f.namespace, f.tweakListOptions)
-}
-
-func (f *sharedInformerFactory) Registry() registry.Interface {
-	return registry.New(f, f.namespace, f.tweakListOptions)
 }
 
 func (f *sharedInformerFactory) Workload() workload.Interface {

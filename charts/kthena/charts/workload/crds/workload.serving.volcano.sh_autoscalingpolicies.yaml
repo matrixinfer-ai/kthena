@@ -1,0 +1,210 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.17.2
+  name: autoscalingpolicies.workload.serving.volcano.sh
+spec:
+  group: workload.serving.volcano.sh
+  names:
+    kind: AutoscalingPolicy
+    listKind: AutoscalingPolicyList
+    plural: autoscalingpolicies
+    singular: autoscalingpolicy
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: AutoscalingPolicy is the Schema for the autoscalingpolicies API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: AutoscalingPolicySpec defines the desired state of AutoscalingPolicy.
+            properties:
+              behavior:
+                description: Behavior defines the scaling behavior for both scale
+                  up and scale down.
+                properties:
+                  scaleDown:
+                    description: ScaleDown defines the policy for scaling down (decreasing
+                      replicas).
+                    properties:
+                      instances:
+                        default: 1
+                        description: Instances is the maximum number of instances
+                          to scale.
+                        format: int32
+                        minimum: 0
+                        type: integer
+                      percent:
+                        default: 100
+                        description: Percent is the maximum percentage of instances
+                          to scaling.
+                        format: int32
+                        maximum: 1000
+                        minimum: 0
+                        type: integer
+                      period:
+                        default: 15s
+                        description: Period is the duration over which scaling is
+                          evaluated.
+                        type: string
+                      selectPolicy:
+                        default: Or
+                        description: |-
+                          SelectPolicy determines the selection strategy for scaling up (e.g., Or, And).
+                          'Or' represents the scaling operation will be performed as long as either the Percent requirement or the Instances requirement is met.
+                          'And' represents the scaling operation will be performed as long as both the Percent requirement and the Instances requirement is met.
+                        enum:
+                        - Or
+                        - And
+                        type: string
+                      stabilizationWindow:
+                        description: StabilizationWindow is the time window to stabilize
+                          scaling up actions.
+                        type: string
+                    type: object
+                  scaleUp:
+                    description: ScaleUp defines the policy for scaling up (increasing
+                      replicas).
+                    properties:
+                      panicPolicy:
+                        description: |-
+                          When the load surges sharply within a short period (for example, encountering a sudden traffic peak or a rush of sudden computing tasks),
+                          using the average value over a long time window to calculate the required number of replicas will cause significant lag.
+                          If the system needs to scale out quickly to cope with such peaks, the ordinary scaling logic may fail to respond in time,
+                          resulting in delayed Pod startup, slower service response time or timeouts, and may even lead to service paralysis or data backlogs (for workloads such as message queues).
+                        properties:
+                          panicModeHold:
+                            default: 60s
+                            description: PanicModeHold is the duration to hold in
+                              panic mode before returning to normal.
+                            type: string
+                          panicThresholdPercent:
+                            default: 200
+                            description: PanicThresholdPercent is the threshold percent
+                              to enter panic mode.
+                            format: int32
+                            maximum: 1000
+                            minimum: 110
+                            type: integer
+                          percent:
+                            default: 1000
+                            description: Percent is the maximum percentage of instances
+                              to scale up.
+                            format: int32
+                            maximum: 1000
+                            minimum: 0
+                            type: integer
+                          period:
+                            description: Period is the duration over which scaling
+                              down is evaluated.
+                            type: string
+                        required:
+                        - period
+                        type: object
+                      stablePolicy:
+                        description: |-
+                          Stable policy usually makes decisions based on the average value of metrics calculated over the past few minutes and introduces a scaling-down cool-down period/delay.
+                          This mechanism is relatively stable, as it can smooth out short-term small fluctuations and avoid overly frequent and unnecessary Pod scaling.
+                        properties:
+                          instances:
+                            default: 1
+                            description: Instances is the maximum number of instances
+                              to scale.
+                            format: int32
+                            minimum: 0
+                            type: integer
+                          percent:
+                            default: 100
+                            description: Percent is the maximum percentage of instances
+                              to scaling.
+                            format: int32
+                            maximum: 1000
+                            minimum: 0
+                            type: integer
+                          period:
+                            default: 15s
+                            description: Period is the duration over which scaling
+                              is evaluated.
+                            type: string
+                          selectPolicy:
+                            default: Or
+                            description: |-
+                              SelectPolicy determines the selection strategy for scaling up (e.g., Or, And).
+                              'Or' represents the scaling operation will be performed as long as either the Percent requirement or the Instances requirement is met.
+                              'And' represents the scaling operation will be performed as long as both the Percent requirement and the Instances requirement is met.
+                            enum:
+                            - Or
+                            - And
+                            type: string
+                          stabilizationWindow:
+                            description: StabilizationWindow is the time window to
+                              stabilize scaling up actions.
+                            type: string
+                        type: object
+                    type: object
+                type: object
+              metrics:
+                description: Metrics is the list of metrics used to evaluate scaling
+                  decisions.
+                items:
+                  description: AutoscalingPolicyMetric defines a metric and its target
+                    value for scaling.
+                  properties:
+                    metricName:
+                      description: MetricName is the name of the metric to monitor.
+                      type: string
+                    targetValue:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      description: TargetValue is the target value for the metric
+                        to trigger scaling.
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
+                  required:
+                  - metricName
+                  - targetValue
+                  type: object
+                minItems: 1
+                type: array
+              tolerancePercent:
+                default: 10
+                description: |-
+                  TolerancePercent is the percentage of deviation tolerated before scaling actions are triggered.
+                  The current number of instances is current_replicas, and the expected number of instances inferred from monitoring metrics is target_replicas.
+                  The scaling operation will only be actually performed when |current_replicas - target_replicas| >= current_replicas * TolerancePercent.
+                format: int32
+                maximum: 100
+                minimum: 0
+                type: integer
+            required:
+            - metrics
+            type: object
+          status:
+            description: AutoscalingPolicyStatus defines the observed state of AutoscalingPolicy.
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

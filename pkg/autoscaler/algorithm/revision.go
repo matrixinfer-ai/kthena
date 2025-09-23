@@ -19,7 +19,7 @@ package algorithm
 import (
 	"math"
 
-	"github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	"github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	"github.com/volcano-sh/kthena/pkg/autoscaler/datastructure"
 )
 
