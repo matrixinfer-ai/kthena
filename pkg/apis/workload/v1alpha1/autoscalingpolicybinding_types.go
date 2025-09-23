@@ -109,7 +109,7 @@ type OptimizerParam struct {
 // +kubebuilder:storageversion
 // +genclient
 
-// AutoscalingPolicyBinding is the Schema for the models API.
+// AutoscalingPolicyBinding is the Schema for the autoscalingpolicybindings API.
 type AutoscalingPolicyBinding struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

@@ -17,7 +17,8 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: AutoscalingPolicyBinding is the Schema for the models API.
+        description: AutoscalingPolicyBinding is the Schema for the autoscalingpolicybindings
+          API.
         properties:
           apiVersion:
             description: |-

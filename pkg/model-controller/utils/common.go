@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	workloadv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -45,7 +44,7 @@ func TryGetField(config []byte, key string) (any, error) {
 	return configMap[key], nil
 }
 
-func GetDeviceNum(worker *v1alpha1.ModelWorker) int64 {
+func GetDeviceNum(worker *workloadv1alpha1.ModelWorker) int64 {
 	sum := int64(0)
 	if worker.Resources.Requests != nil {
 		for _, xpu := range XPUList {
@@ -57,7 +56,7 @@ func GetDeviceNum(worker *v1alpha1.ModelWorker) int64 {
 	return sum
 }
 
-func NewModelOwnerRef(model *v1alpha1.ModelBooster) metav1.OwnerReference {
+func NewModelOwnerRef(model *workloadv1alpha1.ModelBooster) metav1.OwnerReference {
 	return metav1.OwnerReference{
 		APIVersion:         workloadv1alpha1.GroupVersion.String(),
 		Kind:               workloadv1alpha1.ModelKind.Kind,

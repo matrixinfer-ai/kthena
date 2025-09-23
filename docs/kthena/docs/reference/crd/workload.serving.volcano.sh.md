@@ -62,7 +62,7 @@ _Appears in:_
 
 
 
-AutoscalingPolicyBinding is the Schema for the models API.
+AutoscalingPolicyBinding is the Schema for the autoscalingpolicybindings API.
 
 
 
