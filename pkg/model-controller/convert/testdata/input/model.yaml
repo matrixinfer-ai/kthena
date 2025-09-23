@@ -1,5 +1,5 @@
-apiVersion: registry.volcano.sh/v1alpha1
-kind: Model
+apiVersion: workload.serving.volcano.sh/v1alpha1
+kind: ModelBooster
 metadata:
   name: test-model
   namespace: default

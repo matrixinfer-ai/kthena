@@ -1,17 +1,17 @@
-apiVersion: registry.volcano.sh/v1alpha1
+apiVersion: workload.serving.volcano.sh/v1alpha1
 kind: AutoscalingPolicy
 metadata:
   labels:
-    registry.volcano.sh/backend-name: ""
-    registry.volcano.sh/managed-by: registry.volcano.sh
-    registry.volcano.sh/model-name: multi-backend-model
-    registry.volcano.sh/revision: 85879f66b9
-    registry.volcano.sh/model-uid: randomUID
+    workload.serving.volcano.sh/backend-name: ""
+    workload.serving.volcano.sh/managed-by: workload.serving.volcano.sh
+    workload.serving.volcano.sh/model-name: multi-backend-model
+    workload.serving.volcano.sh/revision: 85879f66b9
+    workload.serving.volcano.sh/model-uid: randomUID
   name: multi-backend-model
   namespace: dev
   ownerReferences:
-    - apiVersion: registry.volcano.sh/v1alpha1
-      kind: Model
+    - apiVersion: workload.serving.volcano.sh/v1alpha1
+      kind: ModelBooster
       name: multi-backend-model
       uid: randomUID
       controller: true

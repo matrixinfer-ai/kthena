@@ -4,16 +4,16 @@ metadata:
   name: ds-r1-qwen-7b-pd-ds-r1-qwen-7b-pd
   namespace: demo
   labels:
-    registry.volcano.sh/backend-name: ds-r1-qwen-7b-pd
-    registry.volcano.sh/managed-by: registry.volcano.sh
-    registry.volcano.sh/model-name: ds-r1-qwen-7b-pd
-    registry.volcano.sh/model-uid: randomUID
-    registry.volcano.sh/revision: 78767dc65
+    workload.serving.volcano.sh/backend-name: ds-r1-qwen-7b-pd
+    workload.serving.volcano.sh/managed-by: workload.serving.volcano.sh
+    workload.serving.volcano.sh/model-name: ds-r1-qwen-7b-pd
+    workload.serving.volcano.sh/model-uid: randomUID
+    workload.serving.volcano.sh/revision: 7497dd8fdf
   ownerReferences:
-    - apiVersion: registry.volcano.sh/v1alpha1
+    - apiVersion: workload.serving.volcano.sh/v1alpha1
       blockOwnerDeletion: true
       controller: true
-      kind: Model
+      kind: ModelBooster
       name: ds-r1-qwen-7b-pd
       uid: randomUID
 spec:
@@ -21,7 +21,7 @@ spec:
   inferenceEngine: "vLLM"
   workloadSelector:
     matchLabels:
-      registry.volcano.sh/model-uid: randomUID
+      workload.serving.volcano.sh/model-uid: randomUID
     pdGroup:
       groupKey: "modelinfer.volcano.sh/group-name"
       prefillLabels:

@@ -28,11 +28,11 @@ import (
 )
 
 const (
-	ModelNameLabelKey   = "registry.volcano.sh/model-name"
-	BackendNameLabelKey = "registry.volcano.sh/backend-name"
-	ManageBy            = "registry.volcano.sh/managed-by"
-	RevisionLabelKey    = "registry.volcano.sh/revision"
-	OwnerUIDKey         = "registry.volcano.sh/model-uid"
+	ModelNameLabelKey   = workload.GroupName + "/model-name"
+	BackendNameLabelKey = workload.GroupName + "/backend-name"
+	ManageBy            = workload.GroupName + "/managed-by"
+	RevisionLabelKey    = workload.GroupName + "/revision"
+	OwnerUIDKey         = workload.GroupName + "/model-uid"
 )
 
 func ReplaceEmbeddedPlaceholders(s string, values *map[string]interface{}) (string, error) {

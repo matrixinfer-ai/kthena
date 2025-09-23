@@ -2,16 +2,16 @@ apiVersion: workload.volcano.sh/v1alpha1
 kind: modelinfer
 metadata:
   labels:
-    registry.volcano.sh/backend-name: ds-r1-qwen-7b-pd
-    registry.volcano.sh/managed-by: registry.volcano.sh
-    registry.volcano.sh/model-name: ds-r1-qwen-7b-pd
-    registry.volcano.sh/model-uid: randomUID
-    registry.volcano.sh/revision: 67cc57ffd4
+    workload.serving.volcano.sh/backend-name: ds-r1-qwen-7b-pd
+    workload.serving.volcano.sh/managed-by: workload.serving.volcano.sh
+    workload.serving.volcano.sh/model-name: ds-r1-qwen-7b-pd
+    workload.serving.volcano.sh/model-uid: randomUID
+    workload.serving.volcano.sh/revision: 67cc57ffd4
   name: ds-r1-qwen-7b-pd-ds-r1-qwen-7b-pd
   namespace: demo
   ownerReferences:
-    - apiVersion: registry.volcano.sh/v1alpha1
-      kind: Model
+    - apiVersion: workload.serving.volcano.sh/v1alpha1
+      kind: ModelBooster
       name: ds-r1-qwen-7b-pd
       uid: randomUID
 spec:
