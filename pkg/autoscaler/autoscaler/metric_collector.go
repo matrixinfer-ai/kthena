@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -26,18 +26,18 @@ import (
 
 	io_prometheus_client "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
+	"github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	"github.com/volcano-sh/kthena/pkg/autoscaler/algorithm"
+	"github.com/volcano-sh/kthena/pkg/autoscaler/datastructure"
+	"github.com/volcano-sh/kthena/pkg/autoscaler/histogram"
+	"github.com/volcano-sh/kthena/pkg/autoscaler/util"
+	inferControllerUtils "github.com/volcano-sh/kthena/pkg/infer-controller/utils"
 	"istio.io/istio/pkg/util/sets"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	listerv1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/klog/v2"
-	"matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
-	"matrixinfer.ai/matrixinfer/pkg/autoscaler/algorithm"
-	"matrixinfer.ai/matrixinfer/pkg/autoscaler/datastructure"
-	"matrixinfer.ai/matrixinfer/pkg/autoscaler/histogram"
-	"matrixinfer.ai/matrixinfer/pkg/autoscaler/util"
-	inferControllerUtils "matrixinfer.ai/matrixinfer/pkg/infer-controller/utils"
 )
 
 type MetricCollector struct {

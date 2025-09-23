@@ -1,12 +1,12 @@
-# Redis Deployment for MatrixInfer
+# Redis Deployment for Kthena
 
-This directory contains Redis deployment configuration for MatrixInfer.
+This directory contains Redis deployment configuration for Kthena.
 
 ## When to Deploy Redis
 
-Redis is required when using the following MatrixInfer features:
+Redis is required when using the following Kthena features:
 - **KV Cache Aware Plugin** - For caching key-value pairs to improve performance
-- **Global Rate Limit** - To share and synchronize the token counts across all gateway pods
+- **Global Rate Limit** - To share and synchronize the token counts across all router pods
 
 ## Quick Start
 
@@ -19,11 +19,11 @@ kubectl apply -f redis-standalone.yaml -n <namespace>
 This will create:
 - Redis server deployment
 - Redis service
-- Required ConfigMap and Secret for MatrixInfer integration
+- Required ConfigMap and Secret for Kthena integration
 
 ## Configuration
 
-The deployment creates the following resources that MatrixInfer components automatically use:
+The deployment creates the following resources that Kthena components automatically use:
 
 - **ConfigMap** (`redis-config`): Contains Redis connection information
   - `REDIS_HOST`: `redis-server`
@@ -31,7 +31,7 @@ The deployment creates the following resources that MatrixInfer components autom
 
 - **Secret** (`redis-secret`): Contains Redis authentication (empty password by default)
 
-**Note**: If Redis is not deployed, MatrixInfer components will start normally with Redis features disabled. All Redis environment variables are configured as optional.
+**Note**: If Redis is not deployed, Kthena components will start normally with Redis features disabled. All Redis environment variables are configured as optional.
 
 ## Production Considerations
 
@@ -48,15 +48,15 @@ The provided configuration is suitable for development and testing. For producti
 
 If you have an existing Redis deployment or prefer a different configuration:
 
-1. Ensure Redis is accessible from the MatrixInfer namespace
-2. Create the required ConfigMap and Secret in the same namespace as MatrixInfer:
+1. Ensure Redis is accessible from the Kthena namespace
+2. Create the required ConfigMap and Secret in the same namespace as Kthena:
 
 ```yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: redis-config
-  namespace: <your-namespace>  # Same namespace as MatrixInfer
+  namespace: <your-namespace>  # Same namespace as Kthena
 data:
   REDIS_HOST: "your-redis-host"
   REDIS_PORT: "6379"
@@ -65,7 +65,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: redis-secret
-  namespace: <your-namespace>  # Same namespace as MatrixInfer
+  namespace: <your-namespace>  # Same namespace as Kthena
 type: Opaque
 data:
   REDIS_PASSWORD: "base64-encoded-password"  # Use empty string "" for no password

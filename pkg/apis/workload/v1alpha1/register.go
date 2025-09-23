@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import (
 )
 
 // GroupName specifies the group name used to register the objects.
-const GroupName = "workload.matrixinfer.ai"
+const GroupName = "workload.volcano.sh"
 
 // GroupVersion specifies the group and the version used to register the objects.
 var GroupVersion = v1.GroupVersion{Group: GroupName, Version: "v1alpha1"}

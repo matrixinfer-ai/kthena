@@ -20,14 +20,14 @@ on:
 
 jobs:
   build:
-    if: github.repository == 'matrixinfer-ai/matrixinfer'
+    if: github.repository == 'volcano-sh/kthena'
     runs-on: ubuntu-latest
     strategy:
       matrix:
         service:
           - autoscaler
-          - infer-gateway
-          - infer-gateway-webhook
+          - infer-router
+          - infer-router-webhook
           - model-controller
           - infer-controller
           - modelinfer-webhook

@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,14 +19,14 @@ package autoscaler
 import (
 	"context"
 
+	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
+	workloadLister "github.com/volcano-sh/kthena/client-go/listers/workload/v1alpha1"
+	"github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	"github.com/volcano-sh/kthena/pkg/autoscaler/algorithm"
+	"github.com/volcano-sh/kthena/pkg/autoscaler/util"
 	"k8s.io/apimachinery/pkg/types"
 	listerv1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/klog/v2"
-	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
-	workloadLister "matrixinfer.ai/matrixinfer/client-go/listers/workload/v1alpha1"
-	"matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
-	"matrixinfer.ai/matrixinfer/pkg/autoscaler/algorithm"
-	"matrixinfer.ai/matrixinfer/pkg/autoscaler/util"
 )
 
 type Autoscaler struct {

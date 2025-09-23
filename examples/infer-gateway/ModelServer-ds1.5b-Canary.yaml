@@ -1,4 +1,4 @@
-apiVersion: networking.matrixinfer.ai/v1alpha1
+apiVersion: networking.serving.volcano.sh/v1alpha1
 kind: ModelServer
 metadata:
   name: deepseek-r1-1-5b-v1
@@ -17,7 +17,7 @@ spec:
 
 ---
 
-apiVersion: networking.matrixinfer.ai/v1alpha1
+apiVersion: networking.serving.volcano.sh/v1alpha1
 kind: ModelServer
 metadata:
   name: deepseek-r1-1-5b-v2

@@ -1,0 +1,36 @@
+{{- if .Values.webhook.enabled }}
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: {{ include "kthena.name" . }}-workload-validating-webhook
+  labels:
+    app.kubernetes.io/component: webhook
+    {{- include "kthena.labels" . | nindent 4 }}
+  {{- if .Values.global.certManager.enabled }}
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "kthena.name" . }}-webhook-cert
+  {{- end }}
+webhooks:
+  - name: validate-workload-kthena-ai-v1alpha1-model.kthena.ai
+    admissionReviewVersions: [ "v1" ]
+    sideEffects: None
+    failurePolicy: Fail
+    timeoutSeconds: 30
+    clientConfig:
+      service:
+        name: {{ include "kthena.name" . }}-webhook
+        namespace: {{ .Release.Namespace }}
+        path: "/validate-workload-ai-v1alpha1-modelinfer"
+        port: 443
+      {{- if .Values.global.certManager.enabled }}
+      caBundle: ""
+      {{- else }}
+      caBundle: {{ required "A caBundle is required for the workload validating webhook when cert-manager is disabled (global.webhook.caBundle)" .Values.global.webhook.caBundle | quote }}
+      {{- end }}
+    rules:
+      - apiGroups: [ "workload.kthena.ai" ]
+        apiVersions: [ "v1alpha1" ]
+        resources: [ "modelinfers" ]
+        operations: [ "CREATE", "UPDATE" ]
+        scope: "Namespaced"
+{{- end }}

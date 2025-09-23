@@ -1,16 +1,16 @@
-apiVersion: networking.matrixinfer.ai/v1alpha1
+apiVersion: networking.serving.volcano.sh/v1alpha1
 kind: ModelServer
 metadata:
   name: ds-r1-qwen-7b-pd-ds-r1-qwen-7b-pd
   namespace: demo
   labels:
-    registry.matrixinfer.ai/backend-name: ds-r1-qwen-7b-pd
-    registry.matrixinfer.ai/managed-by: registry.matrixinfer.ai
-    registry.matrixinfer.ai/model-name: ds-r1-qwen-7b-pd
-    registry.matrixinfer.ai/model-uid: randomUID
-    registry.matrixinfer.ai/revision: 76cdf44cd5
+    registry.volcano.sh/backend-name: ds-r1-qwen-7b-pd
+    registry.volcano.sh/managed-by: registry.volcano.sh
+    registry.volcano.sh/model-name: ds-r1-qwen-7b-pd
+    registry.volcano.sh/model-uid: randomUID
+    registry.volcano.sh/revision: 78767dc65
   ownerReferences:
-    - apiVersion: registry.matrixinfer.ai/v1alpha1
+    - apiVersion: registry.volcano.sh/v1alpha1
       blockOwnerDeletion: true
       controller: true
       kind: Model
@@ -21,13 +21,13 @@ spec:
   inferenceEngine: "vLLM"
   workloadSelector:
     matchLabels:
-      registry.matrixinfer.ai/model-uid: randomUID
+      registry.volcano.sh/model-uid: randomUID
     pdGroup:
-      groupKey: "modelinfer.matrixinfer.ai/group-name"
+      groupKey: "modelinfer.volcano.sh/group-name"
       prefillLabels:
-        modelinfer.matrixinfer.ai/role: prefill
+        modelinfer.volcano.sh/role: prefill
       decodeLabels:
-        modelinfer.matrixinfer.ai/role: decode
+        modelinfer.volcano.sh/role: decode
   workloadPort:
     port: 8000
   trafficPolicy:

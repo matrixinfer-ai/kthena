@@ -1,0 +1,22 @@
+{{- if and .Values.inferRouter.enabled .Values.global.certManager.enabled .Values.inferRouter.tls.enabled }}
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ include "kthena.name" . }}-router-issuer
+  namespace: {{ .Release.Namespace }}
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "kthena.name" . }}-router-cert
+  namespace: {{ .Release.Namespace }}
+spec:
+  dnsNames:
+    - {{ .Values.inferRouter.tls.dnsName }}
+  issuerRef:
+    kind: Issuer
+    name: {{ include "kthena.name" . }}-router-issuer
+  secretName: {{ .Values.inferRouter.tls.secretName }}
+{{- end }}

@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/types"
 
-	"matrixinfer.ai/matrixinfer/pkg/infer-controller/utils"
+	"github.com/volcano-sh/kthena/pkg/infer-controller/utils"
 )
 
 // Store is an interface for storing and retrieving data

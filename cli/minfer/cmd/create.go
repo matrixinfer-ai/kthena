@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,6 +24,9 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/volcano-sh/kthena/client-go/clientset/versioned"
+	registryv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	workloadv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/engine"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,9 +34,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/tools/clientcmd"
-	"matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
-	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
-	workloadv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 	"sigs.k8s.io/yaml"
 )
 
@@ -49,17 +49,17 @@ var (
 // createCmd represents the create command
 var createCmd = &cobra.Command{
 	Use:   "create",
-	Short: "Create MatrixInfer resources",
-	Long:  `Create MatrixInfer resources using predefined manifests and templates.`,
+	Short: "Create kthena resources",
+	Long:  `Create kthena resources using predefined manifests and templates.`,
 }
 
 // manifestCmd represents the create manifest command
 var manifestCmd = &cobra.Command{
 	Use:   "manifest",
 	Short: "Create resources from a manifest template",
-	Long: `Create MatrixInfer resources from predefined manifest templates.
+	Long: `Create kthena resources from predefined manifest templates.
 
-Manifests are predefined combinations of MatrixInfer resources that can be
+Manifests are predefined combinations of kthena resources that can be
 customized with your specific values. This command will:
 1. Render the template with your provided values
 2. Show you the resulting YAML
@@ -231,10 +231,10 @@ func applyResources(yamlContent string) error {
 		return fmt.Errorf("failed to load kubeconfig: %v", err)
 	}
 
-	// Create MatrixInfer client
+	// Create kthena client
 	client, err := versioned.NewForConfig(config)
 	if err != nil {
-		return fmt.Errorf("failed to create MatrixInfer client: %v", err)
+		return fmt.Errorf("failed to create kthena client: %v", err)
 	}
 
 	ctx := context.Background()
@@ -269,7 +269,7 @@ func applyResources(yamlContent string) error {
 		fmt.Println()
 
 		// Apply based on resource type
-		if err := applyMatrixInferResource(ctx, client, obj); err != nil {
+		if err := applyKthenaResource(ctx, client, obj); err != nil {
 			return fmt.Errorf("failed to apply %s %s: %v", gvk.Kind, resourceName, err)
 		}
 
@@ -280,7 +280,7 @@ func applyResources(yamlContent string) error {
 	return nil
 }
 
-func applyMatrixInferResource(ctx context.Context, client *versioned.Clientset, obj *unstructured.Unstructured) error {
+func applyKthenaResource(ctx context.Context, client *versioned.Clientset, obj *unstructured.Unstructured) error {
 	gvk := obj.GetObjectKind().GroupVersionKind()
 	resourceName := obj.GetName()
 	resourceNamespace := obj.GetNamespace()

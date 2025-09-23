@@ -1,4 +1,4 @@
-apiVersion: registry.matrixinfer.ai/v1alpha1
+apiVersion: registry.volcano.sh/v1alpha1
 kind: Model
 metadata:
   annotations:
@@ -10,7 +10,7 @@ spec:
   backends:
     - name: "qwen25-coder-32b-server"
       type: "vLLM"
-      modelURI: s3://matrixinfer/Qwen/Qwen2.5-Coder-32B-Instruct
+      modelURI: s3://kthena/Qwen/Qwen2.5-Coder-32B-Instruct
       cacheURI: hostpath:///cache/
       envFrom:
         - secretRef:

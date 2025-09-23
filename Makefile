@@ -1,5 +1,5 @@
 # Image URL to use all building/pushing image targets
-HUB ?= ghcr.io/matrixinfer-ai
+HUB ?= ghcr.io/volcano-sh
 TAG ?= latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0
@@ -48,17 +48,17 @@ help: ## Display this help.
 
 .PHONY: gen-crd
 gen-crd: controller-gen 
-	$(CONTROLLER_GEN) crd paths="./pkg/apis/networking/..." output:crd:artifacts:config=charts/matrixinfer/charts/networking/crds
-	$(CONTROLLER_GEN) crd paths="./pkg/apis/workload/..." output:crd:artifacts:config=charts/matrixinfer/charts/workload/crds
-	$(CONTROLLER_GEN) crd paths="./pkg/apis/registry/..." output:crd:artifacts:config=charts/matrixinfer/charts/registry/crds
+	$(CONTROLLER_GEN) crd paths="./pkg/apis/networking/..." output:crd:artifacts:config=charts/kthena/charts/networking/crds
+	$(CONTROLLER_GEN) crd paths="./pkg/apis/workload/..." output:crd:artifacts:config=charts/kthena/charts/workload/crds
+	$(CONTROLLER_GEN) crd paths="./pkg/apis/registry/..." output:crd:artifacts:config=charts/kthena/charts/registry/crds
 
 .PHONY: gen-docs
 gen-docs: crd-ref-docs ## Generate CRD and CLI reference documentation
-	mkdir -p docs/matrixinfer/docs/api
+	mkdir -p docs/kthena/docs/api
 	$(CRD_REF_DOCS) \
 		--source-path=./pkg/apis \
-		--config=docs/matrixinfer/crd-ref-docs-config.yaml \
-		--output-path=docs/matrixinfer/docs/reference/crd \
+		--config=docs/kthena/crd-ref-docs-config.yaml \
+		--output-path=docs/kthena/docs/reference/crd \
 		--renderer=markdown \
 		--output-mode=group
 	# Generate Minfer CLI docs using a standalone doc-gen program
@@ -116,25 +116,25 @@ lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 .PHONY: build
 build: generate fmt vet
 	go build -o bin/infer-controller cmd/infer-controller/main.go
-	go build -o bin/infer-gateway cmd/infer-gateway/main.go
+	go build -o bin/infer-router cmd/infer-router/main.go
 	go build -o bin/model-controller cmd/model-controller/main.go
 	go build -o bin/autoscaler cmd/autoscaler/main.go
 	go build -o bin/registry-webhook cmd/registry-webhook/main.go
 	go build -o bin/infer-webhook cmd/modelinfer-webhook/main.go
-	go build -o bin/infer-gateway-webhook cmd/infer-gateway-webhook/main.go
+	go build -o bin/infer-router-webhook cmd/infer-router-webhook/main.go
 	go build -o bin/minfer cli/minfer/main.go
 
 IMG_MODELINFER ?= ${HUB}/infer-controller:${TAG}
 IMG_MODELCONTROLLER ?= ${HUB}/model-controller:${TAG}
 IMG_AUTOSCALER ?= ${HUB}/autoscaler:${TAG}
-IMG_GATEWAY ?= ${HUB}/infer-gateway:${TAG}
+IMG_ROUTER ?= ${HUB}/infer-router:${TAG}
 IMG_REGISTRY_WEBHOOK ?= ${HUB}/registry-webhook:${TAG}
 IMG_MODELINFER_WEBHOOK ?= ${HUB}/modelinfer-webhook:${TAG}
-IMG_INFER_GATEWAY_WEBHOOK ?= ${HUB}/infer-gateway-webhook:${TAG}
+IMG_INFER_ROUTER_WEBHOOK ?= ${HUB}/infer-router-webhook:${TAG}
 
-.PHONY: docker-build-gateway
-docker-build-gateway: generate
-	$(CONTAINER_TOOL) build -t ${IMG_GATEWAY} -f docker/Dockerfile.infer-gateway .
+.PHONY: docker-build-router
+docker-build-router: generate
+	$(CONTAINER_TOOL) build -t ${IMG_ROUTER} -f docker/Dockerfile.infer-router .
 
 .PHONY: docker-build-modelinfer
 docker-build-modelinfer: generate 
@@ -156,19 +156,19 @@ docker-build-registry-webhook: generate
 docker-build-modelinfer-webhook: generate
 	$(CONTAINER_TOOL) build -t ${IMG_MODELINFER_WEBHOOK} -f docker/Dockerfile.modelinfer-webhook .
 
-.PHONY: docker-build-infer-gateway-webhook
-docker-build-infer-gateway-webhook: generate
-	$(CONTAINER_TOOL) build -t ${IMG_INFER_GATEWAY_WEBHOOK} -f docker/Dockerfile.infer-gateway-webhook .
+.PHONY: docker-build-infer-router-webhook
+docker-build-infer-router-webhook: generate
+	$(CONTAINER_TOOL) build -t ${IMG_INFER_ROUTER_WEBHOOK} -f docker/Dockerfile.infer-router-webhook .
 
 .PHONY: docker-push
-docker-push: docker-build-gateway docker-build-modelinfer docker-build-modelcontroller docker-build-registry-webhook docker-build-modelinfer-webhook docker-build-autoscaler docker-build-infer-gateway-webhook ## Push all images to the registry.
-	$(CONTAINER_TOOL) push ${IMG_GATEWAY}
+docker-push: docker-build-router docker-build-modelinfer docker-build-modelcontroller docker-build-registry-webhook docker-build-modelinfer-webhook docker-build-autoscaler docker-build-infer-router-webhook ## Push all images to the registry.
+	$(CONTAINER_TOOL) push ${IMG_ROUTER}
 	$(CONTAINER_TOOL) push ${IMG_MODELINFER}
 	$(CONTAINER_TOOL) push ${IMG_MODELCONTROLLER}
 	$(CONTAINER_TOOL) push ${IMG_AUTOSCALER}
 	$(CONTAINER_TOOL) push ${IMG_REGISTRY_WEBHOOK}
 	$(CONTAINER_TOOL) push ${IMG_MODELINFER_WEBHOOK}
-	$(CONTAINER_TOOL) push ${IMG_INFER_GATEWAY_WEBHOOK}
+	$(CONTAINER_TOOL) push ${IMG_INFER_ROUTER_WEBHOOK}
 
 # PLATFORMS defines the target platforms for the images be built to provide support to multiple
 # architectures.
@@ -182,8 +182,8 @@ PLATFORMS ?= linux/arm64,linux/amd64
 docker-buildx: ## Build and push docker image for cross-platform support
 	$(CONTAINER_TOOL) buildx build \
 		--platform ${PLATFORMS} \
-		-t ${IMG_GATEWAY} \
-		-f docker/Dockerfile.gateway \
+		-t ${IMG_ROUTER} \
+		-f docker/Dockerfile.router \
 		--push .
 	$(CONTAINER_TOOL) buildx build \
 		--platform ${PLATFORMS}\
@@ -212,8 +212,8 @@ docker-buildx: ## Build and push docker image for cross-platform support
 		--push .
 	$(CONTAINER_TOOL) buildx build \
 		--platform ${PLATFORMS} \
-		-t ${IMG_INFER_GATEWAY_WEBHOOK} \
-		-f docker/Dockerfile.infergateway.webhook \
+		-t ${IMG_INFER_ROUTER_WEBHOOK} \
+		-f docker/Dockerfile.inferrouter.webhook \
 		--push .
 
 ##@ Deployment

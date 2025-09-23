@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,9 +25,9 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/volcano-sh/kthena/client-go/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
-	"matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
 	"sigs.k8s.io/yaml"
 )
 
@@ -60,7 +60,7 @@ var getTemplatesCmd = &cobra.Command{
 	Short: "List available manifest templates",
 	Long: `List all available manifest templates that can be used with minfer commands.
 
-Templates are predefined combinations of MatrixInfer resources that can be
+Templates are predefined combinations of kthena resources that can be
 customized with your specific values.`,
 	RunE: runGetTemplates,
 }
@@ -217,7 +217,7 @@ func runGetTemplate(cmd *cobra.Command, args []string) error {
 	return w.Flush()
 }
 
-func getGetMatrixInferClient() (*versioned.Clientset, error) {
+func getKthenaClient() (*versioned.Clientset, error) {
 	config, err := clientcmd.BuildConfigFromFlags("", clientcmd.RecommendedHomeFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load kubeconfig: %v", err)
@@ -225,7 +225,7 @@ func getGetMatrixInferClient() (*versioned.Clientset, error) {
 
 	client, err := versioned.NewForConfig(config)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create MatrixInfer client: %v", err)
+		return nil, fmt.Errorf("failed to create kthena client: %v", err)
 	}
 
 	return client, nil
@@ -242,7 +242,7 @@ func resolveGetNamespace() string {
 }
 
 func runGetModels(cmd *cobra.Command, args []string) error {
-	client, err := getGetMatrixInferClient()
+	client, err := getKthenaClient()
 	if err != nil {
 		return err
 	}
@@ -306,7 +306,7 @@ func runGetModels(cmd *cobra.Command, args []string) error {
 }
 
 func runGetModelInfers(cmd *cobra.Command, args []string) error {
-	client, err := getGetMatrixInferClient()
+	client, err := getKthenaClient()
 	if err != nil {
 		return err
 	}
@@ -350,7 +350,7 @@ func runGetModelInfers(cmd *cobra.Command, args []string) error {
 }
 
 func runGetAutoscalingPolicies(cmd *cobra.Command, args []string) error {
-	client, err := getGetMatrixInferClient()
+	client, err := getKthenaClient()
 	if err != nil {
 		return err
 	}
@@ -394,7 +394,7 @@ func runGetAutoscalingPolicies(cmd *cobra.Command, args []string) error {
 }
 
 func runGetAutoscalingPolicyBindings(cmd *cobra.Command, args []string) error {
-	client, err := getGetMatrixInferClient()
+	client, err := getKthenaClient()
 	if err != nil {
 		return err
 	}

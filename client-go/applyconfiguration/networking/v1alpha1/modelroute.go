@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,10 +19,10 @@ limitations under the License.
 package v1alpha1
 
 import (
+	networkingv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	v1 "k8s.io/client-go/applyconfigurations/meta/v1"
-	networkingv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 )
 
 // ModelRouteApplyConfiguration represents a declarative configuration of the ModelRoute type for use
@@ -41,7 +41,7 @@ func ModelRoute(name, namespace string) *ModelRouteApplyConfiguration {
 	b.WithName(name)
 	b.WithNamespace(namespace)
 	b.WithKind("ModelRoute")
-	b.WithAPIVersion("networking.matrixinfer.ai/v1alpha1")
+	b.WithAPIVersion("networking.serving.volcano.sh/v1alpha1")
 	return b
 }
 

@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 
-	workloadv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
+	workloadv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 )
 
 const (
@@ -99,10 +99,8 @@ func GenerateEntryPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfe
 	entryPod.ObjectMeta.Labels[workloadv1alpha1.EntryLabelKey] = Entry
 	addPodLabelAndAnnotation(entryPod, role.EntryTemplate.Metadata)
 	entryPod.Spec = role.EntryTemplate.Spec
-	entryPod.Spec.Hostname = entryPodName
-	entryPod.Spec.Subdomain = entryPodName
 	// Build environment variables into each container of all pod
-	envVars := createCommonEnvVars(role, mi, entryPod, 0)
+	envVars := createCommonEnvVars(role, entryPod, 0)
 	addPodEnvVars(entryPod, envVars...)
 	return entryPod
 }
@@ -113,7 +111,7 @@ func GenerateWorkerPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInf
 	addPodLabelAndAnnotation(workerPod, role.WorkerTemplate.Metadata)
 	workerPod.Spec = role.WorkerTemplate.Spec
 	// Build environment variables into each container of all pod
-	envVars := createCommonEnvVars(role, mi, entryPod, podIndex)
+	envVars := createCommonEnvVars(role, entryPod, podIndex)
 	addPodEnvVars(workerPod, envVars...)
 	return workerPod
 }
@@ -157,15 +155,16 @@ func addPodLabelAndAnnotation(pod *corev1.Pod, metadata *workloadv1alpha1.Metada
 	}
 }
 
-func createCommonEnvVars(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, entryPod *corev1.Pod, workerIndex int) []corev1.EnvVar {
+func createCommonEnvVars(role workloadv1alpha1.Role, entryPod *corev1.Pod, workerIndex int) []corev1.EnvVar {
 	return []corev1.EnvVar{
 		{
 			Name:  workloadv1alpha1.GroupSizeEnv,
 			Value: strconv.Itoa(int(role.WorkerReplicas) + 1),
 		},
 		{
-			Name:  workloadv1alpha1.EntryAddressEnv,
-			Value: fmt.Sprintf("%s.%s.%s", entryPod.Spec.Hostname, entryPod.Spec.Subdomain, mi.Namespace),
+			Name: workloadv1alpha1.EntryAddressEnv,
+			// entryPod name as same as headless service name
+			Value: entryPod.GetName() + "." + entryPod.Namespace,
 		},
 		{
 			Name:  workloadv1alpha1.WorkerIndexEnv,
@@ -223,7 +222,8 @@ func newModelInferOwnerRef(mi *workloadv1alpha1.ModelInfer) metav1.OwnerReferenc
 	}
 }
 
-func CreateHeadlessService(ctx context.Context, k8sClient kubernetes.Interface, mi *workloadv1alpha1.ModelInfer, serviceName string, serviceSelector map[string]string, groupName, roleLabel string, roleIndex int) error {
+func CreateHeadlessService(ctx context.Context, k8sClient kubernetes.Interface, mi *workloadv1alpha1.ModelInfer, serviceSelector map[string]string, groupName, roleLabel string, roleIndex int) error {
+	serviceName := generateEntryPodName(groupName, GenerateRoleID(roleLabel, roleIndex))
 	headlessService := corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      serviceName,

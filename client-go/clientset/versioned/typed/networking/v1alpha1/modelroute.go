@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,13 +21,13 @@ package v1alpha1
 import (
 	context "context"
 
+	applyconfigurationnetworkingv1alpha1 "github.com/volcano-sh/kthena/client-go/applyconfiguration/networking/v1alpha1"
+	scheme "github.com/volcano-sh/kthena/client-go/clientset/versioned/scheme"
+	networkingv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	gentype "k8s.io/client-go/gentype"
-	applyconfigurationnetworkingv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/networking/v1alpha1"
-	scheme "matrixinfer.ai/matrixinfer/client-go/clientset/versioned/scheme"
-	networkingv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
 )
 
 // ModelRoutesGetter has a method to return a ModelRouteInterface.

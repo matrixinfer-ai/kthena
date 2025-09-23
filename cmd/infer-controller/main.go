@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,10 +28,10 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/spf13/pflag"
-	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
+	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
 	volcanoClientSet "volcano.sh/apis/pkg/client/clientset/versioned"
 
-	"matrixinfer.ai/matrixinfer/pkg/infer-controller/controller"
+	"github.com/volcano-sh/kthena/pkg/infer-controller/controller"
 )
 
 type modelInferConfig struct {

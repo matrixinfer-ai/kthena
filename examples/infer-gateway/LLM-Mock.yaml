@@ -1,9 +1,9 @@
 # This example shows how to deploy a mock vLLM server for testing.
 # The mock server will return a fixed response for any input.
-# You can use this mock server to test the inference gateway without deploying a real LLM server.
+# You can use this mock server to test the inference router without deploying a real LLM server.
 #
 # NOTE: `ghcr.io/yaozengzeng/vllm-mock:latest` is built based on `https://github.com/YaoZengzeng/aibrix/tree/vllm-mock`.
-# Move the image to matrixinfer registry once it's public.
+# Move the image to kthena registry once it's public.
 
 apiVersion: apps/v1
 kind: Deployment
@@ -31,7 +31,7 @@ spec:
             - python3
             - app.py
 ---
-apiVersion: networking.matrixinfer.ai/v1alpha1
+apiVersion: networking.serving.volcano.sh/v1alpha1
 kind: ModelRoute
 metadata:
   name: llama
@@ -42,7 +42,7 @@ spec:
     targetModels:
     - modelServerName: "llama"
 ---
-apiVersion: networking.matrixinfer.ai/v1alpha1
+apiVersion: networking.serving.volcano.sh/v1alpha1
 kind: ModelServer
 metadata:
   name: llama

@@ -1,4 +1,4 @@
-apiVersion: workload.matrixinfer.ai/v1alpha1
+apiVersion: workload.volcano.sh/v1alpha1
 kind: modelinfer
 metadata: ${MODEL_INFER_TEMPLATE_METADATA}
 spec:
@@ -18,11 +18,6 @@ spec:
   replicas: ${BACKEND_REPLICAS}
   template:
     restartGracePeriodSeconds: 60
-    networkTopology:
-      mode: hard
-      highestTierAllowed: 2
-    gangScheduling:
-      minMember: 4
     roles:
       - name: leader
         replicas: ${SERVER_REPLICAS}

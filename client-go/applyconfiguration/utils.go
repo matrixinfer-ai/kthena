@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,23 +19,23 @@ limitations under the License.
 package applyconfiguration
 
 import (
+	internal "github.com/volcano-sh/kthena/client-go/applyconfiguration/internal"
+	networkingv1alpha1 "github.com/volcano-sh/kthena/client-go/applyconfiguration/networking/v1alpha1"
+	applyconfigurationregistryv1alpha1 "github.com/volcano-sh/kthena/client-go/applyconfiguration/registry/v1alpha1"
+	applyconfigurationworkloadv1alpha1 "github.com/volcano-sh/kthena/client-go/applyconfiguration/workload/v1alpha1"
+	v1alpha1 "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
+	registryv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	workloadv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	testing "k8s.io/client-go/testing"
-	internal "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/internal"
-	networkingv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/networking/v1alpha1"
-	applyconfigurationregistryv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/registry/v1alpha1"
-	applyconfigurationworkloadv1alpha1 "matrixinfer.ai/matrixinfer/client-go/applyconfiguration/workload/v1alpha1"
-	v1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
-	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
-	workloadv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
 )
 
 // ForKind returns an apply configuration type for the given GroupVersionKind, or nil if no
 // apply configuration type exists for the given GroupVersionKind.
 func ForKind(kind schema.GroupVersionKind) interface{} {
 	switch kind {
-	// Group=networking.matrixinfer.ai, Version=v1alpha1
+	// Group=networking.serving.volcano.sh, Version=v1alpha1
 	case v1alpha1.SchemeGroupVersion.WithKind("BodyMatch"):
 		return &networkingv1alpha1.BodyMatchApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("GlobalRateLimit"):
@@ -73,7 +73,7 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 	case v1alpha1.SchemeGroupVersion.WithKind("WorkloadSelector"):
 		return &networkingv1alpha1.WorkloadSelectorApplyConfiguration{}
 
-		// Group=registry.matrixinfer.ai, Version=v1alpha1
+		// Group=registry.volcano.sh, Version=v1alpha1
 	case registryv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicy"):
 		return &applyconfigurationregistryv1alpha1.AutoscalingPolicyApplyConfiguration{}
 	case registryv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyBehavior"):
@@ -117,7 +117,7 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 	case registryv1alpha1.SchemeGroupVersion.WithKind("Target"):
 		return &applyconfigurationregistryv1alpha1.TargetApplyConfiguration{}
 
-		// Group=workload.matrixinfer.ai, Version=v1alpha1
+		// Group=workload.volcano.sh, Version=v1alpha1
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("GangSchedule"):
 		return &applyconfigurationworkloadv1alpha1.GangScheduleApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("InferGroup"):

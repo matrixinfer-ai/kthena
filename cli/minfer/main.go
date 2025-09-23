@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ package main
 import (
 	"embed"
 
-	"matrixinfer.ai/matrixinfer/cli/minfer/cmd"
+	"github.com/volcano-sh/kthena/cli/minfer/cmd"
 )
 
 //go:embed helm/templates/**/*.yaml

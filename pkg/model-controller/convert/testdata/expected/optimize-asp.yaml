@@ -1,16 +1,16 @@
-apiVersion: registry.matrixinfer.ai/v1alpha1
+apiVersion: registry.volcano.sh/v1alpha1
 kind: AutoscalingPolicy
 metadata:
   labels:
-    registry.matrixinfer.ai/backend-name: ""
-    registry.matrixinfer.ai/managed-by: registry.matrixinfer.ai
-    registry.matrixinfer.ai/model-name: multi-backend-model
-    registry.matrixinfer.ai/revision: 6b6dcc55dc
-    registry.matrixinfer.ai/model-uid: randomUID
+    registry.volcano.sh/backend-name: ""
+    registry.volcano.sh/managed-by: registry.volcano.sh
+    registry.volcano.sh/model-name: multi-backend-model
+    registry.volcano.sh/revision: 85879f66b9
+    registry.volcano.sh/model-uid: randomUID
   name: multi-backend-model
   namespace: dev
   ownerReferences:
-    - apiVersion: registry.matrixinfer.ai/v1alpha1
+    - apiVersion: registry.volcano.sh/v1alpha1
       kind: Model
       name: multi-backend-model
       uid: randomUID
@@ -18,5 +18,5 @@ metadata:
       blockOwnerDeletion: true
 spec:
   metrics:
-    - metricName: "matrixinfer:num_requests_waiting"
+    - metricName: "kthena:num_requests_waiting"
       targetValue: 10

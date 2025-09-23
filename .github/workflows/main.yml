@@ -1,4 +1,4 @@
-name: Matrixinfer CI Workflow
+name: kthena CI Workflow
 
 on:
   pull_request:
@@ -42,7 +42,7 @@ jobs:
       - name: helm lint
         shell: bash
         run: |
-          helm lint charts/matrixinfer
+          helm lint charts/kthena
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -51,7 +51,7 @@ jobs:
         shell: bash
         run: |
           make lint
-      - name: Build matrixinfer
+      - name: Build Kthena
         shell: bash
         run: |
           make gen-check

@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -32,5 +32,5 @@ limitations under the License.
 
 // +k8s:openai-gen=true
 // +kubebuilder:object:generate=true
-// +groupName=registry.matrixinfer.ai
+// +groupName=registry.volcano.sh
 package v1alpha1

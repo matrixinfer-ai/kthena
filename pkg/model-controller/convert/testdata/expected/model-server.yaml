@@ -1,16 +1,16 @@
-apiVersion: networking.matrixinfer.ai/v1alpha1
+apiVersion: networking.serving.volcano.sh/v1alpha1
 kind: ModelServer
 metadata:
   name: test-model-backend1
   namespace: default
   labels:
-    registry.matrixinfer.ai/backend-name: backend1
-    registry.matrixinfer.ai/managed-by: registry.matrixinfer.ai
-    registry.matrixinfer.ai/model-name: test-model
-    registry.matrixinfer.ai/model-uid: randomUID
-    registry.matrixinfer.ai/revision: 57db76469c
+    registry.volcano.sh/backend-name: backend1
+    registry.volcano.sh/managed-by: registry.volcano.sh
+    registry.volcano.sh/model-name: test-model
+    registry.volcano.sh/model-uid: randomUID
+    registry.volcano.sh/revision: 6f7564b9f
   ownerReferences:
-    - apiVersion: registry.matrixinfer.ai/v1alpha1
+    - apiVersion: registry.volcano.sh/v1alpha1
       blockOwnerDeletion: true
       controller: true
       kind: Model
@@ -21,7 +21,7 @@ spec:
   inferenceEngine: "vLLM"
   workloadSelector:
     matchLabels:
-      registry.matrixinfer.ai/model-uid: randomUID
+      registry.volcano.sh/model-uid: randomUID
   workloadPort:
     port: 8000
   trafficPolicy:

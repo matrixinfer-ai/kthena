@@ -1,7 +1,7 @@
-# MatrixInfer
+# Kthena
 
 <p align="center">
-  <img src="docs/proposal/images/matrixInfer-arch.svg" alt="MatrixInfer Architecture" width="800"/>
+  <img src="docs/proposal/images/kthena-arch.svg" alt="Kthena Architecture" width="800"/>
 </p>
 
 <p align="center">
@@ -15,9 +15,9 @@
 
 ## Overview
 
-**MatrixInfer** is a Kubernetes-native LLM inference platform that provides declarative model lifecycle management and intelligent request routing for production deployments.
+**Kthena** is a Kubernetes-native LLM inference platform that provides declarative model lifecycle management and intelligent request routing for production deployments.
 
-The platform extends Kubernetes with Custom Resource Definitions (CRDs) for managing LLM workloads, supporting multiple inference engines (vLLM, SGLang) and advanced serving patterns like prefill-decode disaggregation. MatrixInfer's architecture separates control plane operations (model lifecycle, autoscaling policies) from data plane traffic routing through an intelligent gateway.
+The platform extends Kubernetes with Custom Resource Definitions (CRDs) for managing LLM workloads, supporting multiple inference engines (vLLM, SGLang) and advanced serving patterns like prefill-decode disaggregation. Kthena's architecture separates control plane operations (model lifecycle, autoscaling policies) from data plane traffic routing through an intelligent router.
 
 ## Key Features
 
@@ -40,36 +40,37 @@ The platform extends Kubernetes with Custom Resource Definitions (CRDs) for mana
 -   **Policy Binding**: Granular autoscaling policy assignment to specific model deployments not limited to `ModelInfer`
 
 ### **Observability & Monitoring**
--   **Prometheus Metrics**: Built-in metrics collection for gateway performance and model serving
+-   **Prometheus Metrics**: Built-in metrics collection for router performance and model serving
 -   **Request Tracking**: Detailed request routing and performance monitoring
 -   **Health Checks**: Comprehensive health checks for all model servers
 
 ## Architecture
 
-MatrixInfer implements a Kubernetes-native architecture with separate control plane and data plane components. The platform manages LLM inference workloads through CRD and provides intelligent request routing through a dedicated gateway.
+Kthena implements a Kubernetes-native architecture with separate control plane and data plane components. The platform manages LLM inference workloads through CRD and provides intelligent request routing through a dedicated router.
 
-For more details, please refer to [MatrixcInfer Architecture](./docs/matrixinfer/docs/architecture/architecture.md)
+For more details, please refer to [Kthena Architecture](docs/kthena/docs/architecture/architecture.md)
 
 
 ## Performance and Benchmarks
 
-MatrixInfer delivers significant performance improvements and cost savings compared to traditional LLM serving approaches. Here are key performance characteristics and benchmark results:
+Kthena delivers significant performance improvements and cost savings compared to traditional LLM serving approaches. Here are key performance characteristics and benchmark results:
 
 // TODO: Add some perf stats
 
-> **Note**: Benchmark results may vary based on model size, hardware configuration, and workload patterns. Contact us for environment-specific performance testing.
+> [!Note]
+> Benchmark results may vary based on model size, hardware configuration, and workload patterns. Contact us for environment-specific performance testing.
 
 ## Getting Started
 
-Get up and running with MatrixInfer in minutes. This [guide](./docs/matrixinfer/docs/getting-started/quick-start.md) will walk you through installing the platform and deploying your first LLM model.
+Get up and running with Kthena in minutes. This [guide](docs/kthena/docs/getting-started/quick-start.md) will walk you through installing the platform and deploying your first LLM model.
 
 ## Community
 
-MatrixInfer is an open source project that welcomes contributions from developers, platform engineers, and AI practitioners.
+Kthena is an open source project that welcomes contributions from developers, platform engineers, and AI practitioners.
 
 **Get Involved:**
-- **Issues**: Report bugs and request features on [GitHub Issues](https://github.com/matrixinfer-ai/matrixinfer/issues)
-- **Discussions**: Join conversations on [GitHub Discussions](https://github.com/matrixinfer-ai/matrixinfer/discussions)
+- **Issues**: Report bugs and request features on [GitHub Issues](https://github.com/volcano-sh/kthena/issues)
+- **Discussions**: Join conversations on [GitHub Discussions](https://github.com/volcano-sh/kthena/discussions)
 - **Documentation**: Help improve guides and examples
 
 ## Contributing
@@ -87,4 +88,4 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed guidelines.
 
 ## License
 
-MatrixInfer is licensed under the [Apache 2.0 License](LICENSE).
+Kthena is licensed under the [Apache 2.0 License](LICENSE).

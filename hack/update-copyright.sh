@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Copyright MatrixInfer-AI Authors.
+# Copyright The Volcano Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,13 +25,13 @@ GO_TPL="$ROOT_DIR/hack/boilerplate.go.txt"
 PY_TPL="$ROOT_DIR/hack/boilerplate.py.txt"
 
 for file in $GO_FILES; do
-  if ! grep -q "Copyright MatrixInfer-AI Authors" "$file"; then
+  if ! grep -q "Copyright The Volcano Authors" "$file"; then
     (cat "$GO_TPL" && echo && cat "$file") | sponge "$file"
   fi
 done
 
 for file in $PY_FILES; do
-  if ! grep -q "Copyright MatrixInfer-AI Authors" "$file"; then
+  if ! grep -q "Copyright The Volcano Authors" "$file"; then
     (cat "$PY_TPL" && echo && cat "$file") | sponge "$file"
   fi
 done

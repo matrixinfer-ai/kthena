@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,18 +25,18 @@ import (
 	"fmt"
 	"strings"
 
+	icUtils "github.com/volcano-sh/kthena/pkg/infer-controller/utils"
+	"github.com/volcano-sh/kthena/pkg/model-controller/env"
 	"k8s.io/utils/ptr"
-	icUtils "matrixinfer.ai/matrixinfer/pkg/infer-controller/utils"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/env"
 
+	registry "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	workload "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
+	"github.com/volcano-sh/kthena/pkg/model-controller/config"
+	"github.com/volcano-sh/kthena/pkg/model-controller/utils"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/yaml"
-	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
-	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/config"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
 )
 
 const (

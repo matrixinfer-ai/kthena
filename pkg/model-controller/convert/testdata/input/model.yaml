@@ -1,4 +1,4 @@
-apiVersion: registry.matrixinfer.ai/v1alpha1
+apiVersion: registry.volcano.sh/v1alpha1
 kind: Model
 metadata:
   name: test-model

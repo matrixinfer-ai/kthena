@@ -1,0 +1,212 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.17.2
+  name: modelroutes.networking.serving.volcano.sh
+spec:
+  group: networking.serving.volcano.sh
+  names:
+    kind: ModelRoute
+    listKind: ModelRouteList
+    plural: modelroutes
+    singular: modelroute
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: ModelRoute is the Schema for the Modelroutes API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ModelRouteSpec defines the desired state of ModelRoute.
+            properties:
+              loraAdapters:
+                description: |-
+                  `model` in the LLM request could be lora adapter name,
+                  here is a list of Lora Adapter Names to match.
+                items:
+                  type: string
+                maxItems: 10
+                type: array
+              modelName:
+                description: |-
+                  `model` in the LLM request, it could be a base model name, lora adapter name or even
+                  a virtual model name. This field is used to match scenarios other than model adapter name and
+                  this field could be empty, but it and  `ModelAdapters` can't both be empty.
+                type: string
+                x-kubernetes-validations:
+                - message: modelName is immutable
+                  rule: self == oldSelf
+              rateLimit:
+                description: |-
+                  Rate limit for the LLM request based on prompt tokens or output tokens.
+                  There is no limitation if this field is not set.
+                properties:
+                  global:
+                    description: |-
+                      Global contains configuration for global rate limiting using distributed storage.
+                      If this field is set, global rate limiting will be used; otherwise, local rate limiting will be used.
+                    properties:
+                      redis:
+                        description: Redis contains configuration for Redis-based
+                          global rate limiting.
+                        properties:
+                          address:
+                            description: Address is the Redis server address in the
+                              format "host:port".
+                            type: string
+                        required:
+                        - address
+                        type: object
+                    type: object
+                  inputTokensPerUnit:
+                    description: |-
+                      InputTokensPerUnit is the maximum number of input tokens allowed per unit of time.
+                      If this field is not set, there is no limit on input tokens.
+                    format: int32
+                    minimum: 1
+                    type: integer
+                  outputTokensPerUnit:
+                    description: |-
+                      OutputTokensPerUnit is the maximum number of output tokens allowed per unit of time.
+                      If this field is not set, there is no limit on output tokens.
+                    format: int32
+                    minimum: 1
+                    type: integer
+                  unit:
+                    allOf:
+                    - enum:
+                      - second
+                      - minute
+                      - hour
+                      - day
+                      - month
+                    - enum:
+                      - second
+                      - minute
+                      - hour
+                      - day
+                      - month
+                    default: second
+                    description: Unit is the time unit for the rate limit.
+                    type: string
+                required:
+                - unit
+                type: object
+              rules:
+                description: |-
+                  An ordered list of route rules for LLM traffic. The first rule
+                  matching an incoming request will be used.
+                  If no rule is matched, an HTTP 404 status code MUST be returned.
+                items:
+                  properties:
+                    modelMatch:
+                      description: |-
+                        Match conditions to be satisfied for the rule to be activated.
+                        Empty `modelMatch` means matching all requests.
+                      properties:
+                        body:
+                          description: Body contains conditions to match request body
+                            content
+                          properties:
+                            model:
+                              description: |-
+                                Model is the name of the model or lora adapter to match.
+                                If this field is not specified, any model or lora adapter will be matched.
+                              type: string
+                          type: object
+                        headers:
+                          additionalProperties:
+                            description: |-
+                              StringMatch defines the matching conditions for string fields.
+                              Only one of the fields may be set.
+                            properties:
+                              exact:
+                                type: string
+                              prefix:
+                                type: string
+                              regex:
+                                type: string
+                            type: object
+                          description: |-
+                            Header to match: prefix, exact, regex
+                            If unset, any header will be matched.
+                          type: object
+                        uri:
+                          description: |-
+                            URI to match: prefix, exact, regex
+                            If this field is not specified, a default prefix match on the "/" path is provided.
+                          properties:
+                            exact:
+                              type: string
+                            prefix:
+                              type: string
+                            regex:
+                              type: string
+                          type: object
+                      type: object
+                    name:
+                      description: Name is the name of the rule.
+                      type: string
+                    targetModels:
+                      items:
+                        description: LLM inference traffic target model
+                        properties:
+                          modelServerName:
+                            description: ModelServerName is used to specify the correlated
+                              modelServer within the same namespace.
+                            type: string
+                          weight:
+                            default: 100
+                            description: |-
+                              Weight is used to specify the percentage of traffic should be sent to the target model.
+                              The value should be in the range of [0, 100].
+                            format: int32
+                            maximum: 100
+                            minimum: 0
+                            type: integer
+                        required:
+                        - modelServerName
+                        type: object
+                      maxItems: 16
+                      type: array
+                  required:
+                  - targetModels
+                  type: object
+                maxItems: 16
+                type: array
+            required:
+            - rules
+            type: object
+            x-kubernetes-validations:
+            - message: ModelName and LoraAdapters cannot both be empty
+              rule: self.modelName != "" || size(self.loraAdapters) > 0
+          status:
+            description: ModelRouteStatus defines the observed state of ModelRoute.
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

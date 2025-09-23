@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,8 +20,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	networking "matrixinfer.ai/matrixinfer/pkg/apis/networking/v1alpha1"
-	registry "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
+	networking "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
+	registry "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
 )
 
 func TestBuildModelRoute(t *testing.T) {

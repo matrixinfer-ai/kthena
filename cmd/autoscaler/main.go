@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,9 +24,11 @@ import (
 	"syscall"
 	"time"
 
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
+	"github.com/volcano-sh/kthena/pkg/model-controller/utils"
 
 	"github.com/spf13/pflag"
+	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
+	"github.com/volcano-sh/kthena/pkg/autoscaler/controller"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/kubernetes"
@@ -34,16 +36,14 @@ import (
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/klog/v2"
-	clientset "matrixinfer.ai/matrixinfer/client-go/clientset/versioned"
-	"matrixinfer.ai/matrixinfer/pkg/autoscaler/controller"
 )
 
 const (
 	defaultLeaseDuration = 15 * time.Second
 	defaultRenewDeadline = 10 * time.Second
 	defaultRetryPeriod   = 2 * time.Second
-	leaderElectionId     = "matrixinfer.autoscaler"
-	leaseName            = "lease.matrixinfer.autoscaler"
+	leaderElectionId     = "kthena.autoscaler"
+	leaseName            = "lease.kthena.autoscaler"
 )
 
 func main() {

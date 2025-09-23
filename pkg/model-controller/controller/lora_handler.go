@@ -1,5 +1,5 @@
 /*
-Copyright MatrixInfer-AI Authors.
+Copyright The Volcano Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,14 +28,14 @@ import (
 	"strings"
 	"time"
 
+	registryv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	workload "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
+	"github.com/volcano-sh/kthena/pkg/model-controller/convert"
+	"github.com/volcano-sh/kthena/pkg/model-controller/env"
+	"github.com/volcano-sh/kthena/pkg/model-controller/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
-	registryv1alpha1 "matrixinfer.ai/matrixinfer/pkg/apis/registry/v1alpha1"
-	workload "matrixinfer.ai/matrixinfer/pkg/apis/workload/v1alpha1"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/convert"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/env"
-	"matrixinfer.ai/matrixinfer/pkg/model-controller/utils"
 )
 
 // getPreviousModelVersion gets the previous version of the model from cache for comparison
