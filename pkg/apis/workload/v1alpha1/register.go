@@ -39,8 +39,8 @@ func Resource(resource string) schema.GroupResource {
 
 // GroupVersionKind definitions
 var (
-	ModelInferKind     = SchemeGroupVersion.WithKind("ModelInfer")
-	ModelInferListKind = SchemeGroupVersion.WithKind("ModelInferList")
+	ModelServingKind     = SchemeGroupVersion.WithKind("ModelServing")
+	ModelServingListKind = SchemeGroupVersion.WithKind("ModelServingList")
 )
 
 var (
@@ -62,8 +62,8 @@ func init() {
 // Adds the list of known types to Scheme.
 func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
-		&ModelInfer{},
-		&ModelInferList{},
+		&ModelServing{},
+		&ModelServingList{},
 	)
 	// AddToGroupVersion allows the serialization of client types like ListOptions.
 	v1.AddToGroupVersion(scheme, SchemeGroupVersion)

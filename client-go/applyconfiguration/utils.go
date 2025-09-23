@@ -120,16 +120,14 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		// Group=workload.volcano.sh, Version=v1alpha1
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("GangSchedule"):
 		return &applyconfigurationworkloadv1alpha1.GangScheduleApplyConfiguration{}
-	case workloadv1alpha1.SchemeGroupVersion.WithKind("InferGroup"):
-		return &applyconfigurationworkloadv1alpha1.InferGroupApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("Metadata"):
 		return &applyconfigurationworkloadv1alpha1.MetadataApplyConfiguration{}
-	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelInfer"):
-		return &applyconfigurationworkloadv1alpha1.ModelInferApplyConfiguration{}
-	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelInferSpec"):
-		return &applyconfigurationworkloadv1alpha1.ModelInferSpecApplyConfiguration{}
-	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelInferStatus"):
-		return &applyconfigurationworkloadv1alpha1.ModelInferStatusApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelServing"):
+		return &applyconfigurationworkloadv1alpha1.ModelServingApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelServingSpec"):
+		return &applyconfigurationworkloadv1alpha1.ModelServingSpecApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelServingStatus"):
+		return &applyconfigurationworkloadv1alpha1.ModelServingStatusApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("PodTemplateSpec"):
 		return &applyconfigurationworkloadv1alpha1.PodTemplateSpecApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("Role"):
@@ -138,6 +136,8 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &applyconfigurationworkloadv1alpha1.RollingUpdateConfigurationApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("RolloutStrategy"):
 		return &applyconfigurationworkloadv1alpha1.RolloutStrategyApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("ServingGroup"):
+		return &applyconfigurationworkloadv1alpha1.ServingGroupApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("TopologySpreadConstraint"):
 		return &applyconfigurationworkloadv1alpha1.TopologySpreadConstraintApplyConfiguration{}
 

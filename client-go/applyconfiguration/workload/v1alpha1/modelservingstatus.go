@@ -22,9 +22,9 @@ import (
 	v1 "k8s.io/client-go/applyconfigurations/meta/v1"
 )
 
-// ModelInferStatusApplyConfiguration represents a declarative configuration of the ModelInferStatus type for use
+// ModelServingStatusApplyConfiguration represents a declarative configuration of the ModelServingStatus type for use
 // with apply.
-type ModelInferStatusApplyConfiguration struct {
+type ModelServingStatusApplyConfiguration struct {
 	ObservedGeneration *int64                           `json:"observedGeneration,omitempty"`
 	Replicas           *int32                           `json:"replicas,omitempty"`
 	CurrentReplicas    *int32                           `json:"currentReplicas,omitempty"`
@@ -33,16 +33,16 @@ type ModelInferStatusApplyConfiguration struct {
 	Conditions         []v1.ConditionApplyConfiguration `json:"conditions,omitempty"`
 }
 
-// ModelInferStatusApplyConfiguration constructs a declarative configuration of the ModelInferStatus type for use with
+// ModelServingStatusApplyConfiguration constructs a declarative configuration of the ModelServingStatus type for use with
 // apply.
-func ModelInferStatus() *ModelInferStatusApplyConfiguration {
-	return &ModelInferStatusApplyConfiguration{}
+func ModelServingStatus() *ModelServingStatusApplyConfiguration {
+	return &ModelServingStatusApplyConfiguration{}
 }
 
 // WithObservedGeneration sets the ObservedGeneration field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the ObservedGeneration field is set to the value of the last call.
-func (b *ModelInferStatusApplyConfiguration) WithObservedGeneration(value int64) *ModelInferStatusApplyConfiguration {
+func (b *ModelServingStatusApplyConfiguration) WithObservedGeneration(value int64) *ModelServingStatusApplyConfiguration {
 	b.ObservedGeneration = &value
 	return b
 }
@@ -50,7 +50,7 @@ func (b *ModelInferStatusApplyConfiguration) WithObservedGeneration(value int64)
 // WithReplicas sets the Replicas field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Replicas field is set to the value of the last call.
-func (b *ModelInferStatusApplyConfiguration) WithReplicas(value int32) *ModelInferStatusApplyConfiguration {
+func (b *ModelServingStatusApplyConfiguration) WithReplicas(value int32) *ModelServingStatusApplyConfiguration {
 	b.Replicas = &value
 	return b
 }
@@ -58,7 +58,7 @@ func (b *ModelInferStatusApplyConfiguration) WithReplicas(value int32) *ModelInf
 // WithCurrentReplicas sets the CurrentReplicas field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the CurrentReplicas field is set to the value of the last call.
-func (b *ModelInferStatusApplyConfiguration) WithCurrentReplicas(value int32) *ModelInferStatusApplyConfiguration {
+func (b *ModelServingStatusApplyConfiguration) WithCurrentReplicas(value int32) *ModelServingStatusApplyConfiguration {
 	b.CurrentReplicas = &value
 	return b
 }
@@ -66,7 +66,7 @@ func (b *ModelInferStatusApplyConfiguration) WithCurrentReplicas(value int32) *M
 // WithUpdatedReplicas sets the UpdatedReplicas field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the UpdatedReplicas field is set to the value of the last call.
-func (b *ModelInferStatusApplyConfiguration) WithUpdatedReplicas(value int32) *ModelInferStatusApplyConfiguration {
+func (b *ModelServingStatusApplyConfiguration) WithUpdatedReplicas(value int32) *ModelServingStatusApplyConfiguration {
 	b.UpdatedReplicas = &value
 	return b
 }
@@ -74,7 +74,7 @@ func (b *ModelInferStatusApplyConfiguration) WithUpdatedReplicas(value int32) *M
 // WithAvailableReplicas sets the AvailableReplicas field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the AvailableReplicas field is set to the value of the last call.
-func (b *ModelInferStatusApplyConfiguration) WithAvailableReplicas(value int32) *ModelInferStatusApplyConfiguration {
+func (b *ModelServingStatusApplyConfiguration) WithAvailableReplicas(value int32) *ModelServingStatusApplyConfiguration {
 	b.AvailableReplicas = &value
 	return b
 }
@@ -82,7 +82,7 @@ func (b *ModelInferStatusApplyConfiguration) WithAvailableReplicas(value int32) 
 // WithConditions adds the given value to the Conditions field in the declarative configuration
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, values provided by each call will be appended to the Conditions field.
-func (b *ModelInferStatusApplyConfiguration) WithConditions(values ...*v1.ConditionApplyConfiguration) *ModelInferStatusApplyConfiguration {
+func (b *ModelServingStatusApplyConfiguration) WithConditions(values ...*v1.ConditionApplyConfiguration) *ModelServingStatusApplyConfiguration {
 	for i := range values {
 		if values[i] == nil {
 			panic("nil value passed to WithConditions")

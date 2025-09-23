@@ -8,8 +8,8 @@
 
 
 ### Resource Types
-- [ModelInfer](#modelinfer)
 - [ModelInferList](#modelinferlist)
+- [ModelServing](#modelserving)
 
 
 
@@ -65,28 +65,6 @@ _Appears in:_
 | `annotations` _object (keys:string, values:string)_ | Annotations is an unstructured key value map stored with a resource that may be<br />set by external tools to store and retrieve arbitrary metadata. They are not<br />queryable and should be preserved when modifying objects.<br />More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations |  |  |
 
 
-#### ModelInfer
-
-
-
-ModelInfer is the Schema for the LLM infer API
-
-
-
-_Appears in:_
-- [ModelInferList](#modelinferlist)
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `apiVersion` _string_ | `workload.volcano.sh/v1alpha1` | | |
-| `kind` _string_ | `ModelInfer` | | |
-| `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  |  |
-| `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  |  |
-| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
-| `spec` _[ModelInferSpec](#modelinferspec)_ |  |  |  |
-| `status` _[ModelInferStatus](#modelinferstatus)_ |  |  |  |
-
-
 
 
 #### ModelInferList
@@ -106,7 +84,7 @@ ModelInferList contains a list of ModelInfer
 | `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  |  |
 | `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  |  |
 | `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
-| `items` _[ModelInfer](#modelinfer) array_ |  |  |  |
+| `items` _[ModelServing](#modelserving) array_ |  |  |  |
 
 
 #### ModelInferSpec
@@ -118,7 +96,7 @@ ModelInferSpec defines the specification of the ModelInfer resource.
 
 
 _Appears in:_
-- [ModelInfer](#modelinfer)
+- [ModelServing](#modelserving)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
@@ -139,7 +117,7 @@ ModelInferStatus defines the observed state of ModelInfer
 
 
 _Appears in:_
-- [ModelInfer](#modelinfer)
+- [ModelServing](#modelserving)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
@@ -149,6 +127,28 @@ _Appears in:_
 | `updatedReplicas` _integer_ | UpdatedReplicas track the number of InferGroup that have been updated (ready or not). |  |  |
 | `availableReplicas` _integer_ | AvailableReplicas track the number of InferGroup that are in ready state (updated or not). |  |  |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#condition-v1-meta) array_ | Conditions track the condition of the ModelInfer. |  |  |
+
+
+#### ModelServing
+
+
+
+ModelInfer is the Schema for the LLM infer API
+
+
+
+_Appears in:_
+- [ModelInferList](#modelinferlist)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `workload.volcano.sh/v1alpha1` | | |
+| `kind` _string_ | `ModelServing` | | |
+| `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  |  |
+| `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  |  |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `spec` _[ModelInferSpec](#modelinferspec)_ |  |  |  |
+| `status` _[ModelInferStatus](#modelinferstatus)_ |  |  |  |
 
 
 #### PodTemplateSpec

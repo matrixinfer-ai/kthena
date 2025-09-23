@@ -25,24 +25,26 @@ import (
 	gentype "k8s.io/client-go/gentype"
 )
 
-// fakeModelInfers implements ModelInferInterface
-type fakeModelInfers struct {
-	*gentype.FakeClientWithListAndApply[*v1alpha1.ModelInfer, *v1alpha1.ModelInferList, *workloadv1alpha1.ModelInferApplyConfiguration]
+// fakeModelServings implements ModelServingInterface
+type fakeModelServings struct {
+	*gentype.FakeClientWithListAndApply[*v1alpha1.ModelServing, *v1alpha1.ModelServingList, *workloadv1alpha1.ModelServingApplyConfiguration]
 	Fake *FakeWorkloadV1alpha1
 }
 
-func newFakeModelInfers(fake *FakeWorkloadV1alpha1, namespace string) typedworkloadv1alpha1.ModelInferInterface {
-	return &fakeModelInfers{
-		gentype.NewFakeClientWithListAndApply[*v1alpha1.ModelInfer, *v1alpha1.ModelInferList, *workloadv1alpha1.ModelInferApplyConfiguration](
+func newFakeModelServings(fake *FakeWorkloadV1alpha1, namespace string) typedworkloadv1alpha1.ModelServingInterface {
+	return &fakeModelServings{
+		gentype.NewFakeClientWithListAndApply[*v1alpha1.ModelServing, *v1alpha1.ModelServingList, *workloadv1alpha1.ModelServingApplyConfiguration](
 			fake.Fake,
 			namespace,
-			v1alpha1.SchemeGroupVersion.WithResource("modelinfers"),
-			v1alpha1.SchemeGroupVersion.WithKind("ModelInfer"),
-			func() *v1alpha1.ModelInfer { return &v1alpha1.ModelInfer{} },
-			func() *v1alpha1.ModelInferList { return &v1alpha1.ModelInferList{} },
-			func(dst, src *v1alpha1.ModelInferList) { dst.ListMeta = src.ListMeta },
-			func(list *v1alpha1.ModelInferList) []*v1alpha1.ModelInfer { return gentype.ToPointerSlice(list.Items) },
-			func(list *v1alpha1.ModelInferList, items []*v1alpha1.ModelInfer) {
+			v1alpha1.SchemeGroupVersion.WithResource("modelservings"),
+			v1alpha1.SchemeGroupVersion.WithKind("ModelServing"),
+			func() *v1alpha1.ModelServing { return &v1alpha1.ModelServing{} },
+			func() *v1alpha1.ModelServingList { return &v1alpha1.ModelServingList{} },
+			func(dst, src *v1alpha1.ModelServingList) { dst.ListMeta = src.ListMeta },
+			func(list *v1alpha1.ModelServingList) []*v1alpha1.ModelServing {
+				return gentype.ToPointerSlice(list.Items)
+			},
+			func(list *v1alpha1.ModelServingList, items []*v1alpha1.ModelServing) {
 				list.Items = gentype.FromPointerSlice(items)
 			},
 		),

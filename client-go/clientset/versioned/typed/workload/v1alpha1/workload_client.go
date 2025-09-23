@@ -28,7 +28,7 @@ import (
 
 type WorkloadV1alpha1Interface interface {
 	RESTClient() rest.Interface
-	ModelInfersGetter
+	ModelServingsGetter
 }
 
 // WorkloadV1alpha1Client is used to interact with features provided by the workload.volcano.sh group.
@@ -36,8 +36,8 @@ type WorkloadV1alpha1Client struct {
 	restClient rest.Interface
 }
 
-func (c *WorkloadV1alpha1Client) ModelInfers(namespace string) ModelInferInterface {
-	return newModelInfers(c, namespace)
+func (c *WorkloadV1alpha1Client) ModelServings(namespace string) ModelServingInterface {
+	return newModelServings(c, namespace)
 }
 
 // NewForConfig creates a new WorkloadV1alpha1Client for the given config.

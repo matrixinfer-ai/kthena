@@ -18,10 +18,10 @@ limitations under the License.
 
 package v1alpha1
 
-// ModelInferListerExpansion allows custom methods to be added to
-// ModelInferLister.
-type ModelInferListerExpansion interface{}
+// ModelServingListerExpansion allows custom methods to be added to
+// ModelServingLister.
+type ModelServingListerExpansion interface{}
 
-// ModelInferNamespaceListerExpansion allows custom methods to be added to
-// ModelInferNamespaceLister.
-type ModelInferNamespaceListerExpansion interface{}
+// ModelServingNamespaceListerExpansion allows custom methods to be added to
+// ModelServingNamespaceLister.
+type ModelServingNamespaceListerExpansion interface{}
