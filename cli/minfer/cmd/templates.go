@@ -35,14 +35,14 @@ func InitTemplates(fs embed.FS) {
 	templatesFS = fs
 }
 
-// GetTemplateContent returns the content of a template by name (vendor/model format)
-func GetTemplateContent(templateName string) (string, error) {
+// findTemplatePath finds the full path to a template file
+func findTemplatePath(templateName string) (string, error) {
 	// If templateName contains a slash, it's in vendor/model format, use it directly
 	if strings.Contains(templateName, "/") {
 		templatePath := fmt.Sprintf("helm/templates/%s.yaml", templateName)
-		content, err := templatesFS.ReadFile(templatePath)
+		_, err := templatesFS.Open(templatePath)
 		if err == nil {
-			return string(content), nil
+			return templatePath, nil
 		}
 	}
 
@@ -55,14 +55,29 @@ func GetTemplateContent(templateName string) (string, error) {
 	for _, vendor := range vendors {
 		if vendor.IsDir() {
 			vendorPath := fmt.Sprintf("helm/templates/%s/%s.yaml", vendor.Name(), templateName)
-			content, err := templatesFS.ReadFile(vendorPath)
+			_, err := templatesFS.Open(vendorPath)
 			if err == nil {
-				return string(content), nil
+				return vendorPath, nil
 			}
 		}
 	}
 
 	return "", fmt.Errorf("template '%s' not found", templateName)
+}
+
+// GetTemplateContent returns the content of a template by name (vendor/model format)
+func GetTemplateContent(templateName string) (string, error) {
+	templatePath, err := findTemplatePath(templateName)
+	if err != nil {
+		return "", err
+	}
+
+	content, err := templatesFS.ReadFile(templatePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read template '%s': %v", templateName, err)
+	}
+
+	return string(content), nil
 }
 
 // ListTemplates returns a list of all available template names in vendor/model format
@@ -97,32 +112,8 @@ func ListTemplates() ([]string, error) {
 
 // TemplateExists checks if a template with the given name exists
 func TemplateExists(templateName string) bool {
-	// If templateName contains a slash, it's in vendor/model format, use it directly
-	if strings.Contains(templateName, "/") {
-		templatePath := fmt.Sprintf("helm/templates/%s.yaml", templateName)
-		_, err := templatesFS.Open(templatePath)
-		if err == nil {
-			return true
-		}
-	}
-
-	// Fallback: search through all vendor directories (for backward compatibility)
-	vendors, err := templatesFS.ReadDir("helm/templates")
-	if err != nil {
-		return false
-	}
-
-	for _, vendor := range vendors {
-		if vendor.IsDir() {
-			vendorPath := fmt.Sprintf("helm/templates/%s/%s.yaml", vendor.Name(), templateName)
-			_, err := templatesFS.Open(vendorPath)
-			if err == nil {
-				return true
-			}
-		}
-	}
-
-	return false
+	_, err := findTemplatePath(templateName)
+	return err == nil
 }
 
 // GetTemplateInfo returns template information including name, description, and file path
@@ -160,4 +151,3 @@ func extractManifestDescriptionFromContent(content string) string {
 
 	return "No description available"
 }
-
