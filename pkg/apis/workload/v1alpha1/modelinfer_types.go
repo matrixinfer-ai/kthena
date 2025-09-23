@@ -168,7 +168,7 @@ const (
 	// such as the creation of new groups or the scaling of pods within a group.
 	// A group remains in the progressing state until all its pods become ready.
 	// As long as at least one group is progressing, the entire ModelServing set is also considered progressing.
-	ModelServingProgressing ModelServingConditionType = "Progerssing"
+	ModelServingProgressing ModelServingConditionType = "Progressing"
 
 	// ModelServingSetUpdateInProgress indicates that modelServing is performing a rolling update.
 	// When the entry or worker template is updated, modelServing controller enters the upgrade process and

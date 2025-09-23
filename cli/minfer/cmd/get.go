@@ -314,7 +314,7 @@ func runGetModelInfers(cmd *cobra.Command, args []string) error {
 	namespace := resolveGetNamespace()
 	ctx := context.Background()
 
-	modelinfers, err := client.WorkloadV1alpha1().ModelInfers(namespace).List(ctx, metav1.ListOptions{})
+	modelinfers, err := client.WorkloadV1alpha1().ModelServings(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to list ModelInfers: %v", err)
 	}

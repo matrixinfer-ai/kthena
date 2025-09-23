@@ -65,8 +65,7 @@ gen-docs: crd-ref-docs ## Generate CRD and CLI reference documentation
 	go run ./cli/minfer/internal/tools/docgen/main.go
 
 .PHONY: generate
-## generate: controller-gen gen-crd gen-docs gen-copyright ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
-generate: controller-gen gen-crd gen-copyright
+generate: controller-gen gen-crd gen-docs gen-copyright ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 	go mod tidy
 	./hack/update-codegen.sh

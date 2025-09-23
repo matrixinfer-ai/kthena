@@ -29,7 +29,7 @@ import (
 	"k8s.io/klog/v2"
 
 	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
-	"github.com/volcano-sh/kthena/pkg/infer-controller/webhook"
+	"github.com/volcano-sh/kthena/pkg/modelServing-controller/webhook"
 )
 
 type modelInferConfig struct {

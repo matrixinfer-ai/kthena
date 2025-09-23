@@ -289,13 +289,13 @@ func applyKthenaResource(ctx context.Context, client *versioned.Clientset, obj *
 	switch gvk.Kind {
 	case "ModelInfer":
 		fmt.Printf("  Creating ModelInfer: %s in namespace %s\n", resourceName, resourceNamespace)
-		modelInfer := &workloadv1alpha1.ModelInfer{}
+		modelInfer := &workloadv1alpha1.ModelServing{}
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, modelInfer)
 		if err != nil {
 			return fmt.Errorf("failed to convert unstructured object to ModelInfer: %v", err)
 		}
 
-		_, err = client.WorkloadV1alpha1().ModelInfers(resourceNamespace).Create(ctx, modelInfer, metav1.CreateOptions{})
+		_, err = client.WorkloadV1alpha1().ModelServings(resourceNamespace).Create(ctx, modelInfer, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to create ModelInfer: %v", err)
 		}

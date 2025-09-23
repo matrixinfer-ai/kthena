@@ -189,7 +189,7 @@ func runDescribeModelInfer(cmd *cobra.Command, args []string) error {
 	}
 	ctx := context.Background()
 
-	modelInfer, err := client.WorkloadV1alpha1().ModelInfers(namespace).Get(ctx, modelInferName, metav1.GetOptions{})
+	modelInfer, err := client.WorkloadV1alpha1().ModelServings(namespace).Get(ctx, modelInferName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get ModelInfer '%s': %v", modelInferName, err)
 	}

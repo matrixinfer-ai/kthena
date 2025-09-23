@@ -36,9 +36,9 @@ type GangSchedule struct {
 	MinRoleReplicas map[string]int32 `json:"minRoleReplicas,omitempty"`
 }
 
-// Role defines the specific pod instance role that performs the Servingence task.
+// Role defines the specific pod instance role that performs the Serving task.
 type Role struct {
-	// The name of a role. Name must be unique within an Servinggroup
+	// The name of a role. Name must be unique within an ServingGroup
 	// +kubebuilder:validation:MaxLength=12
 	// +kubebuilder:validation:Pattern=^[a-zA-Z0-9]([-a-zA-Z0-9]*[a-zA-Z0-9])?$
 	Name string `json:"name"`
