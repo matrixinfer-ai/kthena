@@ -112,24 +112,7 @@ func runDescribeTemplate(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to read template: %v", err)
 	}
-
-	fmt.Printf("Template: %s\n", templateName)
-	fmt.Println("================")
-
-	// Extract description
-	description := extractManifestDescriptionFromContent(content)
-	fmt.Printf("Description: %s\n\n", description)
-
-	// Extract variables from template
-	variables := extractTemplateVariables(content)
-	if len(variables) > 0 {
-		fmt.Println("Available Variables:")
-		for _, variable := range variables {
-			fmt.Printf("  - %s\n", variable)
-		}
-		fmt.Println()
-	}
-
+	fmt.Println("=================")
 	fmt.Println("Template Content:")
 	fmt.Println("=================")
 	fmt.Println(content)
