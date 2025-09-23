@@ -78,6 +78,7 @@ func ListTemplates() ([]string, error) {
 			vendorPath := fmt.Sprintf("helm/templates/%s", vendor.Name())
 			models, err := templatesFS.ReadDir(vendorPath)
 			if err != nil {
+				fmt.Printf("warning: could not read vendor directory %s: %v\n", vendorPath, err)
 				continue // Skip if can't read vendor directory
 			}
 
