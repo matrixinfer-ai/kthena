@@ -22,9 +22,9 @@ import (
 	networkingv1alpha1 "github.com/volcano-sh/kthena/client-go/applyconfiguration/networking/v1alpha1"
 )
 
-// ModelSpecApplyConfiguration represents a declarative configuration of the ModelSpec type for use
+// ModelBoosterSpecApplyConfiguration represents a declarative configuration of the ModelBoosterSpec type for use
 // with apply.
-type ModelSpecApplyConfiguration struct {
+type ModelBoosterSpecApplyConfiguration struct {
 	Name                     *string                                          `json:"name,omitempty"`
 	Owner                    *string                                          `json:"owner,omitempty"`
 	Backends                 []ModelBackendApplyConfiguration                 `json:"backends,omitempty"`
@@ -33,16 +33,16 @@ type ModelSpecApplyConfiguration struct {
 	ModelMatch               *networkingv1alpha1.ModelMatchApplyConfiguration `json:"modelMatch,omitempty"`
 }
 
-// ModelSpecApplyConfiguration constructs a declarative configuration of the ModelSpec type for use with
+// ModelBoosterSpecApplyConfiguration constructs a declarative configuration of the ModelBoosterSpec type for use with
 // apply.
-func ModelSpec() *ModelSpecApplyConfiguration {
-	return &ModelSpecApplyConfiguration{}
+func ModelBoosterSpec() *ModelBoosterSpecApplyConfiguration {
+	return &ModelBoosterSpecApplyConfiguration{}
 }
 
 // WithName sets the Name field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Name field is set to the value of the last call.
-func (b *ModelSpecApplyConfiguration) WithName(value string) *ModelSpecApplyConfiguration {
+func (b *ModelBoosterSpecApplyConfiguration) WithName(value string) *ModelBoosterSpecApplyConfiguration {
 	b.Name = &value
 	return b
 }
@@ -50,7 +50,7 @@ func (b *ModelSpecApplyConfiguration) WithName(value string) *ModelSpecApplyConf
 // WithOwner sets the Owner field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Owner field is set to the value of the last call.
-func (b *ModelSpecApplyConfiguration) WithOwner(value string) *ModelSpecApplyConfiguration {
+func (b *ModelBoosterSpecApplyConfiguration) WithOwner(value string) *ModelBoosterSpecApplyConfiguration {
 	b.Owner = &value
 	return b
 }
@@ -58,7 +58,7 @@ func (b *ModelSpecApplyConfiguration) WithOwner(value string) *ModelSpecApplyCon
 // WithBackends adds the given value to the Backends field in the declarative configuration
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, values provided by each call will be appended to the Backends field.
-func (b *ModelSpecApplyConfiguration) WithBackends(values ...*ModelBackendApplyConfiguration) *ModelSpecApplyConfiguration {
+func (b *ModelBoosterSpecApplyConfiguration) WithBackends(values ...*ModelBackendApplyConfiguration) *ModelBoosterSpecApplyConfiguration {
 	for i := range values {
 		if values[i] == nil {
 			panic("nil value passed to WithBackends")
@@ -71,7 +71,7 @@ func (b *ModelSpecApplyConfiguration) WithBackends(values ...*ModelBackendApplyC
 // WithAutoscalingPolicy sets the AutoscalingPolicy field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the AutoscalingPolicy field is set to the value of the last call.
-func (b *ModelSpecApplyConfiguration) WithAutoscalingPolicy(value *AutoscalingPolicySpecApplyConfiguration) *ModelSpecApplyConfiguration {
+func (b *ModelBoosterSpecApplyConfiguration) WithAutoscalingPolicy(value *AutoscalingPolicySpecApplyConfiguration) *ModelBoosterSpecApplyConfiguration {
 	b.AutoscalingPolicy = value
 	return b
 }
@@ -79,7 +79,7 @@ func (b *ModelSpecApplyConfiguration) WithAutoscalingPolicy(value *AutoscalingPo
 // WithCostExpansionRatePercent sets the CostExpansionRatePercent field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the CostExpansionRatePercent field is set to the value of the last call.
-func (b *ModelSpecApplyConfiguration) WithCostExpansionRatePercent(value int32) *ModelSpecApplyConfiguration {
+func (b *ModelBoosterSpecApplyConfiguration) WithCostExpansionRatePercent(value int32) *ModelBoosterSpecApplyConfiguration {
 	b.CostExpansionRatePercent = &value
 	return b
 }
@@ -87,7 +87,7 @@ func (b *ModelSpecApplyConfiguration) WithCostExpansionRatePercent(value int32) 
 // WithModelMatch sets the ModelMatch field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the ModelMatch field is set to the value of the last call.
-func (b *ModelSpecApplyConfiguration) WithModelMatch(value *networkingv1alpha1.ModelMatchApplyConfiguration) *ModelSpecApplyConfiguration {
+func (b *ModelBoosterSpecApplyConfiguration) WithModelMatch(value *networkingv1alpha1.ModelMatchApplyConfiguration) *ModelBoosterSpecApplyConfiguration {
 	b.ModelMatch = value
 	return b
 }

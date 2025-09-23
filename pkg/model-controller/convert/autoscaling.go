@@ -25,7 +25,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func BuildAutoscalingPolicy(autoscalingConfig *workload.AutoscalingPolicySpec, model *workload.Model, backendName string) *workload.AutoscalingPolicy {
+func BuildAutoscalingPolicy(autoscalingConfig *workload.AutoscalingPolicySpec, model *workload.ModelBooster, backendName string) *workload.AutoscalingPolicy {
 	return &workload.AutoscalingPolicy{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: workload.AutoscalingPolicyKind.GroupVersion().String(),
@@ -64,7 +64,7 @@ func BuildScalingPolicyBindingSpec(backend *workload.ModelBackend, name string) 
 	}
 }
 
-func BuildPolicyBindingMeta(spec *workload.AutoscalingPolicyBindingSpec, model *workload.Model, backendName string, name string) *metav1.ObjectMeta {
+func BuildPolicyBindingMeta(spec *workload.AutoscalingPolicyBindingSpec, model *workload.ModelBooster, backendName string, name string) *metav1.ObjectMeta {
 	return &metav1.ObjectMeta{
 		Name:      name,
 		Namespace: model.Namespace,
@@ -75,7 +75,7 @@ func BuildPolicyBindingMeta(spec *workload.AutoscalingPolicyBindingSpec, model *
 	}
 }
 
-func BuildScalingPolicyBinding(model *workload.Model, backend *workload.ModelBackend, name string) *workload.AutoscalingPolicyBinding {
+func BuildScalingPolicyBinding(model *workload.ModelBooster, backend *workload.ModelBackend, name string) *workload.AutoscalingPolicyBinding {
 	spec := BuildScalingPolicyBindingSpec(backend, name)
 	return &workload.AutoscalingPolicyBinding{
 		TypeMeta: metav1.TypeMeta{
@@ -87,10 +87,10 @@ func BuildScalingPolicyBinding(model *workload.Model, backend *workload.ModelBac
 	}
 }
 
-func BuildOptimizePolicyBindingSpec(model *workload.Model, name string) *workload.AutoscalingPolicyBindingSpec {
+func BuildOptimizePolicyBindingSpec(model *workload.ModelBooster, name string) *workload.AutoscalingPolicyBindingSpec {
 	params := make([]workload.OptimizerParam, 0, len(model.Spec.Backends))
 	if model.Spec.CostExpansionRatePercent == nil {
-		klog.Error("Model", model.Name, "Spec.CostExpansionRatePercent can not be nil when set optimize autoscaling policy")
+		klog.Error("ModelBooster", model.Name, "Spec.CostExpansionRatePercent can not be nil when set optimize autoscaling policy")
 		return nil
 	}
 	for _, backend := range model.Spec.Backends {
@@ -121,7 +121,7 @@ func BuildOptimizePolicyBindingSpec(model *workload.Model, name string) *workloa
 	}
 }
 
-func BuildOptimizePolicyBinding(model *workload.Model, name string) *workload.AutoscalingPolicyBinding {
+func BuildOptimizePolicyBinding(model *workload.ModelBooster, name string) *workload.AutoscalingPolicyBinding {
 	spec := BuildOptimizePolicyBindingSpec(model, name)
 	return &workload.AutoscalingPolicyBinding{
 		TypeMeta: metav1.TypeMeta{

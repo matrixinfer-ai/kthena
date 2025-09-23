@@ -54,7 +54,7 @@ func (v *AutoscalingBindingValidator) Handle(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Validate the Model
+	// Validate the ModelBooster
 	allowed, reason := v.validateAutoscalingBinding(asp_binding)
 	// Create the admission response
 	admissionResponse := admissionv1.AdmissionResponse{

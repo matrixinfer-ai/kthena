@@ -22,9 +22,9 @@ import (
 	workloadv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 )
 
-// ModelInferSpecApplyConfiguration represents a declarative configuration of the ModelInferSpec type for use
+// ModelServingSpecApplyConfiguration represents a declarative configuration of the ModelServingSpec type for use
 // with apply.
-type ModelInferSpecApplyConfiguration struct {
+type ModelServingSpecApplyConfiguration struct {
 	Replicas                  *int32                                       `json:"replicas,omitempty"`
 	SchedulerName             *string                                      `json:"schedulerName,omitempty"`
 	Template                  *InferGroupApplyConfiguration                `json:"template,omitempty"`
@@ -33,16 +33,16 @@ type ModelInferSpecApplyConfiguration struct {
 	TopologySpreadConstraints []TopologySpreadConstraintApplyConfiguration `json:"topologySpreadConstraints,omitempty"`
 }
 
-// ModelInferSpecApplyConfiguration constructs a declarative configuration of the ModelInferSpec type for use with
+// ModelServingSpecApplyConfiguration constructs a declarative configuration of the ModelServingSpec type for use with
 // apply.
-func ModelInferSpec() *ModelInferSpecApplyConfiguration {
-	return &ModelInferSpecApplyConfiguration{}
+func ModelServingSpec() *ModelServingSpecApplyConfiguration {
+	return &ModelServingSpecApplyConfiguration{}
 }
 
 // WithReplicas sets the Replicas field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Replicas field is set to the value of the last call.
-func (b *ModelInferSpecApplyConfiguration) WithReplicas(value int32) *ModelInferSpecApplyConfiguration {
+func (b *ModelServingSpecApplyConfiguration) WithReplicas(value int32) *ModelServingSpecApplyConfiguration {
 	b.Replicas = &value
 	return b
 }
@@ -50,7 +50,7 @@ func (b *ModelInferSpecApplyConfiguration) WithReplicas(value int32) *ModelInfer
 // WithSchedulerName sets the SchedulerName field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the SchedulerName field is set to the value of the last call.
-func (b *ModelInferSpecApplyConfiguration) WithSchedulerName(value string) *ModelInferSpecApplyConfiguration {
+func (b *ModelServingSpecApplyConfiguration) WithSchedulerName(value string) *ModelServingSpecApplyConfiguration {
 	b.SchedulerName = &value
 	return b
 }
@@ -58,7 +58,7 @@ func (b *ModelInferSpecApplyConfiguration) WithSchedulerName(value string) *Mode
 // WithTemplate sets the Template field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Template field is set to the value of the last call.
-func (b *ModelInferSpecApplyConfiguration) WithTemplate(value *InferGroupApplyConfiguration) *ModelInferSpecApplyConfiguration {
+func (b *ModelServingSpecApplyConfiguration) WithTemplate(value *InferGroupApplyConfiguration) *ModelServingSpecApplyConfiguration {
 	b.Template = value
 	return b
 }
@@ -66,7 +66,7 @@ func (b *ModelInferSpecApplyConfiguration) WithTemplate(value *InferGroupApplyCo
 // WithRolloutStrategy sets the RolloutStrategy field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the RolloutStrategy field is set to the value of the last call.
-func (b *ModelInferSpecApplyConfiguration) WithRolloutStrategy(value *RolloutStrategyApplyConfiguration) *ModelInferSpecApplyConfiguration {
+func (b *ModelServingSpecApplyConfiguration) WithRolloutStrategy(value *RolloutStrategyApplyConfiguration) *ModelServingSpecApplyConfiguration {
 	b.RolloutStrategy = value
 	return b
 }
@@ -74,7 +74,7 @@ func (b *ModelInferSpecApplyConfiguration) WithRolloutStrategy(value *RolloutStr
 // WithRecoveryPolicy sets the RecoveryPolicy field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the RecoveryPolicy field is set to the value of the last call.
-func (b *ModelInferSpecApplyConfiguration) WithRecoveryPolicy(value workloadv1alpha1.RecoveryPolicy) *ModelInferSpecApplyConfiguration {
+func (b *ModelServingSpecApplyConfiguration) WithRecoveryPolicy(value workloadv1alpha1.RecoveryPolicy) *ModelServingSpecApplyConfiguration {
 	b.RecoveryPolicy = &value
 	return b
 }
@@ -82,7 +82,7 @@ func (b *ModelInferSpecApplyConfiguration) WithRecoveryPolicy(value workloadv1al
 // WithTopologySpreadConstraints adds the given value to the TopologySpreadConstraints field in the declarative configuration
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, values provided by each call will be appended to the TopologySpreadConstraints field.
-func (b *ModelInferSpecApplyConfiguration) WithTopologySpreadConstraints(values ...*TopologySpreadConstraintApplyConfiguration) *ModelInferSpecApplyConfiguration {
+func (b *ModelServingSpecApplyConfiguration) WithTopologySpreadConstraints(values ...*TopologySpreadConstraintApplyConfiguration) *ModelServingSpecApplyConfiguration {
 	for i := range values {
 		if values[i] == nil {
 			panic("nil value passed to WithTopologySpreadConstraints")

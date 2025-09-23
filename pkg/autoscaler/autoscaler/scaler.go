@@ -54,9 +54,9 @@ func NewAutoscaler(behavior *v1alpha2.AutoscalingPolicyBehavior, binding *v1alph
 	}
 }
 
-func (autoscaler *Autoscaler) Scale(ctx context.Context, client clientset.Interface, modelInferLister workloadLister.ModelInferLister, podLister listerv1.PodLister, autoscalePolicy *v1alpha2.AutoscalingPolicy) error {
+func (autoscaler *Autoscaler) Scale(ctx context.Context, client clientset.Interface, modelServingLister workloadLister.ModelServingLister, podLister listerv1.PodLister, autoscalePolicy *v1alpha2.AutoscalingPolicy) error {
 	// Get autoscaler target(model infer) instance
-	modelInfer, err := util.GetModelInferTarget(modelInferLister, autoscaler.Meta.Namespace, autoscaler.Meta.Config.Target.TargetRef.Name)
+	modelInfer, err := util.GetModelInferTarget(modelServingLister, autoscaler.Meta.Namespace, autoscaler.Meta.Config.Target.TargetRef.Name)
 	if err != nil {
 		klog.Errorf("get model infer error: %v", err)
 		return err

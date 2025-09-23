@@ -23,10 +23,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// ModelSpec defines the desired state of Model.
-type ModelSpec struct {
-	// Name is the name of the model. Model CR name is restricted by kubernetes, for example, can't contain uppercase letters.
-	// So we use this field to specify the Model name.
+// ModelBoosterSpec defines the desired state of ModelBooster.
+type ModelBoosterSpec struct {
+	// Name is the name of the model. ModelBooster CR name is restricted by kubernetes, for example, can't contain uppercase letters.
+	// So we use this field to specify the ModelBooster name.
 	// +optional
 	// +kubebuilder:validation:MaxLength=64
 	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
@@ -34,7 +34,7 @@ type ModelSpec struct {
 	// Owner is the owner of the model.
 	// +optional
 	Owner string `json:"owner,omitempty"`
-	// Backends is the list of model backends associated with this model. A Model CR at lease has one ModelBackend.
+	// Backends is the list of model backends associated with this model. A ModelBooster CR at lease has one ModelBackend.
 	// ModelBackend is the minimum unit of inference instance. It can be vLLM, SGLang, MindIE or other types.
 	// +kubebuilder:validation:MinItems=1
 	// +listType=map
@@ -57,7 +57,7 @@ type ModelSpec struct {
 
 // ModelBackend defines the configuration for a model backend.
 type ModelBackend struct {
-	// Name is the name of the backend. Can't duplicate with other ModelBackend name in the same Model CR.
+	// Name is the name of the backend. Can't duplicate with other ModelBackend name in the same ModelBooster CR.
 	// Note: update name will cause the old modelInfer deletion and a new modelInfer creation.
 	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
 	Name string `json:"name"`
@@ -197,7 +197,7 @@ const (
 	ModelWorkerTypeCoordinator ModelWorkerType = "coordinator"
 )
 
-// ModelStatus defines the observed state of Model.
+// ModelStatus defines the observed state of ModelBooster.
 type ModelStatus struct {
 	// Conditions represents the latest available observations of the model's state.
 	// +listType=map
@@ -232,20 +232,20 @@ type ModelBackendStatus struct {
 // +kubebuilder:storageversion
 // +genclient
 
-// Model is the Schema for the models API.
-type Model struct {
+// ModelBooster is the Schema for the models API.
+type ModelBooster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   ModelSpec   `json:"spec,omitempty"`
-	Status ModelStatus `json:"status,omitempty"`
+	Spec   ModelBoosterSpec `json:"spec,omitempty"`
+	Status ModelStatus      `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
-// ModelList contains a list of Model.
-type ModelList struct {
+// ModelBoosterList contains a list of ModelBooster.
+type ModelBoosterList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Model `json:"items"`
+	Items           []ModelBooster `json:"items"`
 }

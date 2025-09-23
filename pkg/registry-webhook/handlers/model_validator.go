@@ -29,7 +29,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-// ModelValidator handles validation of Model resources
+// ModelValidator handles validation of ModelBooster resources
 type ModelValidator struct {
 }
 
@@ -38,17 +38,17 @@ func NewModelValidator() *ModelValidator {
 	return &ModelValidator{}
 }
 
-// Handle handles admission requests for Model resources
+// Handle handles admission requests for ModelBooster resources
 func (v *ModelValidator) Handle(w http.ResponseWriter, r *http.Request) {
 	// Parse the admission request
-	admissionReview, model, err := parseAdmissionRequest[registryv1alpha1.Model](r)
+	admissionReview, model, err := parseAdmissionRequest[registryv1alpha1.ModelBooster](r)
 	if err != nil {
 		klog.Errorf("Failed to parse admission request: %v", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// Validate the Model
+	// Validate the ModelBooster
 	allowed, reason := v.validateModel(model)
 
 	// Create the admission response
@@ -74,8 +74,8 @@ func (v *ModelValidator) Handle(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// validateModel validates the Model resource
-func (v *ModelValidator) validateModel(model *registryv1alpha1.Model) (bool, string) {
+// validateModel validates the ModelBooster resource
+func (v *ModelValidator) validateModel(model *registryv1alpha1.ModelBooster) (bool, string) {
 	var allErrs field.ErrorList
 
 	allErrs = append(allErrs, validateScaleToZeroGracePeriod(model)...)
@@ -96,7 +96,7 @@ func (v *ModelValidator) validateModel(model *registryv1alpha1.Model) (bool, str
 	return true, ""
 }
 
-func validateBackendWorkerTypes(model *registryv1alpha1.Model) field.ErrorList {
+func validateBackendWorkerTypes(model *registryv1alpha1.ModelBooster) field.ErrorList {
 	var allErrs field.ErrorList
 	backendsPath := field.NewPath("spec").Child("backends")
 
@@ -158,7 +158,7 @@ func validateBackendWorkerTypes(model *registryv1alpha1.Model) field.ErrorList {
 	return allErrs
 }
 
-func validateBackendReplicaBounds(model *registryv1alpha1.Model) field.ErrorList {
+func validateBackendReplicaBounds(model *registryv1alpha1.ModelBooster) field.ErrorList {
 	var allErrs field.ErrorList
 	path := field.NewPath("spec").Child("backends")
 	const maxTotalReplicas = 1000000
@@ -183,7 +183,7 @@ func validateBackendReplicaBounds(model *registryv1alpha1.Model) field.ErrorList
 	return allErrs
 }
 
-func validateScaleToZeroGracePeriod(model *registryv1alpha1.Model) field.ErrorList {
+func validateScaleToZeroGracePeriod(model *registryv1alpha1.ModelBooster) field.ErrorList {
 	const maxScaleToZeroSeconds = 1800
 	var allErrs field.ErrorList
 	for i, backend := range model.Spec.Backends {
@@ -209,7 +209,7 @@ func validateScaleToZeroGracePeriod(model *registryv1alpha1.Model) field.ErrorLi
 	return allErrs
 }
 
-func validateWorkerImages(model *registryv1alpha1.Model) field.ErrorList {
+func validateWorkerImages(model *registryv1alpha1.ModelBooster) field.ErrorList {
 	var allErrs field.ErrorList
 	for i, backend := range model.Spec.Backends {
 		for j, worker := range backend.Workers {
@@ -251,8 +251,8 @@ func validateImageField(image string) error {
 	return nil
 }
 
-// validateAutoScalingPolicyScope validates the autoscaling field usage rules for Model.
-func validateAutoScalingPolicyScope(model *registryv1alpha1.Model) field.ErrorList {
+// validateAutoScalingPolicyScope validates the autoscaling field usage rules for ModelBooster.
+func validateAutoScalingPolicyScope(model *registryv1alpha1.ModelBooster) field.ErrorList {
 	spec := model.Spec
 	var allErrs field.ErrorList
 
@@ -310,7 +310,7 @@ func validateAutoScalingPolicyScope(model *registryv1alpha1.Model) field.ErrorLi
 		}
 	} else {
 		if allBackendAutoScalingEmpty {
-			// Case 3 (Global Scope): Model autoscaling set, all backend autoscaling empty
+			// Case 3 (Global Scope): ModelBooster autoscaling set, all backend autoscaling empty
 			// minReplicas >= 0 for all backends, sum(minReplicas) >= 1
 			// Cost, ScaleToZeroGracePeriod, CostExpansionRatePercent must be provided
 			minSum := int32(0)
@@ -360,7 +360,7 @@ func validateAutoScalingPolicyScope(model *registryv1alpha1.Model) field.ErrorLi
 	return allErrs
 }
 
-func validateLoraAdapterName(model *registryv1alpha1.Model) field.ErrorList {
+func validateLoraAdapterName(model *registryv1alpha1.ModelBooster) field.ErrorList {
 	var allErrs field.ErrorList
 	modelName := model.Name
 	spec := model.Spec

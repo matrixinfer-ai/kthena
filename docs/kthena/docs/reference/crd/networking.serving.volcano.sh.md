@@ -111,7 +111,7 @@ evaluate to true only if all conditions are satisfied.
 
 
 _Appears in:_
-- [ModelSpec](#modelspec)
+- [ModelBoosterSpec](#modelboosterspec)
 - [Rule](#rule)
 
 | Field | Description | Default | Validation |

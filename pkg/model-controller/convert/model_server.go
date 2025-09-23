@@ -35,7 +35,7 @@ var VLLMKvConnectorType = map[string]networking.KVConnectorType{
 
 // BuildModelServer creates arrays of ModelServer for the given model.
 // Each model backend will create one model server.
-func BuildModelServer(model *workload.Model) ([]*networking.ModelServer, error) {
+func BuildModelServer(model *workload.ModelBooster) ([]*networking.ModelServer, error) {
 	var modelServers []*networking.ModelServer
 	for _, backend := range model.Spec.Backends {
 		var inferenceEngine networking.InferenceEngine
@@ -160,7 +160,7 @@ func getPdGroup(backend workload.ModelBackend) *networking.PDGroup {
 }
 
 // getServedModelName gets served model name from the worker config. Default is the model name.
-func getServedModelName(model *workload.Model, backend workload.ModelBackend) (string, error) {
+func getServedModelName(model *workload.ModelBooster, backend workload.ModelBackend) (string, error) {
 	servedModelName := model.Name
 	for _, worker := range backend.Workers {
 		if worker.Type == workload.ModelWorkerTypeServer ||

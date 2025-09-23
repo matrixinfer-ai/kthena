@@ -185,7 +185,7 @@ func GetBackendResourceName(modelName string, backendName string) string {
 	return fmt.Sprintf("%s-%s", modelName, backendName)
 }
 
-func GetModelControllerLabels(model *workload.Model, backendName string, revision string) map[string]string {
+func GetModelControllerLabels(model *workload.ModelBooster, backendName string, revision string) map[string]string {
 	return map[string]string{
 		ModelNameLabelKey:   model.Name,
 		BackendNameLabelKey: backendName,

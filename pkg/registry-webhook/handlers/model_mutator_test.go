@@ -26,12 +26,12 @@ import (
 
 func TestCreatePatch(t *testing.T) {
 	// Create an original model
-	original := &v1alpha1.Model{
+	original := &v1alpha1.ModelBooster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-model",
 			Namespace: "default",
 		},
-		Spec: v1alpha1.ModelSpec{
+		Spec: v1alpha1.ModelBoosterSpec{
 			AutoscalingPolicy: &v1alpha1.AutoscalingPolicySpec{},
 			Backends: []v1alpha1.ModelBackend{
 				{
@@ -91,12 +91,12 @@ func TestCreatePatch(t *testing.T) {
 
 func TestCreatePatchNoChanges(t *testing.T) {
 	// Create a model
-	original := &v1alpha1.Model{
+	original := &v1alpha1.ModelBooster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-model",
 			Namespace: "default",
 		},
-		Spec: v1alpha1.ModelSpec{
+		Spec: v1alpha1.ModelBoosterSpec{
 			Backends: []v1alpha1.ModelBackend{
 				{
 					Name:        "backend1",

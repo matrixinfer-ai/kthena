@@ -32,71 +32,71 @@ import (
 	cache "k8s.io/client-go/tools/cache"
 )
 
-// ModelInferInformer provides access to a shared informer and lister for
-// ModelInfers.
-type ModelInferInformer interface {
+// ModelServingInformer provides access to a shared informer and lister for
+// ModelServings.
+type ModelServingInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() workloadv1alpha1.ModelInferLister
+	Lister() workloadv1alpha1.ModelServingLister
 }
 
-type modelInferInformer struct {
+type modelServingInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 	namespace        string
 }
 
-// NewModelInferInformer constructs a new informer for ModelInfer type.
+// NewModelServingInformer constructs a new informer for ModelServing type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewModelInferInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredModelInferInformer(client, namespace, resyncPeriod, indexers, nil)
+func NewModelServingInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredModelServingInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
-// NewFilteredModelInferInformer constructs a new informer for ModelInfer type.
+// NewFilteredModelServingInformer constructs a new informer for ModelServing type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredModelInferInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredModelServingInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.WorkloadV1alpha1().ModelInfers(namespace).List(context.Background(), options)
+				return client.WorkloadV1alpha1().ModelServings(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.WorkloadV1alpha1().ModelInfers(namespace).Watch(context.Background(), options)
+				return client.WorkloadV1alpha1().ModelServings(namespace).Watch(context.Background(), options)
 			},
 			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.WorkloadV1alpha1().ModelInfers(namespace).List(ctx, options)
+				return client.WorkloadV1alpha1().ModelServings(namespace).List(ctx, options)
 			},
 			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.WorkloadV1alpha1().ModelInfers(namespace).Watch(ctx, options)
+				return client.WorkloadV1alpha1().ModelServings(namespace).Watch(ctx, options)
 			},
 		},
-		&apisworkloadv1alpha1.ModelInfer{},
+		&apisworkloadv1alpha1.ModelServing{},
 		resyncPeriod,
 		indexers,
 	)
 }
 
-func (f *modelInferInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredModelInferInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+func (f *modelServingInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredModelServingInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
-func (f *modelInferInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apisworkloadv1alpha1.ModelInfer{}, f.defaultInformer)
+func (f *modelServingInformer) Informer() cache.SharedIndexInformer {
+	return f.factory.InformerFor(&apisworkloadv1alpha1.ModelServing{}, f.defaultInformer)
 }
 
-func (f *modelInferInformer) Lister() workloadv1alpha1.ModelInferLister {
-	return workloadv1alpha1.NewModelInferLister(f.Informer().GetIndexer())
+func (f *modelServingInformer) Lister() workloadv1alpha1.ModelServingLister {
+	return workloadv1alpha1.NewModelServingLister(f.Informer().GetIndexer())
 }

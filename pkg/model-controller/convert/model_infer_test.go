@@ -96,19 +96,19 @@ func TestGetCachePath(t *testing.T) {
 func TestCreateModelInferResources(t *testing.T) {
 	tests := []struct {
 		name         string
-		input        *workload.Model
-		expected     []*workload.ModelInfer
+		input        *workload.ModelBooster
+		expected     []*workload.ModelServing
 		expectErrMsg string
 	}{
 		{
 			name:     "CacheVolume_HuggingFace_HostPath",
-			input:    loadYaml[workload.Model](t, "testdata/input/model.yaml"),
-			expected: []*workload.ModelInfer{loadYaml[workload.ModelInfer](t, "testdata/expected/model-infer.yaml")},
+			input:    loadYaml[workload.ModelBooster](t, "testdata/input/model.yaml"),
+			expected: []*workload.ModelServing{loadYaml[workload.ModelServing](t, "testdata/expected/model-infer.yaml")},
 		},
 		{
 			name:     "PD disaggregation",
-			input:    loadYaml[workload.Model](t, "testdata/input/pd-disaggregated-model.yaml"),
-			expected: []*workload.ModelInfer{loadYaml[workload.ModelInfer](t, "testdata/expected/disaggregated-model-infer.yaml")},
+			input:    loadYaml[workload.ModelBooster](t, "testdata/input/pd-disaggregated-model.yaml"),
+			expected: []*workload.ModelServing{loadYaml[workload.ModelServing](t, "testdata/expected/disaggregated-model-infer.yaml")},
 		},
 	}
 	for _, tt := range tests {
@@ -122,7 +122,7 @@ func TestCreateModelInferResources(t *testing.T) {
 			}
 			diff := cmp.Diff(tt.expected, got)
 			if diff != "" {
-				t.Errorf("ModelInfer mismatch (-expected +actual):\n%s", diff)
+				t.Errorf("ModelServing mismatch (-expected +actual):\n%s", diff)
 			}
 		})
 	}

@@ -30,12 +30,12 @@ import (
 func TestBuildScalingPolicyBinding(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    *v1alpha1.Model
+		input    *v1alpha1.ModelBooster
 		expected *v1alpha1.AutoscalingPolicyBinding
 	}{
 		{
 			name:     "simple backend",
-			input:    loadYaml[v1alpha1.Model](t, "testdata/input/model.yaml"),
+			input:    loadYaml[v1alpha1.ModelBooster](t, "testdata/input/model.yaml"),
 			expected: loadYaml[v1alpha1.AutoscalingPolicyBinding](t, "testdata/expected/scaling-asp-binding.yaml"),
 		},
 	}
@@ -52,12 +52,12 @@ func TestBuildScalingPolicyBinding(t *testing.T) {
 func TestBuildOptimizePolicyBinding(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    *v1alpha1.Model
+		input    *v1alpha1.ModelBooster
 		expected *v1alpha1.AutoscalingPolicyBinding
 	}{
 		{
 			name:     "model with multiple backends",
-			input:    loadYaml[v1alpha1.Model](t, "testdata/input/multi-backends-model.yaml"),
+			input:    loadYaml[v1alpha1.ModelBooster](t, "testdata/input/multi-backends-model.yaml"),
 			expected: loadYaml[v1alpha1.AutoscalingPolicyBinding](t, "testdata/expected/optimize-asp-binding.yaml"),
 		},
 	}
@@ -72,17 +72,17 @@ func TestBuildOptimizePolicyBinding(t *testing.T) {
 func TestBuildAutoscalingPolicy(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    *v1alpha1.Model
+		input    *v1alpha1.ModelBooster
 		expected *v1alpha1.AutoscalingPolicy
 	}{
 		{
 			name:     "simple-backend",
-			input:    loadYaml[v1alpha1.Model](t, "testdata/input/model.yaml"),
+			input:    loadYaml[v1alpha1.ModelBooster](t, "testdata/input/model.yaml"),
 			expected: loadYaml[v1alpha1.AutoscalingPolicy](t, "testdata/expected/scaling-asp.yaml"),
 		},
 		{
 			name:     "multi-backends",
-			input:    loadYaml[v1alpha1.Model](t, "testdata/input/multi-backends-model.yaml"),
+			input:    loadYaml[v1alpha1.ModelBooster](t, "testdata/input/multi-backends-model.yaml"),
 			expected: loadYaml[v1alpha1.AutoscalingPolicy](t, "testdata/expected/optimize-asp.yaml"),
 		},
 	}

@@ -100,20 +100,20 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &applyconfigurationworkloadv1alpha1.MetadataApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("MetricEndpoint"):
 		return &applyconfigurationworkloadv1alpha1.MetricEndpointApplyConfiguration{}
-	case workloadv1alpha1.SchemeGroupVersion.WithKind("Model"):
-		return &applyconfigurationworkloadv1alpha1.ModelApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelBackend"):
 		return &applyconfigurationworkloadv1alpha1.ModelBackendApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelBackendStatus"):
 		return &applyconfigurationworkloadv1alpha1.ModelBackendStatusApplyConfiguration{}
-	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelInfer"):
-		return &applyconfigurationworkloadv1alpha1.ModelInferApplyConfiguration{}
-	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelInferSpec"):
-		return &applyconfigurationworkloadv1alpha1.ModelInferSpecApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelBooster"):
+		return &applyconfigurationworkloadv1alpha1.ModelBoosterApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelBoosterSpec"):
+		return &applyconfigurationworkloadv1alpha1.ModelBoosterSpecApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelInferStatus"):
 		return &applyconfigurationworkloadv1alpha1.ModelInferStatusApplyConfiguration{}
-	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelSpec"):
-		return &applyconfigurationworkloadv1alpha1.ModelSpecApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelServing"):
+		return &applyconfigurationworkloadv1alpha1.ModelServingApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelServingSpec"):
+		return &applyconfigurationworkloadv1alpha1.ModelServingSpecApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelStatus"):
 		return &applyconfigurationworkloadv1alpha1.ModelStatusApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("ModelWorker"):

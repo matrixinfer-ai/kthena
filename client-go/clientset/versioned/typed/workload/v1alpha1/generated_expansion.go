@@ -22,6 +22,6 @@ type AutoscalingPolicyExpansion interface{}
 
 type AutoscalingPolicyBindingExpansion interface{}
 
-type ModelExpansion interface{}
+type ModelBoosterExpansion interface{}
 
-type ModelInferExpansion interface{}
+type ModelServingExpansion interface{}

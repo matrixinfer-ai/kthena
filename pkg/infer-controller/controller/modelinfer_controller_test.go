@@ -46,7 +46,7 @@ func TestIsInferGroupOutdated(t *testing.T) {
 	ns := "test-ns"
 	groupName := "test-group"
 	group := datastore.InferGroup{Name: groupName}
-	mi := &workloadv1alpha1.ModelInfer{ObjectMeta: metav1.ObjectMeta{Namespace: ns}}
+	mi := &workloadv1alpha1.ModelServing{ObjectMeta: metav1.ObjectMeta{Namespace: ns}}
 	newHash := "hash123"
 
 	kubeClient := kubefake.NewSimpleClientset()
@@ -152,14 +152,14 @@ func TestCheckInferGroupReady(t *testing.T) {
 	kubeInformerFactory.Start(stop)
 	kubeInformerFactory.WaitForCacheSync(stop)
 
-	// build ModelInfer
+	// build ModelServing
 	var expectedPodNum int32 = 2
-	mi := &workloadv1alpha1.ModelInfer{
+	mi := &workloadv1alpha1.ModelServing{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: ns,
 			Name:      "test-mi",
 		},
-		Spec: workloadv1alpha1.ModelInferSpec{
+		Spec: workloadv1alpha1.ModelServingSpec{
 			Template: workloadv1alpha1.InferGroup{
 				Roles: []workloadv1alpha1.Role{
 					{
@@ -262,7 +262,7 @@ func TestIsInferGroupDeleted(t *testing.T) {
 	kubeInformerFactory.Start(stop)
 	kubeInformerFactory.WaitForCacheSync(stop)
 
-	mi := &workloadv1alpha1.ModelInfer{
+	mi := &workloadv1alpha1.ModelServing{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: ns,
 			Name:      "test-mi",
@@ -460,7 +460,7 @@ func TestIsRoleDeleted(t *testing.T) {
 	kubeInformerFactory.Start(stop)
 	kubeInformerFactory.WaitForCacheSync(stop)
 
-	mi := &workloadv1alpha1.ModelInfer{
+	mi := &workloadv1alpha1.ModelServing{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: ns,
 			Name:      "test-mi",
@@ -757,20 +757,20 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		controller.servicesInformer.HasSynced,
 	)
 
-	// Test Case 1: ModelInfer Creation
+	// Test Case 1: ModelServing Creation
 	t.Run("ModelInferCreate", func(t *testing.T) {
 		mi := createStandardModelInfer("test-mi", 2, 3)
-		// Add ModelInfer to fake client
-		_, err := kthenaClient.WorkloadV1alpha1().ModelInfers("default").Create(
+		// Add ModelServing to fake client
+		_, err := kthenaClient.WorkloadV1alpha1().ModelServings("default").Create(
 			context.Background(), mi, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
 		// Wait for object to be available in cache
 		found := waitForObjectInCache(t, 2*time.Second, func() bool {
-			_, err := controller.modelInfersLister.ModelInfers("default").Get("test-mi")
+			_, err := controller.modelServingLister.ModelServings("default").Get("test-mi")
 			return err == nil
 		})
-		assert.True(t, found, "ModelInfer should be found in cache after creation")
+		assert.True(t, found, "ModelServing should be found in cache after creation")
 
 		// Simulate controller processing the creation
 		err = controller.syncModelInfer(context.Background(), "default/test-mi")
@@ -795,20 +795,20 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		verifyPodCount(t, controller, mi, 2)
 	})
 
-	// Test Case 2: ModelInfer Scale Up
+	// Test Case 2: ModelServing Scale Up
 	t.Run("ModelInferScaleUp", func(t *testing.T) {
 		mi := createStandardModelInfer("test-mi-scale-up", 1, 2)
-		// Create initial ModelInfer
-		_, err := kthenaClient.WorkloadV1alpha1().ModelInfers("default").Create(
+		// Create initial ModelServing
+		_, err := kthenaClient.WorkloadV1alpha1().ModelServings("default").Create(
 			context.Background(), mi, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
 		// Wait for object to be available in cache
 		found := waitForObjectInCache(t, 2*time.Second, func() bool {
-			_, err := controller.modelInfersLister.ModelInfers("default").Get("test-mi-scale-up")
+			_, err := controller.modelServingLister.ModelServings("default").Get("test-mi-scale-up")
 			return err == nil
 		})
-		assert.True(t, found, "ModelInfer should be found in cache after creation")
+		assert.True(t, found, "ModelServing should be found in cache after creation")
 
 		// Process initial creation
 		err = controller.syncModelInfer(context.Background(), "default/test-mi-scale-up")
@@ -817,20 +817,20 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		// Verify InferGroups initial state
 		verifyInferGroups(t, controller, mi, 1)
 
-		// Update ModelInfer to scale up
+		// Update ModelServing to scale up
 		updatedMI := mi.DeepCopy()
 		updatedMI.Spec.Replicas = ptr.To[int32](3) // Scale up to 3 InferGroups
 
-		_, err = kthenaClient.WorkloadV1alpha1().ModelInfers("default").Update(
+		_, err = kthenaClient.WorkloadV1alpha1().ModelServings("default").Update(
 			context.Background(), updatedMI, metav1.UpdateOptions{})
 		assert.NoError(t, err)
 
 		// Wait for update to be available in cache
 		found = waitForObjectInCache(t, 2*time.Second, func() bool {
-			mi, err := controller.modelInfersLister.ModelInfers("default").Get("test-mi-scale-up")
+			mi, err := controller.modelServingLister.ModelServings("default").Get("test-mi-scale-up")
 			return err == nil && *mi.Spec.Replicas == 3
 		})
-		assert.True(t, found, "Updated ModelInfer should be found in cache")
+		assert.True(t, found, "Updated ModelServing should be found in cache")
 
 		// Process the update
 		err = controller.syncModelInfer(context.Background(), "default/test-mi-scale-up")
@@ -855,20 +855,20 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		verifyPodCount(t, controller, updatedMI, 3)
 	})
 
-	// Test Case 3: ModelInfer Update - Scale Down Replicas
+	// Test Case 3: ModelServing Update - Scale Down Replicas
 	t.Run("ModelInferUpdateScaleDown", func(t *testing.T) {
 		mi := createStandardModelInfer("test-mi-scale-down", 3, 2)
-		// Create initial ModelInfer
-		_, err := kthenaClient.WorkloadV1alpha1().ModelInfers("default").Create(
+		// Create initial ModelServing
+		_, err := kthenaClient.WorkloadV1alpha1().ModelServings("default").Create(
 			context.Background(), mi, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
 		// Wait for object to be available in cache
 		found := waitForObjectInCache(t, 2*time.Second, func() bool {
-			_, err := controller.modelInfersLister.ModelInfers("default").Get("test-mi-scale-down")
+			_, err := controller.modelServingLister.ModelServings("default").Get("test-mi-scale-down")
 			return err == nil
 		})
-		assert.True(t, found, "ModelInfer should be found in cache after creation")
+		assert.True(t, found, "ModelServing should be found in cache after creation")
 
 		// Process initial creation
 		err = controller.syncModelInfer(context.Background(), "default/test-mi-scale-down")
@@ -890,20 +890,20 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		verifyPodCount(t, controller, mi, 3)
 		verifyRoles(t, controller, mi, 3)
 
-		// Update ModelInfer to scale down
+		// Update ModelServing to scale down
 		updatedMI := mi.DeepCopy()
 		updatedMI.Spec.Replicas = ptr.To[int32](1) // Scale up to 1 InferGroups
 
-		_, err = kthenaClient.WorkloadV1alpha1().ModelInfers("default").Update(
+		_, err = kthenaClient.WorkloadV1alpha1().ModelServings("default").Update(
 			context.Background(), updatedMI, metav1.UpdateOptions{})
 		assert.NoError(t, err)
 
 		// Wait for update to be available in cache
 		found = waitForObjectInCache(t, 2*time.Second, func() bool {
-			mi, err := controller.modelInfersLister.ModelInfers("default").Get("test-mi-scale-down")
+			mi, err := controller.modelServingLister.ModelServings("default").Get("test-mi-scale-down")
 			return err == nil && *mi.Spec.Replicas == 1
 		})
-		assert.True(t, found, "Updated ModelInfer should be found in cache")
+		assert.True(t, found, "Updated ModelServing should be found in cache")
 
 		// Process the update
 		err = controller.syncModelInfer(context.Background(), "default/test-mi-scale-down")
@@ -962,20 +962,20 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		verifyPodCount(t, controller, updatedMI, 1)
 	})
 
-	// Test Case 4: ModelInfer Update - Role Replicas Scale Up
+	// Test Case 4: ModelServing Update - Role Replicas Scale Up
 	t.Run("ModelInferRoleReplicasScaleUp", func(t *testing.T) {
 		mi := createStandardModelInfer("test-role-scale-up", 2, 1)
-		// Create initial ModelInfer
-		_, err := kthenaClient.WorkloadV1alpha1().ModelInfers("default").Create(
+		// Create initial ModelServing
+		_, err := kthenaClient.WorkloadV1alpha1().ModelServings("default").Create(
 			context.Background(), mi, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
 		// Wait for object to be available in cache
 		found := waitForObjectInCache(t, 2*time.Second, func() bool {
-			_, err := controller.modelInfersLister.ModelInfers("default").Get("test-role-scale-up")
+			_, err := controller.modelServingLister.ModelServings("default").Get("test-role-scale-up")
 			return err == nil
 		})
-		assert.True(t, found, "ModelInfer should be found in cache after creation")
+		assert.True(t, found, "ModelServing should be found in cache after creation")
 
 		// Process initial creation
 		err = controller.syncModelInfer(context.Background(), "default/test-role-scale-up")
@@ -984,20 +984,20 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		// Verify InferGroups initial state
 		verifyInferGroups(t, controller, mi, 2)
 
-		// Update ModelInfer to role scale down
+		// Update ModelServing to role scale down
 		updatedMI := mi.DeepCopy()
 		updatedMI.Spec.Template.Roles[0].Replicas = ptr.To[int32](3) // Scale up to 3 roles
 
-		_, err = kthenaClient.WorkloadV1alpha1().ModelInfers("default").Update(
+		_, err = kthenaClient.WorkloadV1alpha1().ModelServings("default").Update(
 			context.Background(), updatedMI, metav1.UpdateOptions{})
 		assert.NoError(t, err)
 
 		// Wait for update to be available in cache
 		found = waitForObjectInCache(t, 2*time.Second, func() bool {
-			mi, err := controller.modelInfersLister.ModelInfers("default").Get("test-role-scale-up")
+			mi, err := controller.modelServingLister.ModelServings("default").Get("test-role-scale-up")
 			return err == nil && *mi.Spec.Template.Roles[0].Replicas == 3
 		})
-		assert.True(t, found, "Updated ModelInfer should be found in cache")
+		assert.True(t, found, "Updated ModelServing should be found in cache")
 
 		// Process the update
 		err = controller.syncModelInfer(context.Background(), "default/test-role-scale-up")
@@ -1022,21 +1022,21 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		verifyPodCount(t, controller, updatedMI, 2)
 	})
 
-	// Test Case 5: ModelInfer Update - Role Replicas Scale Down
+	// Test Case 5: ModelServing Update - Role Replicas Scale Down
 	t.Run("ModelInferRoleReplicasScaleDown", func(t *testing.T) {
 		mi := createStandardModelInfer("test-role-scale-down", 2, 3)
 
-		// Create initial ModelInfer
-		_, err := kthenaClient.WorkloadV1alpha1().ModelInfers("default").Create(
+		// Create initial ModelServing
+		_, err := kthenaClient.WorkloadV1alpha1().ModelServings("default").Create(
 			context.Background(), mi, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
 		// Wait for object to be available in cache
 		found := waitForObjectInCache(t, 2*time.Second, func() bool {
-			_, err := controller.modelInfersLister.ModelInfers("default").Get("test-role-scale-down")
+			_, err := controller.modelServingLister.ModelServings("default").Get("test-role-scale-down")
 			return err == nil
 		})
-		assert.True(t, found, "ModelInfer should be found in cache after creation")
+		assert.True(t, found, "ModelServing should be found in cache after creation")
 
 		// Process initial creation
 		err = controller.syncModelInfer(context.Background(), "default/test-role-scale-down")
@@ -1058,20 +1058,20 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		verifyPodCount(t, controller, mi, 2)
 		verifyRoles(t, controller, mi, 2)
 
-		// Update ModelInfer to role scale down
+		// Update ModelServing to role scale down
 		updatedMI := mi.DeepCopy()
 		updatedMI.Spec.Template.Roles[0].Replicas = ptr.To[int32](1) // Scale down to 1 role
 
-		_, err = kthenaClient.WorkloadV1alpha1().ModelInfers("default").Update(
+		_, err = kthenaClient.WorkloadV1alpha1().ModelServings("default").Update(
 			context.Background(), updatedMI, metav1.UpdateOptions{})
 		assert.NoError(t, err)
 
 		// Wait for update to be available in cache
 		found = waitForObjectInCache(t, 2*time.Second, func() bool {
-			mi, err := controller.modelInfersLister.ModelInfers("default").Get("test-role-scale-down")
+			mi, err := controller.modelServingLister.ModelServings("default").Get("test-role-scale-down")
 			return err == nil && *mi.Spec.Template.Roles[0].Replicas == 1
 		})
-		assert.True(t, found, "Updated ModelInfer should be found in cache")
+		assert.True(t, found, "Updated ModelServing should be found in cache")
 
 		// Process the update
 		err = controller.syncModelInfer(context.Background(), "default/test-role-scale-down")
@@ -1152,14 +1152,14 @@ func waitForObjectInCache(t *testing.T, timeout time.Duration, checkFunc func() 
 	}
 }
 
-// createStandardModelInfer Create a standard ModelInfer
-func createStandardModelInfer(name string, replicas int32, roleReplicas int32) *workloadv1alpha1.ModelInfer {
-	return &workloadv1alpha1.ModelInfer{
+// createStandardModelInfer Create a standard ModelServing
+func createStandardModelInfer(name string, replicas int32, roleReplicas int32) *workloadv1alpha1.ModelServing {
+	return &workloadv1alpha1.ModelServing{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "default",
 			Name:      name,
 		},
-		Spec: workloadv1alpha1.ModelInferSpec{
+		Spec: workloadv1alpha1.ModelServingSpec{
 			Replicas:      ptr.To[int32](replicas),
 			SchedulerName: "volcano",
 			Template: workloadv1alpha1.InferGroup{
@@ -1186,7 +1186,7 @@ func createStandardModelInfer(name string, replicas int32, roleReplicas int32) *
 }
 
 // verifyInferGroups Verify the number and name of InferGroup
-func verifyInferGroups(t *testing.T, controller *ModelInferController, mi *workloadv1alpha1.ModelInfer, expectedCount int) {
+func verifyInferGroups(t *testing.T, controller *ModelInferController, mi *workloadv1alpha1.ModelServing, expectedCount int) {
 	groups, err := controller.store.GetInferGroupByModelInfer(utils.GetNamespaceName(mi))
 	assert.NoError(t, err)
 	assert.Equal(t, expectedCount, len(groups), fmt.Sprintf("Should have %d InferGroups", expectedCount))
@@ -1205,7 +1205,7 @@ func verifyInferGroups(t *testing.T, controller *ModelInferController, mi *workl
 }
 
 // verifyPodCount Verify the number of Pods in each InferGroup
-func verifyPodCount(t *testing.T, controller *ModelInferController, mi *workloadv1alpha1.ModelInfer, expectedGroups int) {
+func verifyPodCount(t *testing.T, controller *ModelInferController, mi *workloadv1alpha1.ModelServing, expectedGroups int) {
 	expectPodNum := utils.ExpectedPodNum(mi)
 	for i := 0; i < expectedGroups; i++ {
 		groupName := fmt.Sprintf("%s-%d", mi.Name, i)
@@ -1220,12 +1220,12 @@ func verifyPodCount(t *testing.T, controller *ModelInferController, mi *workload
 }
 
 // verifyRoles Verify the number and name of Role
-func verifyRoles(t *testing.T, controller *ModelInferController, mi *workloadv1alpha1.ModelInfer, expectedGroups int) {
+func verifyRoles(t *testing.T, controller *ModelInferController, mi *workloadv1alpha1.ModelServing, expectedGroups int) {
 	// Traverse each InferGroup
 	for i := 0; i < expectedGroups; i++ {
 		groupName := fmt.Sprintf("%s-%d", mi.Name, i)
 
-		// Traverse each role defined in the ModelInfer spec
+		// Traverse each role defined in the ModelServing spec
 		for _, specRole := range mi.Spec.Template.Roles {
 			roleName := specRole.Name
 			expectedRoleReplicas := int(*specRole.Replicas)

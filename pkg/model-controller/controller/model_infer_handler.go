@@ -30,7 +30,7 @@ import (
 
 // createOrUpdateModelInfer attempts to create model infer if model infer does not exist, or update it if it is different from model.
 // Meanwhile, delete model infer if it is not in the model spec anymore.
-func (mc *ModelController) createOrUpdateModelInfer(ctx context.Context, model *workload.Model, excludedBackends []string) error {
+func (mc *ModelController) createOrUpdateModelInfer(ctx context.Context, model *workload.ModelBooster, excludedBackends []string) error {
 	existingModelInfers, err := mc.listModelInferByLabel(model)
 	if err != nil {
 		return err
@@ -48,13 +48,13 @@ func (mc *ModelController) createOrUpdateModelInfer(ctx context.Context, model *
 		}
 	}
 
-	// If all backends are excluded, skip ModelInfer updates
+	// If all backends are excluded, skip ModelServing updates
 	if len(filteredBackends) == 0 {
-		klog.Infof("All backends excluded from ModelInfer update for model %s", model.Name)
+		klog.Infof("All backends excluded from ModelServing update for model %s", model.Name)
 		return nil
 	}
 
-	// Create a temporary model with filtered backends for ModelInfer creation
+	// Create a temporary model with filtered backends for ModelServing creation
 	tempModel := model.DeepCopy()
 	tempModel.Spec.Backends = filteredBackends
 
@@ -66,45 +66,45 @@ func (mc *ModelController) createOrUpdateModelInfer(ctx context.Context, model *
 	modelInfersToKeep := make(map[string]struct{})
 	for _, modelInfer := range modelInfers {
 		modelInfersToKeep[modelInfer.Name] = struct{}{}
-		oldModelInfer, err := mc.modelInfersLister.ModelInfers(modelInfer.Namespace).Get(modelInfer.Name)
+		oldModelInfer, err := mc.modelServingLister.ModelServings(modelInfer.Namespace).Get(modelInfer.Name)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
-				klog.V(4).Infof("Create Model Infer %s", modelInfer.Name)
-				if _, err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Create(ctx, modelInfer, metav1.CreateOptions{}); err != nil {
-					klog.Errorf("failed to create ModelInfer %s: %v", klog.KObj(modelInfer), err)
+				klog.V(4).Infof("Create ModelBooster Infer %s", modelInfer.Name)
+				if _, err := mc.client.WorkloadV1alpha1().ModelServings(model.Namespace).Create(ctx, modelInfer, metav1.CreateOptions{}); err != nil {
+					klog.Errorf("failed to create ModelServing %s: %v", klog.KObj(modelInfer), err)
 					return err
 				}
 				continue
 			}
-			klog.Errorf("failed to get ModelInfer %s: %v", klog.KObj(modelInfer), err)
+			klog.Errorf("failed to get ModelServing %s: %v", klog.KObj(modelInfer), err)
 			return err
 		}
 		if oldModelInfer.Labels[utils.RevisionLabelKey] == modelInfer.Labels[utils.RevisionLabelKey] {
-			klog.Infof("Model Infer %s of model %s does not need to update", modelInfer.Name, model.Name)
+			klog.Infof("ModelBooster Infer %s of model %s does not need to update", modelInfer.Name, model.Name)
 			continue
 		}
 		modelInfer.ResourceVersion = oldModelInfer.ResourceVersion
-		if _, err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Update(ctx, modelInfer, metav1.UpdateOptions{}); err != nil {
-			klog.Errorf("failed to update ModelInfer %s: %v", klog.KObj(modelInfer), err)
+		if _, err := mc.client.WorkloadV1alpha1().ModelServings(model.Namespace).Update(ctx, modelInfer, metav1.UpdateOptions{}); err != nil {
+			klog.Errorf("failed to update ModelServing %s: %v", klog.KObj(modelInfer), err)
 			return err
 		}
-		klog.V(4).Infof("Updated Model Infer %s for model %s", modelInfer.Name, model.Name)
+		klog.V(4).Infof("Updated ModelBooster Infer %s for model %s", modelInfer.Name, model.Name)
 	}
 	for _, existingModelInfer := range existingModelInfers {
 		// if not exist in modelInfersToKeep, delete it
 		if _, ok := modelInfersToKeep[existingModelInfer.Name]; !ok {
-			if err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Delete(ctx, existingModelInfer.Name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+			if err := mc.client.WorkloadV1alpha1().ModelServings(model.Namespace).Delete(ctx, existingModelInfer.Name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 				return err
 			}
-			klog.V(4).Infof("Delete ModelInfer %s", existingModelInfer.Name)
+			klog.V(4).Infof("Delete ModelServing %s", existingModelInfer.Name)
 		}
 	}
 	return nil
 }
 
 // listModelInferByLabel list all model infer which label key is "owner" and label value is model uid
-func (mc *ModelController) listModelInferByLabel(model *workload.Model) ([]*workload.ModelInfer, error) {
-	if modelInfers, err := mc.modelInfersLister.ModelInfers(model.Namespace).List(labels.SelectorFromSet(map[string]string{
+func (mc *ModelController) listModelInferByLabel(model *workload.ModelBooster) ([]*workload.ModelServing, error) {
+	if modelInfers, err := mc.modelServingLister.ModelServings(model.Namespace).List(labels.SelectorFromSet(map[string]string{
 		utils.OwnerUIDKey: string(model.UID),
 	})); err != nil {
 		return nil, err

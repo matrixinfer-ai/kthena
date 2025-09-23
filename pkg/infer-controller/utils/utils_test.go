@@ -27,8 +27,8 @@ import (
 
 func TestSetCondition(t *testing.T) {
 	t.Run("All groups ready", func(t *testing.T) {
-		mi := &workloadv1alpha1.ModelInfer{
-			Spec: workloadv1alpha1.ModelInferSpec{},
+		mi := &workloadv1alpha1.ModelServing{
+			Spec: workloadv1alpha1.ModelServingSpec{},
 			Status: workloadv1alpha1.ModelInferStatus{
 				Conditions: []metav1.Condition{},
 			},
@@ -48,8 +48,8 @@ func TestSetCondition(t *testing.T) {
 	})
 
 	t.Run("set updating in progress", func(t *testing.T) {
-		mi := &workloadv1alpha1.ModelInfer{
-			Spec: workloadv1alpha1.ModelInferSpec{},
+		mi := &workloadv1alpha1.ModelServing{
+			Spec: workloadv1alpha1.ModelServingSpec{},
 			Status: workloadv1alpha1.ModelInferStatus{
 				Conditions: []metav1.Condition{},
 			},
@@ -71,8 +71,8 @@ func TestSetCondition(t *testing.T) {
 
 	t.Run("set partition, is updating", func(t *testing.T) {
 		partition := int32(2)
-		mi := &workloadv1alpha1.ModelInfer{
-			Spec: workloadv1alpha1.ModelInferSpec{
+		mi := &workloadv1alpha1.ModelServing{
+			Spec: workloadv1alpha1.ModelServingSpec{
 				RolloutStrategy: &workloadv1alpha1.RolloutStrategy{
 					RollingUpdateConfiguration: &workloadv1alpha1.RollingUpdateConfiguration{
 						Partition: &partition,

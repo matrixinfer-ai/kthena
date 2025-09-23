@@ -4,20 +4,20 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.17.2
-  name: models.workload.serving.volcano.sh
+  name: modelboosters.workload.serving.volcano.sh
 spec:
   group: workload.serving.volcano.sh
   names:
-    kind: Model
-    listKind: ModelList
-    plural: models
-    singular: model
+    kind: ModelBooster
+    listKind: ModelBoosterList
+    plural: modelboosters
+    singular: modelbooster
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Model is the Schema for the models API.
+        description: ModelBooster is the Schema for the models API.
         properties:
           apiVersion:
             description: |-
@@ -37,7 +37,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: ModelSpec defines the desired state of Model.
+            description: ModelBoosterSpec defines the desired state of ModelBooster.
             properties:
               autoscalingPolicy:
                 description: AutoscalingPolicy references the autoscaling policy to
@@ -206,7 +206,7 @@ spec:
                 type: object
               backends:
                 description: |-
-                  Backends is the list of model backends associated with this model. A Model CR at lease has one ModelBackend.
+                  Backends is the list of model backends associated with this model. A ModelBooster CR at lease has one ModelBackend.
                   ModelBackend is the minimum unit of inference instance. It can be vLLM, SGLang, MindIE or other types.
                 items:
                   description: ModelBackend defines the configuration for a model
@@ -609,7 +609,7 @@ spec:
                       type: string
                     name:
                       description: |-
-                        Name is the name of the backend. Can't duplicate with other ModelBackend name in the same Model CR.
+                        Name is the name of the backend. Can't duplicate with other ModelBackend name in the same ModelBooster CR.
                         Note: update name will cause the old modelInfer deletion and a new modelInfer creation.
                       pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
                       type: string
@@ -1739,8 +1739,8 @@ spec:
                 type: object
               name:
                 description: |-
-                  Name is the name of the model. Model CR name is restricted by kubernetes, for example, can't contain uppercase letters.
-                  So we use this field to specify the Model name.
+                  Name is the name of the model. ModelBooster CR name is restricted by kubernetes, for example, can't contain uppercase letters.
+                  So we use this field to specify the ModelBooster name.
                 maxLength: 64
                 pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
                 type: string
@@ -1751,7 +1751,7 @@ spec:
             - backends
             type: object
           status:
-            description: ModelStatus defines the observed state of Model.
+            description: ModelStatus defines the observed state of ModelBooster.
             properties:
               backendStatuses:
                 description: BackendStatuses contains the status of each backend.

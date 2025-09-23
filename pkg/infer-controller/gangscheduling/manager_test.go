@@ -52,14 +52,14 @@ func TestCalculateRequirements(t *testing.T) {
 		}
 	}
 
-	// Helper function to create a basic ModelInfer object
-	createBasicModelInfer := func() *workloadv1alpha1.ModelInfer {
-		return &workloadv1alpha1.ModelInfer{
+	// Helper function to create a basic ModelServing object
+	createBasicModelInfer := func() *workloadv1alpha1.ModelServing {
+		return &workloadv1alpha1.ModelServing{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "test-model",
 				Namespace: "default",
 			},
-			Spec: workloadv1alpha1.ModelInferSpec{
+			Spec: workloadv1alpha1.ModelServingSpec{
 				Template: workloadv1alpha1.InferGroup{
 					Roles: []workloadv1alpha1.Role{
 						{
@@ -440,7 +440,7 @@ func TestAggregateResources(t *testing.T) {
 
 func TestGetExistingPodGroups(t *testing.T) {
 	// Setup test objects
-	modelInfer := &workloadv1alpha1.ModelInfer{
+	modelInfer := &workloadv1alpha1.ModelServing{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-model",
 			Namespace: "default",
@@ -556,7 +556,7 @@ func TestGetExistingPodGroups(t *testing.T) {
 		fakeVolcanoClient := volcanofake.NewSimpleClientset(podGroup1)
 		manager := NewManager(nil, fakeVolcanoClient)
 
-		// Test with nil ModelInfer - this would cause a panic in the real code
+		// Test with nil ModelServing - this would cause a panic in the real code
 		// but we're checking that our test handles it gracefully
 		assert.Panics(t, func() {
 			_, _ = manager.getExistingPodGroups(context.Background(), nil)

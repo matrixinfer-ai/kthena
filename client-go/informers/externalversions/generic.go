@@ -64,10 +64,10 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Workload().V1alpha1().AutoscalingPolicies().Informer()}, nil
 	case workloadv1alpha1.SchemeGroupVersion.WithResource("autoscalingpolicybindings"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Workload().V1alpha1().AutoscalingPolicyBindings().Informer()}, nil
-	case workloadv1alpha1.SchemeGroupVersion.WithResource("models"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Workload().V1alpha1().Models().Informer()}, nil
-	case workloadv1alpha1.SchemeGroupVersion.WithResource("modelinfers"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Workload().V1alpha1().ModelInfers().Informer()}, nil
+	case workloadv1alpha1.SchemeGroupVersion.WithResource("modelboosters"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Workload().V1alpha1().ModelBoosters().Informer()}, nil
+	case workloadv1alpha1.SchemeGroupVersion.WithResource("modelservings"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Workload().V1alpha1().ModelServings().Informer()}, nil
 
 	}
 

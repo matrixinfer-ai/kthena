@@ -93,7 +93,7 @@ func generateWorkerPodName(groupName, roleName string, podIndex int) string {
 	return groupName + "-" + roleName + "-" + strconv.Itoa(podIndex)
 }
 
-func GenerateEntryPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, groupName string, roleIndex int, revision string) *corev1.Pod {
+func GenerateEntryPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelServing, groupName string, roleIndex int, revision string) *corev1.Pod {
 	entryPodName := generateEntryPodName(groupName, GenerateRoleID(role.Name, roleIndex))
 	entryPod := createBasePod(role, mi, entryPodName, groupName, revision, roleIndex)
 	entryPod.ObjectMeta.Labels[workloadv1alpha1.EntryLabelKey] = Entry
@@ -105,7 +105,7 @@ func GenerateEntryPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfe
 	return entryPod
 }
 
-func GenerateWorkerPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, entryPod *corev1.Pod, groupName string, roleIndex, podIndex int, revision string) *corev1.Pod {
+func GenerateWorkerPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelServing, entryPod *corev1.Pod, groupName string, roleIndex, podIndex int, revision string) *corev1.Pod {
 	workerPodName := generateWorkerPodName(groupName, GenerateRoleID(role.Name, roleIndex), podIndex)
 	workerPod := createBasePod(role, mi, workerPodName, groupName, revision, roleIndex)
 	addPodLabelAndAnnotation(workerPod, role.WorkerTemplate.Metadata)
@@ -116,7 +116,7 @@ func GenerateWorkerPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInf
 	return workerPod
 }
 
-func createBasePod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, name, groupName, revision string, roleIndex int) *corev1.Pod {
+func createBasePod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelServing, name, groupName, revision string, roleIndex int) *corev1.Pod {
 	return &corev1.Pod{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Pod",
@@ -210,8 +210,8 @@ func addEnvVars(container *corev1.Container, newEnvVars ...corev1.EnvVar) {
 	container.Env = append(retainedEnvVars, newEnvVars...)
 }
 
-// newModelInferOwnerRef creates an OwnerReference pointing to the given ModelInfer.
-func newModelInferOwnerRef(mi *workloadv1alpha1.ModelInfer) metav1.OwnerReference {
+// newModelInferOwnerRef creates an OwnerReference pointing to the given ModelServing.
+func newModelInferOwnerRef(mi *workloadv1alpha1.ModelServing) metav1.OwnerReference {
 	return metav1.OwnerReference{
 		APIVersion:         workloadv1alpha1.ModelInferKind.GroupVersion().String(),
 		Kind:               workloadv1alpha1.ModelInferKind.Kind,
@@ -222,7 +222,7 @@ func newModelInferOwnerRef(mi *workloadv1alpha1.ModelInfer) metav1.OwnerReferenc
 	}
 }
 
-func CreateHeadlessService(ctx context.Context, k8sClient kubernetes.Interface, mi *workloadv1alpha1.ModelInfer, serviceSelector map[string]string, groupName, roleLabel string, roleIndex int) error {
+func CreateHeadlessService(ctx context.Context, k8sClient kubernetes.Interface, mi *workloadv1alpha1.ModelServing, serviceSelector map[string]string, groupName, roleLabel string, roleIndex int) error {
 	serviceName := generateEntryPodName(groupName, GenerateRoleID(roleLabel, roleIndex))
 	headlessService := corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -331,7 +331,7 @@ func IsPodFailed(pod *corev1.Pod) bool {
 	return pod.Status.Phase == corev1.PodFailed
 }
 
-func ExpectedPodNum(mi *workloadv1alpha1.ModelInfer) int {
+func ExpectedPodNum(mi *workloadv1alpha1.ModelServing) int {
 	num := 0
 	for _, role := range mi.Spec.Template.Roles {
 		// Calculate the expected number of pod replicas when the role is running normally
@@ -383,7 +383,7 @@ func newCondition(condType workloadv1alpha1.ModelInferConditionType, message str
 	}
 }
 
-func SetCondition(mi *workloadv1alpha1.ModelInfer, progressingGroups, updatedGroups, currentGroups []int) bool {
+func SetCondition(mi *workloadv1alpha1.ModelServing, progressingGroups, updatedGroups, currentGroups []int) bool {
 	var newCond metav1.Condition
 	found := false
 	shouldUpdate := false
@@ -449,8 +449,8 @@ func exclusiveConditionTypes(condition1 metav1.Condition, condition2 metav1.Cond
 	return false
 }
 
-// ParseAdmissionRequest parses the HTTP request and extracts the AdmissionReview and ModelInfer.
-func ParseModelInferFromRequest(r *http.Request) (*admissionv1.AdmissionReview, *workloadv1alpha1.ModelInfer, error) {
+// ParseAdmissionRequest parses the HTTP request and extracts the AdmissionReview and ModelServing.
+func ParseModelInferFromRequest(r *http.Request) (*admissionv1.AdmissionReview, *workloadv1alpha1.ModelServing, error) {
 	// Verify the content type is accurate
 	contentType := r.Header.Get("Content-Type")
 	if contentType != "application/json" {
@@ -473,7 +473,7 @@ func ParseModelInferFromRequest(r *http.Request) (*admissionv1.AdmissionReview, 
 		return nil, nil, fmt.Errorf("failed to decode body: %v", err)
 	}
 
-	var mi workloadv1alpha1.ModelInfer
+	var mi workloadv1alpha1.ModelServing
 	if err := json.Unmarshal(admissionReview.Request.Object.Raw, &mi); err != nil {
 		return nil, nil, fmt.Errorf("failed to decode modelInfer: %v", err)
 	}

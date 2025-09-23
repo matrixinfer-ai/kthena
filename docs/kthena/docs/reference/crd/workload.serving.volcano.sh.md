@@ -12,10 +12,10 @@
 - [AutoscalingPolicyBinding](#autoscalingpolicybinding)
 - [AutoscalingPolicyBindingList](#autoscalingpolicybindinglist)
 - [AutoscalingPolicyList](#autoscalingpolicylist)
-- [Model](#model)
-- [ModelInfer](#modelinfer)
+- [ModelBooster](#modelbooster)
 - [ModelInferList](#modelinferlist)
 - [ModelList](#modellist)
+- [ModelServing](#modelserving)
 
 
 
@@ -114,7 +114,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `policyRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#localobjectreference-v1-core)_ | PolicyRef references the autoscaling policy to be optimized scaling base on multiple targets. |  |  |
-| `optimizerConfiguration` _[OptimizerConfiguration](#optimizerconfiguration)_ | It dynamically schedules replicas across different Model Infer groups based on overall computing power requirements - referred to as "optimize" behavior in the code.<br />For example:<br />When dealing with two types of Model Infer instances corresponding to heterogeneous hardware resources with different computing capabilities (e.g., H100/A100), the "optimize" behavior aims to:<br />Dynamically adjust the deployment ratio of H100/A100 instances based on real-time computing power demands<br />Use integer programming and similar methods to precisely meet computing requirements<br />Maximize hardware utilization efficiency |  |  |
+| `optimizerConfiguration` _[OptimizerConfiguration](#optimizerconfiguration)_ | It dynamically schedules replicas across different ModelBooster Infer groups based on overall computing power requirements - referred to as "optimize" behavior in the code.<br />For example:<br />When dealing with two types of ModelBooster Infer instances corresponding to heterogeneous hardware resources with different computing capabilities (e.g., H100/A100), the "optimize" behavior aims to:<br />Dynamically adjust the deployment ratio of H100/A100 instances based on real-time computing power demands<br />Use integer programming and similar methods to precisely meet computing requirements<br />Maximize hardware utilization efficiency |  |  |
 | `scalingConfiguration` _[ScalingConfiguration](#scalingconfiguration)_ | Adjust the number of related instances based on specified monitoring metrics and their target values. |  |  |
 
 
@@ -215,7 +215,7 @@ AutoscalingPolicySpec defines the desired state of AutoscalingPolicy.
 _Appears in:_
 - [AutoscalingPolicy](#autoscalingpolicy)
 - [ModelBackend](#modelbackend)
-- [ModelSpec](#modelspec)
+- [ModelBoosterSpec](#modelboosterspec)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
@@ -286,7 +286,7 @@ InferGroup is the smallest unit to complete the inference task
 
 
 _Appears in:_
-- [ModelInferSpec](#modelinferspec)
+- [ModelServingSpec](#modelservingspec)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
@@ -346,28 +346,6 @@ _Appears in:_
 | `port` _integer_ | The port of pods exposing metric endpoints | 8100 |  |
 
 
-#### Model
-
-
-
-Model is the Schema for the models API.
-
-
-
-_Appears in:_
-- [ModelList](#modellist)
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `apiVersion` _string_ | `workload.serving.volcano.sh/v1alpha1` | | |
-| `kind` _string_ | `Model` | | |
-| `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  |  |
-| `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  |  |
-| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
-| `spec` _[ModelSpec](#modelspec)_ |  |  |  |
-| `status` _[ModelStatus](#modelstatus)_ |  |  |  |
-
-
 #### ModelBackend
 
 
@@ -377,11 +355,11 @@ ModelBackend defines the configuration for a model backend.
 
 
 _Appears in:_
-- [ModelSpec](#modelspec)
+- [ModelBoosterSpec](#modelboosterspec)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `name` _string_ | Name is the name of the backend. Can't duplicate with other ModelBackend name in the same Model CR.<br />Note: update name will cause the old modelInfer deletion and a new modelInfer creation. |  | Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?$` <br /> |
+| `name` _string_ | Name is the name of the backend. Can't duplicate with other ModelBackend name in the same ModelBooster CR.<br />Note: update name will cause the old modelServing deletion and a new modelServing creation. |  | Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?$` <br /> |
 | `type` _[ModelBackendType](#modelbackendtype)_ | Type is the type of the backend. |  | Enum: [vLLM vLLMDisaggregated SGLang MindIE MindIEDisaggregated] <br /> |
 | `modelURI` _string_ | ModelURI is the URI where you download the model. Support hf://, s3://, pvc://. |  | Pattern: `^(hf://\|s3://\|pvc://).+` <br /> |
 | `cacheURI` _string_ | CacheURI is the URI where the downloaded model stored. Support hostpath://, pvc://. |  | Pattern: `^(hostpath://\|pvc://).+` <br /> |
@@ -435,26 +413,47 @@ _Appears in:_
 | `MindIEDisaggregated` | ModelBackendTypeMindIEDisaggregated represents a disaggregated MindIE backend.<br /> |
 
 
-#### ModelInfer
+#### ModelBooster
 
 
 
-ModelInfer is the Schema for the LLM infer API
+ModelBooster is the Schema for the models API.
 
 
 
 _Appears in:_
-- [ModelInferList](#modelinferlist)
+- [ModelList](#modellist)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `workload.serving.volcano.sh/v1alpha1` | | |
-| `kind` _string_ | `ModelInfer` | | |
+| `kind` _string_ | `ModelBooster` | | |
 | `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  |  |
 | `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  |  |
 | `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
-| `spec` _[ModelInferSpec](#modelinferspec)_ |  |  |  |
-| `status` _[ModelInferStatus](#modelinferstatus)_ |  |  |  |
+| `spec` _[ModelBoosterSpec](#modelboosterspec)_ |  |  |  |
+| `status` _[ModelStatus](#modelstatus)_ |  |  |  |
+
+
+#### ModelBoosterSpec
+
+
+
+ModelBoosterSpec defines the desired state of ModelBooster.
+
+
+
+_Appears in:_
+- [ModelBooster](#modelbooster)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `name` _string_ | Name is the name of the model. ModelBooster CR name is restricted by kubernetes, for example, can't contain uppercase letters.<br />So we use this field to specify the ModelBooster name. |  | MaxLength: 64 <br />Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?$` <br /> |
+| `owner` _string_ | Owner is the owner of the model. |  |  |
+| `backends` _[ModelBackend](#modelbackend) array_ | Backends is the list of model backends associated with this model. A ModelBooster CR at lease has one ModelBackend.<br />ModelBackend is the minimum unit of inference instance. It can be vLLM, SGLang, MindIE or other types. |  | MinItems: 1 <br /> |
+| `autoscalingPolicy` _[AutoscalingPolicySpec](#autoscalingpolicyspec)_ | AutoscalingPolicy references the autoscaling policy to be used for this model. |  |  |
+| `costExpansionRatePercent` _integer_ | CostExpansionRatePercent is the percentage rate at which the cost expands. |  | Maximum: 1000 <br />Minimum: 0 <br /> |
+| `modelMatch` _[ModelMatch](#modelmatch)_ | ModelMatch defines the predicate used to match LLM inference requests to a given<br />TargetModels. Multiple match conditions are ANDed together, i.e. the match will<br />evaluate to true only if all conditions are satisfied. |  |  |
 
 
 
@@ -463,7 +462,7 @@ _Appears in:_
 
 
 
-ModelInferList contains a list of ModelInfer
+ModelInferList contains a list of ModelServing
 
 
 
@@ -476,56 +475,35 @@ ModelInferList contains a list of ModelInfer
 | `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  |  |
 | `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  |  |
 | `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
-| `items` _[ModelInfer](#modelinfer) array_ |  |  |  |
-
-
-#### ModelInferSpec
-
-
-
-ModelInferSpec defines the specification of the ModelInfer resource.
-
-
-
-_Appears in:_
-- [ModelInfer](#modelinfer)
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `replicas` _integer_ | Number of InferGroups. That is the number of instances that run infer tasks<br />Default to 1. | 1 |  |
-| `schedulerName` _string_ | SchedulerName defines the name of the scheduler used by ModelInfer |  |  |
-| `template` _[InferGroup](#infergroup)_ | Template defines the template for InferGroup |  |  |
-| `rolloutStrategy` _[RolloutStrategy](#rolloutstrategy)_ | RolloutStrategy defines the strategy that will be applied to update replicas |  |  |
-| `recoveryPolicy` _[RecoveryPolicy](#recoverypolicy)_ | RecoveryPolicy defines the recovery policy for the failed Pod to be rebuilt | RoleRecreate | Enum: [InferGroupRecreate RoleRecreate None] <br /> |
-| `topologySpreadConstraints` _[TopologySpreadConstraint](#topologyspreadconstraint) array_ |  |  |  |
+| `items` _[ModelServing](#modelserving) array_ |  |  |  |
 
 
 #### ModelInferStatus
 
 
 
-ModelInferStatus defines the observed state of ModelInfer
+ModelInferStatus defines the observed state of ModelServing
 
 
 
 _Appears in:_
-- [ModelInfer](#modelinfer)
+- [ModelServing](#modelserving)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `observedGeneration` _integer_ | observedGeneration is the most recent generation observed for ModelInfer. It corresponds to the<br />ModelInfer's generation, which is updated on mutation by the API Server. |  |  |
+| `observedGeneration` _integer_ | observedGeneration is the most recent generation observed for ModelServing. It corresponds to the<br />ModelServing's generation, which is updated on mutation by the API Server. |  |  |
 | `replicas` _integer_ | Replicas track the total number of InferGroup that have been created (updated or not, ready or not) |  |  |
-| `currentReplicas` _integer_ | CurrentReplicas is the number of InferGroup created by the ModelInfer controller from the ModelInfer version |  |  |
+| `currentReplicas` _integer_ | CurrentReplicas is the number of InferGroup created by the ModelServing controller from the ModelServing version |  |  |
 | `updatedReplicas` _integer_ | UpdatedReplicas track the number of InferGroup that have been updated (ready or not). |  |  |
 | `availableReplicas` _integer_ | AvailableReplicas track the number of InferGroup that are in ready state (updated or not). |  |  |
-| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#condition-v1-meta) array_ | Conditions track the condition of the ModelInfer. |  |  |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#condition-v1-meta) array_ | Conditions track the condition of the ModelServing. |  |  |
 
 
 #### ModelList
 
 
 
-ModelList contains a list of Model.
+ModelList contains a list of ModelBooster.
 
 
 
@@ -538,40 +516,62 @@ ModelList contains a list of Model.
 | `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  |  |
 | `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  |  |
 | `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
-| `items` _[Model](#model) array_ |  |  |  |
+| `items` _[ModelBooster](#modelbooster) array_ |  |  |  |
 
 
-#### ModelSpec
+#### ModelServing
 
 
 
-ModelSpec defines the desired state of Model.
+ModelServing is the Schema for the LLM infer API
 
 
 
 _Appears in:_
-- [Model](#model)
+- [ModelInferList](#modelinferlist)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `name` _string_ | Name is the name of the model. Model CR name is restricted by kubernetes, for example, can't contain uppercase letters.<br />So we use this field to specify the Model name. |  | MaxLength: 64 <br />Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?$` <br /> |
-| `owner` _string_ | Owner is the owner of the model. |  |  |
-| `backends` _[ModelBackend](#modelbackend) array_ | Backends is the list of model backends associated with this model. A Model CR at lease has one ModelBackend.<br />ModelBackend is the minimum unit of inference instance. It can be vLLM, SGLang, MindIE or other types. |  | MinItems: 1 <br /> |
-| `autoscalingPolicy` _[AutoscalingPolicySpec](#autoscalingpolicyspec)_ | AutoscalingPolicy references the autoscaling policy to be used for this model. |  |  |
-| `costExpansionRatePercent` _integer_ | CostExpansionRatePercent is the percentage rate at which the cost expands. |  | Maximum: 1000 <br />Minimum: 0 <br /> |
-| `modelMatch` _[ModelMatch](#modelmatch)_ | ModelMatch defines the predicate used to match LLM inference requests to a given<br />TargetModels. Multiple match conditions are ANDed together, i.e. the match will<br />evaluate to true only if all conditions are satisfied. |  |  |
+| `apiVersion` _string_ | `workload.serving.volcano.sh/v1alpha1` | | |
+| `kind` _string_ | `ModelServing` | | |
+| `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  |  |
+| `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  |  |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `spec` _[ModelServingSpec](#modelservingspec)_ |  |  |  |
+| `status` _[ModelInferStatus](#modelinferstatus)_ |  |  |  |
+
+
+#### ModelServingSpec
+
+
+
+ModelServingSpec defines the specification of the ModelServing resource.
+
+
+
+_Appears in:_
+- [ModelServing](#modelserving)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `replicas` _integer_ | Number of InferGroups. That is the number of instances that run infer tasks<br />Default to 1. | 1 |  |
+| `schedulerName` _string_ | SchedulerName defines the name of the scheduler used by ModelServing |  |  |
+| `template` _[InferGroup](#infergroup)_ | Template defines the template for InferGroup |  |  |
+| `rolloutStrategy` _[RolloutStrategy](#rolloutstrategy)_ | RolloutStrategy defines the strategy that will be applied to update replicas |  |  |
+| `recoveryPolicy` _[RecoveryPolicy](#recoverypolicy)_ | RecoveryPolicy defines the recovery policy for the failed Pod to be rebuilt | RoleRecreate | Enum: [InferGroupRecreate RoleRecreate None] <br /> |
+| `topologySpreadConstraints` _[TopologySpreadConstraint](#topologyspreadconstraint) array_ |  |  |  |
 
 
 #### ModelStatus
 
 
 
-ModelStatus defines the observed state of Model.
+ModelStatus defines the observed state of ModelBooster.
 
 
 
 _Appears in:_
-- [Model](#model)
+- [ModelBooster](#modelbooster)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
@@ -638,7 +638,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `params` _[OptimizerParam](#optimizerparam) array_ | Parameters of multiple Model Infer Groups to be optimized. |  | MinItems: 1 <br /> |
+| `params` _[OptimizerParam](#optimizerparam) array_ | Parameters of multiple ModelBooster Infer Groups to be optimized. |  | MinItems: 1 <br /> |
 | `costExpansionRatePercent` _integer_ | CostExpansionRatePercent is the percentage rate at which the cost expands. | 200 | Minimum: 0 <br /> |
 
 
@@ -687,7 +687,7 @@ _Underlying type:_ _string_
 
 
 _Appears in:_
-- [ModelInferSpec](#modelinferspec)
+- [ModelServingSpec](#modelservingspec)
 
 | Field | Description |
 | --- | --- |
@@ -731,20 +731,20 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `maxUnavailable` _[IntOrString](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#intorstring-intstr-util)_ | The maximum number of replicas that can be unavailable during the update.<br />Value can be an absolute number (ex: 5) or a percentage of total replicas at the start of update (ex: 10%).<br />Absolute number is calculated from percentage by rounding down.<br />This can not be 0 if MaxSurge is 0.<br />By default, a fixed value of 1 is used. | 1 | XIntOrString: \{\} <br /> |
 | `maxSurge` _[IntOrString](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#intorstring-intstr-util)_ | The maximum number of replicas that can be scheduled above the original number of<br />replicas.<br />Value can be an absolute number (ex: 5) or a percentage of total replicas at<br />the start of the update (ex: 10%).<br />Absolute number is calculated from percentage by rounding up.<br />By default, a value of 0 is used. | 0 | XIntOrString: \{\} <br /> |
-| `partition` _integer_ | Partition indicates the ordinal at which the ModelInfer should be partitioned<br />for updates. During a rolling update, all inferGroups from ordinal Replicas-1 to<br />Partition are updated. All inferGroups from ordinal Partition-1 to 0 remain untouched.<br />The default value is 0. |  |  |
+| `partition` _integer_ | Partition indicates the ordinal at which the ModelServing should be partitioned<br />for updates. During a rolling update, all inferGroups from ordinal Replicas-1 to<br />Partition are updated. All inferGroups from ordinal Partition-1 to 0 remain untouched.<br />The default value is 0. |  |  |
 
 
 #### RolloutStrategy
 
 
 
-RolloutStrategy defines the strategy that the ModelInfer controller
+RolloutStrategy defines the strategy that the ModelServing controller
 will use to perform replica updates.
 
 
 
 _Appears in:_
-- [ModelInferSpec](#modelinferspec)
+- [ModelServingSpec](#modelservingspec)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
@@ -832,7 +832,7 @@ TopologySpreadConstraint defines the topology spread constraint.
 
 
 _Appears in:_
-- [ModelInferSpec](#modelinferspec)
+- [ModelServingSpec](#modelservingspec)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |

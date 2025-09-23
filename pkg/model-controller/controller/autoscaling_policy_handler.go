@@ -27,7 +27,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func (mc *ModelController) createOrUpdateAutoscalingPolicyAndBinding(ctx context.Context, model *v1alpha1.Model) error {
+func (mc *ModelController) createOrUpdateAutoscalingPolicyAndBinding(ctx context.Context, model *v1alpha1.ModelBooster) error {
 	if model.Spec.AutoscalingPolicy != nil {
 		// Create autoscaling policy and optimize policy binding
 		asp := convert.BuildAutoscalingPolicy(model.Spec.AutoscalingPolicy, model, "")

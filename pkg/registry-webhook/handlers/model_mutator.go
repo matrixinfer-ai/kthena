@@ -29,7 +29,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-// ModelMutator handles mutation of Model resources
+// ModelMutator handles mutation of ModelBooster resources
 type ModelMutator struct {
 }
 
@@ -38,10 +38,10 @@ func NewModelMutator() *ModelMutator {
 	return &ModelMutator{}
 }
 
-// Handle handles admission requests for Model resources
+// Handle handles admission requests for ModelBooster resources
 func (m *ModelMutator) Handle(w http.ResponseWriter, r *http.Request) {
 	// Parse the admission request
-	admissionReview, model, err := parseAdmissionRequest[registryv1alpha1.Model](r)
+	admissionReview, model, err := parseAdmissionRequest[registryv1alpha1.ModelBooster](r)
 	if err != nil {
 		klog.Errorf("Failed to parse admission request: %v", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -82,9 +82,9 @@ func (m *ModelMutator) Handle(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// mutateModel applies mutations to the Model resource
-func (m *ModelMutator) mutateModel(model *registryv1alpha1.Model) {
-	klog.Infof("Defaulting for Model %s", model.GetName())
+// mutateModel applies mutations to the ModelBooster resource
+func (m *ModelMutator) mutateModel(model *registryv1alpha1.ModelBooster) {
+	klog.Infof("Defaulting for ModelBooster %s", model.GetName())
 
 	// Default ScaleToZeroGracePeriod for all backends if AutoscalingPolicyRef is set
 	if model.Spec.AutoscalingPolicy != nil {
@@ -103,7 +103,7 @@ func (m *ModelMutator) mutateModel(model *registryv1alpha1.Model) {
 }
 
 // createPatch creates a JSON patch between the original and mutated model
-func createPatch(original, mutated *registryv1alpha1.Model) ([]byte, error) {
+func createPatch(original, mutated *registryv1alpha1.ModelBooster) ([]byte, error) {
 	// Convert both objects to JSON
 	originalJSON, err := json.Marshal(original)
 	if err != nil {

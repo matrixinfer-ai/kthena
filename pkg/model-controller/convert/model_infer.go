@@ -51,11 +51,11 @@ const (
 //go:embed templates/*
 var templateFS embed.FS
 
-// BuildModelInfer creates ModelInfer objects based on the model's backends.
-func BuildModelInfer(model *workload.Model) ([]*workload.ModelInfer, error) {
-	var infers []*workload.ModelInfer
+// BuildModelInfer creates ModelServing objects based on the model's backends.
+func BuildModelInfer(model *workload.ModelBooster) ([]*workload.ModelServing, error) {
+	var infers []*workload.ModelServing
 	for idx, backend := range model.Spec.Backends {
-		var infer *workload.ModelInfer
+		var infer *workload.ModelServing
 		var err error
 		switch backend.Type {
 		case workload.ModelBackendTypeVLLM:
@@ -74,7 +74,7 @@ func BuildModelInfer(model *workload.Model) ([]*workload.ModelInfer, error) {
 }
 
 // buildVllmDisaggregatedModelInfer handles VLLM disaggregated backend creation.
-func buildVllmDisaggregatedModelInfer(model *workload.Model, idx int) (*workload.ModelInfer, error) {
+func buildVllmDisaggregatedModelInfer(model *workload.ModelBooster, idx int) (*workload.ModelServing, error) {
 	backend := &model.Spec.Backends[idx]
 	workersMap := mapWorkers(backend.Workers)
 	if workersMap[workload.ModelWorkerTypePrefill] == nil {
@@ -204,7 +204,7 @@ func buildVllmDisaggregatedModelInfer(model *workload.Model, idx int) (*workload
 }
 
 // buildVllmModelInfer handles VLLM backend creation.
-func buildVllmModelInfer(model *workload.Model, idx int) (*workload.ModelInfer, error) {
+func buildVllmModelInfer(model *workload.ModelBooster, idx int) (*workload.ModelServing, error) {
 	backend := &model.Spec.Backends[idx]
 	workersMap := mapWorkers(backend.Workers)
 	if workersMap[workload.ModelWorkerTypeServer] == nil {
@@ -264,7 +264,7 @@ func buildVllmModelInfer(model *workload.Model, idx int) (*workload.ModelInfer, 
 			Name:      utils.GetBackendResourceName(model.Name, backend.Name),
 			Namespace: model.Namespace,
 			Labels:    utils.GetModelControllerLabels(model, backend.Name, icUtils.Revision(backend)),
-			// model owns model infer. ModelInfer will be deleted when the model is deleted
+			// model owns model infer. ModelServing will be deleted when the model is deleted
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion: workload.GroupVersion.String(),
@@ -386,7 +386,7 @@ func getVolumeName(backendName string) string {
 }
 
 // loadModelInferTemplate loads and processes the template file.
-func loadModelInferTemplate(templatePath string, data *map[string]interface{}) (*workload.ModelInfer, error) {
+func loadModelInferTemplate(templatePath string, data *map[string]interface{}) (*workload.ModelServing, error) {
 	templateBytes, err := templateFS.ReadFile(templatePath)
 	if err != nil {
 		return nil, err
@@ -405,7 +405,7 @@ func loadModelInferTemplate(templatePath string, data *map[string]interface{}) (
 		return nil, fmt.Errorf("JSON parse failed with replaced json bytes: %w", err)
 	}
 
-	modelInfer := &workload.ModelInfer{}
+	modelInfer := &workload.ModelServing{}
 	reader := bytes.NewReader(replacedJsonBytes)
 	decoder := yaml.NewYAMLOrJSONDecoder(reader, 1024)
 	if err := decoder.Decode(modelInfer); err != nil {
@@ -483,7 +483,7 @@ func buildEngineEnvVars(backend *workload.ModelBackend, additionalEnvs ...corev1
 }
 
 // buildLoraComponents builds LoRA related commands and containers
-func buildLoraComponents(model *workload.Model, backend *workload.ModelBackend, cacheVolumeName string) ([]string, []corev1.Container) {
+func buildLoraComponents(model *workload.ModelBooster, backend *workload.ModelBackend, cacheVolumeName string) ([]string, []corev1.Container) {
 	adapterCount := len(backend.LoraAdapters)
 	loras := make([]string, 0, adapterCount)
 	loraContainers := make([]corev1.Container, 0, adapterCount)

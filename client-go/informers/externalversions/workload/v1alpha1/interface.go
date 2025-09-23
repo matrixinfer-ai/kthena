@@ -28,10 +28,10 @@ type Interface interface {
 	AutoscalingPolicies() AutoscalingPolicyInformer
 	// AutoscalingPolicyBindings returns a AutoscalingPolicyBindingInformer.
 	AutoscalingPolicyBindings() AutoscalingPolicyBindingInformer
-	// Models returns a ModelInformer.
-	Models() ModelInformer
-	// ModelInfers returns a ModelInferInformer.
-	ModelInfers() ModelInferInformer
+	// ModelBoosters returns a ModelBoosterInformer.
+	ModelBoosters() ModelBoosterInformer
+	// ModelServings returns a ModelServingInformer.
+	ModelServings() ModelServingInformer
 }
 
 type version struct {
@@ -55,12 +55,12 @@ func (v *version) AutoscalingPolicyBindings() AutoscalingPolicyBindingInformer {
 	return &autoscalingPolicyBindingInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// Models returns a ModelInformer.
-func (v *version) Models() ModelInformer {
-	return &modelInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+// ModelBoosters returns a ModelBoosterInformer.
+func (v *version) ModelBoosters() ModelBoosterInformer {
+	return &modelBoosterInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// ModelInfers returns a ModelInferInformer.
-func (v *version) ModelInfers() ModelInferInformer {
-	return &modelInferInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+// ModelServings returns a ModelServingInformer.
+func (v *version) ModelServings() ModelServingInformer {
+	return &modelServingInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

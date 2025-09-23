@@ -26,7 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func BuildModelRoute(model *workload.Model) *networking.ModelRoute {
+func BuildModelRoute(model *workload.ModelBooster) *networking.ModelRoute {
 	routeName := model.Name
 	rules, loraAdapters := getRulesAndLoraAdapters(model)
 	route := &networking.ModelRoute{
@@ -57,7 +57,7 @@ func BuildModelRoute(model *workload.Model) *networking.ModelRoute {
 }
 
 // getRulesAndLoraAdapters generates routing rules and LoRA adapter names based on the model's backends and LoRA adapters.
-func getRulesAndLoraAdapters(model *workload.Model) ([]*networking.Rule, []string) {
+func getRulesAndLoraAdapters(model *workload.ModelBooster) ([]*networking.Rule, []string) {
 	targetModels, loraMap, loraMapNum := getTargetModelAndLoraMap(model)
 
 	var rules []*networking.Rule
@@ -96,7 +96,7 @@ func getRulesAndLoraAdapters(model *workload.Model) ([]*networking.Rule, []strin
 }
 
 // getModelMatchWithBody ensures that the ModelMatch has a Body field with the model/lora name set.
-func getModelMatchWithBody(model *workload.Model, name string) *networking.ModelMatch {
+func getModelMatchWithBody(model *workload.ModelBooster, name string) *networking.ModelMatch {
 	var modelMatch *networking.ModelMatch
 	modelMatch = model.Spec.ModelMatch.DeepCopy()
 	if modelMatch == nil {
@@ -110,7 +110,7 @@ func getModelMatchWithBody(model *workload.Model, name string) *networking.Model
 }
 
 // getTargetModelAndLoraMap returns the target models, a map of lora adapter names to backend names.
-func getTargetModelAndLoraMap(model *workload.Model) ([]*networking.TargetModel, map[string]string, map[string][]int) {
+func getTargetModelAndLoraMap(model *workload.ModelBooster) ([]*networking.TargetModel, map[string]string, map[string][]int) {
 	var targetModels []*networking.TargetModel
 	// Use map to deduplicate lora adapters
 	loraMap := make(map[string]string)

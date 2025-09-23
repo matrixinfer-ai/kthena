@@ -35,8 +35,8 @@ const (
 	ModelInferEntryPodLabel = "leader"
 )
 
-func GetModelInferTarget(lister workloadLister.ModelInferLister, namespace string, name string) (*workload.ModelInfer, error) {
-	if instance, err := lister.ModelInfers(namespace).Get(name); err != nil {
+func GetModelInferTarget(lister workloadLister.ModelServingLister, namespace string, name string) (*workload.ModelServing, error) {
+	if instance, err := lister.ModelServings(namespace).Get(name); err != nil {
 		return nil, err
 	} else {
 		return instance, nil
@@ -51,12 +51,12 @@ func GetMetricPods(lister listerv1.PodLister, namespace string, matchLabels map[
 	}
 }
 
-func UpdateModelInfer(ctx context.Context, client clientset.Interface, modelInfer *workload.ModelInfer) error {
+func UpdateModelInfer(ctx context.Context, client clientset.Interface, modelInfer *workload.ModelServing) error {
 	modelInferCtx, cancel := context.WithTimeout(ctx, AutoscaleCtxTimeoutSeconds*time.Second)
 	defer cancel()
-	if oldModelInfer, err := client.WorkloadV1alpha1().ModelInfers(modelInfer.Namespace).Get(modelInferCtx, modelInfer.Name, metav1.GetOptions{}); err == nil {
+	if oldModelInfer, err := client.WorkloadV1alpha1().ModelServings(modelInfer.Namespace).Get(modelInferCtx, modelInfer.Name, metav1.GetOptions{}); err == nil {
 		modelInfer.ResourceVersion = oldModelInfer.ResourceVersion
-		if _, updateErr := client.WorkloadV1alpha1().ModelInfers(modelInfer.Namespace).Update(modelInferCtx, modelInfer, metav1.UpdateOptions{}); updateErr != nil {
+		if _, updateErr := client.WorkloadV1alpha1().ModelServings(modelInfer.Namespace).Update(modelInferCtx, modelInfer, metav1.UpdateOptions{}); updateErr != nil {
 			klog.Errorf("failed to update modelInfer,err: %v", updateErr)
 			return updateErr
 		}

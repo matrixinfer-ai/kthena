@@ -36,12 +36,12 @@ func (c *FakeWorkloadV1alpha1) AutoscalingPolicyBindings(namespace string) v1alp
 	return newFakeAutoscalingPolicyBindings(c, namespace)
 }
 
-func (c *FakeWorkloadV1alpha1) Models(namespace string) v1alpha1.ModelInterface {
-	return newFakeModels(c, namespace)
+func (c *FakeWorkloadV1alpha1) ModelBoosters(namespace string) v1alpha1.ModelBoosterInterface {
+	return newFakeModelBoosters(c, namespace)
 }
 
-func (c *FakeWorkloadV1alpha1) ModelInfers(namespace string) v1alpha1.ModelInferInterface {
-	return newFakeModelInfers(c, namespace)
+func (c *FakeWorkloadV1alpha1) ModelServings(namespace string) v1alpha1.ModelServingInterface {
+	return newFakeModelServings(c, namespace)
 }
 
 // RESTClient returns a RESTClient that is used to communicate

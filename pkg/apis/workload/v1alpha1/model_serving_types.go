@@ -45,8 +45,8 @@ const (
 	GroupSizeEnv = "GROUP_SIZE"
 )
 
-// ModelInferSpec defines the specification of the ModelInfer resource.
-type ModelInferSpec struct {
+// ModelServingSpec defines the specification of the ModelServing resource.
+type ModelServingSpec struct {
 	// Number of InferGroups. That is the number of instances that run infer tasks
 	// Default to 1.
 	//
@@ -54,7 +54,7 @@ type ModelInferSpec struct {
 	// +kubebuilder:default=1
 	Replicas *int32 `json:"replicas,omitempty"`
 
-	// SchedulerName defines the name of the scheduler used by ModelInfer
+	// SchedulerName defines the name of the scheduler used by ModelServing
 	SchedulerName string `json:"schedulerName"`
 
 	// Template defines the template for InferGroup
@@ -90,7 +90,7 @@ const (
 	NoneRestartPolicy RecoveryPolicy = "None"
 )
 
-// RolloutStrategy defines the strategy that the ModelInfer controller
+// RolloutStrategy defines the strategy that the ModelServing controller
 // will use to perform replica updates.
 type RolloutStrategy struct {
 	// Type defines the rollout strategy, it can only be “InferGroupRollingUpdate” for now.
@@ -131,7 +131,7 @@ type RollingUpdateConfiguration struct {
 	// +kubebuilder:validation:XIntOrString
 	// +kubebuilder:default=0
 	MaxSurge intstr.IntOrString `json:"maxSurge,omitempty"`
-	// Partition indicates the ordinal at which the ModelInfer should be partitioned
+	// Partition indicates the ordinal at which the ModelServing should be partitioned
 	// for updates. During a rolling update, all inferGroups from ordinal Replicas-1 to
 	// Partition are updated. All inferGroups from ordinal Partition-1 to 0 remain untouched.
 	// The default value is 0.
@@ -164,7 +164,7 @@ const (
 	// at least the minimum available groups are up and running.
 	ModelInferAvailable ModelInferConditionType = "Available"
 
-	// The ModelInfer enters the ModelInferSetProgressing state whenever there are ongoing changes,
+	// The ModelServing enters the ModelInferSetProgressing state whenever there are ongoing changes,
 	// such as the creation of new groups or the scaling of pods within a group.
 	// A group remains in the progressing state until all its pods become ready.
 	// As long as at least one group is progressing, the entire ModelInferSet is also considered progressing.
@@ -176,17 +176,17 @@ const (
 	ModelInferUpdateInProgress ModelInferConditionType = "UpdateInProgress"
 )
 
-// ModelInferStatus defines the observed state of ModelInfer
+// ModelInferStatus defines the observed state of ModelServing
 type ModelInferStatus struct {
-	// observedGeneration is the most recent generation observed for ModelInfer. It corresponds to the
-	// ModelInfer's generation, which is updated on mutation by the API Server.
+	// observedGeneration is the most recent generation observed for ModelServing. It corresponds to the
+	// ModelServing's generation, which is updated on mutation by the API Server.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
 	// Replicas track the total number of InferGroup that have been created (updated or not, ready or not)
 	Replicas int32 `json:"replicas,omitempty"`
 
-	// CurrentReplicas is the number of InferGroup created by the ModelInfer controller from the ModelInfer version
+	// CurrentReplicas is the number of InferGroup created by the ModelServing controller from the ModelServing version
 	CurrentReplicas int32 `json:"currentReplicas,omitempty"`
 
 	// UpdatedReplicas track the number of InferGroup that have been updated (ready or not).
@@ -195,7 +195,7 @@ type ModelInferStatus struct {
 	// AvailableReplicas track the number of InferGroup that are in ready state (updated or not).
 	AvailableReplicas int32 `json:"availableReplicas,omitempty"`
 
-	// Conditions track the condition of the ModelInfer.
+	// Conditions track the condition of the ModelServing.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
@@ -204,19 +204,19 @@ type ModelInferStatus struct {
 // +kubebuilder:storageversion
 // +genclient
 
-// ModelInfer is the Schema for the LLM infer API
-type ModelInfer struct {
+// ModelServing is the Schema for the LLM infer API
+type ModelServing struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              ModelInferSpec   `json:"spec,omitempty"`
+	Spec              ModelServingSpec `json:"spec,omitempty"`
 	Status            ModelInferStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
-// ModelInferList contains a list of ModelInfer
-type ModelInferList struct {
+// ModelServingList contains a list of ModelServing
+type ModelServingList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []ModelInfer `json:"items"`
+	Items           []ModelServing `json:"items"`
 }

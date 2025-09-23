@@ -24,22 +24,22 @@ import (
 	v1 "k8s.io/client-go/applyconfigurations/meta/v1"
 )
 
-// ModelApplyConfiguration represents a declarative configuration of the Model type for use
+// ModelServingApplyConfiguration represents a declarative configuration of the ModelServing type for use
 // with apply.
-type ModelApplyConfiguration struct {
+type ModelServingApplyConfiguration struct {
 	v1.TypeMetaApplyConfiguration    `json:",inline"`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
-	Spec                             *ModelSpecApplyConfiguration   `json:"spec,omitempty"`
-	Status                           *ModelStatusApplyConfiguration `json:"status,omitempty"`
+	Spec                             *ModelServingSpecApplyConfiguration `json:"spec,omitempty"`
+	Status                           *ModelInferStatusApplyConfiguration `json:"status,omitempty"`
 }
 
-// Model constructs a declarative configuration of the Model type for use with
+// ModelServing constructs a declarative configuration of the ModelServing type for use with
 // apply.
-func Model(name, namespace string) *ModelApplyConfiguration {
-	b := &ModelApplyConfiguration{}
+func ModelServing(name, namespace string) *ModelServingApplyConfiguration {
+	b := &ModelServingApplyConfiguration{}
 	b.WithName(name)
 	b.WithNamespace(namespace)
-	b.WithKind("Model")
+	b.WithKind("ModelServing")
 	b.WithAPIVersion("workload.serving.volcano.sh/v1alpha1")
 	return b
 }
@@ -47,7 +47,7 @@ func Model(name, namespace string) *ModelApplyConfiguration {
 // WithKind sets the Kind field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Kind field is set to the value of the last call.
-func (b *ModelApplyConfiguration) WithKind(value string) *ModelApplyConfiguration {
+func (b *ModelServingApplyConfiguration) WithKind(value string) *ModelServingApplyConfiguration {
 	b.TypeMetaApplyConfiguration.Kind = &value
 	return b
 }
@@ -55,7 +55,7 @@ func (b *ModelApplyConfiguration) WithKind(value string) *ModelApplyConfiguratio
 // WithAPIVersion sets the APIVersion field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the APIVersion field is set to the value of the last call.
-func (b *ModelApplyConfiguration) WithAPIVersion(value string) *ModelApplyConfiguration {
+func (b *ModelServingApplyConfiguration) WithAPIVersion(value string) *ModelServingApplyConfiguration {
 	b.TypeMetaApplyConfiguration.APIVersion = &value
 	return b
 }
@@ -63,7 +63,7 @@ func (b *ModelApplyConfiguration) WithAPIVersion(value string) *ModelApplyConfig
 // WithName sets the Name field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Name field is set to the value of the last call.
-func (b *ModelApplyConfiguration) WithName(value string) *ModelApplyConfiguration {
+func (b *ModelServingApplyConfiguration) WithName(value string) *ModelServingApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	b.ObjectMetaApplyConfiguration.Name = &value
 	return b
@@ -72,7 +72,7 @@ func (b *ModelApplyConfiguration) WithName(value string) *ModelApplyConfiguratio
 // WithGenerateName sets the GenerateName field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the GenerateName field is set to the value of the last call.
-func (b *ModelApplyConfiguration) WithGenerateName(value string) *ModelApplyConfiguration {
+func (b *ModelServingApplyConfiguration) WithGenerateName(value string) *ModelServingApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	b.ObjectMetaApplyConfiguration.GenerateName = &value
 	return b
@@ -81,7 +81,7 @@ func (b *ModelApplyConfiguration) WithGenerateName(value string) *ModelApplyConf
 // WithNamespace sets the Namespace field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Namespace field is set to the value of the last call.
-func (b *ModelApplyConfiguration) WithNamespace(value string) *ModelApplyConfiguration {
+func (b *ModelServingApplyConfiguration) WithNamespace(value string) *ModelServingApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	b.ObjectMetaApplyConfiguration.Namespace = &value
 	return b
@@ -90,7 +90,7 @@ func (b *ModelApplyConfiguration) WithNamespace(value string) *ModelApplyConfigu
 // WithUID sets the UID field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the UID field is set to the value of the last call.
-func (b *ModelApplyConfiguration) WithUID(value types.UID) *ModelApplyConfiguration {
+func (b *ModelServingApplyConfiguration) WithUID(value types.UID) *ModelServingApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	b.ObjectMetaApplyConfiguration.UID = &value
 	return b
@@ -99,7 +99,7 @@ func (b *ModelApplyConfiguration) WithUID(value types.UID) *ModelApplyConfigurat
 // WithResourceVersion sets the ResourceVersion field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the ResourceVersion field is set to the value of the last call.
-func (b *ModelApplyConfiguration) WithResourceVersion(value string) *ModelApplyConfiguration {
+func (b *ModelServingApplyConfiguration) WithResourceVersion(value string) *ModelServingApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	b.ObjectMetaApplyConfiguration.ResourceVersion = &value
 	return b
@@ -108,7 +108,7 @@ func (b *ModelApplyConfiguration) WithResourceVersion(value string) *ModelApplyC
 // WithGeneration sets the Generation field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Generation field is set to the value of the last call.
-func (b *ModelApplyConfiguration) WithGeneration(value int64) *ModelApplyConfiguration {
+func (b *ModelServingApplyConfiguration) WithGeneration(value int64) *ModelServingApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	b.ObjectMetaApplyConfiguration.Generation = &value
 	return b
@@ -117,7 +117,7 @@ func (b *ModelApplyConfiguration) WithGeneration(value int64) *ModelApplyConfigu
 // WithCreationTimestamp sets the CreationTimestamp field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the CreationTimestamp field is set to the value of the last call.
-func (b *ModelApplyConfiguration) WithCreationTimestamp(value metav1.Time) *ModelApplyConfiguration {
+func (b *ModelServingApplyConfiguration) WithCreationTimestamp(value metav1.Time) *ModelServingApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	b.ObjectMetaApplyConfiguration.CreationTimestamp = &value
 	return b
@@ -126,7 +126,7 @@ func (b *ModelApplyConfiguration) WithCreationTimestamp(value metav1.Time) *Mode
 // WithDeletionTimestamp sets the DeletionTimestamp field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the DeletionTimestamp field is set to the value of the last call.
-func (b *ModelApplyConfiguration) WithDeletionTimestamp(value metav1.Time) *ModelApplyConfiguration {
+func (b *ModelServingApplyConfiguration) WithDeletionTimestamp(value metav1.Time) *ModelServingApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	b.ObjectMetaApplyConfiguration.DeletionTimestamp = &value
 	return b
@@ -135,7 +135,7 @@ func (b *ModelApplyConfiguration) WithDeletionTimestamp(value metav1.Time) *Mode
 // WithDeletionGracePeriodSeconds sets the DeletionGracePeriodSeconds field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the DeletionGracePeriodSeconds field is set to the value of the last call.
-func (b *ModelApplyConfiguration) WithDeletionGracePeriodSeconds(value int64) *ModelApplyConfiguration {
+func (b *ModelServingApplyConfiguration) WithDeletionGracePeriodSeconds(value int64) *ModelServingApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	b.ObjectMetaApplyConfiguration.DeletionGracePeriodSeconds = &value
 	return b
@@ -145,7 +145,7 @@ func (b *ModelApplyConfiguration) WithDeletionGracePeriodSeconds(value int64) *M
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, the entries provided by each call will be put on the Labels field,
 // overwriting an existing map entries in Labels field with the same key.
-func (b *ModelApplyConfiguration) WithLabels(entries map[string]string) *ModelApplyConfiguration {
+func (b *ModelServingApplyConfiguration) WithLabels(entries map[string]string) *ModelServingApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	if b.ObjectMetaApplyConfiguration.Labels == nil && len(entries) > 0 {
 		b.ObjectMetaApplyConfiguration.Labels = make(map[string]string, len(entries))
@@ -160,7 +160,7 @@ func (b *ModelApplyConfiguration) WithLabels(entries map[string]string) *ModelAp
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, the entries provided by each call will be put on the Annotations field,
 // overwriting an existing map entries in Annotations field with the same key.
-func (b *ModelApplyConfiguration) WithAnnotations(entries map[string]string) *ModelApplyConfiguration {
+func (b *ModelServingApplyConfiguration) WithAnnotations(entries map[string]string) *ModelServingApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	if b.ObjectMetaApplyConfiguration.Annotations == nil && len(entries) > 0 {
 		b.ObjectMetaApplyConfiguration.Annotations = make(map[string]string, len(entries))
@@ -174,7 +174,7 @@ func (b *ModelApplyConfiguration) WithAnnotations(entries map[string]string) *Mo
 // WithOwnerReferences adds the given value to the OwnerReferences field in the declarative configuration
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, values provided by each call will be appended to the OwnerReferences field.
-func (b *ModelApplyConfiguration) WithOwnerReferences(values ...*v1.OwnerReferenceApplyConfiguration) *ModelApplyConfiguration {
+func (b *ModelServingApplyConfiguration) WithOwnerReferences(values ...*v1.OwnerReferenceApplyConfiguration) *ModelServingApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	for i := range values {
 		if values[i] == nil {
@@ -188,7 +188,7 @@ func (b *ModelApplyConfiguration) WithOwnerReferences(values ...*v1.OwnerReferen
 // WithFinalizers adds the given value to the Finalizers field in the declarative configuration
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, values provided by each call will be appended to the Finalizers field.
-func (b *ModelApplyConfiguration) WithFinalizers(values ...string) *ModelApplyConfiguration {
+func (b *ModelServingApplyConfiguration) WithFinalizers(values ...string) *ModelServingApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	for i := range values {
 		b.ObjectMetaApplyConfiguration.Finalizers = append(b.ObjectMetaApplyConfiguration.Finalizers, values[i])
@@ -196,7 +196,7 @@ func (b *ModelApplyConfiguration) WithFinalizers(values ...string) *ModelApplyCo
 	return b
 }
 
-func (b *ModelApplyConfiguration) ensureObjectMetaApplyConfigurationExists() {
+func (b *ModelServingApplyConfiguration) ensureObjectMetaApplyConfigurationExists() {
 	if b.ObjectMetaApplyConfiguration == nil {
 		b.ObjectMetaApplyConfiguration = &v1.ObjectMetaApplyConfiguration{}
 	}
@@ -205,7 +205,7 @@ func (b *ModelApplyConfiguration) ensureObjectMetaApplyConfigurationExists() {
 // WithSpec sets the Spec field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Spec field is set to the value of the last call.
-func (b *ModelApplyConfiguration) WithSpec(value *ModelSpecApplyConfiguration) *ModelApplyConfiguration {
+func (b *ModelServingApplyConfiguration) WithSpec(value *ModelServingSpecApplyConfiguration) *ModelServingApplyConfiguration {
 	b.Spec = value
 	return b
 }
@@ -213,13 +213,13 @@ func (b *ModelApplyConfiguration) WithSpec(value *ModelSpecApplyConfiguration) *
 // WithStatus sets the Status field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Status field is set to the value of the last call.
-func (b *ModelApplyConfiguration) WithStatus(value *ModelStatusApplyConfiguration) *ModelApplyConfiguration {
+func (b *ModelServingApplyConfiguration) WithStatus(value *ModelInferStatusApplyConfiguration) *ModelServingApplyConfiguration {
 	b.Status = value
 	return b
 }
 
 // GetName retrieves the value of the Name field in the declarative configuration.
-func (b *ModelApplyConfiguration) GetName() *string {
+func (b *ModelServingApplyConfiguration) GetName() *string {
 	b.ensureObjectMetaApplyConfigurationExists()
 	return b.ObjectMetaApplyConfiguration.Name
 }

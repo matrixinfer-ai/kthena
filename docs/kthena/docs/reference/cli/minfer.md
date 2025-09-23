@@ -17,7 +17,7 @@ Examples:
   minfer get template deepseek-r1-distill-llama-8b -o yaml
   minfer create manifest --name my-model --template deepseek-r1-distill-llama-8b
   minfer get models
-  minfer get modelinfers --all-namespaces
+  minfer get modelServingList --all-namespaces
 
 ### Options
 

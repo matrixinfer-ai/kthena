@@ -151,7 +151,7 @@ func runDescribeModel(cmd *cobra.Command, args []string) error {
 	}
 	ctx := context.Background()
 
-	model, err := client.WorkloadV1alpha1().Models(namespace).Get(ctx, modelName, metav1.GetOptions{})
+	model, err := client.WorkloadV1alpha1().ModelBoosters(namespace).Get(ctx, modelName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get Model '%s': %v", modelName, err)
 	}
@@ -189,19 +189,19 @@ func runDescribeModelInfer(cmd *cobra.Command, args []string) error {
 	}
 	ctx := context.Background()
 
-	modelInfer, err := client.WorkloadV1alpha1().ModelInfers(namespace).Get(ctx, modelInferName, metav1.GetOptions{})
+	modelServing, err := client.WorkloadV1alpha1().ModelServings(namespace).Get(ctx, modelInferName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get ModelInfer '%s': %v", modelInferName, err)
 	}
 
-	fmt.Printf("ModelInfer: %s\n", modelInfer.Name)
+	fmt.Printf("ModelInfer: %s\n", modelServing.Name)
 	fmt.Println("================")
-	fmt.Printf("Namespace: %s\n", modelInfer.Namespace)
-	fmt.Printf("Created: %s\n", modelInfer.CreationTimestamp.Time.Format(time.RFC3339))
-	fmt.Printf("Age: %s\n\n", time.Since(modelInfer.CreationTimestamp.Time).Truncate(time.Second))
+	fmt.Printf("Namespace: %s\n", modelServing.Namespace)
+	fmt.Printf("Created: %s\n", modelServing.CreationTimestamp.Time.Format(time.RFC3339))
+	fmt.Printf("Age: %s\n\n", time.Since(modelServing.CreationTimestamp.Time).Truncate(time.Second))
 
 	// Output the full resource as YAML
-	data, err := yaml.Marshal(modelInfer)
+	data, err := yaml.Marshal(modelServing)
 	if err != nil {
 		return fmt.Errorf("failed to marshal ModelInfer to YAML: %v", err)
 	}

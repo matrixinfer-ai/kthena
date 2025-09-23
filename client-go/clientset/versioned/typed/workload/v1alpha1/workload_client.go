@@ -30,8 +30,8 @@ type WorkloadV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	AutoscalingPoliciesGetter
 	AutoscalingPolicyBindingsGetter
-	ModelsGetter
-	ModelInfersGetter
+	ModelBoostersGetter
+	ModelServingsGetter
 }
 
 // WorkloadV1alpha1Client is used to interact with features provided by the workload.serving.volcano.sh group.
@@ -47,12 +47,12 @@ func (c *WorkloadV1alpha1Client) AutoscalingPolicyBindings(namespace string) Aut
 	return newAutoscalingPolicyBindings(c, namespace)
 }
 
-func (c *WorkloadV1alpha1Client) Models(namespace string) ModelInterface {
-	return newModels(c, namespace)
+func (c *WorkloadV1alpha1Client) ModelBoosters(namespace string) ModelBoosterInterface {
+	return newModelBoosters(c, namespace)
 }
 
-func (c *WorkloadV1alpha1Client) ModelInfers(namespace string) ModelInferInterface {
-	return newModelInfers(c, namespace)
+func (c *WorkloadV1alpha1Client) ModelServings(namespace string) ModelServingInterface {
+	return newModelServings(c, namespace)
 }
 
 // NewForConfig creates a new WorkloadV1alpha1Client for the given config.

@@ -4,20 +4,20 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.17.2
-  name: modelinfers.workload.serving.volcano.sh
+  name: modelservings.workload.serving.volcano.sh
 spec:
   group: workload.serving.volcano.sh
   names:
-    kind: ModelInfer
-    listKind: ModelInferList
-    plural: modelinfers
-    singular: modelinfer
+    kind: ModelServing
+    listKind: ModelServingList
+    plural: modelservings
+    singular: modelserving
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: ModelInfer is the Schema for the LLM infer API
+        description: ModelServing is the Schema for the LLM infer API
         properties:
           apiVersion:
             description: |-
@@ -37,7 +37,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: ModelInferSpec defines the specification of the ModelInfer
+            description: ModelServingSpec defines the specification of the ModelServing
               resource.
             properties:
               recoveryPolicy:
@@ -92,7 +92,7 @@ spec:
                         x-kubernetes-int-or-string: true
                       partition:
                         description: |-
-                          Partition indicates the ordinal at which the ModelInfer should be partitioned
+                          Partition indicates the ordinal at which the ModelServing should be partitioned
                           for updates. During a rolling update, all inferGroups from ordinal Replicas-1 to
                           Partition are updated. All inferGroups from ordinal Partition-1 to 0 remain untouched.
                           The default value is 0.
@@ -111,7 +111,7 @@ spec:
                 type: object
               schedulerName:
                 description: SchedulerName defines the name of the scheduler used
-                  by ModelInfer
+                  by ModelServing
                 type: string
               template:
                 description: Template defines the template for InferGroup
@@ -16763,7 +16763,7 @@ spec:
             - template
             type: object
           status:
-            description: ModelInferStatus defines the observed state of ModelInfer
+            description: ModelInferStatus defines the observed state of ModelServing
             properties:
               availableReplicas:
                 description: AvailableReplicas track the number of InferGroup that
@@ -16771,7 +16771,7 @@ spec:
                 format: int32
                 type: integer
               conditions:
-                description: Conditions track the condition of the ModelInfer.
+                description: Conditions track the condition of the ModelServing.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -16829,13 +16829,13 @@ spec:
                 type: array
               currentReplicas:
                 description: CurrentReplicas is the number of InferGroup created by
-                  the ModelInfer controller from the ModelInfer version
+                  the ModelServing controller from the ModelServing version
                 format: int32
                 type: integer
               observedGeneration:
                 description: |-
-                  observedGeneration is the most recent generation observed for ModelInfer. It corresponds to the
-                  ModelInfer's generation, which is updated on mutation by the API Server.
+                  observedGeneration is the most recent generation observed for ModelServing. It corresponds to the
+                  ModelServing's generation, which is updated on mutation by the API Server.
                 format: int64
                 type: integer
               replicas:

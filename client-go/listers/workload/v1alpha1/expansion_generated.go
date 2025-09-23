@@ -34,18 +34,18 @@ type AutoscalingPolicyBindingListerExpansion interface{}
 // AutoscalingPolicyBindingNamespaceLister.
 type AutoscalingPolicyBindingNamespaceListerExpansion interface{}
 
-// ModelListerExpansion allows custom methods to be added to
-// ModelLister.
-type ModelListerExpansion interface{}
+// ModelBoosterListerExpansion allows custom methods to be added to
+// ModelBoosterLister.
+type ModelBoosterListerExpansion interface{}
 
-// ModelNamespaceListerExpansion allows custom methods to be added to
-// ModelNamespaceLister.
-type ModelNamespaceListerExpansion interface{}
+// ModelBoosterNamespaceListerExpansion allows custom methods to be added to
+// ModelBoosterNamespaceLister.
+type ModelBoosterNamespaceListerExpansion interface{}
 
-// ModelInferListerExpansion allows custom methods to be added to
-// ModelInferLister.
-type ModelInferListerExpansion interface{}
+// ModelServingListerExpansion allows custom methods to be added to
+// ModelServingLister.
+type ModelServingListerExpansion interface{}
 
-// ModelInferNamespaceListerExpansion allows custom methods to be added to
-// ModelInferNamespaceLister.
-type ModelInferNamespaceListerExpansion interface{}
+// ModelServingNamespaceListerExpansion allows custom methods to be added to
+// ModelServingNamespaceLister.
+type ModelServingNamespaceListerExpansion interface{}

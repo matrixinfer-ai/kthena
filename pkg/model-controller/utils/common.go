@@ -57,7 +57,7 @@ func GetDeviceNum(worker *v1alpha1.ModelWorker) int64 {
 	return sum
 }
 
-func NewModelOwnerRef(model *v1alpha1.Model) metav1.OwnerReference {
+func NewModelOwnerRef(model *v1alpha1.ModelBooster) metav1.OwnerReference {
 	return metav1.OwnerReference{
 		APIVersion:         workloadv1alpha1.GroupVersion.String(),
 		Kind:               workloadv1alpha1.ModelKind.Kind,

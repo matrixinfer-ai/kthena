@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-// TestReconcile first creates a model and then checks if the ModelInfer, ModelServer and ModelRoute are created as expected.
+// TestReconcile first creates a model and then checks if the ModelServing, ModelServer and ModelRoute are created as expected.
 // Then the model is updated, check if ModelRoute is updated. At last, model will be deleted.
 func TestReconcile(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -44,11 +44,11 @@ func TestReconcile(t *testing.T) {
 	// Start controller
 	go controller.Run(ctx, 1)
 	// Load test data
-	model := loadYaml[workload.Model](t, "../convert/testdata/input/model.yaml")
+	model := loadYaml[workload.ModelBooster](t, "../convert/testdata/input/model.yaml")
 
 	// Case1: Create a model with ASP, and then model infer, model server, model route, ASP, ASP binding should be created.
 	// Step1. Create model
-	createdModel, err := kthenaClient.WorkloadV1alpha1().Models(model.Namespace).Create(ctx, model, metav1.CreateOptions{})
+	createdModel, err := kthenaClient.WorkloadV1alpha1().ModelBoosters(model.Namespace).Create(ctx, model, metav1.CreateOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, createdModel)
 	// Step2. Check that ASP, ASP binding, model infer, model server, model route are created
@@ -64,9 +64,9 @@ func TestReconcile(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, aspList.Items, 1, "Expected 1 AutoscalingPolicy to be created")
 	// model infer should be created
-	modelInfers, err := kthenaClient.WorkloadV1alpha1().ModelInfers(model.Namespace).List(ctx, metav1.ListOptions{})
+	modelInfers, err := kthenaClient.WorkloadV1alpha1().ModelServings(model.Namespace).List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
-	assert.Len(t, modelInfers.Items, 1, "Expected 1 ModelInfer to be created")
+	assert.Len(t, modelInfers.Items, 1, "Expected 1 ModelServing to be created")
 	// model server should be created
 	modelServers, err := kthenaClient.NetworkingV1alpha1().ModelServers(model.Namespace).List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
@@ -79,11 +79,11 @@ func TestReconcile(t *testing.T) {
 	modelInfer := &modelInfers.Items[0]
 	meta.SetStatusCondition(&modelInfer.Status.Conditions, newCondition(string(workload.ModelInferAvailable),
 		metav1.ConditionTrue, "AllGroupsReady", "AllGroupsReady"))
-	_, err = kthenaClient.WorkloadV1alpha1().ModelInfers(model.Namespace).UpdateStatus(ctx, modelInfer, metav1.UpdateOptions{})
+	_, err = kthenaClient.WorkloadV1alpha1().ModelServings(model.Namespace).UpdateStatus(ctx, modelInfer, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 	// Step4. Check that model condition should be active
 	assert.True(t, waitForCondition(func() bool {
-		model, err = kthenaClient.WorkloadV1alpha1().Models(model.Namespace).Get(ctx, model.Name, metav1.GetOptions{})
+		model, err = kthenaClient.WorkloadV1alpha1().ModelBoosters(model.Namespace).Get(ctx, model.Name, metav1.GetOptions{})
 		if err != nil {
 			return false
 		}
@@ -96,7 +96,7 @@ func TestReconcile(t *testing.T) {
 	weight := uint32(50)
 	model.Spec.Backends[0].RouteWeight = &weight
 	model.Generation += 1
-	_, err = kthenaClient.WorkloadV1alpha1().Models(model.Namespace).Update(ctx, model, metav1.UpdateOptions{})
+	_, err = kthenaClient.WorkloadV1alpha1().ModelBoosters(model.Namespace).Update(ctx, model, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 	// Step2. Check that model route is updated
 	assert.True(t, waitForCondition(func() bool {
@@ -109,10 +109,10 @@ func TestReconcile(t *testing.T) {
 
 	// Case3: delete model. Because we are not running in a real K8s cluster, model server, model route, model infer,
 	// ASP and ASP binding will not be deleted automatically. So here only check if model is deleted.
-	err = kthenaClient.WorkloadV1alpha1().Models(model.Namespace).Delete(ctx, model.Name, metav1.DeleteOptions{})
+	err = kthenaClient.WorkloadV1alpha1().ModelBoosters(model.Namespace).Delete(ctx, model.Name, metav1.DeleteOptions{})
 	assert.NoError(t, err)
 	assert.True(t, waitForCondition(func() bool {
-		modelList, err := kthenaClient.WorkloadV1alpha1().Models(model.Namespace).List(ctx, metav1.ListOptions{})
+		modelList, err := kthenaClient.WorkloadV1alpha1().ModelBoosters(model.Namespace).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			return false
 		}
@@ -130,7 +130,7 @@ func TestReconcile_ReturnsError(t *testing.T) {
 	assert.NotNil(t, &controller)
 	// start informers
 	go controller.modelsInformer.RunWithContext(ctx)
-	go controller.modelInfersInformer.RunWithContext(ctx)
+	go controller.modelServingInformer.RunWithContext(ctx)
 	go controller.autoscalingPoliciesInformer.RunWithContext(ctx)
 	go controller.autoscalingPolicyBindingsInformer.RunWithContext(ctx)
 	// Case1: Invalid namespaceAndName
@@ -139,14 +139,14 @@ func TestReconcile_ReturnsError(t *testing.T) {
 		assert.Errorf(t, err, "invalid resource key: //")
 	})
 
-	// Case2: Create Model infer failed
+	// Case2: Create ModelBooster infer failed
 	t.Run("CreateModelInferFailed", func(t *testing.T) {
-		model := &workload.Model{
+		model := &workload.ModelBooster{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "not-supported-model",
 				Namespace: "default",
 			},
-			Spec: workload.ModelSpec{
+			Spec: workload.ModelBoosterSpec{
 				Backends: []workload.ModelBackend{
 					{
 						Name: "not-supported-backend-type",
@@ -155,14 +155,14 @@ func TestReconcile_ReturnsError(t *testing.T) {
 				},
 			},
 		}
-		createdModel, err := kthenaClient.WorkloadV1alpha1().Models(model.Namespace).Create(ctx, model, metav1.CreateOptions{})
+		createdModel, err := kthenaClient.WorkloadV1alpha1().ModelBoosters(model.Namespace).Create(ctx, model, metav1.CreateOptions{})
 		assert.NoError(t, err)
 		assert.NotNil(t, createdModel)
 		assert.True(t, waitForCondition(func() bool {
 			err = controller.reconcile(ctx, model.Namespace+"/"+model.Name)
 			return err.Error() == "not support model backend type: MindIEDisaggregated"
 		}))
-		get, err := kthenaClient.WorkloadV1alpha1().Models(model.Namespace).Get(ctx, model.Name, metav1.GetOptions{})
+		get, err := kthenaClient.WorkloadV1alpha1().ModelBoosters(model.Namespace).Get(ctx, model.Name, metav1.GetOptions{})
 		assert.NoError(t, err)
 		assert.Equal(t, true, meta.IsStatusConditionPresentAndEqual(get.Status.Conditions,
 			string(workload.ModelStatusConditionTypeFailed), metav1.ConditionTrue))
@@ -181,7 +181,7 @@ func TestUpdateModel(t *testing.T) {
 	kthenaClient := kthenafake.NewClientset()
 	controller := NewModelController(kubeClient, kthenaClient)
 	assert.NotNil(t, &controller)
-	model := loadYaml[workload.Model](t, "../convert/testdata/input/model.yaml")
+	model := loadYaml[workload.ModelBooster](t, "../convert/testdata/input/model.yaml")
 	// invalid old
 	controller.updateModel("invalid", model)
 	assert.Equal(t, 0, controller.workQueue.Len())
@@ -202,7 +202,7 @@ func TestTriggerModel(t *testing.T) {
 	kthenaClient := kthenafake.NewClientset()
 	controller := NewModelController(kubeClient, kthenaClient)
 	assert.NotNil(t, &controller)
-	modelInfer := loadYaml[workload.ModelInfer](t, "../convert/testdata/expected/model-infer.yaml")
+	modelInfer := loadYaml[workload.ModelServing](t, "../convert/testdata/expected/model-infer.yaml")
 	// invalid new
 	controller.triggerModel(modelInfer, "invalid")
 	assert.Equal(t, 0, controller.workQueue.Len())
@@ -218,14 +218,14 @@ func TestHasOnlyLoraAdaptersChanged(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		oldModel *workload.Model
-		newModel *workload.Model
+		oldModel *workload.ModelBooster
+		newModel *workload.ModelBooster
 		expected bool
 	}{
 		{
 			name: "No changes at all",
-			oldModel: &workload.Model{
-				Spec: workload.ModelSpec{
+			oldModel: &workload.ModelBooster{
+				Spec: workload.ModelBoosterSpec{
 					Backends: []workload.ModelBackend{
 						{
 							Name:     "backend1",
@@ -238,8 +238,8 @@ func TestHasOnlyLoraAdaptersChanged(t *testing.T) {
 					},
 				},
 			},
-			newModel: &workload.Model{
-				Spec: workload.ModelSpec{
+			newModel: &workload.ModelBooster{
+				Spec: workload.ModelBoosterSpec{
 					Backends: []workload.ModelBackend{
 						{
 							Name:     "backend1",
@@ -256,8 +256,8 @@ func TestHasOnlyLoraAdaptersChanged(t *testing.T) {
 		},
 		{
 			name: "Only LoRA adapters changed - added new adapter",
-			oldModel: &workload.Model{
-				Spec: workload.ModelSpec{
+			oldModel: &workload.ModelBooster{
+				Spec: workload.ModelBoosterSpec{
 					Backends: []workload.ModelBackend{
 						{
 							Name:     "backend1",
@@ -271,8 +271,8 @@ func TestHasOnlyLoraAdaptersChanged(t *testing.T) {
 					},
 				},
 			},
-			newModel: &workload.Model{
-				Spec: workload.ModelSpec{
+			newModel: &workload.ModelBooster{
+				Spec: workload.ModelBoosterSpec{
 					Backends: []workload.ModelBackend{
 						{
 							Name:     "backend1",
@@ -290,8 +290,8 @@ func TestHasOnlyLoraAdaptersChanged(t *testing.T) {
 		},
 		{
 			name: "Only LoRA adapters changed - modified adapter",
-			oldModel: &workload.Model{
-				Spec: workload.ModelSpec{
+			oldModel: &workload.ModelBooster{
+				Spec: workload.ModelBoosterSpec{
 					Backends: []workload.ModelBackend{
 						{
 							Name:     "backend1",
@@ -304,8 +304,8 @@ func TestHasOnlyLoraAdaptersChanged(t *testing.T) {
 					},
 				},
 			},
-			newModel: &workload.Model{
-				Spec: workload.ModelSpec{
+			newModel: &workload.ModelBooster{
+				Spec: workload.ModelBoosterSpec{
 					Backends: []workload.ModelBackend{
 						{
 							Name:     "backend1",
@@ -322,8 +322,8 @@ func TestHasOnlyLoraAdaptersChanged(t *testing.T) {
 		},
 		{
 			name: "Backend name changed",
-			oldModel: &workload.Model{
-				Spec: workload.ModelSpec{
+			oldModel: &workload.ModelBooster{
+				Spec: workload.ModelBoosterSpec{
 					Backends: []workload.ModelBackend{
 						{
 							Name:     "backend1",
@@ -336,8 +336,8 @@ func TestHasOnlyLoraAdaptersChanged(t *testing.T) {
 					},
 				},
 			},
-			newModel: &workload.Model{
-				Spec: workload.ModelSpec{
+			newModel: &workload.ModelBooster{
+				Spec: workload.ModelBoosterSpec{
 					Backends: []workload.ModelBackend{
 						{
 							Name:     "backend2",
@@ -353,9 +353,9 @@ func TestHasOnlyLoraAdaptersChanged(t *testing.T) {
 			expected: false,
 		},
 		{
-			name: "Model URI changed",
-			oldModel: &workload.Model{
-				Spec: workload.ModelSpec{
+			name: "ModelBooster URI changed",
+			oldModel: &workload.ModelBooster{
+				Spec: workload.ModelBoosterSpec{
 					Backends: []workload.ModelBackend{
 						{
 							Name:     "backend1",
@@ -368,8 +368,8 @@ func TestHasOnlyLoraAdaptersChanged(t *testing.T) {
 					},
 				},
 			},
-			newModel: &workload.Model{
-				Spec: workload.ModelSpec{
+			newModel: &workload.ModelBooster{
+				Spec: workload.ModelBoosterSpec{
 					Backends: []workload.ModelBackend{
 						{
 							Name:     "backend1",
@@ -387,8 +387,8 @@ func TestHasOnlyLoraAdaptersChanged(t *testing.T) {
 		},
 		{
 			name: "Number of backends changed",
-			oldModel: &workload.Model{
-				Spec: workload.ModelSpec{
+			oldModel: &workload.ModelBooster{
+				Spec: workload.ModelBoosterSpec{
 					Backends: []workload.ModelBackend{
 						{
 							Name:     "backend1",
@@ -401,8 +401,8 @@ func TestHasOnlyLoraAdaptersChanged(t *testing.T) {
 					},
 				},
 			},
-			newModel: &workload.Model{
-				Spec: workload.ModelSpec{
+			newModel: &workload.ModelBooster{
+				Spec: workload.ModelBoosterSpec{
 					Backends: []workload.ModelBackend{
 						{
 							Name:     "backend1",
@@ -424,8 +424,8 @@ func TestHasOnlyLoraAdaptersChanged(t *testing.T) {
 		},
 		{
 			name: "VLLM backend with LoRA adapters changed and other backend unchanged",
-			oldModel: &workload.Model{
-				Spec: workload.ModelSpec{
+			oldModel: &workload.ModelBooster{
+				Spec: workload.ModelBoosterSpec{
 					Backends: []workload.ModelBackend{
 						{
 							Name:     "vllm-backend",
@@ -443,8 +443,8 @@ func TestHasOnlyLoraAdaptersChanged(t *testing.T) {
 					},
 				},
 			},
-			newModel: &workload.Model{
-				Spec: workload.ModelSpec{
+			newModel: &workload.ModelBooster{
+				Spec: workload.ModelBoosterSpec{
 					Backends: []workload.ModelBackend{
 						{
 							Name:     "vllm-backend",
@@ -467,13 +467,13 @@ func TestHasOnlyLoraAdaptersChanged(t *testing.T) {
 		},
 		{
 			name: "Empty backends",
-			oldModel: &workload.Model{
-				Spec: workload.ModelSpec{
+			oldModel: &workload.ModelBooster{
+				Spec: workload.ModelBoosterSpec{
 					Backends: []workload.ModelBackend{},
 				},
 			},
-			newModel: &workload.Model{
-				Spec: workload.ModelSpec{
+			newModel: &workload.ModelBooster{
+				Spec: workload.ModelBoosterSpec{
 					Backends: []workload.ModelBackend{},
 				},
 			},

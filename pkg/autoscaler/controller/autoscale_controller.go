@@ -52,8 +52,8 @@ type AutoscaleController struct {
 	autoscalingPoliciesInformer        cache.Controller
 	autoscalingPoliciesBindingLister   workloadLister.AutoscalingPolicyBindingLister
 	autoscalingPoliciesBindingInformer cache.Controller
-	modelInfersLister                  workloadLister.ModelInferLister
-	modelInfersInformer                cache.Controller
+	modelServingLister                 workloadLister.ModelServingLister
+	modelServingInformer               cache.Controller
 	podsLister                         listerv1.PodLister
 	podsInformer                       cache.Controller
 	scalerMap                          map[string]*autoscaler.Autoscaler
@@ -62,7 +62,7 @@ type AutoscaleController struct {
 
 func NewAutoscaleController(kubeClient kubernetes.Interface, client clientset.Interface, namespace string) *AutoscaleController {
 	informerFactory := informersv1alpha1.NewSharedInformerFactory(client, 0)
-	modelInferInformer := informerFactory.Workload().V1alpha1().ModelInfers()
+	modelInferInformer := informerFactory.Workload().V1alpha1().ModelServings()
 	autoscalingPoliciesInformer := informerFactory.Workload().V1alpha1().AutoscalingPolicies()
 	autoscalingPoliciesBindingInformer := informerFactory.Workload().V1alpha1().AutoscalingPolicyBindings()
 
@@ -85,8 +85,8 @@ func NewAutoscaleController(kubeClient kubernetes.Interface, client clientset.In
 		autoscalingPoliciesInformer:        autoscalingPoliciesInformer.Informer(),
 		autoscalingPoliciesBindingLister:   autoscalingPoliciesBindingInformer.Lister(),
 		autoscalingPoliciesBindingInformer: autoscalingPoliciesBindingInformer.Informer(),
-		modelInfersLister:                  modelInferInformer.Lister(),
-		modelInfersInformer:                modelInferInformer.Informer(),
+		modelServingLister:                 modelInferInformer.Lister(),
+		modelServingInformer:               modelInferInformer.Informer(),
 		podsLister:                         podsInformer.Lister(),
 		podsInformer:                       podsInformer.Informer(),
 		scalerMap:                          make(map[string]*autoscaler.Autoscaler),
@@ -101,12 +101,12 @@ func (ac *AutoscaleController) Run(ctx context.Context) {
 	// start informers
 	go ac.autoscalingPoliciesInformer.RunWithContext(ctx)
 	go ac.autoscalingPoliciesBindingInformer.RunWithContext(ctx)
-	go ac.modelInfersInformer.RunWithContext(ctx)
+	go ac.modelServingInformer.RunWithContext(ctx)
 	go ac.podsInformer.RunWithContext(ctx)
 	cache.WaitForCacheSync(ctx.Done(),
 		ac.autoscalingPoliciesInformer.HasSynced,
 		ac.autoscalingPoliciesBindingInformer.HasSynced,
-		ac.modelInfersInformer.HasSynced,
+		ac.modelServingInformer.HasSynced,
 		ac.podsInformer.HasSynced,
 	)
 
@@ -187,7 +187,7 @@ func (ac *AutoscaleController) schedule(ctx context.Context, binding *workload.A
 			optimizer = autoscaler.NewOptimizer(&autoscalePolicy.Spec.Behavior, binding, metricTargets)
 			ac.optimizerMap[optimizerKey] = optimizer
 		}
-		if err := optimizer.Optimize(ctx, ac.client, ac.modelInfersLister, ac.podsLister, autoscalePolicy); err != nil {
+		if err := optimizer.Optimize(ctx, ac.client, ac.modelServingLister, ac.podsLister, autoscalePolicy); err != nil {
 			klog.Errorf("failed to do optimize, err: %v", err)
 			return err
 		}
@@ -199,7 +199,7 @@ func (ac *AutoscaleController) schedule(ctx context.Context, binding *workload.A
 			scalingAutoscaler = autoscaler.NewAutoscaler(&autoscalePolicy.Spec.Behavior, binding, metricTargets)
 			ac.scalerMap[instanceKey] = scalingAutoscaler
 		}
-		if err := scalingAutoscaler.Scale(ctx, ac.client, ac.modelInfersLister, ac.podsLister, autoscalePolicy); err != nil {
+		if err := scalingAutoscaler.Scale(ctx, ac.client, ac.modelServingLister, ac.podsLister, autoscalePolicy); err != nil {
 			klog.Errorf("failed to do scaling, err: %v", err)
 			return err
 		}
