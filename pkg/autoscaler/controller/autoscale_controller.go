@@ -54,7 +54,7 @@ type AutoscaleController struct {
 	autoscalingPoliciesInformer        cache.Controller
 	autoscalingPoliciesBindingLister   registryLister.AutoscalingPolicyBindingLister
 	autoscalingPoliciesBindingInformer cache.Controller
-	modelInfersLister                  workloadLister.ModelInferLister
+	modelInfersLister                  workloadLister.ModelServingLister
 	modelInfersInformer                cache.Controller
 	podsLister                         listerv1.PodLister
 	podsInformer                       cache.Controller
@@ -64,7 +64,7 @@ type AutoscaleController struct {
 
 func NewAutoscaleController(kubeClient kubernetes.Interface, client clientset.Interface, namespace string) *AutoscaleController {
 	informerFactory := informersv1alpha1.NewSharedInformerFactory(client, 0)
-	modelInferInformer := informerFactory.Workload().V1alpha1().ModelInfers()
+	modelInferInformer := informerFactory.Workload().V1alpha1().ModelServings()
 	autoscalingPoliciesInformer := informerFactory.Registry().V1alpha1().AutoscalingPolicies()
 	autoscalingPoliciesBindingInformer := informerFactory.Registry().V1alpha1().AutoscalingPolicyBindings()
 

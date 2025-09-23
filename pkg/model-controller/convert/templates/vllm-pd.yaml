@@ -1,13 +1,13 @@
 apiVersion: workload.volcano.sh/v1alpha1
-kind: modelinfer
+kind: modelserving
 metadata: ${MODEL_INFER_TEMPLATE_METADATA}
 spec:
-  recoveryPolicy: InferGroupRecreate
+  recoveryPolicy: ServingGroupRecreate
   rolloutStrategy:
     rollingUpdate:
       maxSurge: 25%
       maxUnavailable: 25%
-    type: InferGroupRollingUpdate
+    type: ServingGroupRollingUpdate
   schedulerName: volcano
   replicas: ${BACKEND_REPLICAS}
   template:

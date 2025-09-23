@@ -25,8 +25,8 @@ import (
 	"fmt"
 	"strings"
 
-	icUtils "github.com/volcano-sh/kthena/pkg/infer-controller/utils"
 	"github.com/volcano-sh/kthena/pkg/model-controller/env"
+	icUtils "github.com/volcano-sh/kthena/pkg/modelServing-controller/utils"
 	"k8s.io/utils/ptr"
 
 	registry "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
@@ -53,10 +53,10 @@ const (
 var templateFS embed.FS
 
 // BuildModelInfer creates ModelInfer objects based on the model's backends.
-func BuildModelInfer(model *registry.Model) ([]*workload.ModelInfer, error) {
-	var infers []*workload.ModelInfer
+func BuildModelInfer(model *registry.Model) ([]*workload.ModelServing, error) {
+	var infers []*workload.ModelServing
 	for idx, backend := range model.Spec.Backends {
-		var infer *workload.ModelInfer
+		var infer *workload.ModelServing
 		var err error
 		switch backend.Type {
 		case registry.ModelBackendTypeVLLM:
@@ -75,7 +75,7 @@ func BuildModelInfer(model *registry.Model) ([]*workload.ModelInfer, error) {
 }
 
 // buildVllmDisaggregatedModelInfer handles VLLM disaggregated backend creation.
-func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, error) {
+func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload.ModelServing, error) {
 	backend := &model.Spec.Backends[idx]
 	workersMap := mapWorkers(backend.Workers)
 	if workersMap[registry.ModelWorkerTypePrefill] == nil {
@@ -205,7 +205,7 @@ func buildVllmDisaggregatedModelInfer(model *registry.Model, idx int) (*workload
 }
 
 // buildVllmModelInfer handles VLLM backend creation.
-func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelInfer, error) {
+func buildVllmModelInfer(model *registry.Model, idx int) (*workload.ModelServing, error) {
 	backend := &model.Spec.Backends[idx]
 	workersMap := mapWorkers(backend.Workers)
 	if workersMap[registry.ModelWorkerTypeServer] == nil {
@@ -387,7 +387,7 @@ func getVolumeName(backendName string) string {
 }
 
 // loadModelInferTemplate loads and processes the template file.
-func loadModelInferTemplate(templatePath string, data *map[string]interface{}) (*workload.ModelInfer, error) {
+func loadModelInferTemplate(templatePath string, data *map[string]interface{}) (*workload.ModelServing, error) {
 	templateBytes, err := templateFS.ReadFile(templatePath)
 	if err != nil {
 		return nil, err
@@ -406,7 +406,7 @@ func loadModelInferTemplate(templatePath string, data *map[string]interface{}) (
 		return nil, fmt.Errorf("JSON parse failed with replaced json bytes: %w", err)
 	}
 
-	modelInfer := &workload.ModelInfer{}
+	modelInfer := &workload.ModelServing{}
 	reader := bytes.NewReader(replacedJsonBytes)
 	decoder := yaml.NewYAMLOrJSONDecoder(reader, 1024)
 	if err := decoder.Decode(modelInfer); err != nil {

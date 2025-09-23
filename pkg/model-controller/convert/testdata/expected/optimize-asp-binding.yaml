@@ -5,7 +5,7 @@ metadata:
     registry.volcano.sh/backend-name: ""
     registry.volcano.sh/managed-by: registry.volcano.sh
     registry.volcano.sh/model-name: multi-backend-model
-    registry.volcano.sh/revision: 5dc7674f6f
+    registry.volcano.sh/revision: 6f5c67b457
     registry.volcano.sh/model-uid: randomUID
   name: multi-backend-model
   namespace: dev
@@ -27,20 +27,20 @@ spec:
         cost: 0
         target:
           additionalMatchLabels:
-            modelinfer.volcano.sh/role: leader
+            modelserving.volcano.sh/role: leader
           targetRef:
             name: multi-backend-model-backend1
-            kind: ModelInfer
+            kind: ModelServing
           metricFrom: {}
       - maxReplicas: 1
         minReplicas: 0
         cost: 0
         target:
           additionalMatchLabels:
-            modelinfer.volcano.sh/role: leader
+            modelserving.volcano.sh/role: leader
           targetRef:
             name: multi-backend-model-backend2
-            kind: ModelInfer
+            kind: ModelServing
           metricFrom: { }
 
 

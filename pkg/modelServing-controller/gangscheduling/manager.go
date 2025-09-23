@@ -50,7 +50,7 @@ func NewManager(kubeClient kubernetes.Interface, volcanoClient volcanoclient.Int
 }
 
 // ManagePodGroups manages PodGroups for a ModelInfer instance
-func (m *Manager) ManagePodGroups(ctx context.Context, mi *workloadv1alpha1.ModelInfer) error {
+func (m *Manager) ManagePodGroups(ctx context.Context, mi *workloadv1alpha1.ModelServing) error {
 	if !m.isGangSchedulingEnabled(mi) {
 		// Gang scheduling is disabled, clean up any existing PodGroups
 		return m.cleanupPodGroups(ctx, mi)
@@ -59,12 +59,12 @@ func (m *Manager) ManagePodGroups(ctx context.Context, mi *workloadv1alpha1.Mode
 }
 
 // isGangSchedulingEnabled checks if gang scheduling is enabled for the ModelInfer
-func (m *Manager) isGangSchedulingEnabled(mi *workloadv1alpha1.ModelInfer) bool {
+func (m *Manager) isGangSchedulingEnabled(mi *workloadv1alpha1.ModelServing) bool {
 	return mi.Spec.Template.GangSchedule != nil
 }
 
 // managePodGroups manages PodGroups for group-level gang scheduling
-func (m *Manager) managePodGroups(ctx context.Context, mi *workloadv1alpha1.ModelInfer) error {
+func (m *Manager) managePodGroups(ctx context.Context, mi *workloadv1alpha1.ModelServing) error {
 	expectedReplicas := int(*mi.Spec.Replicas)
 
 	// Get existing PodGroups
@@ -95,7 +95,7 @@ func (m *Manager) managePodGroups(ctx context.Context, mi *workloadv1alpha1.Mode
 }
 
 // createPodGroup creates a PodGroup for group-level gang scheduling
-func (m *Manager) createPodGroup(ctx context.Context, mi *workloadv1alpha1.ModelInfer, inferGroupIndex int) error {
+func (m *Manager) createPodGroup(ctx context.Context, mi *workloadv1alpha1.ModelServing, inferGroupIndex int) error {
 	podGroupName := m.generatePodGroupName(mi.Name, inferGroupIndex)
 
 	// Calculate total pods and resources for this InferGroup
@@ -106,8 +106,8 @@ func (m *Manager) createPodGroup(ctx context.Context, mi *workloadv1alpha1.Model
 			Name:      podGroupName,
 			Namespace: mi.Namespace,
 			Labels: map[string]string{
-				workloadv1alpha1.ModelInferNameLabelKey: mi.Name,
-				workloadv1alpha1.GroupNameLabelKey:      podGroupName,
+				workloadv1alpha1.ModelServingNameLabelKey: mi.Name,
+				workloadv1alpha1.GroupNameLabelKey:        podGroupName,
 			},
 			Annotations: map[string]string{
 				schedulingv1beta1.KubeGroupNameAnnotationKey: podGroupName,
@@ -132,11 +132,11 @@ func (m *Manager) createPodGroup(ctx context.Context, mi *workloadv1alpha1.Model
 }
 
 // To build ownerReferences of PodGroup
-func (m *Manager) buildOwnerReference(mi *workloadv1alpha1.ModelInfer) []metav1.OwnerReference {
+func (m *Manager) buildOwnerReference(mi *workloadv1alpha1.ModelServing) []metav1.OwnerReference {
 	return []metav1.OwnerReference{
 		{
 			APIVersion: workloadv1alpha1.GroupVersion.String(),
-			Kind:       workloadv1alpha1.ModelInferKind.Kind,
+			Kind:       workloadv1alpha1.ModelServingKind.Kind,
 			Name:       mi.Name,
 			UID:        mi.UID,
 			Controller: ptr.To(true),
@@ -145,7 +145,7 @@ func (m *Manager) buildOwnerReference(mi *workloadv1alpha1.ModelInfer) []metav1.
 }
 
 // calculateRequirements calculates requirements for role-level gang scheduling
-func (m *Manager) calculateRequirements(mi *workloadv1alpha1.ModelInfer) (int, map[string]int32, corev1.ResourceList) {
+func (m *Manager) calculateRequirements(mi *workloadv1alpha1.ModelServing) (int, map[string]int32, corev1.ResourceList) {
 	minMember := 0
 	minTaskMember := make(map[string]int32)
 	minResources := corev1.ResourceList{}
@@ -210,9 +210,9 @@ func (m *Manager) GenerateTaskName(roleName string, roleIndex int) string {
 }
 
 // getExistingPodGroups gets existing PodGroups for a ModelInfer
-func (m *Manager) getExistingPodGroups(ctx context.Context, mi *workloadv1alpha1.ModelInfer) (map[string]*schedulingv1beta1.PodGroup, error) {
+func (m *Manager) getExistingPodGroups(ctx context.Context, mi *workloadv1alpha1.ModelServing) (map[string]*schedulingv1beta1.PodGroup, error) {
 	selector := labels.SelectorFromSet(map[string]string{
-		workloadv1alpha1.ModelInferNameLabelKey: mi.Name,
+		workloadv1alpha1.ModelServingNameLabelKey: mi.Name,
 	})
 
 	podGroupList, err := m.volcanoClient.SchedulingV1beta1().PodGroups(mi.Namespace).List(ctx, metav1.ListOptions{
@@ -232,7 +232,7 @@ func (m *Manager) getExistingPodGroups(ctx context.Context, mi *workloadv1alpha1
 }
 
 // updatePodGroupIfNeeded updates a PodGroup if needed for group-level scheduling
-func (m *Manager) updatePodGroupIfNeeded(ctx context.Context, existing *schedulingv1beta1.PodGroup, mi *workloadv1alpha1.ModelInfer, inferGroupIndex int) error {
+func (m *Manager) updatePodGroupIfNeeded(ctx context.Context, existing *schedulingv1beta1.PodGroup, mi *workloadv1alpha1.ModelServing, inferGroupIndex int) error {
 	// Calculate current requirements
 	minMember, minTaskMember, minResources := m.calculateRequirements(mi)
 
@@ -274,7 +274,7 @@ func (m *Manager) updatePodGroupIfNeeded(ctx context.Context, existing *scheduli
 }
 
 // cleanupExcessPodGroups cleans up excess PodGroups
-func (m *Manager) cleanupExcessPodGroups(ctx context.Context, mi *workloadv1alpha1.ModelInfer, existingPodGroups map[string]*schedulingv1beta1.PodGroup, expectedReplicas int) error {
+func (m *Manager) cleanupExcessPodGroups(ctx context.Context, mi *workloadv1alpha1.ModelServing, existingPodGroups map[string]*schedulingv1beta1.PodGroup, expectedReplicas int) error {
 	for podGroupName, podGroup := range existingPodGroups {
 		// Check if this PodGroup is still needed
 		isNeeded := false
@@ -299,7 +299,7 @@ func (m *Manager) cleanupExcessPodGroups(ctx context.Context, mi *workloadv1alph
 }
 
 // cleanupPodGroups cleans up all PodGroups for a ModelInfer
-func (m *Manager) cleanupPodGroups(ctx context.Context, mi *workloadv1alpha1.ModelInfer) error {
+func (m *Manager) cleanupPodGroups(ctx context.Context, mi *workloadv1alpha1.ModelServing) error {
 	existingPodGroups, err := m.getExistingPodGroups(ctx, mi)
 	if err != nil {
 		return fmt.Errorf("failed to get existing PodGroups for cleanup: %v", err)
@@ -317,7 +317,7 @@ func (m *Manager) cleanupPodGroups(ctx context.Context, mi *workloadv1alpha1.Mod
 }
 
 // AnnotatePodWithPodGroup annotates a pod with the appropriate PodGroup information
-func (m *Manager) AnnotatePodWithPodGroup(pod *corev1.Pod, mi *workloadv1alpha1.ModelInfer, minMember int, groupName, taskName string) {
+func (m *Manager) AnnotatePodWithPodGroup(pod *corev1.Pod, mi *workloadv1alpha1.ModelServing, minMember int, groupName, taskName string) {
 	if !m.isGangSchedulingEnabled(mi) {
 		return
 	}

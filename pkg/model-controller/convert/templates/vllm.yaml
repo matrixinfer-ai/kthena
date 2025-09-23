@@ -1,20 +1,20 @@
 apiVersion: workload.volcano.sh/v1alpha1
-kind: modelinfer
+kind: modelserving
 metadata: ${MODEL_INFER_TEMPLATE_METADATA}
 spec:
-  recoveryPolicy: InferGroupRecreate
+  recoveryPolicy: ServingGroupRecreate
   rolloutStrategy:
     rollingUpdate:
       maxSurge: 25%
       maxUnavailable: 25%
-    type: InferGroupRollingUpdate
+    type: ServingGroupRollingUpdate
   topologySpreadConstraints:
     - maxSkew: 1
       topologyKey: kubernetes.io/hostname
       whenUnsatisfiable: DoNotSchedule
       labelSelector:
         matchLabels:
-          modelinfer/name: ${MODEL_NAME}
+          modelserving/name: ${MODEL_NAME}
   replicas: ${BACKEND_REPLICAS}
   template:
     restartGracePeriodSeconds: 60

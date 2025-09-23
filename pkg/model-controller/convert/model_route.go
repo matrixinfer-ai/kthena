@@ -21,8 +21,8 @@ import (
 
 	networking "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
 	registry "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
-	icUtils "github.com/volcano-sh/kthena/pkg/infer-controller/utils"
 	"github.com/volcano-sh/kthena/pkg/model-controller/utils"
+	icUtils "github.com/volcano-sh/kthena/pkg/modelServing-controller/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

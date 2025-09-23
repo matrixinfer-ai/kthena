@@ -53,14 +53,14 @@ func TestCalculateRequirements(t *testing.T) {
 	}
 
 	// Helper function to create a basic ModelInfer object
-	createBasicModelInfer := func() *workloadv1alpha1.ModelInfer {
-		return &workloadv1alpha1.ModelInfer{
+	createBasicModelInfer := func() *workloadv1alpha1.ModelServing {
+		return &workloadv1alpha1.ModelServing{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "test-model",
 				Namespace: "default",
 			},
-			Spec: workloadv1alpha1.ModelInferSpec{
-				Template: workloadv1alpha1.InferGroup{
+			Spec: workloadv1alpha1.ModelServingSpec{
+				Template: workloadv1alpha1.ServingGroup{
 					Roles: []workloadv1alpha1.Role{
 						{
 							Name:           "prefill",
@@ -440,7 +440,7 @@ func TestAggregateResources(t *testing.T) {
 
 func TestGetExistingPodGroups(t *testing.T) {
 	// Setup test objects
-	modelInfer := &workloadv1alpha1.ModelInfer{
+	modelInfer := &workloadv1alpha1.ModelServing{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-model",
 			Namespace: "default",
@@ -452,7 +452,7 @@ func TestGetExistingPodGroups(t *testing.T) {
 			Name:      "test-model-0",
 			Namespace: "default",
 			Labels: map[string]string{
-				workloadv1alpha1.ModelInferNameLabelKey: "test-model",
+				workloadv1alpha1.ModelServingNameLabelKey: "test-model",
 			},
 		},
 	}
@@ -462,7 +462,7 @@ func TestGetExistingPodGroups(t *testing.T) {
 			Name:      "test-model-1",
 			Namespace: "default",
 			Labels: map[string]string{
-				workloadv1alpha1.ModelInferNameLabelKey: "test-model",
+				workloadv1alpha1.ModelServingNameLabelKey: "test-model",
 			},
 		},
 	}
@@ -472,7 +472,7 @@ func TestGetExistingPodGroups(t *testing.T) {
 			Name:      "other-model-0",
 			Namespace: "default",
 			Labels: map[string]string{
-				workloadv1alpha1.ModelInferNameLabelKey: "other-model",
+				workloadv1alpha1.ModelServingNameLabelKey: "other-model",
 			},
 		},
 	}
@@ -482,7 +482,7 @@ func TestGetExistingPodGroups(t *testing.T) {
 			Name:      "test-model-0",
 			Namespace: "other-namespace",
 			Labels: map[string]string{
-				workloadv1alpha1.ModelInferNameLabelKey: "test-model",
+				workloadv1alpha1.ModelServingNameLabelKey: "test-model",
 			},
 		},
 	}

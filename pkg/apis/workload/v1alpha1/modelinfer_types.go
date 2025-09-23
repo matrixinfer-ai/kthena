@@ -23,18 +23,18 @@ import (
 
 const (
 	// ModelServingNameLabelKey is the pod label key for the modelServing name.
-	ModelServingNameLabelKey = "modelServing.volcano.sh/name"
+	ModelServingNameLabelKey = "modelserving.volcano.sh/name"
 	// GroupNameLabelKey is the pod label key for the group name.
-	GroupNameLabelKey = "modelServing.volcano.sh/group-name"
+	GroupNameLabelKey = "modelserving.volcano.sh/group-name"
 	// RoleLabelKey is the pod label key for the role.
-	RoleLabelKey = "modelServing.volcano.sh/role"
+	RoleLabelKey = "modelserving.volcano.sh/role"
 	// RoleIDKey is the pod label key for the role serial number.
-	RoleIDKey = "modelServing.volcano.sh/role-id"
+	RoleIDKey = "modelserving.volcano.sh/role-id"
 	// EntryLabelKey is the entry pod label key.
-	EntryLabelKey = "modelServing.volcano.sh/entry"
+	EntryLabelKey = "modelserving.volcano.sh/entry"
 
 	// RevisionLabelKey is the revision label for the modelServing.
-	RevisionLabelKey = "modelServing.volcano.sh/revision"
+	RevisionLabelKey = "modelserving.volcano.sh/revision"
 
 	// Environment injected to the worker pods.
 	EntryAddressEnv = "ENTRY_ADDRESS"

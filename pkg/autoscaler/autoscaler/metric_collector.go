@@ -31,7 +31,7 @@ import (
 	"github.com/volcano-sh/kthena/pkg/autoscaler/datastructure"
 	"github.com/volcano-sh/kthena/pkg/autoscaler/histogram"
 	"github.com/volcano-sh/kthena/pkg/autoscaler/util"
-	inferControllerUtils "github.com/volcano-sh/kthena/pkg/infer-controller/utils"
+	inferControllerUtils "github.com/volcano-sh/kthena/pkg/modelServing-controller/utils"
 	"istio.io/istio/pkg/util/sets"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

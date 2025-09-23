@@ -140,12 +140,12 @@ func NewOptimizer(behavior *v1alpha1.AutoscalingPolicyBehavior, binding *v1alpha
 	}
 }
 
-func (optimizer *Optimizer) Optimize(ctx context.Context, client clientset.Interface, modelInferLister workloadLister.ModelInferLister, podLister listerv1.PodLister, autoscalePolicy *v1alpha1.AutoscalingPolicy) error {
+func (optimizer *Optimizer) Optimize(ctx context.Context, client clientset.Interface, modelInferLister workloadLister.ModelServingLister, podLister listerv1.PodLister, autoscalePolicy *v1alpha1.AutoscalingPolicy) error {
 	size := len(optimizer.Meta.Config.Params)
 	unreadyInstancesCount := int32(0)
 	readyInstancesMetrics := make([]algorithm.Metrics, 0, size)
 	currentInstancesCount := int32(0)
-	modelInferList := make([]*workload.ModelInfer, 0, size)
+	modelInferList := make([]*workload.ModelServing, 0, size)
 	// Update all model infer instances' metrics
 	for _, param := range optimizer.Meta.Config.Params {
 		collector, exists := optimizer.Collectors[param.Target.TargetRef.Name]

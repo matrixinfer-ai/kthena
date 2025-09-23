@@ -54,7 +54,7 @@ func NewAutoscaler(behavior *v1alpha1.AutoscalingPolicyBehavior, binding *v1alph
 	}
 }
 
-func (autoscaler *Autoscaler) Scale(ctx context.Context, client clientset.Interface, modelInferLister workloadLister.ModelInferLister, podLister listerv1.PodLister, autoscalePolicy *v1alpha1.AutoscalingPolicy) error {
+func (autoscaler *Autoscaler) Scale(ctx context.Context, client clientset.Interface, modelInferLister workloadLister.ModelServingLister, podLister listerv1.PodLister, autoscalePolicy *v1alpha1.AutoscalingPolicy) error {
 	// Get autoscaler target(model infer) instance
 	modelInfer, err := util.GetModelInferTarget(modelInferLister, autoscaler.Meta.Namespace, autoscaler.Meta.Config.Target.TargetRef.Name)
 	if err != nil {

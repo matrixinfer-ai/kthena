@@ -5,7 +5,7 @@ metadata:
     registry.volcano.sh/backend-name: backend1
     registry.volcano.sh/managed-by: registry.volcano.sh
     registry.volcano.sh/model-name: test-model
-    registry.volcano.sh/revision: 777f8c578c
+    registry.volcano.sh/revision: 658fb58f7f
     registry.volcano.sh/model-uid: randomUID
   name: test-model-backend1
   namespace: default
@@ -24,9 +24,9 @@ spec:
     minReplicas: 0
     target:
       additionalMatchLabels:
-        modelinfer.volcano.sh/role: leader
+        modelserving.volcano.sh/role: leader
       targetRef:
-        kind: ModelInfer
+        kind: ModelServing
         name: test-model-backend1
       metricFrom: {}
 

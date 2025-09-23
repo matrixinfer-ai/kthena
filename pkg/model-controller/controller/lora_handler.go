@@ -86,7 +86,7 @@ func (mc *ModelController) hasOnlyLoraAdaptersChanged(oldModel, newModel *regist
 }
 
 // isModelInferReady checks if ModelInfer is ready for LoRA adapter updates
-func (mc *ModelController) isModelInferReady(modelInfer *workload.ModelInfer) bool {
+func (mc *ModelController) isModelInferReady(modelInfer *workload.ModelServing) bool {
 	return modelInfer.Status.AvailableReplicas > 0
 }
 
@@ -100,7 +100,7 @@ type LoraUpdateResult struct {
 }
 
 // updateLoraAdapters updates LoRA adapters for a specific backend across all replicas
-func (mc *ModelController) updateLoraAdapters(ctx context.Context, newBackend, oldBackend *registryv1alpha1.ModelBackend, modelInfer *workload.ModelInfer) error {
+func (mc *ModelController) updateLoraAdapters(ctx context.Context, newBackend, oldBackend *registryv1alpha1.ModelBackend, modelInfer *workload.ModelServing) error {
 	// Get runtime service URLs for all replicas
 	runtimeURLs, err := mc.getModelInferRuntimeURLs(modelInfer, newBackend)
 	if err != nil {
@@ -240,7 +240,7 @@ func (mc *ModelController) loadLoraAdaptersToAllReplicas(ctx context.Context, ru
 }
 
 // getModelInferRuntimeURLs constructs the runtime service URLs for all ModelInfer pods
-func (mc *ModelController) getModelInferRuntimeURLs(modelInfer *workload.ModelInfer, backend *registryv1alpha1.ModelBackend) ([]string, error) {
+func (mc *ModelController) getModelInferRuntimeURLs(modelInfer *workload.ModelServing, backend *registryv1alpha1.ModelBackend) ([]string, error) {
 	// Get port from backend environment variables with default fallback to 8100
 	port := env.GetEnvValueOrDefault[int32](backend, env.RuntimePort, 8100)
 
@@ -259,10 +259,10 @@ func (mc *ModelController) getModelInferRuntimeURLs(modelInfer *workload.ModelIn
 }
 
 // getModelInferPodIPs gets the IPs of all available pods for a ModelInfer
-func (mc *ModelController) getModelInferPodIPs(modelInfer *workload.ModelInfer) ([]string, error) {
+func (mc *ModelController) getModelInferPodIPs(modelInfer *workload.ModelServing) ([]string, error) {
 	// Use PodLister to get pods with the ModelInfer label
 	labelSelector := labels.SelectorFromSet(labels.Set{
-		workload.ModelInferNameLabelKey: modelInfer.Name,
+		workload.ModelServingNameLabelKey: modelInfer.Name,
 	})
 
 	podList, err := mc.podsLister.Pods(modelInfer.Namespace).List(labelSelector)
@@ -524,7 +524,7 @@ func (mc *ModelController) handleDynamicLoraUpdates(oldModel, newModel *registry
 
 		// Get ModelInfer for this backend using the correct naming convention
 		modelInferName := utils.GetBackendResourceName(newModel.Name, newBackend.Name)
-		modelInfer, err := mc.modelInfersLister.ModelInfers(newModel.Namespace).Get(modelInferName)
+		modelInfer, err := mc.modelInfersLister.ModelServings(newModel.Namespace).Get(modelInferName)
 		if err != nil {
 			klog.Errorf("Failed to get ModelInfer %s: %v", modelInferName, err)
 			continue

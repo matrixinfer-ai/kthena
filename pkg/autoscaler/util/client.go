@@ -33,11 +33,11 @@ import (
 )
 
 const (
-	ModelInferEntryPodLabel = "leader"
+	ModelServingEntryPodLabel = "leader"
 )
 
-func GetModelInferTarget(lister workloadLister.ModelInferLister, namespace string, name string) (*workload.ModelInfer, error) {
-	if instance, err := lister.ModelInfers(namespace).Get(name); err != nil {
+func GetModelInferTarget(lister workloadLister.ModelServingLister, namespace string, name string) (*workload.ModelServing, error) {
+	if instance, err := lister.ModelServings(namespace).Get(name); err != nil {
 		return nil, err
 	} else {
 		return instance, nil
@@ -52,30 +52,30 @@ func GetMetricPods(lister listerv1.PodLister, namespace string, matchLabels map[
 	}
 }
 
-func UpdateModelInfer(ctx context.Context, client clientset.Interface, modelInfer *workload.ModelInfer) error {
-	modelInferCtx, cancel := context.WithTimeout(ctx, AutoscaleCtxTimeoutSeconds*time.Second)
+func UpdateModelInfer(ctx context.Context, client clientset.Interface, modelServing *workload.ModelServing) error {
+	modelServingCtx, cancel := context.WithTimeout(ctx, AutoscaleCtxTimeoutSeconds*time.Second)
 	defer cancel()
-	if oldModelInfer, err := client.WorkloadV1alpha1().ModelInfers(modelInfer.Namespace).Get(modelInferCtx, modelInfer.Name, metav1.GetOptions{}); err == nil {
-		modelInfer.ResourceVersion = oldModelInfer.ResourceVersion
-		if _, updateErr := client.WorkloadV1alpha1().ModelInfers(modelInfer.Namespace).Update(modelInferCtx, modelInfer, metav1.UpdateOptions{}); updateErr != nil {
-			klog.Errorf("failed to update modelInfer,err: %v", updateErr)
+	if oldModelServing, err := client.WorkloadV1alpha1().ModelServings(modelServing.Namespace).Get(modelServingCtx, modelServing.Name, metav1.GetOptions{}); err == nil {
+		modelServing.ResourceVersion = oldModelServing.ResourceVersion
+		if _, updateErr := client.WorkloadV1alpha1().ModelServings(modelServing.Namespace).Update(modelServingCtx, modelServing, metav1.UpdateOptions{}); updateErr != nil {
+			klog.Errorf("failed to update modelServing,err: %v", updateErr)
 			return updateErr
 		}
 	} else {
-		klog.Errorf("failed to get old modelInfer,err: %v", err)
+		klog.Errorf("failed to get old modelServing,err: %v", err)
 		return err
 	}
 	return nil
 }
 
 func GetTargetLabels(target *v1alpha1.Target) map[string]string {
-	if target.TargetRef.Kind == workload.ModelInferKind.Kind {
+	if target.TargetRef.Kind == workload.ModelServingKind.Kind {
 		lbs := map[string]string{}
 		if target.AdditionalMatchLabels != nil {
 			lbs = maps.Clone(target.AdditionalMatchLabels)
 		}
-		lbs[workload.ModelInferNameLabelKey] = target.TargetRef.Name
-		lbs[workload.RoleLabelKey] = ModelInferEntryPodLabel
+		lbs[workload.ModelServingNameLabelKey] = target.TargetRef.Name
+		lbs[workload.RoleLabelKey] = ModelServingEntryPodLabel
 		return lbs
 	}
 	return nil

@@ -62,7 +62,7 @@ type ModelController struct {
 	syncHandler                       func(ctx context.Context, miKey string) error
 	modelsLister                      registryLister.ModelLister
 	modelsInformer                    cache.Controller
-	modelInfersLister                 workloadLister.ModelInferLister
+	modelInfersLister                 workloadLister.ModelServingLister
 	modelInfersInformer               cache.SharedIndexInformer
 	modelServersLister                networkingLister.ModelServerLister
 	modelServersInformer              cache.SharedIndexInformer
@@ -264,7 +264,7 @@ func (mc *ModelController) isModelInferActive(model *registryv1alpha1.Model) (bo
 	}
 	// Check if all Model Infers are available
 	for _, modelInfer := range modelInfers {
-		if !meta.IsStatusConditionPresentAndEqual(modelInfer.Status.Conditions, string(workload.ModelInferAvailable), metav1.ConditionTrue) {
+		if !meta.IsStatusConditionPresentAndEqual(modelInfer.Status.Conditions, string(workload.ModelServingAvailable), metav1.ConditionTrue) {
 			// requeue until all Model Infers are active
 			klog.InfoS("model infer is not available", "model infer", klog.KObj(modelInfer))
 			return false, nil
@@ -315,7 +315,7 @@ func NewModelController(kubeClient kubernetes.Interface, client clientset.Interf
 
 	informerFactory := informersv1alpha1.NewSharedInformerFactory(client, 0)
 	modelInformer := informerFactory.Registry().V1alpha1().Models()
-	modelInferInformer := filterInformerFactory.Workload().V1alpha1().ModelInfers()
+	modelInferInformer := filterInformerFactory.Workload().V1alpha1().ModelServings()
 	modelServerInformer := filterInformerFactory.Networking().V1alpha1().ModelServers()
 	modelRouteInformer := filterInformerFactory.Networking().V1alpha1().ModelRoutes()
 	autoscalingPoliciesInformer := filterInformerFactory.Registry().V1alpha1().AutoscalingPolicies()
@@ -425,12 +425,12 @@ func (mc *ModelController) loadConfigFromConfigMap() {
 
 // When model infer status changed, model reconciles
 func (mc *ModelController) triggerModel(old any, new any) {
-	newModelInfer, ok := new.(*workload.ModelInfer)
+	newModelInfer, ok := new.(*workload.ModelServing)
 	if !ok {
 		klog.Error("failed to parse new ModelInfer")
 		return
 	}
-	_, ok = old.(*workload.ModelInfer)
+	_, ok = old.(*workload.ModelServing)
 	if !ok {
 		klog.Error("failed to parse old ModelInfer")
 		return
@@ -445,7 +445,7 @@ func (mc *ModelController) triggerModel(old any, new any) {
 
 // deleteModelInfer is called when a ModelInfer is deleted. It will reconcile the Model. Recreate model infer.
 func (mc *ModelController) deleteModelInfer(obj any) {
-	modelInfer, ok := obj.(*workload.ModelInfer)
+	modelInfer, ok := obj.(*workload.ModelServing)
 	if !ok {
 		klog.Error("failed to parse ModelInfer when deleteModelInfer")
 		return

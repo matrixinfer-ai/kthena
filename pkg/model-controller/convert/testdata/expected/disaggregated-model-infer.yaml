@@ -1,5 +1,5 @@
 apiVersion: workload.volcano.sh/v1alpha1
-kind: modelinfer
+kind: modelserving
 metadata:
   labels:
     registry.volcano.sh/backend-name: ds-r1-qwen-7b-pd
@@ -15,10 +15,10 @@ metadata:
       name: ds-r1-qwen-7b-pd
       uid: randomUID
 spec:
-  recoveryPolicy: InferGroupRecreate
+  recoveryPolicy: ServingGroupRecreate
   replicas: 1
   rolloutStrategy:
-    type: InferGroupRollingUpdate
+    type: ServingGroupRollingUpdate
   schedulerName: volcano
   template:
     restartGracePeriodSeconds: 60

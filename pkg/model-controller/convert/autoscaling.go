@@ -19,8 +19,8 @@ package convert
 import (
 	registry "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
 	workload "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
-	icUtils "github.com/volcano-sh/kthena/pkg/infer-controller/utils"
 	"github.com/volcano-sh/kthena/pkg/model-controller/utils"
+	icUtils "github.com/volcano-sh/kthena/pkg/modelServing-controller/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
@@ -50,7 +50,7 @@ func BuildScalingPolicyBindingSpec(backend *registry.ModelBackend, name string) 
 			Target: registry.Target{
 				TargetRef: corev1.ObjectReference{
 					Name: name,
-					Kind: workload.ModelInferKind.Kind,
+					Kind: workload.ModelServingKind.Kind,
 				},
 				AdditionalMatchLabels: map[string]string{
 					workload.RoleLabelKey: registry.ModelInferEntryPodLeaderLabel,
@@ -100,7 +100,7 @@ func BuildOptimizePolicyBindingSpec(model *registry.Model, name string) *registr
 			Target: registry.Target{
 				TargetRef: corev1.ObjectReference{
 					Name: targetName,
-					Kind: workload.ModelInferKind.Kind,
+					Kind: workload.ModelServingKind.Kind,
 				},
 				AdditionalMatchLabels: map[string]string{
 					workload.RoleLabelKey: registry.ModelInferEntryPodLeaderLabel,

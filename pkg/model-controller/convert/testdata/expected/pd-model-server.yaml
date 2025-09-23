@@ -8,7 +8,7 @@ metadata:
     registry.volcano.sh/managed-by: registry.volcano.sh
     registry.volcano.sh/model-name: ds-r1-qwen-7b-pd
     registry.volcano.sh/model-uid: randomUID
-    registry.volcano.sh/revision: 78767dc65
+    registry.volcano.sh/revision: 558dfd67d5
   ownerReferences:
     - apiVersion: registry.volcano.sh/v1alpha1
       blockOwnerDeletion: true
@@ -23,11 +23,11 @@ spec:
     matchLabels:
       registry.volcano.sh/model-uid: randomUID
     pdGroup:
-      groupKey: "modelinfer.volcano.sh/group-name"
+      groupKey: "modelserving.volcano.sh/group-name"
       prefillLabels:
-        modelinfer.volcano.sh/role: prefill
+        modelserving.volcano.sh/role: prefill
       decodeLabels:
-        modelinfer.volcano.sh/role: decode
+        modelserving.volcano.sh/role: decode
   workloadPort:
     port: 8000
   trafficPolicy:

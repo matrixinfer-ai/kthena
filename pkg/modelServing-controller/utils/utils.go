@@ -93,7 +93,7 @@ func generateWorkerPodName(groupName, roleName string, podIndex int) string {
 	return groupName + "-" + roleName + "-" + strconv.Itoa(podIndex)
 }
 
-func GenerateEntryPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, groupName string, roleIndex int, revision string) *corev1.Pod {
+func GenerateEntryPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelServing, groupName string, roleIndex int, revision string) *corev1.Pod {
 	entryPodName := generateEntryPodName(groupName, GenerateRoleID(role.Name, roleIndex))
 	entryPod := createBasePod(role, mi, entryPodName, groupName, revision, roleIndex)
 	entryPod.ObjectMeta.Labels[workloadv1alpha1.EntryLabelKey] = Entry
@@ -105,7 +105,7 @@ func GenerateEntryPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfe
 	return entryPod
 }
 
-func GenerateWorkerPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, entryPod *corev1.Pod, groupName string, roleIndex, podIndex int, revision string) *corev1.Pod {
+func GenerateWorkerPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelServing, entryPod *corev1.Pod, groupName string, roleIndex, podIndex int, revision string) *corev1.Pod {
 	workerPodName := generateWorkerPodName(groupName, GenerateRoleID(role.Name, roleIndex), podIndex)
 	workerPod := createBasePod(role, mi, workerPodName, groupName, revision, roleIndex)
 	addPodLabelAndAnnotation(workerPod, role.WorkerTemplate.Metadata)
@@ -116,7 +116,7 @@ func GenerateWorkerPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInf
 	return workerPod
 }
 
-func createBasePod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, name, groupName, revision string, roleIndex int) *corev1.Pod {
+func createBasePod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelServing, name, groupName, revision string, roleIndex int) *corev1.Pod {
 	return &corev1.Pod{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Pod",
@@ -126,11 +126,11 @@ func createBasePod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelInfer, 
 			Name:      name,
 			Namespace: mi.Namespace,
 			Labels: map[string]string{
-				workloadv1alpha1.ModelInferNameLabelKey: mi.Name,
-				workloadv1alpha1.GroupNameLabelKey:      groupName,
-				workloadv1alpha1.RoleLabelKey:           role.Name,
-				workloadv1alpha1.RoleIDKey:              GenerateRoleID(role.Name, roleIndex),
-				workloadv1alpha1.RevisionLabelKey:       revision,
+				workloadv1alpha1.ModelServingNameLabelKey: mi.Name,
+				workloadv1alpha1.GroupNameLabelKey:        groupName,
+				workloadv1alpha1.RoleLabelKey:             role.Name,
+				workloadv1alpha1.RoleIDKey:                GenerateRoleID(role.Name, roleIndex),
+				workloadv1alpha1.RevisionLabelKey:         revision,
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				newModelInferOwnerRef(mi),
@@ -211,10 +211,10 @@ func addEnvVars(container *corev1.Container, newEnvVars ...corev1.EnvVar) {
 }
 
 // newModelInferOwnerRef creates an OwnerReference pointing to the given ModelInfer.
-func newModelInferOwnerRef(mi *workloadv1alpha1.ModelInfer) metav1.OwnerReference {
+func newModelInferOwnerRef(mi *workloadv1alpha1.ModelServing) metav1.OwnerReference {
 	return metav1.OwnerReference{
-		APIVersion:         workloadv1alpha1.ModelInferKind.GroupVersion().String(),
-		Kind:               workloadv1alpha1.ModelInferKind.Kind,
+		APIVersion:         workloadv1alpha1.ModelServingKind.GroupVersion().String(),
+		Kind:               workloadv1alpha1.ModelServingKind.Kind,
 		Name:               mi.Name,
 		UID:                mi.UID,
 		BlockOwnerDeletion: ptr.To(true),
@@ -222,7 +222,7 @@ func newModelInferOwnerRef(mi *workloadv1alpha1.ModelInfer) metav1.OwnerReferenc
 	}
 }
 
-func CreateHeadlessService(ctx context.Context, k8sClient kubernetes.Interface, mi *workloadv1alpha1.ModelInfer, serviceSelector map[string]string, groupName, roleLabel string, roleIndex int) error {
+func CreateHeadlessService(ctx context.Context, k8sClient kubernetes.Interface, mi *workloadv1alpha1.ModelServing, serviceSelector map[string]string, groupName, roleLabel string, roleIndex int) error {
 	serviceName := generateEntryPodName(groupName, GenerateRoleID(roleLabel, roleIndex))
 	headlessService := corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -256,7 +256,7 @@ func CreateHeadlessService(ctx context.Context, k8sClient kubernetes.Interface, 
 }
 
 func GetModelInferAndGroupByLabel(podLabels map[string]string) (string, string, bool) {
-	modelInferName, ok := podLabels[workloadv1alpha1.ModelInferNameLabelKey]
+	modelInferName, ok := podLabels[workloadv1alpha1.ModelServingNameLabelKey]
 	if !ok {
 		return "", "", false
 	}
@@ -331,7 +331,7 @@ func IsPodFailed(pod *corev1.Pod) bool {
 	return pod.Status.Phase == corev1.PodFailed
 }
 
-func ExpectedPodNum(mi *workloadv1alpha1.ModelInfer) int {
+func ExpectedPodNum(mi *workloadv1alpha1.ModelServing) int {
 	num := 0
 	for _, role := range mi.Spec.Template.Roles {
 		// Calculate the expected number of pod replicas when the role is running normally
@@ -360,17 +360,17 @@ func ContainerRestarted(pod *corev1.Pod) bool {
 	return false
 }
 
-func newCondition(condType workloadv1alpha1.ModelInferConditionType, message string) metav1.Condition {
+func newCondition(condType workloadv1alpha1.ModelServingConditionType, message string) metav1.Condition {
 	var conditionType, reason string
 	switch condType {
-	case workloadv1alpha1.ModelInferAvailable:
-		conditionType = string(workloadv1alpha1.ModelInferAvailable)
+	case workloadv1alpha1.ModelServingAvailable:
+		conditionType = string(workloadv1alpha1.ModelServingAvailable)
 		reason = "AllGroupsReady"
-	case workloadv1alpha1.ModelInferProgressing:
-		conditionType = string(workloadv1alpha1.ModelInferProgressing)
+	case workloadv1alpha1.ModelServingProgressing:
+		conditionType = string(workloadv1alpha1.ModelServingProgressing)
 		reason = "GroupProgressing"
-	case workloadv1alpha1.ModelInferUpdateInProgress:
-		conditionType = string(workloadv1alpha1.ModelInferUpdateInProgress)
+	case workloadv1alpha1.ModelServingUpdateInProgress:
+		conditionType = string(workloadv1alpha1.ModelServingUpdateInProgress)
 		reason = "GroupsUpdating"
 	}
 
@@ -383,7 +383,7 @@ func newCondition(condType workloadv1alpha1.ModelInferConditionType, message str
 	}
 }
 
-func SetCondition(mi *workloadv1alpha1.ModelInfer, progressingGroups, updatedGroups, currentGroups []int) bool {
+func SetCondition(mi *workloadv1alpha1.ModelServing, progressingGroups, updatedGroups, currentGroups []int) bool {
 	var newCond metav1.Condition
 	found := false
 	shouldUpdate := false
@@ -397,15 +397,15 @@ func SetCondition(mi *workloadv1alpha1.ModelInfer, progressingGroups, updatedGro
 	// But if the group's revision doesn't meet the requirements, then the group's status will change to deleting,
 	// so when all groups are running, it means that the revision meets the requirements as well.
 	if len(progressingGroups) == 0 {
-		newCond = newCondition(workloadv1alpha1.ModelInferAvailable, AllGroupsIsReady)
+		newCond = newCondition(workloadv1alpha1.ModelServingAvailable, AllGroupsIsReady)
 	} else {
 		message := SomeGroupsAreProgressing + ": " + fmt.Sprintf("%v", progressingGroups)
 		// If the number of current groups is greater than the Partition, modelInfer is still updating.
 		if len(currentGroups) > partition {
 			message = message + ", " + SomeGroupsAreUpdated + ": " + fmt.Sprintf("%v", updatedGroups)
-			newCond = newCondition(workloadv1alpha1.ModelInferUpdateInProgress, message)
+			newCond = newCondition(workloadv1alpha1.ModelServingUpdateInProgress, message)
 		} else {
-			newCond = newCondition(workloadv1alpha1.ModelInferProgressing, message)
+			newCond = newCondition(workloadv1alpha1.ModelServingProgressing, message)
 		}
 	}
 
@@ -436,13 +436,13 @@ func SetCondition(mi *workloadv1alpha1.ModelInfer, progressingGroups, updatedGro
 
 // This function is refer to https://github.com/kubernetes-sigs/lws/blob/main/pkg/controllers/leaderworkerset_controller.go#L840
 func exclusiveConditionTypes(condition1 metav1.Condition, condition2 metav1.Condition) bool {
-	if (condition1.Type == string(workloadv1alpha1.ModelInferAvailable) && condition2.Type == string(workloadv1alpha1.ModelInferProgressing)) ||
-		(condition1.Type == string(workloadv1alpha1.ModelInferProgressing) && condition2.Type == string(workloadv1alpha1.ModelInferAvailable)) {
+	if (condition1.Type == string(workloadv1alpha1.ModelServingAvailable) && condition2.Type == string(workloadv1alpha1.ModelServingProgressing)) ||
+		(condition1.Type == string(workloadv1alpha1.ModelServingProgressing) && condition2.Type == string(workloadv1alpha1.ModelServingAvailable)) {
 		return true
 	}
 
-	if (condition1.Type == string(workloadv1alpha1.ModelInferAvailable) && condition2.Type == string(workloadv1alpha1.ModelInferUpdateInProgress)) ||
-		(condition1.Type == string(workloadv1alpha1.ModelInferUpdateInProgress) && condition2.Type == string(workloadv1alpha1.ModelInferAvailable)) {
+	if (condition1.Type == string(workloadv1alpha1.ModelServingAvailable) && condition2.Type == string(workloadv1alpha1.ModelServingUpdateInProgress)) ||
+		(condition1.Type == string(workloadv1alpha1.ModelServingUpdateInProgress) && condition2.Type == string(workloadv1alpha1.ModelServingAvailable)) {
 		return true
 	}
 
@@ -450,7 +450,7 @@ func exclusiveConditionTypes(condition1 metav1.Condition, condition2 metav1.Cond
 }
 
 // ParseAdmissionRequest parses the HTTP request and extracts the AdmissionReview and ModelInfer.
-func ParseModelInferFromRequest(r *http.Request) (*admissionv1.AdmissionReview, *workloadv1alpha1.ModelInfer, error) {
+func ParseModelInferFromRequest(r *http.Request) (*admissionv1.AdmissionReview, *workloadv1alpha1.ModelServing, error) {
 	// Verify the content type is accurate
 	contentType := r.Header.Get("Content-Type")
 	if contentType != "application/json" {
@@ -473,7 +473,7 @@ func ParseModelInferFromRequest(r *http.Request) (*admissionv1.AdmissionReview, 
 		return nil, nil, fmt.Errorf("failed to decode body: %v", err)
 	}
 
-	var mi workloadv1alpha1.ModelInfer
+	var mi workloadv1alpha1.ModelServing
 	if err := json.Unmarshal(admissionReview.Request.Object.Raw, &mi); err != nil {
 		return nil, nil, fmt.Errorf("failed to decode modelInfer: %v", err)
 	}

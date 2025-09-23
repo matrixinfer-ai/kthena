@@ -67,11 +67,11 @@ func (mc *ModelController) createOrUpdateModelInfer(ctx context.Context, model *
 	modelInfersToKeep := make(map[string]struct{})
 	for _, modelInfer := range modelInfers {
 		modelInfersToKeep[modelInfer.Name] = struct{}{}
-		oldModelInfer, err := mc.modelInfersLister.ModelInfers(modelInfer.Namespace).Get(modelInfer.Name)
+		oldModelInfer, err := mc.modelInfersLister.ModelServings(modelInfer.Namespace).Get(modelInfer.Name)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				klog.V(4).Infof("Create Model Infer %s", modelInfer.Name)
-				if _, err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Create(ctx, modelInfer, metav1.CreateOptions{}); err != nil {
+				if _, err := mc.client.WorkloadV1alpha1().ModelServings(model.Namespace).Create(ctx, modelInfer, metav1.CreateOptions{}); err != nil {
 					klog.Errorf("failed to create ModelInfer %s: %v", klog.KObj(modelInfer), err)
 					return err
 				}
@@ -85,7 +85,7 @@ func (mc *ModelController) createOrUpdateModelInfer(ctx context.Context, model *
 			continue
 		}
 		modelInfer.ResourceVersion = oldModelInfer.ResourceVersion
-		if _, err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Update(ctx, modelInfer, metav1.UpdateOptions{}); err != nil {
+		if _, err := mc.client.WorkloadV1alpha1().ModelServings(model.Namespace).Update(ctx, modelInfer, metav1.UpdateOptions{}); err != nil {
 			klog.Errorf("failed to update ModelInfer %s: %v", klog.KObj(modelInfer), err)
 			return err
 		}
@@ -94,7 +94,7 @@ func (mc *ModelController) createOrUpdateModelInfer(ctx context.Context, model *
 	for _, existingModelInfer := range existingModelInfers {
 		// if not exist in modelInfersToKeep, delete it
 		if _, ok := modelInfersToKeep[existingModelInfer.Name]; !ok {
-			if err := mc.client.WorkloadV1alpha1().ModelInfers(model.Namespace).Delete(ctx, existingModelInfer.Name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+			if err := mc.client.WorkloadV1alpha1().ModelServings(model.Namespace).Delete(ctx, existingModelInfer.Name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 				return err
 			}
 			klog.V(4).Infof("Delete ModelInfer %s", existingModelInfer.Name)
@@ -104,8 +104,8 @@ func (mc *ModelController) createOrUpdateModelInfer(ctx context.Context, model *
 }
 
 // listModelInferByLabel list all model infer which label key is "owner" and label value is model uid
-func (mc *ModelController) listModelInferByLabel(model *registryv1alpha1.Model) ([]*workload.ModelInfer, error) {
-	if modelInfers, err := mc.modelInfersLister.ModelInfers(model.Namespace).List(labels.SelectorFromSet(map[string]string{
+func (mc *ModelController) listModelInferByLabel(model *registryv1alpha1.Model) ([]*workload.ModelServing, error) {
+	if modelInfers, err := mc.modelInfersLister.ModelServings(model.Namespace).List(labels.SelectorFromSet(map[string]string{
 		utils.OwnerUIDKey: string(model.UID),
 	})); err != nil {
 		return nil, err

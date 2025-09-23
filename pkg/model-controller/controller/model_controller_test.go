@@ -65,7 +65,7 @@ func TestReconcile(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, aspList.Items, 1, "Expected 1 AutoscalingPolicy to be created")
 	// model infer should be created
-	modelInfers, err := kthenaClient.WorkloadV1alpha1().ModelInfers(model.Namespace).List(ctx, metav1.ListOptions{})
+	modelInfers, err := kthenaClient.WorkloadV1alpha1().ModelServings(model.Namespace).List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
 	assert.Len(t, modelInfers.Items, 1, "Expected 1 ModelInfer to be created")
 	// model server should be created
@@ -78,9 +78,9 @@ func TestReconcile(t *testing.T) {
 	assert.Len(t, modelRoutes.Items, 1, "Expected 1 ModelRoute to be create")
 	// Step3. mock model infer status available
 	modelInfer := &modelInfers.Items[0]
-	meta.SetStatusCondition(&modelInfer.Status.Conditions, newCondition(string(workload.ModelInferAvailable),
+	meta.SetStatusCondition(&modelInfer.Status.Conditions, newCondition(string(workload.ModelServingAvailable),
 		metav1.ConditionTrue, "AllGroupsReady", "AllGroupsReady"))
-	_, err = kthenaClient.WorkloadV1alpha1().ModelInfers(model.Namespace).UpdateStatus(ctx, modelInfer, metav1.UpdateOptions{})
+	_, err = kthenaClient.WorkloadV1alpha1().ModelServings(model.Namespace).UpdateStatus(ctx, modelInfer, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 	// Step4. Check that model condition should be active
 	assert.True(t, waitForCondition(func() bool {
@@ -203,7 +203,7 @@ func TestTriggerModel(t *testing.T) {
 	kthenaClient := kthenafake.NewClientset()
 	controller := NewModelController(kubeClient, kthenaClient)
 	assert.NotNil(t, &controller)
-	modelInfer := loadYaml[workload.ModelInfer](t, "../convert/testdata/expected/model-infer.yaml")
+	modelInfer := loadYaml[workload.ModelServing](t, "../convert/testdata/expected/model-infer.yaml")
 	// invalid new
 	controller.triggerModel(modelInfer, "invalid")
 	assert.Equal(t, 0, controller.workQueue.Len())

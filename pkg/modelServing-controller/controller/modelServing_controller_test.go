@@ -33,8 +33,8 @@ import (
 	kthenafake "github.com/volcano-sh/kthena/client-go/clientset/versioned/fake"
 	informersv1alpha1 "github.com/volcano-sh/kthena/client-go/informers/externalversions"
 	workloadv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
-	"github.com/volcano-sh/kthena/pkg/infer-controller/datastore"
-	"github.com/volcano-sh/kthena/pkg/infer-controller/utils"
+	"github.com/volcano-sh/kthena/pkg/modelServing-controller/datastore"
+	"github.com/volcano-sh/kthena/pkg/modelServing-controller/utils"
 )
 
 type resourceSpec struct {
@@ -46,7 +46,7 @@ func TestIsInferGroupOutdated(t *testing.T) {
 	ns := "test-ns"
 	groupName := "test-group"
 	group := datastore.InferGroup{Name: groupName}
-	mi := &workloadv1alpha1.ModelInfer{ObjectMeta: metav1.ObjectMeta{Namespace: ns}}
+	mi := &workloadv1alpha1.ModelServing{ObjectMeta: metav1.ObjectMeta{Namespace: ns}}
 	newHash := "hash123"
 
 	kubeClient := kubefake.NewSimpleClientset()
@@ -154,13 +154,13 @@ func TestCheckInferGroupReady(t *testing.T) {
 
 	// build ModelInfer
 	var expectedPodNum int32 = 2
-	mi := &workloadv1alpha1.ModelInfer{
+	mi := &workloadv1alpha1.ModelServing{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: ns,
 			Name:      "test-mi",
 		},
-		Spec: workloadv1alpha1.ModelInferSpec{
-			Template: workloadv1alpha1.InferGroup{
+		Spec: workloadv1alpha1.ModelServingSpec{
+			Template: workloadv1alpha1.ServingGroup{
 				Roles: []workloadv1alpha1.Role{
 					{
 						Replicas: &expectedPodNum,
@@ -262,7 +262,7 @@ func TestIsInferGroupDeleted(t *testing.T) {
 	kubeInformerFactory.Start(stop)
 	kubeInformerFactory.WaitForCacheSync(stop)
 
-	mi := &workloadv1alpha1.ModelInfer{
+	mi := &workloadv1alpha1.ModelServing{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: ns,
 			Name:      "test-mi",
@@ -460,7 +460,7 @@ func TestIsRoleDeleted(t *testing.T) {
 	kubeInformerFactory.Start(stop)
 	kubeInformerFactory.WaitForCacheSync(stop)
 
-	mi := &workloadv1alpha1.ModelInfer{
+	mi := &workloadv1alpha1.ModelServing{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: ns,
 			Name:      "test-mi",
@@ -761,13 +761,13 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 	t.Run("ModelInferCreate", func(t *testing.T) {
 		mi := createStandardModelInfer("test-mi", 2, 3)
 		// Add ModelInfer to fake client
-		_, err := kthenaClient.WorkloadV1alpha1().ModelInfers("default").Create(
+		_, err := kthenaClient.WorkloadV1alpha1().ModelServings("default").Create(
 			context.Background(), mi, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
 		// Wait for object to be available in cache
 		found := waitForObjectInCache(t, 2*time.Second, func() bool {
-			_, err := controller.modelInfersLister.ModelInfers("default").Get("test-mi")
+			_, err := controller.modelInfersLister.ModelServings("default").Get("test-mi")
 			return err == nil
 		})
 		assert.True(t, found, "ModelInfer should be found in cache after creation")
@@ -780,7 +780,7 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		expectedPodCount := utils.ExpectedPodNum(mi) * int(*mi.Spec.Replicas)
 		found = waitForObjectInCache(t, 2*time.Second, func() bool {
 			selector := labels.SelectorFromSet(map[string]string{
-				workloadv1alpha1.ModelInferNameLabelKey: mi.Name,
+				workloadv1alpha1.ModelServingNameLabelKey: mi.Name,
 			})
 			pods, _ := controller.podsLister.Pods("default").List(selector)
 			return len(pods) == expectedPodCount
@@ -799,13 +799,13 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 	t.Run("ModelInferScaleUp", func(t *testing.T) {
 		mi := createStandardModelInfer("test-mi-scale-up", 1, 2)
 		// Create initial ModelInfer
-		_, err := kthenaClient.WorkloadV1alpha1().ModelInfers("default").Create(
+		_, err := kthenaClient.WorkloadV1alpha1().ModelServings("default").Create(
 			context.Background(), mi, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
 		// Wait for object to be available in cache
 		found := waitForObjectInCache(t, 2*time.Second, func() bool {
-			_, err := controller.modelInfersLister.ModelInfers("default").Get("test-mi-scale-up")
+			_, err := controller.modelInfersLister.ModelServings("default").Get("test-mi-scale-up")
 			return err == nil
 		})
 		assert.True(t, found, "ModelInfer should be found in cache after creation")
@@ -821,13 +821,13 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		updatedMI := mi.DeepCopy()
 		updatedMI.Spec.Replicas = ptr.To[int32](3) // Scale up to 3 InferGroups
 
-		_, err = kthenaClient.WorkloadV1alpha1().ModelInfers("default").Update(
+		_, err = kthenaClient.WorkloadV1alpha1().ModelServings("default").Update(
 			context.Background(), updatedMI, metav1.UpdateOptions{})
 		assert.NoError(t, err)
 
 		// Wait for update to be available in cache
 		found = waitForObjectInCache(t, 2*time.Second, func() bool {
-			mi, err := controller.modelInfersLister.ModelInfers("default").Get("test-mi-scale-up")
+			mi, err := controller.modelInfersLister.ModelServings("default").Get("test-mi-scale-up")
 			return err == nil && *mi.Spec.Replicas == 3
 		})
 		assert.True(t, found, "Updated ModelInfer should be found in cache")
@@ -840,7 +840,7 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		expectedPodCount := utils.ExpectedPodNum(updatedMI) * int(*updatedMI.Spec.Replicas)
 		found = waitForObjectInCache(t, 2*time.Second, func() bool {
 			selector := labels.SelectorFromSet(map[string]string{
-				workloadv1alpha1.ModelInferNameLabelKey: updatedMI.Name,
+				workloadv1alpha1.ModelServingNameLabelKey: updatedMI.Name,
 			})
 			pods, _ := controller.podsLister.Pods("default").List(selector)
 			return len(pods) == expectedPodCount
@@ -859,13 +859,13 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 	t.Run("ModelInferUpdateScaleDown", func(t *testing.T) {
 		mi := createStandardModelInfer("test-mi-scale-down", 3, 2)
 		// Create initial ModelInfer
-		_, err := kthenaClient.WorkloadV1alpha1().ModelInfers("default").Create(
+		_, err := kthenaClient.WorkloadV1alpha1().ModelServings("default").Create(
 			context.Background(), mi, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
 		// Wait for object to be available in cache
 		found := waitForObjectInCache(t, 2*time.Second, func() bool {
-			_, err := controller.modelInfersLister.ModelInfers("default").Get("test-mi-scale-down")
+			_, err := controller.modelInfersLister.ModelServings("default").Get("test-mi-scale-down")
 			return err == nil
 		})
 		assert.True(t, found, "ModelInfer should be found in cache after creation")
@@ -878,7 +878,7 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		expectedPodCount := utils.ExpectedPodNum(mi) * int(*mi.Spec.Replicas)
 		found = waitForObjectInCache(t, 2*time.Second, func() bool {
 			selector := labels.SelectorFromSet(map[string]string{
-				workloadv1alpha1.ModelInferNameLabelKey: mi.Name,
+				workloadv1alpha1.ModelServingNameLabelKey: mi.Name,
 			})
 			pods, _ := controller.podsLister.Pods("default").List(selector)
 			return len(pods) == expectedPodCount
@@ -894,13 +894,13 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		updatedMI := mi.DeepCopy()
 		updatedMI.Spec.Replicas = ptr.To[int32](1) // Scale up to 1 InferGroups
 
-		_, err = kthenaClient.WorkloadV1alpha1().ModelInfers("default").Update(
+		_, err = kthenaClient.WorkloadV1alpha1().ModelServings("default").Update(
 			context.Background(), updatedMI, metav1.UpdateOptions{})
 		assert.NoError(t, err)
 
 		// Wait for update to be available in cache
 		found = waitForObjectInCache(t, 2*time.Second, func() bool {
-			mi, err := controller.modelInfersLister.ModelInfers("default").Get("test-mi-scale-down")
+			mi, err := controller.modelInfersLister.ModelServings("default").Get("test-mi-scale-down")
 			return err == nil && *mi.Spec.Replicas == 1
 		})
 		assert.True(t, found, "Updated ModelInfer should be found in cache")
@@ -947,7 +947,7 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		expectedPodCount = utils.ExpectedPodNum(updatedMI) * int(*updatedMI.Spec.Replicas)
 		found = waitForObjectInCache(t, 2*time.Second, func() bool {
 			selector := labels.SelectorFromSet(map[string]string{
-				workloadv1alpha1.ModelInferNameLabelKey: updatedMI.Name,
+				workloadv1alpha1.ModelServingNameLabelKey: updatedMI.Name,
 			})
 			pods, _ := controller.podsLister.Pods("default").List(selector)
 			return len(pods) == expectedPodCount
@@ -966,13 +966,13 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 	t.Run("ModelInferRoleReplicasScaleUp", func(t *testing.T) {
 		mi := createStandardModelInfer("test-role-scale-up", 2, 1)
 		// Create initial ModelInfer
-		_, err := kthenaClient.WorkloadV1alpha1().ModelInfers("default").Create(
+		_, err := kthenaClient.WorkloadV1alpha1().ModelServings("default").Create(
 			context.Background(), mi, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
 		// Wait for object to be available in cache
 		found := waitForObjectInCache(t, 2*time.Second, func() bool {
-			_, err := controller.modelInfersLister.ModelInfers("default").Get("test-role-scale-up")
+			_, err := controller.modelInfersLister.ModelServings("default").Get("test-role-scale-up")
 			return err == nil
 		})
 		assert.True(t, found, "ModelInfer should be found in cache after creation")
@@ -988,13 +988,13 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		updatedMI := mi.DeepCopy()
 		updatedMI.Spec.Template.Roles[0].Replicas = ptr.To[int32](3) // Scale up to 3 roles
 
-		_, err = kthenaClient.WorkloadV1alpha1().ModelInfers("default").Update(
+		_, err = kthenaClient.WorkloadV1alpha1().ModelServings("default").Update(
 			context.Background(), updatedMI, metav1.UpdateOptions{})
 		assert.NoError(t, err)
 
 		// Wait for update to be available in cache
 		found = waitForObjectInCache(t, 2*time.Second, func() bool {
-			mi, err := controller.modelInfersLister.ModelInfers("default").Get("test-role-scale-up")
+			mi, err := controller.modelInfersLister.ModelServings("default").Get("test-role-scale-up")
 			return err == nil && *mi.Spec.Template.Roles[0].Replicas == 3
 		})
 		assert.True(t, found, "Updated ModelInfer should be found in cache")
@@ -1007,7 +1007,7 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		expectedPodCount := utils.ExpectedPodNum(updatedMI) * int(*updatedMI.Spec.Replicas)
 		found = waitForObjectInCache(t, 2*time.Second, func() bool {
 			selector := labels.SelectorFromSet(map[string]string{
-				workloadv1alpha1.ModelInferNameLabelKey: updatedMI.Name,
+				workloadv1alpha1.ModelServingNameLabelKey: updatedMI.Name,
 			})
 			pods, _ := controller.podsLister.Pods("default").List(selector)
 			return len(pods) == expectedPodCount
@@ -1027,13 +1027,13 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		mi := createStandardModelInfer("test-role-scale-down", 2, 3)
 
 		// Create initial ModelInfer
-		_, err := kthenaClient.WorkloadV1alpha1().ModelInfers("default").Create(
+		_, err := kthenaClient.WorkloadV1alpha1().ModelServings("default").Create(
 			context.Background(), mi, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
 		// Wait for object to be available in cache
 		found := waitForObjectInCache(t, 2*time.Second, func() bool {
-			_, err := controller.modelInfersLister.ModelInfers("default").Get("test-role-scale-down")
+			_, err := controller.modelInfersLister.ModelServings("default").Get("test-role-scale-down")
 			return err == nil
 		})
 		assert.True(t, found, "ModelInfer should be found in cache after creation")
@@ -1046,7 +1046,7 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		expectedPodCount := utils.ExpectedPodNum(mi) * int(*mi.Spec.Replicas)
 		found = waitForObjectInCache(t, 2*time.Second, func() bool {
 			selector := labels.SelectorFromSet(map[string]string{
-				workloadv1alpha1.ModelInferNameLabelKey: mi.Name,
+				workloadv1alpha1.ModelServingNameLabelKey: mi.Name,
 			})
 			pods, _ := controller.podsLister.Pods("default").List(selector)
 			return len(pods) == expectedPodCount
@@ -1062,13 +1062,13 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		updatedMI := mi.DeepCopy()
 		updatedMI.Spec.Template.Roles[0].Replicas = ptr.To[int32](1) // Scale down to 1 role
 
-		_, err = kthenaClient.WorkloadV1alpha1().ModelInfers("default").Update(
+		_, err = kthenaClient.WorkloadV1alpha1().ModelServings("default").Update(
 			context.Background(), updatedMI, metav1.UpdateOptions{})
 		assert.NoError(t, err)
 
 		// Wait for update to be available in cache
 		found = waitForObjectInCache(t, 2*time.Second, func() bool {
-			mi, err := controller.modelInfersLister.ModelInfers("default").Get("test-role-scale-down")
+			mi, err := controller.modelInfersLister.ModelServings("default").Get("test-role-scale-down")
 			return err == nil && *mi.Spec.Template.Roles[0].Replicas == 1
 		})
 		assert.True(t, found, "Updated ModelInfer should be found in cache")
@@ -1115,7 +1115,7 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		expectedPodCount = utils.ExpectedPodNum(updatedMI) * int(*updatedMI.Spec.Replicas)
 		found = waitForObjectInCache(t, 2*time.Second, func() bool {
 			selector := labels.SelectorFromSet(map[string]string{
-				workloadv1alpha1.ModelInferNameLabelKey: updatedMI.Name,
+				workloadv1alpha1.ModelServingNameLabelKey: updatedMI.Name,
 			})
 			pods, _ := controller.podsLister.Pods("default").List(selector)
 			return len(pods) == expectedPodCount
@@ -1153,16 +1153,16 @@ func waitForObjectInCache(t *testing.T, timeout time.Duration, checkFunc func() 
 }
 
 // createStandardModelInfer Create a standard ModelInfer
-func createStandardModelInfer(name string, replicas int32, roleReplicas int32) *workloadv1alpha1.ModelInfer {
-	return &workloadv1alpha1.ModelInfer{
+func createStandardModelInfer(name string, replicas int32, roleReplicas int32) *workloadv1alpha1.ModelServing {
+	return &workloadv1alpha1.ModelServing{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "default",
 			Name:      name,
 		},
-		Spec: workloadv1alpha1.ModelInferSpec{
+		Spec: workloadv1alpha1.ModelServingSpec{
 			Replicas:      ptr.To[int32](replicas),
 			SchedulerName: "volcano",
-			Template: workloadv1alpha1.InferGroup{
+			Template: workloadv1alpha1.ServingGroup{
 				Roles: []workloadv1alpha1.Role{
 					{
 						Name:     "prefill",
@@ -1186,7 +1186,7 @@ func createStandardModelInfer(name string, replicas int32, roleReplicas int32) *
 }
 
 // verifyInferGroups Verify the number and name of InferGroup
-func verifyInferGroups(t *testing.T, controller *ModelInferController, mi *workloadv1alpha1.ModelInfer, expectedCount int) {
+func verifyInferGroups(t *testing.T, controller *ModelInferController, mi *workloadv1alpha1.ModelServing, expectedCount int) {
 	groups, err := controller.store.GetInferGroupByModelInfer(utils.GetNamespaceName(mi))
 	assert.NoError(t, err)
 	assert.Equal(t, expectedCount, len(groups), fmt.Sprintf("Should have %d InferGroups", expectedCount))
@@ -1205,7 +1205,7 @@ func verifyInferGroups(t *testing.T, controller *ModelInferController, mi *workl
 }
 
 // verifyPodCount Verify the number of Pods in each InferGroup
-func verifyPodCount(t *testing.T, controller *ModelInferController, mi *workloadv1alpha1.ModelInfer, expectedGroups int) {
+func verifyPodCount(t *testing.T, controller *ModelInferController, mi *workloadv1alpha1.ModelServing, expectedGroups int) {
 	expectPodNum := utils.ExpectedPodNum(mi)
 	for i := 0; i < expectedGroups; i++ {
 		groupName := fmt.Sprintf("%s-%d", mi.Name, i)
@@ -1220,7 +1220,7 @@ func verifyPodCount(t *testing.T, controller *ModelInferController, mi *workload
 }
 
 // verifyRoles Verify the number and name of Role
-func verifyRoles(t *testing.T, controller *ModelInferController, mi *workloadv1alpha1.ModelInfer, expectedGroups int) {
+func verifyRoles(t *testing.T, controller *ModelInferController, mi *workloadv1alpha1.ModelServing, expectedGroups int) {
 	// Traverse each InferGroup
 	for i := 0; i < expectedGroups; i++ {
 		groupName := fmt.Sprintf("%s-%d", mi.Name, i)

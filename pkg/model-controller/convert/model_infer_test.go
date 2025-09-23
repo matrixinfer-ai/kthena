@@ -98,18 +98,18 @@ func TestCreateModelInferResources(t *testing.T) {
 	tests := []struct {
 		name         string
 		input        *registry.Model
-		expected     []*workload.ModelInfer
+		expected     []*workload.ModelServing
 		expectErrMsg string
 	}{
 		{
 			name:     "CacheVolume_HuggingFace_HostPath",
 			input:    loadYaml[registry.Model](t, "testdata/input/model.yaml"),
-			expected: []*workload.ModelInfer{loadYaml[workload.ModelInfer](t, "testdata/expected/model-infer.yaml")},
+			expected: []*workload.ModelServing{loadYaml[workload.ModelServing](t, "testdata/expected/model-infer.yaml")},
 		},
 		{
 			name:     "PD disaggregation",
 			input:    loadYaml[registry.Model](t, "testdata/input/pd-disaggregated-model.yaml"),
-			expected: []*workload.ModelInfer{loadYaml[workload.ModelInfer](t, "testdata/expected/disaggregated-model-infer.yaml")},
+			expected: []*workload.ModelServing{loadYaml[workload.ModelServing](t, "testdata/expected/disaggregated-model-infer.yaml")},
 		},
 	}
 	for _, tt := range tests {
