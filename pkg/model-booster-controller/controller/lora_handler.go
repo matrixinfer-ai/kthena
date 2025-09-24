@@ -29,9 +29,9 @@ import (
 	"time"
 
 	workload "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
-	"github.com/volcano-sh/kthena/pkg/model-controller/convert"
-	"github.com/volcano-sh/kthena/pkg/model-controller/env"
-	"github.com/volcano-sh/kthena/pkg/model-controller/utils"
+	"github.com/volcano-sh/kthena/pkg/model-booster-controller/convert"
+	"github.com/volcano-sh/kthena/pkg/model-booster-controller/env"
+	"github.com/volcano-sh/kthena/pkg/model-booster-controller/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"

@@ -31,7 +31,7 @@ import (
 	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
 	volcanoClientSet "volcano.sh/apis/pkg/client/clientset/versioned"
 
-	"github.com/volcano-sh/kthena/pkg/infer-controller/controller"
+	"github.com/volcano-sh/kthena/pkg/model-serving-controller/controller"
 )
 
 type modelInferConfig struct {
