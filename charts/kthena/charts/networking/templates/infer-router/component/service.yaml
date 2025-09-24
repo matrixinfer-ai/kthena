@@ -15,3 +15,23 @@ spec:
       targetPort: {{ .Values.inferRouter.port }}
       name: http
   type: LoadBalancer
+---
+{{- if and .Values.inferRouter.enabled .Values.inferRouter.webhook.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "kthena.name" . }}-infer-router-webhook
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/component: infer-router
+    {{- include "kthena.labels" . | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/component: infer-router
+    {{- include "kthena.selectorLabels" . | nindent 4 }}
+  ports:
+    - port: {{ .Values.inferRouter.webhook.servicePort }}
+      targetPort: {{ .Values.inferRouter.webhook.port }}
+      name: webhook
+  type: ClusterIP
+{{- end }}

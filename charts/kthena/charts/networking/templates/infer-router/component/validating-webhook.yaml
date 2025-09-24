@@ -1,13 +1,15 @@
-{{- if .Values.webhook.enabled }}
+{{- if and .Values.inferRouter.enabled .Values.inferRouter.webhook.enabled }}
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
   name: {{ include "kthena.name" . }}-infer-router-validating-webhook
   labels:
-    app.kubernetes.io/component: webhook
+    app.kubernetes.io/component: infer-router
     {{- include "kthena.labels" . | nindent 4 }}
+  {{- if .Values.global.certManager.enabled }}
   annotations:
-    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "kthena.name" . }}-webhook-cert
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "kthena.name" . }}-infer-router-webhook-cert
+  {{- end }}
 webhooks:
   - name: validate-networking-volcano-sh-v1alpha1-modelroute.volcano.sh
     admissionReviewVersions: [ "v1" ]
@@ -16,11 +18,15 @@ webhooks:
     timeoutSeconds: 30
     clientConfig:
       service:
-        name: {{ include "kthena.name" . }}-webhook
+        name: {{ include "kthena.name" . }}-infer-router-webhook
         namespace: {{ .Release.Namespace }}
         path: "/validate-modelroute"
-        port: 443
+        port: {{ .Values.inferRouter.webhook.servicePort }}
+      {{- if not .Values.global.certManager.enabled }}
+      caBundle: {{ required "inferRouter.webhook.caBundle is required when cert-manager is disabled" .Values.inferRouter.webhook.caBundle }}
+      {{- else }}
       caBundle: ""
+      {{- end }}
     rules:
       - apiGroups: [ "networking.volcano.sh" ]
         apiVersions: [ "v1alpha1" ]
@@ -34,11 +40,15 @@ webhooks:
     timeoutSeconds: 30
     clientConfig:
       service:
-        name: {{ include "kthena.name" . }}-webhook
+        name: {{ include "kthena.name" . }}-infer-router-webhook
         namespace: {{ .Release.Namespace }}
         path: "/validate-modelserver"
-        port: 443
+        port: {{ .Values.inferRouter.webhook.servicePort }}
+      {{- if not .Values.global.certManager.enabled }}
+      caBundle: {{ required "inferRouter.webhook.caBundle is required when cert-manager is disabled" .Values.inferRouter.webhook.caBundle }}
+      {{- else }}
       caBundle: ""
+      {{- end }}
     rules:
       - apiGroups: [ "networking.volcano.sh" ]
         apiVersions: [ "v1alpha1" ]
@@ -46,3 +56,4 @@ webhooks:
         operations: [ "CREATE", "UPDATE" ]
         scope: "Namespaced"
 {{- end }}
+

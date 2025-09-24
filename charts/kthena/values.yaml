@@ -18,6 +18,15 @@ networking:
       dnsName: "your-domain.com"
       # The name of the secret to store the certificate and key.
       secretName: "infer-router-tls"
+    webhook:
+      enabled: true
+      port: 8443
+      servicePort: 443
+      tls:
+        certFile: /etc/webhook/certs/tls.crt
+        keyFile: /etc/webhook/certs/tls.key
+        secretName: infer-router-webhook-certs
+      caBundle: ""
     # fairness configuration for request scheduling
     fairness:
       # enabled controls whether fairness scheduling is active

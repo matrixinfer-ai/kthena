@@ -8,6 +8,15 @@ inferRouter:
     dnsName: ""
     # The name of the secret to store the certificate and key.
     secretName: "infer-router-tls"
+  webhook:
+    enabled: true
+    port: 8443
+    servicePort: 443
+    tls:
+      certFile: /etc/webhook/certs/tls.crt
+      keyFile: /etc/webhook/certs/tls.key
+      secretName: infer-router-webhook-certs
+    caBundle: ""
   image:
     # repository is the container image repository for the infer-router.
     repository: ghcr.io/volcano-sh/infer-router

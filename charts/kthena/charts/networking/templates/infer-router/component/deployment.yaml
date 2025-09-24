@@ -24,6 +24,12 @@ spec:
           imagePullPolicy: {{ .Values.inferRouter.image.pullPolicy }}
           args:
             - --port={{ .Values.inferRouter.port }}
+            - --enable-webhook={{ .Values.inferRouter.webhook.enabled }}
+          {{- if .Values.inferRouter.webhook.enabled }}
+            - --webhook-port={{ .Values.inferRouter.webhook.port }}
+            - --webhook-tls-cert-file={{ .Values.inferRouter.webhook.tls.certFile }}
+            - --webhook-tls-private-key-file={{ .Values.inferRouter.webhook.tls.keyFile }}
+          {{- end }}
           {{- if and .Values.global.certManager.enabled .Values.inferRouter.tls.enabled }}
             - --tls-cert=/etc/tls/tls.crt
             - --tls-key=/etc/tls/tls.key
@@ -31,6 +37,10 @@ spec:
           ports:
             - containerPort: {{ .Values.inferRouter.port }}
               name: http
+          {{- if .Values.inferRouter.webhook.enabled }}
+            - containerPort: {{ .Values.inferRouter.webhook.port }}
+              name: webhook
+          {{- end }}
           env:
             - name: REDIS_HOST
               valueFrom:
@@ -96,6 +106,11 @@ spec:
             mountPath: "/etc/tls"
             readOnly: true
           {{- end }}
+          {{- if .Values.inferRouter.webhook.enabled }}
+          - name: webhook-certs
+            mountPath: /etc/webhook/certs
+            readOnly: true
+          {{- end }}
       volumes:
         - name: scheduler-config
           configMap:
@@ -104,5 +119,10 @@ spec:
         - name: tls-certs
           secret:
             secretName: {{ .Values.inferRouter.tls.secretName }}
+        {{- end }}
+        {{- if .Values.inferRouter.webhook.enabled }}
+        - name: webhook-certs
+          secret:
+            secretName: {{ .Values.inferRouter.webhook.tls.secretName }}
         {{- end }}
       serviceAccountName:  {{ include "kthena.name" . }}-infer-router
