@@ -81,7 +81,7 @@ func main() {
 		klog.Fatalf("failed to create ModelInfer client: %v", err)
 	}
 	// create modelInfer validator
-	validator := webhook.NewModelInferValidator(kubeClient, modelInferClient, config.port)
+	validator := webhook.NewModelServingValidator(kubeClient, modelInferClient, config.port)
 
 	klog.Info("Started ModelInfer validator")
 	go func() {

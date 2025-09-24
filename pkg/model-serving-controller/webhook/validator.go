@@ -41,15 +41,15 @@ import (
 
 const timeout = 30 * time.Second
 
-// ModelInferValidator handles validation of ModelServing resources.
-type ModelInferValidator struct {
-	httpServer       *http.Server
-	kubeClient       kubernetes.Interface
-	modelInferClient clientset.Interface
+// ModelServingValidator handles validation of ModelServing resources.
+type ModelServingValidator struct {
+	httpServer         *http.Server
+	kubeClient         kubernetes.Interface
+	modelServingClient clientset.Interface
 }
 
-// NewModelInferValidator creates a new ModelInferValidator.
-func NewModelInferValidator(kubeClient kubernetes.Interface, modelInferClient clientset.Interface, port int) *ModelInferValidator {
+// NewModelServingValidator creates a new ModelServingValidator.
+func NewModelServingValidator(kubeClient kubernetes.Interface, modelServingClient clientset.Interface, port int) *ModelServingValidator {
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", port),
 		ReadTimeout:  timeout,
@@ -59,16 +59,16 @@ func NewModelInferValidator(kubeClient kubernetes.Interface, modelInferClient cl
 		},
 	}
 
-	return &ModelInferValidator{
-		httpServer:       server,
-		kubeClient:       kubeClient,
-		modelInferClient: modelInferClient,
+	return &ModelServingValidator{
+		httpServer:         server,
+		kubeClient:         kubeClient,
+		modelServingClient: modelServingClient,
 	}
 }
 
-func (v *ModelInferValidator) Run(tlsCertFile, tlsPrivateKey string, stopCh <-chan struct{}) {
+func (v *ModelServingValidator) Run(tlsCertFile, tlsPrivateKey string, stopCh <-chan struct{}) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/validate-workload-ai-v1alpha1-modelinfer", v.Handle)
+	mux.HandleFunc("/validate-workload-ai-v1alpha1-modelServing", v.Handle)
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		if _, err := w.Write([]byte("ok")); err != nil {
@@ -91,9 +91,9 @@ func (v *ModelInferValidator) Run(tlsCertFile, tlsPrivateKey string, stopCh <-ch
 }
 
 // Handle handles admission requests for ModelServing resources
-func (v *ModelInferValidator) Handle(w http.ResponseWriter, r *http.Request) {
+func (v *ModelServingValidator) Handle(w http.ResponseWriter, r *http.Request) {
 	// Parse the admission request
-	admissionReview, modelInfer, err := utils.ParseModelInferFromRequest(r)
+	admissionReview, modelServing, err := utils.ParseModelServingFromRequest(r)
 	if err != nil {
 		klog.Errorf("Failed to parse admission request: %v", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -101,7 +101,7 @@ func (v *ModelInferValidator) Handle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate the ModelServing
-	allowed, reason := v.validateModelInfer(modelInfer)
+	allowed, reason := v.validateModelServing(modelServing)
 
 	// Create the admission response
 	admissionResponse := admissionv1.AdmissionResponse{
@@ -126,17 +126,17 @@ func (v *ModelInferValidator) Handle(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// validateModelInfer validates the ModelServing resource
-func (v *ModelInferValidator) validateModelInfer(modelInfer *workloadv1alpha1.ModelServing) (bool, string) {
+// validateModelServing validates the ModelServing resource
+func (v *ModelServingValidator) validateModelServing(modelServing *workloadv1alpha1.ModelServing) (bool, string) {
 	var allErrs field.ErrorList
 
-	allErrs = append(allErrs, validGeneratedNameLength(modelInfer)...)
-	allErrs = append(allErrs, validateScheduler(modelInfer)...)
-	allErrs = append(allErrs, validateWorkerImages(modelInfer)...)
-	allErrs = append(allErrs, validatorReplicas(modelInfer)...)
-	allErrs = append(allErrs, validateRollingUpdateConfiguration(modelInfer)...)
-	allErrs = append(allErrs, validateGangSchedule(modelInfer)...)
-	allErrs = append(allErrs, validateWorkerReplicas(modelInfer)...)
+	allErrs = append(allErrs, validGeneratedNameLength(modelServing)...)
+	allErrs = append(allErrs, validateScheduler(modelServing)...)
+	allErrs = append(allErrs, validateWorkerImages(modelServing)...)
+	allErrs = append(allErrs, validatorReplicas(modelServing)...)
+	allErrs = append(allErrs, validateRollingUpdateConfiguration(modelServing)...)
+	allErrs = append(allErrs, validateGangSchedule(modelServing)...)
+	allErrs = append(allErrs, validateWorkerReplicas(modelServing)...)
 
 	if len(allErrs) > 0 {
 		var messages []string
@@ -148,7 +148,7 @@ func (v *ModelInferValidator) validateModelInfer(modelInfer *workloadv1alpha1.Mo
 	return true, ""
 }
 
-// validateScheduler validates the scheduler name of modelInfer
+// validateScheduler validates the scheduler name of modelServing
 func validateScheduler(mi *workloadv1alpha1.ModelServing) field.ErrorList {
 	var allErrs field.ErrorList
 	// Support:
@@ -156,21 +156,21 @@ func validateScheduler(mi *workloadv1alpha1.ModelServing) field.ErrorList {
 	if mi.Spec.SchedulerName != "volcano" {
 		allErrs = append(allErrs, field.Invalid(
 			field.NewPath("spec").Child("schedulerName"), mi.Spec.SchedulerName,
-			fmt.Sprintf("invalid SchedulerName: %s, modelInfer support: volcano ...", mi.Spec.SchedulerName),
+			fmt.Sprintf("invalid SchedulerName: %s, modelServing support: volcano ...", mi.Spec.SchedulerName),
 		))
 	}
 
 	return allErrs
 }
 
-// validNameLength validates the resource name generated by modelInfer.
+// validNameLength validates the resource name generated by modelServing.
 func validGeneratedNameLength(mi *workloadv1alpha1.ModelServing) field.ErrorList {
 	var allErrs field.ErrorList
 	for _, role := range mi.Spec.Template.Roles {
 		name := mi.GetName() + "-" + strconv.Itoa(int(*mi.Spec.Replicas)) + "-" + role.Name + "-" + strconv.Itoa(int(*role.Replicas)) + "-" + strconv.Itoa(int(role.WorkerReplicas))
 		errors := apivalidation.NameIsDNS1035Label(name, false)
 		if len(errors) > 0 {
-			klog.Errorf("name generated by modelInfer is illegal, please change mi.Name or role.Name")
+			klog.Errorf("name generated by modelServing is illegal, please change mi.Name or role.Name")
 			allErrs = append(allErrs, field.Invalid(
 				field.NewPath("metadata").Child("name"),
 				mi.GetName(),
@@ -406,7 +406,7 @@ func validateWorkerImages(mi *workloadv1alpha1.ModelServing) field.ErrorList {
 	return allErrs
 }
 
-func (v *ModelInferValidator) shutdown() {
+func (v *ModelServingValidator) shutdown() {
 	klog.Info("shutting down webhook server")
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()

@@ -34,14 +34,14 @@ import (
 	"github.com/volcano-sh/kthena/pkg/model-serving-controller/controller"
 )
 
-type modelInferConfig struct {
+type modelServingConfig struct {
 	kubeconfig string
 	masterURL  string
 	workers    int
 }
 
-func parseConfig() (modelInferConfig, error) {
-	var config modelInferConfig
+func parseConfig() (modelServingConfig, error) {
+	var config modelServingConfig
 	pflag.StringVar(&config.kubeconfig, "kubeconfig", "", "kubeconfig file path")
 	pflag.StringVar(&config.masterURL, "master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
 	pflag.IntVar(&config.workers, "workers", 5, "number of workers to run")
@@ -79,21 +79,21 @@ func main() {
 		klog.Fatalf("failed to create volcano client: %v", err)
 	}
 
-	modelInferClient, err := clientset.NewForConfig(restConfig)
+	modelServingClient, err := clientset.NewForConfig(restConfig)
 	if err != nil {
-		klog.Fatalf("failed to create ModelInfer client: %v", err)
+		klog.Fatalf("failed to create ModelServing client: %v", err)
 	}
-	// create ModelInfer controller
-	mic, err := controller.NewModelInferController(kubeClient, modelInferClient, volcanoClient)
+	// create ModelServing controller
+	mic, err := controller.NewModelServingController(kubeClient, modelServingClient, volcanoClient)
 	if err != nil {
-		klog.Fatalf("failed to create ModelInfer controller: %v", err)
+		klog.Fatalf("failed to create ModelServing controller: %v", err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	// Start controller
 	go mic.Run(ctx, config.workers)
-	klog.Info("Started ModelInfer controller")
+	klog.Info("Started ModelServing controller")
 
 	// Wait for interrupt signal
 	sigCh := make(chan os.Signal, 1)

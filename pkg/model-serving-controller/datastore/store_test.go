@@ -26,112 +26,112 @@ import (
 	"github.com/volcano-sh/kthena/pkg/model-serving-controller/utils"
 )
 
-func TestDeleteModelInfer(t *testing.T) {
+func TestDeleteModelServing(t *testing.T) {
 	key1 := types.NamespacedName{Namespace: "ns1", Name: "model1"}
 	key2 := types.NamespacedName{Namespace: "ns2", Name: "model2"}
 
 	s := &store{
 		mutex: sync.RWMutex{},
-		inferGroup: map[types.NamespacedName]map[string]*InferGroup{
+		servingGroup: map[types.NamespacedName]map[string]*ServingGroup{
 			key1: {},
 			key2: {},
 		},
 	}
 
 	// 1.Delete exist key
-	s.DeleteModelInfer(key1)
-	_, exists := s.inferGroup[key1]
+	s.DeleteModelServing(key1)
+	_, exists := s.servingGroup[key1]
 	assert.False(t, exists, "key1 should be deleted")
 
 	// 2. Delete not exist key
 	nonExistKey := types.NamespacedName{Namespace: "ns3", Name: "model3"}
-	s.DeleteModelInfer(nonExistKey)
+	s.DeleteModelServing(nonExistKey)
 	// Delete another key
-	_, exists = s.inferGroup[key2]
+	_, exists = s.servingGroup[key2]
 	assert.True(t, exists, "key2 should still exist")
 
 	// 3. Delete same key twice
-	s.DeleteModelInfer(key2)
-	s.DeleteModelInfer(key2)
-	_, exists = s.inferGroup[key2]
+	s.DeleteModelServing(key2)
+	s.DeleteModelServing(key2)
+	_, exists = s.servingGroup[key2]
 	assert.False(t, exists, "key2 should be deleted after repeated deletes")
 }
 
-func TestDeleteInferGroup(t *testing.T) {
+func TestDeleteServingGroup(t *testing.T) {
 	key1 := types.NamespacedName{Namespace: "ns1", Name: "model1"}
 	key2 := types.NamespacedName{Namespace: "ns2", Name: "model2"}
 
 	s := &store{
 		mutex: sync.RWMutex{},
-		inferGroup: map[types.NamespacedName]map[string]*InferGroup{
+		servingGroup: map[types.NamespacedName]map[string]*ServingGroup{
 			key1: {
-				"groupA": &InferGroup{},
-				"groupB": &InferGroup{},
+				"groupA": &ServingGroup{},
+				"groupB": &ServingGroup{},
 			},
 			key2: {
-				"groupC": &InferGroup{},
+				"groupC": &ServingGroup{},
 			},
 		},
 	}
 
-	// 1. Delete exist inferGroupName
-	s.DeleteInferGroup(key1, "groupA")
-	_, exists := s.inferGroup[key1]["groupA"]
+	// 1. Delete exist ServingGroupName
+	s.DeleteServingGroup(key1, "groupA")
+	_, exists := s.servingGroup[key1]["groupA"]
 	assert.False(t, exists, "groupA should be deleted from key1")
 
-	// 2. Delete not exist inferGroupName
-	s.DeleteInferGroup(key1, "groupX")
-	_, exists = s.inferGroup[key1]["groupB"]
+	// 2. Delete not exist ServingGroupName
+	s.DeleteServingGroup(key1, "groupX")
+	_, exists = s.servingGroup[key1]["groupB"]
 	assert.True(t, exists, "groupB should still exist in key1")
 
-	// 3. modelInferName not exist
+	// 3. modelServingName not exist
 	nonExistKey := types.NamespacedName{Namespace: "ns3", Name: "model3"}
-	s.DeleteInferGroup(nonExistKey, "groupY")
+	s.DeleteServingGroup(nonExistKey, "groupY")
 
-	// 4. Delete same inferGroupName twice
-	s.DeleteInferGroup(key2, "groupC")
-	s.DeleteInferGroup(key2, "groupC")
-	_, exists = s.inferGroup[key2]["groupC"]
+	// 4. Delete same ServingGroupName twice
+	s.DeleteServingGroup(key2, "groupC")
+	s.DeleteServingGroup(key2, "groupC")
+	_, exists = s.servingGroup[key2]["groupC"]
 	assert.False(t, exists, "groupC should be deleted from key2 after repeated deletes")
 }
 
-func TestAddInferGroup(t *testing.T) {
+func TestAddServingGroup(t *testing.T) {
 	key := types.NamespacedName{Namespace: "ns1", Name: "model1"}
 
 	s := &store{
-		mutex:      sync.RWMutex{},
-		inferGroup: make(map[types.NamespacedName]map[string]*InferGroup),
+		mutex:        sync.RWMutex{},
+		servingGroup: make(map[types.NamespacedName]map[string]*ServingGroup),
 	}
 
-	// 1. Add group to an empty modelInfer.
-	s.AddInferGroup(key, 0, "9559767")
-	groupName := utils.GenerateInferGroupName(key.Name, 0)
-	group, exists := s.inferGroup[key][groupName]
+	// 1. Add group to an empty modelServing.
+	s.AddServingGroup(key, 0, "9559767")
+	groupName := utils.GenerateServingGroupName(key.Name, 0)
+	group, exists := s.servingGroup[key][groupName]
 	assert.True(t, exists, "group should exist after add")
 	assert.Equal(t, groupName, group.Name)
-	assert.Equal(t, InferGroupCreating, group.Status)
+	assert.Equal(t, ServingGroupCreating, group.Status)
 	assert.NotNil(t, group.runningPods)
 	assert.Empty(t, group.runningPods)
 
-	// 2. Adds a group to an existing modelInferName.
-	s.AddInferGroup(key, 1, "9559767")
-	groupName2 := utils.GenerateInferGroupName(key.Name, 1)
-	group2, exists2 := s.inferGroup[key][groupName2]
+	// 2. Adds a group to an existing modelServingName.
+	s.AddServingGroup(key, 1, "9559767")
+	groupName2 := utils.GenerateServingGroupName(key.Name, 1)
+	group2, exists2 := s.servingGroup[key][groupName2]
 	assert.True(t, exists2, "second group should exist after add")
 	assert.Equal(t, groupName2, group2.Name)
 
 	// 3. Multiple additions of the same idx, group is overwritten
-	s.AddInferGroup(key, 1, "9559767")
-	group3, exists3 := s.inferGroup[key][groupName2]
+	s.AddServingGroup(key, 1, "9559767")
+	group3, exists3 := s.servingGroup[key][groupName2]
 	assert.True(t, exists3, "group should still exist after overwrite")
 	assert.Equal(t, groupName2, group3.Name)
 
-	// 4. new modelInferName
+	// 4. new modelServingName
 	key2 := types.NamespacedName{Namespace: "ns2", Name: "model2"}
-	s.AddInferGroup(key2, 0, "9559766")
-	groupName4 := utils.GenerateInferGroupName(key2.Name, 0)
-	group4, exists4 := s.inferGroup[key2][groupName4]
-	assert.True(t, exists4, "group for new modelInferName should exist")
+	s.AddServingGroup(key2, 0, "9559766")
+	groupName4 := utils.GenerateServingGroupName(key2.Name, 0)
+	group4, exists4 := s.servingGroup[key2][groupName4]
+	assert.True(t, exists4, "group for new modelServingName should exist")
 	assert.Equal(t, groupName4, group4.Name)
 }
 
@@ -140,9 +140,9 @@ func TestGetRoleList(t *testing.T) {
 
 	s := &store{
 		mutex: sync.RWMutex{},
-		inferGroup: map[types.NamespacedName]map[string]*InferGroup{
+		servingGroup: map[types.NamespacedName]map[string]*ServingGroup{
 			key: {
-				"group0": &InferGroup{
+				"group0": &ServingGroup{
 					Name: "group0",
 					roles: map[string]map[string]*Role{
 						"prefill": {
@@ -171,7 +171,7 @@ func TestGetRoleList(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Empty(t, roles)
 
-	// 3. Get roles with non-existing modelInfer
+	// 3. Get roles with non-existing modelServing
 	nonExistKey := types.NamespacedName{Namespace: "ns2", Name: "model2"}
 	roles, err = s.GetRoleList(nonExistKey, "group0", "prefill")
 	assert.Error(t, err)
@@ -180,7 +180,7 @@ func TestGetRoleList(t *testing.T) {
 	// 4. Get roles with non-existing group
 	roles, err = s.GetRoleList(key, "nonexistgroup", "prefill")
 	assert.Error(t, err)
-	assert.Equal(t, ErrInferGroupNotFound, err)
+	assert.Equal(t, ErrServingGroupNotFound, err)
 	assert.Nil(t, roles)
 }
 
@@ -189,9 +189,9 @@ func TestUpdateRoleStatus(t *testing.T) {
 
 	s := &store{
 		mutex: sync.RWMutex{},
-		inferGroup: map[types.NamespacedName]map[string]*InferGroup{
+		servingGroup: map[types.NamespacedName]map[string]*ServingGroup{
 			key: {
-				"group0": &InferGroup{
+				"group0": &ServingGroup{
 					Name: "group0",
 					roles: map[string]map[string]*Role{
 						"prefill": {
@@ -206,10 +206,10 @@ func TestUpdateRoleStatus(t *testing.T) {
 	// 1. Update existing role status
 	err := s.UpdateRoleStatus(key, "group0", "prefill", "prefill-0", RoleDeleting)
 	assert.NoError(t, err)
-	role := s.inferGroup[key]["group0"].roles["prefill"]["prefill-0"]
+	role := s.servingGroup[key]["group0"].roles["prefill"]["prefill-0"]
 	assert.Equal(t, RoleDeleting, role.Status)
 
-	// 2. Update non-existing modelInfer
+	// 2. Update non-existing modelServing
 	nonExistKey := types.NamespacedName{Namespace: "ns2", Name: "model2"}
 	err = s.UpdateRoleStatus(nonExistKey, "group0", "prefill", "prefill-0", RoleDeleting)
 	assert.Error(t, err)
@@ -217,7 +217,7 @@ func TestUpdateRoleStatus(t *testing.T) {
 	// 3. Update non-existing group
 	err = s.UpdateRoleStatus(key, "nonexistgroup", "prefill", "prefill-0", RoleDeleting)
 	assert.Error(t, err)
-	assert.Equal(t, ErrInferGroupNotFound, err)
+	assert.Equal(t, ErrServingGroupNotFound, err)
 
 	// 4. Update non-existing roleLabel
 	err = s.UpdateRoleStatus(key, "group0", "nonexistrole", "prefill-0", RoleDeleting)
@@ -233,9 +233,9 @@ func TestDeleteRole(t *testing.T) {
 
 	s := &store{
 		mutex: sync.RWMutex{},
-		inferGroup: map[types.NamespacedName]map[string]*InferGroup{
+		servingGroup: map[types.NamespacedName]map[string]*ServingGroup{
 			key: {
-				"group0": &InferGroup{
+				"group0": &ServingGroup{
 					Name: "group0",
 					roles: map[string]map[string]*Role{
 						"prefill": {
@@ -250,9 +250,9 @@ func TestDeleteRole(t *testing.T) {
 
 	// 1. Delete existing role
 	s.DeleteRole(key, "group0", "prefill", "prefill-0")
-	_, exists := s.inferGroup[key]["group0"].roles["prefill"]["prefill-0"]
+	_, exists := s.servingGroup[key]["group0"].roles["prefill"]["prefill-0"]
 	assert.False(t, exists, "role should be deleted")
-	_, exists = s.inferGroup[key]["group0"].roles["prefill"]["prefill-1"]
+	_, exists = s.servingGroup[key]["group0"].roles["prefill"]["prefill-1"]
 	assert.True(t, exists, "other role should still exist")
 
 	// 2. Delete non-existing role (should not panic)
@@ -264,7 +264,7 @@ func TestDeleteRole(t *testing.T) {
 	// 4. Delete role with non-existing group (should not panic)
 	s.DeleteRole(key, "nonexistgroup", "prefill", "prefill-1")
 
-	// 5. Delete role with non-existing modelInfer (should not panic)
+	// 5. Delete role with non-existing modelServing (should not panic)
 	nonExistKey := types.NamespacedName{Namespace: "ns2", Name: "model2"}
 	s.DeleteRole(nonExistKey, "group0", "prefill", "prefill-1")
 }
@@ -273,13 +273,13 @@ func TestAddRole(t *testing.T) {
 	key := types.NamespacedName{Namespace: "ns1", Name: "model1"}
 
 	s := &store{
-		mutex:      sync.RWMutex{},
-		inferGroup: make(map[types.NamespacedName]map[string]*InferGroup),
+		mutex:        sync.RWMutex{},
+		servingGroup: make(map[types.NamespacedName]map[string]*ServingGroup),
 	}
 
-	// 1. Add role to non-existing modelInfer and group
+	// 1. Add role to non-existing modelServing and group
 	s.AddRole(key, "group0", "prefill", "prefill-0", "revision1")
-	role, exists := s.inferGroup[key]["group0"].roles["prefill"]["prefill-0"]
+	role, exists := s.servingGroup[key]["group0"].roles["prefill"]["prefill-0"]
 	assert.True(t, exists, "role should be created")
 	assert.Equal(t, "prefill-0", role.Name)
 	assert.Equal(t, RoleCreating, role.Status)
@@ -287,17 +287,17 @@ func TestAddRole(t *testing.T) {
 
 	// 2. Add another role to existing group
 	s.AddRole(key, "group0", "prefill", "prefill-1", "revision2")
-	role2, exists2 := s.inferGroup[key]["group0"].roles["prefill"]["prefill-1"]
+	role2, exists2 := s.servingGroup[key]["group0"].roles["prefill"]["prefill-1"]
 	assert.True(t, exists2, "second role should be created")
 	assert.Equal(t, "prefill-1", role2.Name)
 
 	// 3. Add role with different roleLabel
 	s.AddRole(key, "group0", "decode", "decode-0", "revision3")
-	_, exists3 := s.inferGroup[key]["group0"].roles["decode"]["decode-0"]
+	_, exists3 := s.servingGroup[key]["group0"].roles["decode"]["decode-0"]
 	assert.True(t, exists3, "role with different label should be created")
 
 	// 4. Overwrite existing role
 	s.AddRole(key, "group0", "prefill", "prefill-0", "revision4")
-	role4 := s.inferGroup[key]["group0"].roles["prefill"]["prefill-0"]
+	role4 := s.servingGroup[key]["group0"].roles["prefill"]["prefill-0"]
 	assert.Equal(t, "revision4", role4.Revision, "role should be overwritten")
 }
