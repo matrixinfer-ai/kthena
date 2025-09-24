@@ -22,7 +22,7 @@ For a detailed definition of the `ModelServing`, please refer to the [ModelServi
 
 ### Geting Started
 
-Deploy [llama LLM inference engine](../../../../examples/model-infer/multi-node.yaml). Set the tensor parallel size is 8 and the pipeline parallel size is 2.
+Deploy [llama LLM inference engine](../../../../examples/model-serving/multi-node.yaml). Set the tensor parallel size is 8 and the pipeline parallel size is 2.
 
 You can run the following command to check the ModelServing status and pod status in the cluster.
 

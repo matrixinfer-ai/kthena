@@ -1,5 +1,5 @@
-apiVersion: workload.volcano.sh/v1alpha1
-kind: ModelInfer
+apiVersion: workload.serving.volcano.sh/v1alpha1
+kind: ModelServing
 metadata:
   name: llama-multinode
   namespace: default

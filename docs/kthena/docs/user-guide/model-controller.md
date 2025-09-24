@@ -48,7 +48,7 @@ the related resources will be deleted as well.
 
 ## Examples of Model CR
 
-You can find examples of model CR [here](/examples/model)
+You can find examples of model CR [here](/examples/model-booster)
 
 ## Advanced features
 

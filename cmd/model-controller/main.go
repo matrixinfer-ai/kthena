@@ -24,11 +24,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/volcano-sh/kthena/pkg/model-controller/utils"
+	"github.com/volcano-sh/kthena/pkg/model-booster-controller/utils"
 
 	"github.com/spf13/pflag"
 	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
-	"github.com/volcano-sh/kthena/pkg/model-controller/controller"
+	"github.com/volcano-sh/kthena/pkg/model-booster-controller/controller"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/kubernetes"

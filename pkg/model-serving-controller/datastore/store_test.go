@@ -23,7 +23,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/volcano-sh/kthena/pkg/infer-controller/utils"
+	"github.com/volcano-sh/kthena/pkg/model-serving-controller/utils"
 )
 
 func TestDeleteModelInfer(t *testing.T) {

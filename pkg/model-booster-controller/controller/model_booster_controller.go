@@ -41,8 +41,8 @@ import (
 	networkingLister "github.com/volcano-sh/kthena/client-go/listers/networking/v1alpha1"
 	workloadLister "github.com/volcano-sh/kthena/client-go/listers/workload/v1alpha1"
 	workload "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
-	"github.com/volcano-sh/kthena/pkg/model-controller/config"
-	"github.com/volcano-sh/kthena/pkg/model-controller/utils"
+	"github.com/volcano-sh/kthena/pkg/model-booster-controller/config"
+	"github.com/volcano-sh/kthena/pkg/model-booster-controller/utils"
 )
 
 const (

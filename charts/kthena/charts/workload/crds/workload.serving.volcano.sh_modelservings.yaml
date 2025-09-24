@@ -93,8 +93,8 @@ spec:
                       partition:
                         description: |-
                           Partition indicates the ordinal at which the ModelServing should be partitioned
-                          for updates. During a rolling update, all inferGroups from ordinal Replicas-1 to
-                          Partition are updated. All inferGroups from ordinal Partition-1 to 0 remain untouched.
+                          for updates. During a rolling update, all ServingGroups from ordinal Replicas-1 to
+                          Partition are updated. All ServingGroups from ordinal Partition-1 to 0 remain untouched.
                           The default value is 0.
                         format: int32
                         type: integer
@@ -153,8 +153,8 @@ spec:
                   restartGracePeriodSeconds:
                     default: 0
                     description: |-
-                      RestartGracePeriodSeconds defines the grace time for the controller to rebuild the infergroup when an error occurs
-                      Defaults to 0 (infergroup will be rebuilt immediately after an error)
+                      RestartGracePeriodSeconds defines the grace time for the controller to rebuild the ServingGroup when an error occurs
+                      Defaults to 0 (ServingGroup will be rebuilt immediately after an error)
                     format: int64
                     type: integer
                   roles:
@@ -8411,7 +8411,7 @@ spec:
                           type: object
                         name:
                           description: The name of a role. Name must be unique within
-                            an infergroup
+                            an ServingGroup
                           maxLength: 12
                           pattern: ^[a-zA-Z0-9]([-a-zA-Z0-9]*[a-zA-Z0-9])?$
                           type: string
@@ -16696,7 +16696,7 @@ spec:
                     constraint.
                   properties:
                     labelSelector:
-                      description: LabelSelector is used to find matching inferGroups.
+                      description: LabelSelector is used to find matching ServingGroups.
                       properties:
                         matchExpressions:
                           description: matchExpressions is a list of label selector
@@ -16742,7 +16742,7 @@ spec:
                       type: object
                       x-kubernetes-map-type: atomic
                     maxSkew:
-                      description: MaxSkew describes the degree to which inferGroup
+                      description: MaxSkew describes the degree to which ServingGroup
                         may be unevenly distributed.
                       format: int32
                       type: integer
@@ -16753,7 +16753,7 @@ spec:
                       type: string
                     whenUnsatisfiable:
                       description: |-
-                        WhenUnsatisfiable indicates how to deal with an inferGroup if it doesn't satisfy
+                        WhenUnsatisfiable indicates how to deal with an ServingGroup if it doesn't satisfy
                         the spread constraint.
                       type: string
                   type: object

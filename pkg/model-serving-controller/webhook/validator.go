@@ -36,7 +36,7 @@ import (
 
 	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
 	workloadv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
-	"github.com/volcano-sh/kthena/pkg/infer-controller/utils"
+	"github.com/volcano-sh/kthena/pkg/model-serving-controller/utils"
 )
 
 const timeout = 30 * time.Second

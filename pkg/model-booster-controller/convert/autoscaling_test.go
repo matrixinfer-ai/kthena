@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
-	"github.com/volcano-sh/kthena/pkg/model-controller/utils"
+	"github.com/volcano-sh/kthena/pkg/model-booster-controller/utils"
 
 	"github.com/stretchr/testify/assert"
 	"sigs.k8s.io/yaml"

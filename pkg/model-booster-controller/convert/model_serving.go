@@ -25,13 +25,13 @@ import (
 	"fmt"
 	"strings"
 
-	icUtils "github.com/volcano-sh/kthena/pkg/infer-controller/utils"
-	"github.com/volcano-sh/kthena/pkg/model-controller/env"
+	"github.com/volcano-sh/kthena/pkg/model-booster-controller/env"
+	icUtils "github.com/volcano-sh/kthena/pkg/model-serving-controller/utils"
 	"k8s.io/utils/ptr"
 
 	workload "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
-	"github.com/volcano-sh/kthena/pkg/model-controller/config"
-	"github.com/volcano-sh/kthena/pkg/model-controller/utils"
+	"github.com/volcano-sh/kthena/pkg/model-booster-controller/config"
+	"github.com/volcano-sh/kthena/pkg/model-booster-controller/utils"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

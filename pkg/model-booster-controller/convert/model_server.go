@@ -22,8 +22,8 @@ import (
 
 	networking "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
 	workload "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
-	icUtils "github.com/volcano-sh/kthena/pkg/infer-controller/utils"
-	"github.com/volcano-sh/kthena/pkg/model-controller/utils"
+	"github.com/volcano-sh/kthena/pkg/model-booster-controller/utils"
+	icUtils "github.com/volcano-sh/kthena/pkg/model-serving-controller/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 )

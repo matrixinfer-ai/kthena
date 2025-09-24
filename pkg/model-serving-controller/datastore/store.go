@@ -25,7 +25,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/volcano-sh/kthena/pkg/infer-controller/utils"
+	"github.com/volcano-sh/kthena/pkg/model-serving-controller/utils"
 )
 
 // Store is an interface for storing and retrieving data
