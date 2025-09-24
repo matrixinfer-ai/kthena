@@ -41,6 +41,7 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'User Guide',
       items: [
+        'user-guide/model-booster',
         'user-guide/router-routing',
         'user-guide/prefill-decode-disaggregation',
         'user-guide/multi-node-inference',
@@ -80,17 +81,12 @@ const sidebars: SidebarsConfig = {
           items: [
             {
               type: 'doc',
-              id: 'reference/crd/networking.volcano.sh',
+              id: 'reference/crd/networking.serving.volcano.sh',
               label: 'Networking',
             },
             {
               type: 'doc',
-              id: 'reference/crd/registry.volcano.sh',
-              label: 'Registry',
-            },
-            {
-              type: 'doc',
-              id: 'reference/crd/workload.volcano.sh',
+              id: 'reference/crd/workload.serving.volcano.sh',
               label: 'Workload',
             },
           ],

@@ -1,4 +1,4 @@
-# Model Controller
+# Model Booster
 
 ### The rules of generated resource name
 
@@ -48,7 +48,7 @@ the related resources will be deleted as well.
 
 ## Examples of Model CR
 
-You can find examples of model CR [here](/examples/model)
+You can find examples of model CR [here](https://github.com/matrixinfer-ai/matrixinfer/tree/main/examples/model)
 
 ## Advanced features
 

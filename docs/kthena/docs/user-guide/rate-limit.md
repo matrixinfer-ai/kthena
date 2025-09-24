@@ -24,8 +24,8 @@ Before diving into the rate-limiting configurations, let's set up the environmen
 
 ### Getting Started
 
-1.  Deploy a mock LLM inference engine, such as [LLM-Mock-ds1.5b.yaml](../../../../examples/infer-router/LLM-Mock-ds1.5b.yaml), if you don't have a real GPU/NPU environment.
-2.  Deploy the corresponding ModelServer, [ModelServer-ds1.5b.yaml](../../../../examples/infer-router/ModelServer-ds1.5b.yaml).
+1.  Deploy a mock LLM inference engine, such as [LLM-Mock-ds1.5b.yaml](../../../../examples/infer-gateway/LLM-Mock-ds1.5b.yaml), if you don't have a real GPU/NPU environment.
+2.  Deploy the corresponding ModelServer, [ModelServer-ds1.5b.yaml](../../../../examples/infer-gateway/ModelServer-ds1.5b.yaml).
 3.  All rate-limiting examples in this guide use this mock service.
 
 ## Rate Limiting Scenarios

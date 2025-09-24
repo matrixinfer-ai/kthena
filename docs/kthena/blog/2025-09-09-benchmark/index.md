@@ -1,3 +1,10 @@
+---
+slug: scoreplugin-benchmark-blog-post
+title: Kthena Router ScorePlugin Architecture and Benchmark Analysis
+authors: [bytebingo]
+tags: []
+---
+
 # Kthena Router ScorePlugin Architecture and Benchmark Analysis
 
 ## Abstract
