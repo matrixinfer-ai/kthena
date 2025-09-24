@@ -262,7 +262,7 @@ func (mc *ModelController) isModelInferActive(model *workload.ModelBooster) (boo
 	}
 	// Check if all ModelBooster Infers are available
 	for _, modelInfer := range modelInfers {
-		if !meta.IsStatusConditionPresentAndEqual(modelInfer.Status.Conditions, string(workload.ModelInferAvailable), metav1.ConditionTrue) {
+		if !meta.IsStatusConditionPresentAndEqual(modelInfer.Status.Conditions, string(workload.ModelServingAvailable), metav1.ConditionTrue) {
 			// requeue until all ModelBooster Infers are active
 			klog.InfoS("model infer is not available", "model infer", klog.KObj(modelInfer))
 			return false, nil

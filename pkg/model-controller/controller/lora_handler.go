@@ -261,7 +261,7 @@ func (mc *ModelController) getModelInferRuntimeURLs(modelInfer *workload.ModelSe
 func (mc *ModelController) getModelInferPodIPs(modelInfer *workload.ModelServing) ([]string, error) {
 	// Use PodLister to get pods with the ModelServing label
 	labelSelector := labels.SelectorFromSet(labels.Set{
-		workload.ModelInferNameLabelKey: modelInfer.Name,
+		workload.ModelServingNameLabelKey: modelInfer.Name,
 	})
 
 	podList, err := mc.podsLister.Pods(modelInfer.Namespace).List(labelSelector)

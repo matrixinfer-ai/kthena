@@ -38,7 +38,7 @@ type GangSchedule struct {
 
 // Role defines the specific pod instance role that performs the inference task.
 type Role struct {
-	// The name of a role. Name must be unique within an infergroup
+	// The name of a role. Name must be unique within an ServingGroup
 	// +kubebuilder:validation:MaxLength=12
 	// +kubebuilder:validation:Pattern=^[a-zA-Z0-9]([-a-zA-Z0-9]*[a-zA-Z0-9])?$
 	Name string `json:"name"`
@@ -90,10 +90,10 @@ type Metadata struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
-// InferGroup is the smallest unit to complete the inference task
-type InferGroup struct {
-	// RestartGracePeriodSeconds defines the grace time for the controller to rebuild the infergroup when an error occurs
-	// Defaults to 0 (infergroup will be rebuilt immediately after an error)
+// ServingGroup is the smallest unit to complete the inference task
+type ServingGroup struct {
+	// RestartGracePeriodSeconds defines the grace time for the controller to rebuild the ServingGroup when an error occurs
+	// Defaults to 0 (ServingGroup will be rebuilt immediately after an error)
 	// +optional
 	// +kubebuilder:default=0
 	RestartGracePeriodSeconds *int64 `json:"restartGracePeriodSeconds,omitempty"`

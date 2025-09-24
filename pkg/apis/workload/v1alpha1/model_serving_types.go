@@ -22,19 +22,19 @@ import (
 )
 
 const (
-	// ModelInferNameLabelKey is the pod label key for the model infer name.
-	ModelInferNameLabelKey = "modelinfer.volcano.sh/name"
+	// ModelServingNameLabelKey is the pod label key for the model serving name.
+	ModelServingNameLabelKey = "modelserving.volcano.sh/name"
 	// GroupNameLabelKey is the pod label key for the group name.
-	GroupNameLabelKey = "modelinfer.volcano.sh/group-name"
+	GroupNameLabelKey = "modelserving.volcano.sh/group-name"
 	// RoleLabelKey is the pod label key for the role.
-	RoleLabelKey = "modelinfer.volcano.sh/role"
+	RoleLabelKey = "modelserving.volcano.sh/role"
 	// RoleIDKey is the pod label key for the role serial number.
-	RoleIDKey = "modelinfer.volcano.sh/role-id"
+	RoleIDKey = "modelserving.volcano.sh/role-id"
 	// EntryLabelKey is the entry pod label key.
-	EntryLabelKey = "modelinfer.volcano.sh/entry"
+	EntryLabelKey = "modelserving.volcano.sh/entry"
 
-	// RevisionLabelKey is the revision label for the model infer.
-	RevisionLabelKey = "modelinfer.volcano.sh/revision"
+	// RevisionLabelKey is the revision label for the model serving.
+	RevisionLabelKey = "modelserving.volcano.sh/revision"
 
 	// Environment injected to the worker pods.
 	EntryAddressEnv = "ENTRY_ADDRESS"
@@ -47,7 +47,7 @@ const (
 
 // ModelServingSpec defines the specification of the ModelServing resource.
 type ModelServingSpec struct {
-	// Number of InferGroups. That is the number of instances that run infer tasks
+	// Number of ServingGroups. That is the number of instances that run serving tasks
 	// Default to 1.
 	//
 	// +optional
@@ -57,8 +57,8 @@ type ModelServingSpec struct {
 	// SchedulerName defines the name of the scheduler used by ModelServing
 	SchedulerName string `json:"schedulerName"`
 
-	// Template defines the template for InferGroup
-	Template InferGroup `json:"template"`
+	// Template defines the template for ServingGroup
+	Template ServingGroup `json:"template"`
 
 	// RolloutStrategy defines the strategy that will be applied to update replicas
 	// +optional
@@ -66,7 +66,7 @@ type ModelServingSpec struct {
 
 	// RecoveryPolicy defines the recovery policy for the failed Pod to be rebuilt
 	// +kubebuilder:default=RoleRecreate
-	// +kubebuilder:validation:Enum={InferGroupRecreate,RoleRecreate,None}
+	// +kubebuilder:validation:Enum={ServingGroupRecreate,RoleRecreate,None}
 	// +optional
 	RecoveryPolicy            RecoveryPolicy             `json:"recoveryPolicy,omitempty"`
 	TopologySpreadConstraints []TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
@@ -75,11 +75,11 @@ type ModelServingSpec struct {
 type RecoveryPolicy string
 
 const (
-	// InferGroupRecreate will recreate all the pods in the InferGroup if
+	// ServingGroupRecreate will recreate all the pods in the ServingGroup if
 	// 1. Any individual pod in the group is recreated; 2. Any containers/init-containers
 	// in a pod is restarted. This is to ensure all pods/containers in the group will be
 	// started in the same time.
-	InferGroupRecreate RecoveryPolicy = "InferGroupRecreate"
+	ServingGroupRecreate RecoveryPolicy = "ServingGroupRecreate"
 
 	// RoleRecreate will recreate all pods in one Role if
 	// 1. Any individual pod in the group is recreated; 2. Any containers/init-containers
@@ -93,10 +93,10 @@ const (
 // RolloutStrategy defines the strategy that the ModelServing controller
 // will use to perform replica updates.
 type RolloutStrategy struct {
-	// Type defines the rollout strategy, it can only be “InferGroupRollingUpdate” for now.
+	// Type defines the rollout strategy, it can only be “ServingGroupRollingUpdate” for now.
 	//
-	// +kubebuilder:validation:Enum={InferGroupRollingUpdate}
-	// +kubebuilder:default=InferGroupRollingUpdate
+	// +kubebuilder:validation:Enum={ServingGroupRollingUpdate}
+	// +kubebuilder:default=ServingGroupRollingUpdate
 	Type RolloutStrategyType `json:"type"`
 
 	// RollingUpdateConfiguration defines the parameters to be used when type is RollingUpdateStrategyType.
@@ -107,8 +107,8 @@ type RolloutStrategy struct {
 type RolloutStrategyType string
 
 const (
-	// InferGroupRollingUpdate indicates that InferGroup replicas will be updated one by one.
-	InferGroupRollingUpdate RolloutStrategyType = "InferGroupRollingUpdate"
+	// ServingGroupRollingUpdate indicates that ServingGroup replicas will be updated one by one.
+	ServingGroupRollingUpdate RolloutStrategyType = "ServingGroupRollingUpdate"
 )
 
 // RollingUpdateConfiguration defines the parameters to be used for RollingUpdateStrategyType.
@@ -132,8 +132,8 @@ type RollingUpdateConfiguration struct {
 	// +kubebuilder:default=0
 	MaxSurge intstr.IntOrString `json:"maxSurge,omitempty"`
 	// Partition indicates the ordinal at which the ModelServing should be partitioned
-	// for updates. During a rolling update, all inferGroups from ordinal Replicas-1 to
-	// Partition are updated. All inferGroups from ordinal Partition-1 to 0 remain untouched.
+	// for updates. During a rolling update, all ServingGroups from ordinal Replicas-1 to
+	// Partition are updated. All ServingGroups from ordinal Partition-1 to 0 remain untouched.
 	// The default value is 0.
 	// +optional
 	Partition *int32 `json:"partition,omitempty"`
@@ -141,58 +141,58 @@ type RollingUpdateConfiguration struct {
 
 // TopologySpreadConstraint defines the topology spread constraint.
 type TopologySpreadConstraint struct {
-	// MaxSkew describes the degree to which inferGroup may be unevenly distributed.
+	// MaxSkew describes the degree to which ServingGroup may be unevenly distributed.
 	MaxSkew int32 `json:"maxSkew,omitempty"`
 
 	// TopologyKey is the key of node labels. Nodes that have a label with this key
 	// and identical values are considered to be in the same topology.
 	TopologyKey string `json:"topologyKey,omitempty"`
 
-	// WhenUnsatisfiable indicates how to deal with an inferGroup if it doesn't satisfy
+	// WhenUnsatisfiable indicates how to deal with an ServingGroup if it doesn't satisfy
 	// the spread constraint.
 	WhenUnsatisfiable string `json:"whenUnsatisfiable,omitempty"`
 
-	// LabelSelector is used to find matching inferGroups.
+	// LabelSelector is used to find matching ServingGroups.
 	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty"`
 }
 
-type ModelInferConditionType string
+type ModelServingConditionType string
 
-// There is a condition type of a modelInfer
+// There is a condition type of a modelServing
 const (
-	// ModelInferSetAvailable means the modelInfer is available,
+	// ModelServingSetAvailable means the modelServing is available,
 	// at least the minimum available groups are up and running.
-	ModelInferAvailable ModelInferConditionType = "Available"
+	ModelServingAvailable ModelServingConditionType = "Available"
 
-	// The ModelServing enters the ModelInferSetProgressing state whenever there are ongoing changes,
+	// The ModelServing enters the ModelServingSetProgressing state whenever there are ongoing changes,
 	// such as the creation of new groups or the scaling of pods within a group.
 	// A group remains in the progressing state until all its pods become ready.
-	// As long as at least one group is progressing, the entire ModelInferSet is also considered progressing.
-	ModelInferProgressing ModelInferConditionType = "Progerssing"
+	// As long as at least one group is progressing, the entire ModelServing Set is also considered progressing.
+	ModelServingProgressing ModelServingConditionType = "Progressing"
 
-	// ModelInferSetUpdateInProgress indicates that modelInfer is performing a rolling update.
-	// When the entry or worker template is updated, modelinfer controller enters the upgrade process and
+	// ModelServingSetUpdateInProgress indicates that modelServing is performing a rolling update.
+	// When the entry or worker template is updated, modelServing controller enters the upgrade process and
 	// UpdateInProgress is set to true.
-	ModelInferUpdateInProgress ModelInferConditionType = "UpdateInProgress"
+	ModelServingUpdateInProgress ModelServingConditionType = "UpdateInProgress"
 )
 
-// ModelInferStatus defines the observed state of ModelServing
-type ModelInferStatus struct {
+// ModelServingStatus defines the observed state of ModelServing
+type ModelServingStatus struct {
 	// observedGeneration is the most recent generation observed for ModelServing. It corresponds to the
 	// ModelServing's generation, which is updated on mutation by the API Server.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
-	// Replicas track the total number of InferGroup that have been created (updated or not, ready or not)
+	// Replicas track the total number of ServingGroup that have been created (updated or not, ready or not)
 	Replicas int32 `json:"replicas,omitempty"`
 
-	// CurrentReplicas is the number of InferGroup created by the ModelServing controller from the ModelServing version
+	// CurrentReplicas is the number of ServingGroup created by the ModelServing controller from the ModelServing version
 	CurrentReplicas int32 `json:"currentReplicas,omitempty"`
 
-	// UpdatedReplicas track the number of InferGroup that have been updated (ready or not).
+	// UpdatedReplicas track the number of ServingGroup that have been updated (ready or not).
 	UpdatedReplicas int32 `json:"updatedReplicas,omitempty"`
 
-	// AvailableReplicas track the number of InferGroup that are in ready state (updated or not).
+	// AvailableReplicas track the number of ServingGroup that are in ready state (updated or not).
 	AvailableReplicas int32 `json:"availableReplicas,omitempty"`
 
 	// Conditions track the condition of the ModelServing.
@@ -208,8 +208,8 @@ type ModelInferStatus struct {
 type ModelServing struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              ModelServingSpec `json:"spec,omitempty"`
-	Status            ModelInferStatus `json:"status,omitempty"`
+	Spec              ModelServingSpec   `json:"spec,omitempty"`
+	Status            ModelServingStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

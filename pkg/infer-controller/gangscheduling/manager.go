@@ -73,7 +73,7 @@ func (m *Manager) managePodGroups(ctx context.Context, mi *workloadv1alpha1.Mode
 		return fmt.Errorf("failed to get existing PodGroups: %v", err)
 	}
 
-	// Create or update PodGroups for each InferGroup
+	// Create or update PodGroups for each ServingGroup
 	for i := 0; i < expectedReplicas; i++ {
 		podGroupName := m.generatePodGroupName(mi.Name, i)
 
@@ -98,7 +98,7 @@ func (m *Manager) managePodGroups(ctx context.Context, mi *workloadv1alpha1.Mode
 func (m *Manager) createPodGroup(ctx context.Context, mi *workloadv1alpha1.ModelServing, inferGroupIndex int) error {
 	podGroupName := m.generatePodGroupName(mi.Name, inferGroupIndex)
 
-	// Calculate total pods and resources for this InferGroup
+	// Calculate total pods and resources for this ServingGroup
 	minMember, minTaskMember, minResources := m.calculateRequirements(mi)
 
 	podGroup := &schedulingv1beta1.PodGroup{
@@ -106,8 +106,8 @@ func (m *Manager) createPodGroup(ctx context.Context, mi *workloadv1alpha1.Model
 			Name:      podGroupName,
 			Namespace: mi.Namespace,
 			Labels: map[string]string{
-				workloadv1alpha1.ModelInferNameLabelKey: mi.Name,
-				workloadv1alpha1.GroupNameLabelKey:      podGroupName,
+				workloadv1alpha1.ModelServingNameLabelKey: mi.Name,
+				workloadv1alpha1.GroupNameLabelKey:        podGroupName,
 			},
 			Annotations: map[string]string{
 				schedulingv1beta1.KubeGroupNameAnnotationKey: podGroupName,
@@ -136,7 +136,7 @@ func (m *Manager) buildOwnerReference(mi *workloadv1alpha1.ModelServing) []metav
 	return []metav1.OwnerReference{
 		{
 			APIVersion: workloadv1alpha1.GroupVersion.String(),
-			Kind:       workloadv1alpha1.ModelInferKind.Kind,
+			Kind:       workloadv1alpha1.ModelServingKind.Kind,
 			Name:       mi.Name,
 			UID:        mi.UID,
 			Controller: ptr.To(true),
@@ -212,7 +212,7 @@ func (m *Manager) GenerateTaskName(roleName string, roleIndex int) string {
 // getExistingPodGroups gets existing PodGroups for a ModelServing
 func (m *Manager) getExistingPodGroups(ctx context.Context, mi *workloadv1alpha1.ModelServing) (map[string]*schedulingv1beta1.PodGroup, error) {
 	selector := labels.SelectorFromSet(map[string]string{
-		workloadv1alpha1.ModelInferNameLabelKey: mi.Name,
+		workloadv1alpha1.ModelServingNameLabelKey: mi.Name,
 	})
 
 	podGroupList, err := m.volcanoClient.SchedulingV1beta1().PodGroups(mi.Namespace).List(ctx, metav1.ListOptions{

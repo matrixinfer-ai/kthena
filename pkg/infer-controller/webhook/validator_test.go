@@ -100,7 +100,7 @@ func TestValidPodNameLength(t *testing.T) {
 					},
 					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: &replicas,
-						Template: workloadv1alpha1.InferGroup{
+						Template: workloadv1alpha1.ServingGroup{
 							Roles: []workloadv1alpha1.Role{
 								{Name: "role1", Replicas: &replicas, WorkerReplicas: 2},
 							},
@@ -119,7 +119,7 @@ func TestValidPodNameLength(t *testing.T) {
 					},
 					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: &replicas,
-						Template: workloadv1alpha1.InferGroup{
+						Template: workloadv1alpha1.ServingGroup{
 							Roles: []workloadv1alpha1.Role{
 								{Name: "role1", Replicas: &replicas, WorkerReplicas: 2},
 							},
@@ -455,7 +455,7 @@ func TestValidatorReplicas(t *testing.T) {
 				mi: &workloadv1alpha1.ModelServing{
 					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: int32Ptr(3),
-						Template: workloadv1alpha1.InferGroup{
+						Template: workloadv1alpha1.ServingGroup{
 							Roles: []workloadv1alpha1.Role{
 								{Name: "role1", Replicas: int32Ptr(2), WorkerReplicas: 1},
 								{Name: "role2", Replicas: int32Ptr(1), WorkerReplicas: 1},
@@ -472,7 +472,7 @@ func TestValidatorReplicas(t *testing.T) {
 				mi: &workloadv1alpha1.ModelServing{
 					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: int32PtrNil(),
-						Template: workloadv1alpha1.InferGroup{
+						Template: workloadv1alpha1.ServingGroup{
 							Roles: []workloadv1alpha1.Role{
 								{Name: "role1", Replicas: int32Ptr(2), WorkerReplicas: 1},
 								{Name: "role2", Replicas: int32Ptr(1), WorkerReplicas: 1},
@@ -495,7 +495,7 @@ func TestValidatorReplicas(t *testing.T) {
 				mi: &workloadv1alpha1.ModelServing{
 					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: int32Ptr(-1),
-						Template: workloadv1alpha1.InferGroup{
+						Template: workloadv1alpha1.ServingGroup{
 							Roles: []workloadv1alpha1.Role{
 								{Name: "role1", Replicas: int32Ptr(2), WorkerReplicas: 1},
 								{Name: "role2", Replicas: int32Ptr(1), WorkerReplicas: 1},
@@ -518,7 +518,7 @@ func TestValidatorReplicas(t *testing.T) {
 				mi: &workloadv1alpha1.ModelServing{
 					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: int32Ptr(3),
-						Template: workloadv1alpha1.InferGroup{
+						Template: workloadv1alpha1.ServingGroup{
 							Roles: []workloadv1alpha1.Role{
 								{Name: "role1", Replicas: int32Ptr(-1), WorkerReplicas: 1},
 								{Name: "role2", Replicas: int32Ptr(1), WorkerReplicas: 1},
@@ -541,7 +541,7 @@ func TestValidatorReplicas(t *testing.T) {
 				mi: &workloadv1alpha1.ModelServing{
 					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: int32Ptr(3),
-						Template: workloadv1alpha1.InferGroup{
+						Template: workloadv1alpha1.ServingGroup{
 							Roles: []workloadv1alpha1.Role{
 								{Name: "role1", Replicas: int32PtrNil(), WorkerReplicas: 1},
 								{Name: "role2", Replicas: int32Ptr(1), WorkerReplicas: 1},
@@ -564,7 +564,7 @@ func TestValidatorReplicas(t *testing.T) {
 				mi: &workloadv1alpha1.ModelServing{
 					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: int32Ptr(3),
-						Template: workloadv1alpha1.InferGroup{
+						Template: workloadv1alpha1.ServingGroup{
 							Roles: []workloadv1alpha1.Role{},
 						},
 					},
@@ -608,7 +608,7 @@ func TestValidateGangSchedule(t *testing.T) {
 				mi: &workloadv1alpha1.ModelServing{
 					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: &replicas,
-						Template: workloadv1alpha1.InferGroup{
+						Template: workloadv1alpha1.ServingGroup{
 							Roles: []workloadv1alpha1.Role{
 								{
 									Name:           "worker",
@@ -633,7 +633,7 @@ func TestValidateGangSchedule(t *testing.T) {
 				mi: &workloadv1alpha1.ModelServing{
 					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: &replicas,
-						Template: workloadv1alpha1.InferGroup{
+						Template: workloadv1alpha1.ServingGroup{
 							Roles: []workloadv1alpha1.Role{
 								{
 									Name:           "worker",
@@ -664,7 +664,7 @@ func TestValidateGangSchedule(t *testing.T) {
 				mi: &workloadv1alpha1.ModelServing{
 					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: &replicas,
-						Template: workloadv1alpha1.InferGroup{
+						Template: workloadv1alpha1.ServingGroup{
 							Roles: []workloadv1alpha1.Role{
 								{
 									Name:           "worker",
@@ -695,7 +695,7 @@ func TestValidateGangSchedule(t *testing.T) {
 				mi: &workloadv1alpha1.ModelServing{
 					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: &replicas,
-						Template: workloadv1alpha1.InferGroup{
+						Template: workloadv1alpha1.ServingGroup{
 							Roles: []workloadv1alpha1.Role{
 								{
 									Name:           "worker",
@@ -726,7 +726,7 @@ func TestValidateGangSchedule(t *testing.T) {
 				mi: &workloadv1alpha1.ModelServing{
 					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: &replicas,
-						Template: workloadv1alpha1.InferGroup{
+						Template: workloadv1alpha1.ServingGroup{
 							Roles: []workloadv1alpha1.Role{
 								{
 									Name:           "worker",
@@ -747,7 +747,7 @@ func TestValidateGangSchedule(t *testing.T) {
 				mi: &workloadv1alpha1.ModelServing{
 					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: &replicas,
-						Template: workloadv1alpha1.InferGroup{
+						Template: workloadv1alpha1.ServingGroup{
 							Roles: []workloadv1alpha1.Role{
 								{
 									Name:           "worker",
@@ -794,7 +794,7 @@ func TestValidateWorkerReplicas(t *testing.T) {
 				mi: &workloadv1alpha1.ModelServing{
 					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: &replicas,
-						Template: workloadv1alpha1.InferGroup{
+						Template: workloadv1alpha1.ServingGroup{
 							Roles: []workloadv1alpha1.Role{
 								{
 									Name:           "worker",
@@ -814,7 +814,7 @@ func TestValidateWorkerReplicas(t *testing.T) {
 				mi: &workloadv1alpha1.ModelServing{
 					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: &replicas,
-						Template: workloadv1alpha1.InferGroup{
+						Template: workloadv1alpha1.ServingGroup{
 							Roles: []workloadv1alpha1.Role{
 								{
 									Name:           "worker",
@@ -834,7 +834,7 @@ func TestValidateWorkerReplicas(t *testing.T) {
 				mi: &workloadv1alpha1.ModelServing{
 					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: &replicas,
-						Template: workloadv1alpha1.InferGroup{
+						Template: workloadv1alpha1.ServingGroup{
 							Roles: []workloadv1alpha1.Role{
 								{
 									Name:           "worker",
@@ -860,7 +860,7 @@ func TestValidateWorkerReplicas(t *testing.T) {
 				mi: &workloadv1alpha1.ModelServing{
 					Spec: workloadv1alpha1.ModelServingSpec{
 						Replicas: &replicas,
-						Template: workloadv1alpha1.InferGroup{
+						Template: workloadv1alpha1.ServingGroup{
 							Roles: []workloadv1alpha1.Role{
 								{
 									Name:           "worker1",
