@@ -13,6 +13,8 @@ This paper analyzes the system design and implementation of the **ScorePlugin** 
 
 Experimental results demonstrate that in **long system prompt scenarios**, the **KVCacheAware Plugin + Least Request Plugin** combination achieves **2.73× higher throughput** and reduces **TTFT latency by 73.5%**, significantly optimizing overall inference service performance and validating the core value of cache-aware scheduling for large-scale model inference.
 
+<!-- truncate -->
+
 ## 1. Introduction
 
 In **LLM inference services**, intelligent request scheduling strategies have a decisive impact on overall system performance. Kthena Router adopts a **score-based scheduling framework** that enables multi-strategy load balancing through an **extensible plugin system**. This paper systematically analyzes the architectural design, core algorithms, and performance characteristics of this scheduling system.
