@@ -17,7 +17,7 @@ limitations under the License.
 package autoscaler
 
 import (
-	"github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	"github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	"github.com/volcano-sh/kthena/pkg/autoscaler/algorithm"
 	"github.com/volcano-sh/kthena/pkg/autoscaler/datastructure"
 	"github.com/volcano-sh/kthena/pkg/autoscaler/util"

@@ -1,0 +1,408 @@
+apiVersion: workload.volcano.sh/v1alpha1
+kind: modelinfer
+metadata:
+  labels:
+    workload.serving.volcano.sh/backend-name: ds-r1-qwen-7b-pd
+    workload.serving.volcano.sh/managed-by: workload.serving.volcano.sh
+    workload.serving.volcano.sh/model-name: ds-r1-qwen-7b-pd
+    workload.serving.volcano.sh/model-uid: randomUID
+    workload.serving.volcano.sh/revision: 67cc57ffd4
+  name: ds-r1-qwen-7b-pd-ds-r1-qwen-7b-pd
+  namespace: demo
+  ownerReferences:
+    - apiVersion: workload.serving.volcano.sh/v1alpha1
+      kind: ModelBooster
+      name: ds-r1-qwen-7b-pd
+      uid: randomUID
+spec:
+  recoveryPolicy: InferGroupRecreate
+  replicas: 1
+  rolloutStrategy:
+    type: InferGroupRollingUpdate
+  schedulerName: volcano
+  template:
+    restartGracePeriodSeconds: 60
+    roles:
+      - entryTemplate:
+          spec:
+            affinity:
+              nodeAffinity:
+                requiredDuringSchedulingIgnoredDuringExecution:
+                  nodeSelectorTerms:
+                    - matchExpressions:
+                        - key: node.kubernetes.io/npu.chip.name
+                          operator: In
+                          values:
+                            - Ascend910
+            containers:
+              - args:
+                  - --port
+                  - "8100"
+                  - --engine
+                  - vllmdisaggregated
+                  - --engine-base-url
+                  - http://localhost:8000
+                  - --engine-metrics-path
+                  - /metrics
+                  - --pod
+                  - $(POD_NAME).$(NAMESPACE)
+                  - --model
+                  - ds-r1-qwen-7b-pd
+                env:
+                  - name: ENDPOINT
+                    value: https://obs.test.com
+                  - name: POD_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.name
+                  - name: NAMESPACE
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.namespace
+                  - name: VLLM_USE_V1
+                    value: "1"
+                  - name: REDIS_HOST
+                    valueFrom:
+                      configMapKeyRef:
+                        key: REDIS_HOST
+                        name: redis-config
+                        optional: true
+                  - name: REDIS_PORT
+                    valueFrom:
+                      configMapKeyRef:
+                        key: REDIS_PORT
+                        name: redis-config
+                        optional: true
+                  - name: REDIS_PASSWORD
+                    valueFrom:
+                      secretKeyRef:
+                        key: REDIS_PASSWORD
+                        name: redis-secret
+                        optional: true
+                  - name: HF_HUB_OFFLINE
+                    value: "1"
+                  - name: HCCL_IF_IP
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: status.podIP
+                image: kthena/runtime:latest
+                name: runtime
+                ports:
+                  - containerPort: 8100
+                resources: {}
+              - command:
+                  - python
+                  - -m
+                  - vllm.entrypoints.openai.api_server
+                  - --model
+                  - /cache/568a486051fd302c338d84946c4f3d48
+                  - --disable-frontend-multiprocessing
+                  - --gpu-memory-utilization
+                  - "0.99"
+                  - --kv-transfer-config
+                  - '{"kv_connector":"MooncakeConnectorV1","kv_role":"kv_producer","kv_connector_extra_config":{"prefill":{"dp_size":2,"tp_size":2},"decode":{"dp_size":2,"tp_size":2}}}'
+                  - --max-model-len
+                  - "2048"
+                  - --quantization
+                  - ascend
+                  - --served-model-name
+                  - ds-r1-qwen-7b-pd
+                  - --tensor-parallel-size
+                  - "16"
+                  - --trust-remote-code
+                  - --kv-events-config
+                  - '{"enable_kv_cache_events":true,"publisher":"zmq","topic":"kv-events","endpoint":"tcp://*:5557"}'
+                  - --enforce-eager
+                env:
+                  - name: ENDPOINT
+                    value: https://obs.test.com
+                  - name: POD_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.name
+                  - name: NAMESPACE
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.namespace
+                  - name: VLLM_USE_V1
+                    value: "1"
+                  - name: REDIS_HOST
+                    valueFrom:
+                      configMapKeyRef:
+                        key: REDIS_HOST
+                        name: redis-config
+                        optional: true
+                  - name: REDIS_PORT
+                    valueFrom:
+                      configMapKeyRef:
+                        key: REDIS_PORT
+                        name: redis-config
+                        optional: true
+                  - name: REDIS_PASSWORD
+                    valueFrom:
+                      secretKeyRef:
+                        key: REDIS_PASSWORD
+                        name: redis-secret
+                        optional: true
+                  - name: HF_HUB_OFFLINE
+                    value: "1"
+                  - name: HCCL_IF_IP
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: status.podIP
+                image: vllm-prefill:latest
+                imagePullPolicy: IfNotPresent
+                livenessProbe:
+                  failureThreshold: 3
+                  httpGet:
+                    path: /health
+                    port: 8000
+                  initialDelaySeconds: 90
+                  periodSeconds: 5
+                name: vllm
+                ports:
+                  - containerPort: 8000
+                readinessProbe:
+                  failureThreshold: 3
+                  httpGet:
+                    path: /health
+                    port: 8000
+                  initialDelaySeconds: 5
+                  periodSeconds: 5
+                resources:
+                  limits:
+                    cpu: "16"
+                    huawei.com/ascend-1980: "1"
+                    memory: 1Gi
+                  requests:
+                    cpu: "16"
+                    huawei.com/ascend-1980: "1"
+                    memory: 1Gi
+                volumeMounts:
+                  - mountPath: /cache
+                    name: ds-r1-qwen-7b-pd-weights
+            initContainers:
+              - args:
+                  - --source
+                  - s3://aios_models/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
+                  - --output-dir
+                  - /cache/568a486051fd302c338d84946c4f3d48
+                env:
+                  - name: ENDPOINT
+                    value: https://obs.test.com
+                envFrom:
+                  - secretRef:
+                      name: downloader-secrets
+                image: kthena/downloader:latest
+                name: ds-r1-qwen-7b-pd-model-downloader
+                resources: {}
+                volumeMounts:
+                  - mountPath: /cache
+                    name: ds-r1-qwen-7b-pd-weights
+            volumes:
+              - hostPath:
+                  path: /cache
+                  type: DirectoryOrCreate
+                name: ds-r1-qwen-7b-pd-weights
+        name: prefill
+        replicas: 1
+        workerReplicas: 0
+        workerTemplate:
+          spec:
+            containers: []
+      - entryTemplate:
+          spec:
+            affinity:
+              nodeAffinity:
+                requiredDuringSchedulingIgnoredDuringExecution:
+                  nodeSelectorTerms:
+                    - matchExpressions:
+                        - key: node.kubernetes.io/npu.chip.name
+                          operator: In
+                          values:
+                            - Ascend910
+            containers:
+              - args:
+                  - --port
+                  - "8100"
+                  - --engine
+                  - vllmdisaggregated
+                  - --engine-base-url
+                  - http://localhost:8000
+                  - --engine-metrics-path
+                  - /metrics
+                  - --pod
+                  - $(POD_NAME).$(NAMESPACE)
+                  - --model
+                  - ds-r1-qwen-7b-pd
+                env:
+                  - name: ENDPOINT
+                    value: https://obs.test.com
+                  - name: POD_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.name
+                  - name: NAMESPACE
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.namespace
+                  - name: VLLM_USE_V1
+                    value: "1"
+                  - name: REDIS_HOST
+                    valueFrom:
+                      configMapKeyRef:
+                        key: REDIS_HOST
+                        name: redis-config
+                        optional: true
+                  - name: REDIS_PORT
+                    valueFrom:
+                      configMapKeyRef:
+                        key: REDIS_PORT
+                        name: redis-config
+                        optional: true
+                  - name: REDIS_PASSWORD
+                    valueFrom:
+                      secretKeyRef:
+                        key: REDIS_PASSWORD
+                        name: redis-secret
+                        optional: true
+                  - name: HF_HUB_OFFLINE
+                    value: "1"
+                  - name: GLOO_SOCKET_IFNAME
+                    value: eth0
+                  - name: TP_SOCKET_IFNAME
+                    value: eth0
+                  - name: HCCL_SOCKET_IFNAME
+                    value: eth0
+                envFrom:
+                - secretRef:
+                    name: downloader-secrets
+                image: kthena/runtime:latest
+                name: runtime
+                ports:
+                  - containerPort: 8100
+                resources: {}
+              - command:
+                  - python
+                  - -m
+                  - vllm.entrypoints.openai.api_server
+                  - --model
+                  - /cache/568a486051fd302c338d84946c4f3d48
+                  - --disable-frontend-multiprocessing
+                  - --gpu-memory-utilization
+                  - "0.95"
+                  - --kv-transfer-config
+                  - '{"kv_connector":"MooncakeConnectorV1","kv_role":"kv_consumer","kv_connector_extra_config":{"prefill":{"dp_size":2,"tp_size":2},"decode":{"dp_size":2,"tp_size":2}}}'
+                  - --max-model-len
+                  - "1024"
+                  - --quantization
+                  - ascend
+                  - --served-model-name
+                  - ds-r1-qwen-7b-pd
+                  - --tensor-parallel-size
+                  - "16"
+                  - --trust-remote-code
+                  - --kv-events-config
+                  - '{"enable_kv_cache_events":true,"publisher":"zmq","topic":"kv-events","endpoint":"tcp://*:5557"}'
+                  - --enforce-eager
+                env:
+                  - name: ENDPOINT
+                    value: https://obs.test.com
+                  - name: POD_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.name
+                  - name: NAMESPACE
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.namespace
+                  - name: VLLM_USE_V1
+                    value: "1"
+                  - name: REDIS_HOST
+                    valueFrom:
+                      configMapKeyRef:
+                        key: REDIS_HOST
+                        name: redis-config
+                        optional: true
+                  - name: REDIS_PORT
+                    valueFrom:
+                      configMapKeyRef:
+                        key: REDIS_PORT
+                        name: redis-config
+                        optional: true
+                  - name: REDIS_PASSWORD
+                    valueFrom:
+                      secretKeyRef:
+                        key: REDIS_PASSWORD
+                        name: redis-secret
+                        optional: true
+                  - name: HF_HUB_OFFLINE
+                    value: "1"
+                  - name: GLOO_SOCKET_IFNAME
+                    value: eth0
+                  - name: TP_SOCKET_IFNAME
+                    value: eth0
+                  - name: HCCL_SOCKET_IFNAME
+                    value: eth0
+                image: vllm-decode:latest
+                imagePullPolicy: IfNotPresent
+                livenessProbe:
+                  failureThreshold: 3
+                  httpGet:
+                    path: /health
+                    port: 8000
+                  initialDelaySeconds: 90
+                  periodSeconds: 5
+                name: vllm
+                ports:
+                  - containerPort: 8000
+                readinessProbe:
+                  failureThreshold: 3
+                  httpGet:
+                    path: /health
+                    port: 8000
+                  initialDelaySeconds: 5
+                  periodSeconds: 5
+                resources:
+                  limits:
+                    cpu: "16"
+                    huawei.com/ascend-1980: "1"
+                    memory: 1Gi
+                  requests:
+                    cpu: "16"
+                    huawei.com/ascend-1980: "1"
+                    memory: 1Gi
+                volumeMounts:
+                  - mountPath: /cache
+                    name: ds-r1-qwen-7b-pd-weights
+            initContainers:
+              - args:
+                  - --source
+                  - s3://aios_models/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
+                  - --output-dir
+                  - /cache/568a486051fd302c338d84946c4f3d48
+                env:
+                  - name: ENDPOINT
+                    value: https://obs.test.com
+                envFrom:
+                  - secretRef:
+                      name: downloader-secrets
+                image: kthena/downloader:latest
+                name: ds-r1-qwen-7b-pd-model-downloader
+                resources: { }
+                volumeMounts:
+                  - mountPath: /cache
+                    name: ds-r1-qwen-7b-pd-weights
+            volumes:
+              - hostPath:
+                  path: /cache
+                  type: DirectoryOrCreate
+                name: ds-r1-qwen-7b-pd-weights
+        name: decode
+        replicas: 1
+        workerReplicas: 0
+        workerTemplate:
+          spec:
+            containers: []
+status:
+  availableReplicas: 0

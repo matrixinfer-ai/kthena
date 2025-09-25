@@ -24,7 +24,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/volcano-sh/kthena/pkg/model-controller/utils"
+	"github.com/volcano-sh/kthena/pkg/model-booster-controller/utils"
 
 	"github.com/spf13/pflag"
 	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"

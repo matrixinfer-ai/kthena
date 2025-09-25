@@ -50,7 +50,6 @@ help: ## Display this help.
 gen-crd: controller-gen 
 	$(CONTROLLER_GEN) crd paths="./pkg/apis/networking/..." output:crd:artifacts:config=charts/kthena/charts/networking/crds
 	$(CONTROLLER_GEN) crd paths="./pkg/apis/workload/..." output:crd:artifacts:config=charts/kthena/charts/workload/crds
-	$(CONTROLLER_GEN) crd paths="./pkg/apis/registry/..." output:crd:artifacts:config=charts/kthena/charts/registry/crds
 
 .PHONY: gen-docs
 gen-docs: crd-ref-docs ## Generate CRD and CLI reference documentation

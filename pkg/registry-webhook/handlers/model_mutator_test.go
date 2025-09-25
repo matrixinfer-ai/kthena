@@ -20,27 +20,27 @@ import (
 	"encoding/json"
 	"testing"
 
-	registryv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	"github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestCreatePatch(t *testing.T) {
 	// Create an original model
-	original := &registryv1alpha1.Model{
+	original := &v1alpha1.ModelBooster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-model",
 			Namespace: "default",
 		},
-		Spec: registryv1alpha1.ModelSpec{
-			AutoscalingPolicy: &registryv1alpha1.AutoscalingPolicySpec{},
-			Backends: []registryv1alpha1.ModelBackend{
+		Spec: v1alpha1.ModelBoosterSpec{
+			AutoscalingPolicy: &v1alpha1.AutoscalingPolicySpec{},
+			Backends: []v1alpha1.ModelBackend{
 				{
 					Name:        "backend1",
 					Type:        "vLLM",
 					ModelURI:    "hf://test/model",
 					MinReplicas: 1,
 					MaxReplicas: 10,
-					Workers: []registryv1alpha1.ModelWorker{
+					Workers: []v1alpha1.ModelWorker{
 						{
 							Type:     "server",
 							Image:    "test-image",
@@ -91,20 +91,20 @@ func TestCreatePatch(t *testing.T) {
 
 func TestCreatePatchNoChanges(t *testing.T) {
 	// Create a model
-	original := &registryv1alpha1.Model{
+	original := &v1alpha1.ModelBooster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-model",
 			Namespace: "default",
 		},
-		Spec: registryv1alpha1.ModelSpec{
-			Backends: []registryv1alpha1.ModelBackend{
+		Spec: v1alpha1.ModelBoosterSpec{
+			Backends: []v1alpha1.ModelBackend{
 				{
 					Name:        "backend1",
 					Type:        "vLLM",
 					ModelURI:    "hf://test/model",
 					MinReplicas: 1,
 					MaxReplicas: 10,
-					Workers: []registryv1alpha1.ModelWorker{
+					Workers: []v1alpha1.ModelWorker{
 						{
 							Type:     "server",
 							Image:    "test-image",

@@ -2,21 +2,21 @@
 
 Rolling updates represent a critical operational strategy for online services aiming to achieve zero downtime. In the context of LLM inference services, the implementation of rolling updates is important to reduce the risk of service unavailability.
 
-Currently, `ModelInfer` supports rolling upgrades at the `InferGroup` level, enabling users to configure `Partitions` to control the rolling process.
+Currently, `ModelServing` supports rolling upgrades at the `ServingGroup` level, enabling users to configure `Partitions` to control the rolling process.
 
-- Partition: Indicates the ordinal at which the `ModelInfer` should be partitioned for updates. During a rolling update, replicas with an ordinal greater than or equal to `Partition` will be updated. Replicas with an ordinal less than `Partition` will not be updated.
+- Partition: Indicates the ordinal at which the `ModelServing` should be partitioned for updates. During a rolling update, replicas with an ordinal greater than or equal to `Partition` will be updated. Replicas with an ordinal less than `Partition` will not be updated.
 
-Here’s a ModelInfer configured with rollout strategy:
+Here’s a ModelServing configured with rollout strategy:
 
 ```yaml
 spec:
   rolloutStrategy:
-    type: InferGroupRollingUpdate
+    type: ServingGroupRollingUpdate
     rollingUpdateConfiguration:
       partition: 0
 ```
 
-In the following we’ll show how rolling update processes for a `ModelInfer` with four replicas. Three Replica status are simulated here:
+In the following we’ll show how rolling update processes for a `ModelServing` with four replicas. Three Replica status are simulated here:
 
 - ✅ Replica has been updated
 - ❎ Replica hasn’t been updated

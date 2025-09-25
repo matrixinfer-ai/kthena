@@ -22,34 +22,34 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/volcano-sh/kthena/client-go/clientset/versioned/fake"
-	registryv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	"github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestValidateAutoscalingBinding(t *testing.T) {
-	fakeClient := fake.NewSimpleClientset(&registryv1alpha1.AutoscalingPolicy{
+	fakeClient := fake.NewSimpleClientset(&v1alpha1.AutoscalingPolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "dummy-policy",
 			Namespace: "default",
 		},
-		Spec: registryv1alpha1.AutoscalingPolicySpec{},
+		Spec: v1alpha1.AutoscalingPolicySpec{},
 	})
 	validator := NewAutoscalingBindingValidator(fakeClient)
 
 	tests := []struct {
 		name     string
-		input    *registryv1alpha1.AutoscalingPolicyBinding
+		input    *v1alpha1.AutoscalingPolicyBinding
 		expected []string
 	}{
 		{
 			name: "optimizer and scaling config both set to nil",
-			input: &registryv1alpha1.AutoscalingPolicyBinding{
+			input: &v1alpha1.AutoscalingPolicyBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "dummy-model",
 					Namespace: "default",
 				},
-				Spec: registryv1alpha1.AutoscalingPolicyBindingSpec{
+				Spec: v1alpha1.AutoscalingPolicyBindingSpec{
 					PolicyRef: corev1.LocalObjectReference{
 						Name: "dummy-policy",
 					},
@@ -61,19 +61,19 @@ func TestValidateAutoscalingBinding(t *testing.T) {
 		},
 		{
 			name: "optimizer and scaling config both are not nil",
-			input: &registryv1alpha1.AutoscalingPolicyBinding{
+			input: &v1alpha1.AutoscalingPolicyBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "dummy-model",
 					Namespace: "default",
 				},
-				Spec: registryv1alpha1.AutoscalingPolicyBindingSpec{
+				Spec: v1alpha1.AutoscalingPolicyBindingSpec{
 					PolicyRef: corev1.LocalObjectReference{
 						Name: "dummy-policy",
 					},
-					OptimizerConfiguration: &registryv1alpha1.OptimizerConfiguration{
-						Params: []registryv1alpha1.OptimizerParam{
+					OptimizerConfiguration: &v1alpha1.OptimizerConfiguration{
+						Params: []v1alpha1.OptimizerParam{
 							{
-								Target: registryv1alpha1.Target{
+								Target: v1alpha1.Target{
 									TargetRef: corev1.ObjectReference{
 										Name: "target-name",
 									},
@@ -84,8 +84,8 @@ func TestValidateAutoscalingBinding(t *testing.T) {
 						},
 						CostExpansionRatePercent: 100,
 					},
-					ScalingConfiguration: &registryv1alpha1.ScalingConfiguration{
-						Target: registryv1alpha1.Target{
+					ScalingConfiguration: &v1alpha1.ScalingConfiguration{
+						Target: v1alpha1.Target{
 							TargetRef: corev1.ObjectReference{
 								Name: "target-name",
 							},
@@ -99,18 +99,18 @@ func TestValidateAutoscalingBinding(t *testing.T) {
 		},
 		{
 			name: "different autoscaling policy name",
-			input: &registryv1alpha1.AutoscalingPolicyBinding{
+			input: &v1alpha1.AutoscalingPolicyBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "dummy-model",
 					Namespace: "default",
 				},
-				Spec: registryv1alpha1.AutoscalingPolicyBindingSpec{
+				Spec: v1alpha1.AutoscalingPolicyBindingSpec{
 					PolicyRef: corev1.LocalObjectReference{
 						Name: "not-exist-policy",
 					},
 					OptimizerConfiguration: nil,
-					ScalingConfiguration: &registryv1alpha1.ScalingConfiguration{
-						Target: registryv1alpha1.Target{
+					ScalingConfiguration: &v1alpha1.ScalingConfiguration{
+						Target: v1alpha1.Target{
 							TargetRef: corev1.ObjectReference{
 								Name: "target-name",
 							},

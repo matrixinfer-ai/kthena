@@ -18,10 +18,34 @@ limitations under the License.
 
 package v1alpha1
 
-// ModelInferListerExpansion allows custom methods to be added to
-// ModelInferLister.
-type ModelInferListerExpansion interface{}
+// AutoscalingPolicyListerExpansion allows custom methods to be added to
+// AutoscalingPolicyLister.
+type AutoscalingPolicyListerExpansion interface{}
 
-// ModelInferNamespaceListerExpansion allows custom methods to be added to
-// ModelInferNamespaceLister.
-type ModelInferNamespaceListerExpansion interface{}
+// AutoscalingPolicyNamespaceListerExpansion allows custom methods to be added to
+// AutoscalingPolicyNamespaceLister.
+type AutoscalingPolicyNamespaceListerExpansion interface{}
+
+// AutoscalingPolicyBindingListerExpansion allows custom methods to be added to
+// AutoscalingPolicyBindingLister.
+type AutoscalingPolicyBindingListerExpansion interface{}
+
+// AutoscalingPolicyBindingNamespaceListerExpansion allows custom methods to be added to
+// AutoscalingPolicyBindingNamespaceLister.
+type AutoscalingPolicyBindingNamespaceListerExpansion interface{}
+
+// ModelBoosterListerExpansion allows custom methods to be added to
+// ModelBoosterLister.
+type ModelBoosterListerExpansion interface{}
+
+// ModelBoosterNamespaceListerExpansion allows custom methods to be added to
+// ModelBoosterNamespaceLister.
+type ModelBoosterNamespaceListerExpansion interface{}
+
+// ModelServingListerExpansion allows custom methods to be added to
+// ModelServingLister.
+type ModelServingListerExpansion interface{}
+
+// ModelServingNamespaceListerExpansion allows custom methods to be added to
+// ModelServingNamespaceLister.
+type ModelServingNamespaceListerExpansion interface{}

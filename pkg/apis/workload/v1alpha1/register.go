@@ -18,12 +18,12 @@ package v1alpha1
 
 import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	runtime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // GroupName specifies the group name used to register the objects.
-const GroupName = "workload.volcano.sh"
+const GroupName = "workload.serving.volcano.sh"
 
 // GroupVersion specifies the group and the version used to register the objects.
 var GroupVersion = v1.GroupVersion{Group: GroupName, Version: "v1alpha1"}
@@ -39,8 +39,12 @@ func Resource(resource string) schema.GroupResource {
 
 // GroupVersionKind definitions
 var (
-	ModelInferKind     = SchemeGroupVersion.WithKind("ModelInfer")
-	ModelInferListKind = SchemeGroupVersion.WithKind("ModelInferList")
+	ModelServingKind                = SchemeGroupVersion.WithKind("ModelServing")
+	ModelServingListKind            = SchemeGroupVersion.WithKind("ModelServingList")
+	ModelKind                       = SchemeGroupVersion.WithKind("ModelBooster")
+	AutoscalingPolicyKind           = SchemeGroupVersion.WithKind("AutoscalingPolicy")
+	AutoscalingPolicyBindingKind    = SchemeGroupVersion.WithKind("AutoscalingPolicyBinding")
+	ModelServingEntryPodLeaderLabel = "leader"
 )
 
 var (
@@ -62,8 +66,14 @@ func init() {
 // Adds the list of known types to Scheme.
 func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
-		&ModelInfer{},
-		&ModelInferList{},
+		&ModelServing{},
+		&ModelServingList{},
+		&ModelBooster{},
+		&ModelBoosterList{},
+		&AutoscalingPolicy{},
+		&AutoscalingPolicyList{},
+		&AutoscalingPolicyBinding{},
+		&AutoscalingPolicyBindingList{},
 	)
 	// AddToGroupVersion allows the serialization of client types like ListOptions.
 	v1.AddToGroupVersion(scheme, SchemeGroupVersion)

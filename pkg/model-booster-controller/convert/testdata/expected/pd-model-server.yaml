@@ -1,0 +1,38 @@
+apiVersion: networking.serving.volcano.sh/v1alpha1
+kind: ModelServer
+metadata:
+  name: ds-r1-qwen-7b-pd-ds-r1-qwen-7b-pd
+  namespace: demo
+  labels:
+    workload.serving.volcano.sh/backend-name: ds-r1-qwen-7b-pd
+    workload.serving.volcano.sh/managed-by: workload.serving.volcano.sh
+    workload.serving.volcano.sh/model-name: ds-r1-qwen-7b-pd
+    workload.serving.volcano.sh/model-uid: randomUID
+    workload.serving.volcano.sh/revision: 757f69bc97
+  ownerReferences:
+    - apiVersion: workload.serving.volcano.sh/v1alpha1
+      blockOwnerDeletion: true
+      controller: true
+      kind: ModelBooster
+      name: ds-r1-qwen-7b-pd
+      uid: randomUID
+spec:
+  model: "ds-r1-qwen-7b-pd"
+  inferenceEngine: "vLLM"
+  workloadSelector:
+    matchLabels:
+      workload.serving.volcano.sh/model-uid: randomUID
+    pdGroup:
+      groupKey: "modelserving.volcano.sh/group-name"
+      prefillLabels:
+        modelserving.volcano.sh/role: prefill
+      decodeLabels:
+        modelserving.volcano.sh/role: decode
+  workloadPort:
+    port: 8000
+  trafficPolicy:
+    retry:
+      attempts: 5
+      retryInterval: 0s
+  kvConnector:
+    type: mooncake

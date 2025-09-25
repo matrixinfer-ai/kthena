@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	registryv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
+	registryv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -29,12 +29,12 @@ func TestValidateModel_ErrorFormatting(t *testing.T) {
 	validator := &ModelValidator{}
 
 	// Create a model that will trigger multiple validation errors
-	model := &registryv1alpha1.Model{
+	model := &registryv1alpha1.ModelBooster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-model",
 			Namespace: "default",
 		},
-		Spec: registryv1alpha1.ModelSpec{
+		Spec: registryv1alpha1.ModelBoosterSpec{
 			// This will trigger validation errors for autoscaling-related fields
 			CostExpansionRatePercent: &[]int32{50}[0], // This should trigger error when autoscaling is not set
 			Backends: []registryv1alpha1.ModelBackend{
@@ -106,12 +106,12 @@ func TestValidateModel_NoErrors(t *testing.T) {
 	validator := &ModelValidator{}
 
 	// Create a valid model
-	model := &registryv1alpha1.Model{
+	model := &registryv1alpha1.ModelBooster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-model",
 			Namespace: "default",
 		},
-		Spec: registryv1alpha1.ModelSpec{
+		Spec: registryv1alpha1.ModelBoosterSpec{
 			Backends: []registryv1alpha1.ModelBackend{
 				{
 					Name:        "backend1",

@@ -25,7 +25,7 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'Architecture',
       items: [
-        'architecture/matrixinfer-architecture',
+        'architecture/architecture',
         'architecture/infer-controller',
         'architecture/infer-router',
         'architecture/autoscaler',

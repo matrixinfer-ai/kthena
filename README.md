@@ -48,7 +48,7 @@ The platform extends Kubernetes with Custom Resource Definitions (CRDs) for mana
 
 Kthena implements a Kubernetes-native architecture with separate control plane and data plane components. The platform manages LLM inference workloads through CRD and provides intelligent request routing through a dedicated router.
 
-For more details, please refer to [Kthena Architecture](docs/kthena/docs/architecture/architecture.md)
+For more details, please refer to [Kthena Architecture](docs/kthena/docs/architecture/architecture.mdx)
 
 
 ## Performance and Benchmarks

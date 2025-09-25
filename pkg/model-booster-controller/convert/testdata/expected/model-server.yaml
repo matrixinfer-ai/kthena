@@ -1,0 +1,30 @@
+apiVersion: networking.serving.volcano.sh/v1alpha1
+kind: ModelServer
+metadata:
+  name: test-model-backend1
+  namespace: default
+  labels:
+    workload.serving.volcano.sh/backend-name: backend1
+    workload.serving.volcano.sh/managed-by: workload.serving.volcano.sh
+    workload.serving.volcano.sh/model-name: test-model
+    workload.serving.volcano.sh/model-uid: randomUID
+    workload.serving.volcano.sh/revision: 587ff8c655
+  ownerReferences:
+    - apiVersion: workload.serving.volcano.sh/v1alpha1
+      blockOwnerDeletion: true
+      controller: true
+      kind: ModelBooster
+      name: test-model
+      uid: randomUID
+spec:
+  model: "deepseek-v3"
+  inferenceEngine: "vLLM"
+  workloadSelector:
+    matchLabels:
+      workload.serving.volcano.sh/model-uid: randomUID
+  workloadPort:
+    port: 8000
+  trafficPolicy:
+    retry:
+      attempts: 5
+      retryInterval: 0s

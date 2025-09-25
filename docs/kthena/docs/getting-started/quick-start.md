@@ -1,7 +1,7 @@
 ---
 sidebar_position: 2
 ---
-import QuickStartYaml from '../../../../examples/model/Qwen2.5-0.5B-Instruct.yaml?raw';
+import QuickStartYaml from '../../../../examples/model-booster/Qwen2.5-0.5B-Instruct.yaml?raw';
 import CodeBlock from '@theme/CodeBlock';
 
 # Quick Start

@@ -20,7 +20,7 @@ inferController:
       cpu: 100m
       memory: 128Mi
 
-webhook:
+servingWebhook:
   enabled: true
   # replicas is the number of modelinfer-webhook instances to run.
   replicas: 1
@@ -35,6 +35,90 @@ webhook:
     # args are the command line arguments for the modelinfer-webhook.
     args: [ "--port=8443"]
   # resource defines the resource limits and requests for the modelinfer-webhook.
+  resource:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+modelController:
+  # replicas is the number of model-controller instances to run.
+  replicas: 3
+  image:
+    # repository is the container image repository for the model-controller.
+    repository: ghcr.io/volcano-sh/model-controller
+    # tag is the container image tag for the model-controller.
+    # node: edit by CI. No need to modify manually
+    tag: latest
+    # pullPolicy is the image pull policy for the model-controller.
+    pullPolicy: IfNotPresent
+    # args are the command line arguments for the model-controller.
+    # Must set --leader-elect to true if replicas are greater than or equal to 2. Default is false.
+    args: [ "--leader-elect=true" ]
+  # resource defines the resource limits and requests for the model-controller.
+  resource:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  # downloaderImage is the container image used for downloading models.
+  downloaderImage:
+    repository: ghcr.io/volcano-sh/downloader
+    # node: edit by CI. No need to modify manually
+    tag: latest
+  # runtimeImage is the container image used for running models.
+  runtimeImage:
+    repository: ghcr.io/volcano-sh/runtime
+    # node: edit by CI. No need to modify manually
+    tag: latest
+  downloader:
+    # accessKey is the access key for the downloader.
+    accessKey: ""
+    # secretKey is the secret key for the downloader.
+    secretKey: ""
+
+autoscaler:
+  # replicas is the number of model-controller instances to run.
+  replicas: 3
+  image:
+    # repository is the container image repository for the model-controller.
+    repository: ghcr.io/volcano-sh/autoscaler
+    # tag is the container image tag for the model-controller.
+    # node: edit by CI. No need to modify manually
+    tag: latest
+    # pullPolicy is the image pull policy for the model-controller.
+    pullPolicy: IfNotPresent
+    # args are the command line arguments for the model-controller.
+    # Must set --leader-elect to true if replicas are greater than or equal to 2. Default is false.
+    args: [ "--leader-elect=true" ]
+  # resource defines the resource limits and requests for the model-controller.
+  resource:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+boosterWebhook:
+  enabled: true
+  # replicas is the number of registry-webhook instances to run.
+  replicas: 1
+  image:
+    # repository is the container image repository for the registry-webhook.
+    repository: ghcr.io/volcano-sh/registry-webhook
+    # tag is the container image tag for the registry-webhook.
+    # node: edit by CI. No need to modify manually
+    tag: latest
+    # pullPolicy is the image pull policy for the registry-webhook.
+    pullPolicy: IfNotPresent
+    # args are the command line arguments for the registry-webhook.
+    args: [ "--port=8443", "--webhook-timeout=30" ]
+  # resource defines the resource limits and requests for the registry-webhook.
   resource:
     limits:
       cpu: 100m

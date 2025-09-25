@@ -250,7 +250,7 @@ func runGetModels(cmd *cobra.Command, args []string) error {
 	namespace := resolveGetNamespace()
 	ctx := context.Background()
 
-	models, err := client.RegistryV1alpha1().Models(namespace).List(ctx, metav1.ListOptions{})
+	models, err := client.WorkloadV1alpha1().ModelBoosters(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to list Models: %v", err)
 	}
@@ -314,12 +314,12 @@ func runGetModelInfers(cmd *cobra.Command, args []string) error {
 	namespace := resolveGetNamespace()
 	ctx := context.Background()
 
-	modelinfers, err := client.WorkloadV1alpha1().ModelInfers(namespace).List(ctx, metav1.ListOptions{})
+	modelServingList, err := client.WorkloadV1alpha1().ModelServings(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to list ModelInfers: %v", err)
 	}
 
-	if len(modelinfers.Items) == 0 {
+	if len(modelServingList.Items) == 0 {
 		if getAllNamespaces {
 			fmt.Println("No ModelInfers found across all namespaces.")
 		} else {
@@ -337,7 +337,7 @@ func runGetModelInfers(cmd *cobra.Command, args []string) error {
 	}
 
 	// Print ModelInfers
-	for _, mi := range modelinfers.Items {
+	for _, mi := range modelServingList.Items {
 		age := time.Since(mi.CreationTimestamp.Time).Truncate(time.Second)
 		if getAllNamespaces {
 			fmt.Fprintf(w, "%s\t%s\t%s\n", mi.Namespace, mi.Name, age)
@@ -358,7 +358,7 @@ func runGetAutoscalingPolicies(cmd *cobra.Command, args []string) error {
 	namespace := resolveGetNamespace()
 	ctx := context.Background()
 
-	policies, err := client.RegistryV1alpha1().AutoscalingPolicies(namespace).List(ctx, metav1.ListOptions{})
+	policies, err := client.WorkloadV1alpha1().AutoscalingPolicies(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to list AutoscalingPolicies: %v", err)
 	}
@@ -402,7 +402,7 @@ func runGetAutoscalingPolicyBindings(cmd *cobra.Command, args []string) error {
 	namespace := resolveGetNamespace()
 	ctx := context.Background()
 
-	bindings, err := client.RegistryV1alpha1().AutoscalingPolicyBindings(namespace).List(ctx, metav1.ListOptions{})
+	bindings, err := client.WorkloadV1alpha1().AutoscalingPolicyBindings(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to list AutoscalingPolicyBindings: %v", err)
 	}

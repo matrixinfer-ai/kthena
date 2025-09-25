@@ -14,9 +14,6 @@ version: 1.0.0
 # note: this version is modified by CI, do not edit manually
 appVersion: "1.0.0"
 dependencies:
-  - name: registry
-    version: "1.0.0"
-    condition: registry.enabled
   - name: workload
     version: "1.0.0"
     condition: workload.enabled

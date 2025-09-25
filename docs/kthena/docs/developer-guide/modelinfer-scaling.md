@@ -1,22 +1,22 @@
-# ModelInfer Scaling
+# ModelServing Scaling
 
 In cloud-native infrastructure projects, scaling plays a crucial role in resource optimization and cost control, enhancing service availability and quickly response, and simplifying operations management.
 
-In modelInfer, as has two layers of resource descriptions, `InferGroup` and `Role`. Therefore, we also support the scale up and scale down of the `InferGroup level` and `role level`.
+In modelServing, as has two layers of resource descriptions, `ServingGroup` and `Role`. Therefore, we also support the scale up and scale down of the `ServingGroup level` and `role level`.
 
-## InferGroup Scaling
+## ServingGroup Scaling
 
-When the `ModelInfer.Replicas` is modified, it triggers the Scaling of the `InferGroup` granularity.
+When the `ModelServing.Replicas` is modified, it triggers the Scaling of the `ServingGroup` granularity.
 
-When scaling is triggered, the status of the entire `InferGroup` is set to `Creating` or `Deleting`, and then the `InferGroup` creation or deletion process is performed.
+When scaling is triggered, the status of the entire `ServingGroup` is set to `Creating` or `Deleting`, and then the `ServingGroup` creation or deletion process is performed.
 
-After the `replicas` of `InferGroups` meets expectations. Then update the status of the InferGroup based on the status of all the pods in the InferGroup.
+After the `replicas` of `ServingGroups` meets expectations. Then update the status of the ServingGroup based on the status of all the pods in the ServingGroup.
 
-Because `InferGroups` are ordered in modelInfer similar to statefulSet. Therefore, the expansion and contraction of the `InferGroup level` are processed from the last InferGroup. For example, when `replicas` increase from 2 to 4, first create `G-2`, then create `G-3`. When `replicas` reduces from 4 to 2, `G-3` is deleted first, followed by `G-2`.
+Because `ServingGroups` are ordered in modelServing similar to statefulSet. Therefore, the expansion and contraction of the `ServingGroup level` are processed from the last ServingGroup. For example, when `replicas` increase from 2 to 4, first create `G-2`, then create `G-3`. When `replicas` reduces from 4 to 2, `G-3` is deleted first, followed by `G-2`.
 
-### InferGroup Scaling Process
+### ServingGroup Scaling Process
 
-In the following we’ll show how scaling processes for a `InferGroup` with four replicas. Three Replica status are simulated here:
+In the following we’ll show how scaling processes for a `ServingGroup` with four replicas. Three Replica status are simulated here:
 
 - ✅ Replica has been processed and completed.
 - ❎ Replica hasn’t been processed.
@@ -49,15 +49,15 @@ Dynamically adjusting the number of instances not only improves resource utiliza
 
 When the `role.Replicas` is modified, it triggers the Scaling of the role granularity.
 
-When scaling is triggered, the status of the entire `InferGroup` is set to scaling, and then the pod creation or deletion process is performed.
+When scaling is triggered, the status of the entire `ServingGroup` is set to scaling, and then the pod creation or deletion process is performed.
 
-After the replicas of pods meets expectations. Then update the status of the InferGroup based on the status of all the pods in the InferGroup.
+After the replicas of pods meets expectations. Then update the status of the ServingGroup based on the status of all the pods in the `ServingGroup`.
 
 And because the pods in the role are carrying sequential and labeled. All scaling is processed from the last pod.
 
 ## Role Scaling Process
 
-Symbol meaning identical to [InferGroup Scaling Process](#infergroup-scaling-process)
+Symbol meaning identical to [ServingGroup Scaling Process](#Servinggroup-scaling-process)
 
 |        | G-0 | G-1 | G-2 | G-3 | Note                                                                          |
 |--------|-----|-----|-----|-----|-------------------------------------------------------------------------------|

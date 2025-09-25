@@ -14,38 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-/*
-Copyright Kthena-AI Authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
-/*
-Copyright Kthena-AI Authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package controller
 
 import (
@@ -56,9 +24,7 @@ import (
 
 	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
 	informersv1alpha1 "github.com/volcano-sh/kthena/client-go/informers/externalversions"
-	registryLister "github.com/volcano-sh/kthena/client-go/listers/registry/v1alpha1"
 	workloadLister "github.com/volcano-sh/kthena/client-go/listers/workload/v1alpha1"
-	"github.com/volcano-sh/kthena/pkg/apis/registry/v1alpha1"
 	workload "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	"github.com/volcano-sh/kthena/pkg/autoscaler/algorithm"
 	"github.com/volcano-sh/kthena/pkg/autoscaler/util"
@@ -82,12 +48,12 @@ type AutoscaleController struct {
 	// client for custom resource
 	client                             clientset.Interface
 	namespace                          string
-	autoscalingPoliciesLister          registryLister.AutoscalingPolicyLister
+	autoscalingPoliciesLister          workloadLister.AutoscalingPolicyLister
 	autoscalingPoliciesInformer        cache.Controller
-	autoscalingPoliciesBindingLister   registryLister.AutoscalingPolicyBindingLister
+	autoscalingPoliciesBindingLister   workloadLister.AutoscalingPolicyBindingLister
 	autoscalingPoliciesBindingInformer cache.Controller
-	modelInfersLister                  workloadLister.ModelInferLister
-	modelInfersInformer                cache.Controller
+	modelServingLister                 workloadLister.ModelServingLister
+	modelServingInformer               cache.Controller
 	podsLister                         listerv1.PodLister
 	podsInformer                       cache.Controller
 	scalerMap                          map[string]*autoscaler.Autoscaler
@@ -96,9 +62,9 @@ type AutoscaleController struct {
 
 func NewAutoscaleController(kubeClient kubernetes.Interface, client clientset.Interface, namespace string) *AutoscaleController {
 	informerFactory := informersv1alpha1.NewSharedInformerFactory(client, 0)
-	modelInferInformer := informerFactory.Workload().V1alpha1().ModelInfers()
-	autoscalingPoliciesInformer := informerFactory.Registry().V1alpha1().AutoscalingPolicies()
-	autoscalingPoliciesBindingInformer := informerFactory.Registry().V1alpha1().AutoscalingPolicyBindings()
+	modelInferInformer := informerFactory.Workload().V1alpha1().ModelServings()
+	autoscalingPoliciesInformer := informerFactory.Workload().V1alpha1().AutoscalingPolicies()
+	autoscalingPoliciesBindingInformer := informerFactory.Workload().V1alpha1().AutoscalingPolicyBindings()
 
 	selector, err := labels.NewRequirement(workload.GroupNameLabelKey, selection.Exists, nil)
 	if err != nil {
@@ -119,8 +85,8 @@ func NewAutoscaleController(kubeClient kubernetes.Interface, client clientset.In
 		autoscalingPoliciesInformer:        autoscalingPoliciesInformer.Informer(),
 		autoscalingPoliciesBindingLister:   autoscalingPoliciesBindingInformer.Lister(),
 		autoscalingPoliciesBindingInformer: autoscalingPoliciesBindingInformer.Informer(),
-		modelInfersLister:                  modelInferInformer.Lister(),
-		modelInfersInformer:                modelInferInformer.Informer(),
+		modelServingLister:                 modelInferInformer.Lister(),
+		modelServingInformer:               modelInferInformer.Informer(),
 		podsLister:                         podsInformer.Lister(),
 		podsInformer:                       podsInformer.Informer(),
 		scalerMap:                          make(map[string]*autoscaler.Autoscaler),
@@ -135,12 +101,12 @@ func (ac *AutoscaleController) Run(ctx context.Context) {
 	// start informers
 	go ac.autoscalingPoliciesInformer.RunWithContext(ctx)
 	go ac.autoscalingPoliciesBindingInformer.RunWithContext(ctx)
-	go ac.modelInfersInformer.RunWithContext(ctx)
+	go ac.modelServingInformer.RunWithContext(ctx)
 	go ac.podsInformer.RunWithContext(ctx)
 	cache.WaitForCacheSync(ctx.Done(),
 		ac.autoscalingPoliciesInformer.HasSynced,
 		ac.autoscalingPoliciesBindingInformer.HasSynced,
-		ac.modelInfersInformer.HasSynced,
+		ac.modelServingInformer.HasSynced,
 		ac.podsInformer.HasSynced,
 	)
 
@@ -159,7 +125,7 @@ func (ac *AutoscaleController) Reconcile(ctx context.Context) {
 	klog.InfoS("start to reconcile")
 	ctx, cancel := context.WithTimeout(ctx, util.AutoscaleCtxTimeoutSeconds*time.Second)
 	defer cancel()
-	bindingList, err := ac.client.RegistryV1alpha1().AutoscalingPolicyBindings(ac.namespace).List(ctx, metav1.ListOptions{})
+	bindingList, err := ac.client.WorkloadV1alpha1().AutoscalingPolicyBindings(ac.namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		klog.Errorf("failed to list autoscaling policy bindings, err:%v", err)
 		return
@@ -206,7 +172,7 @@ func (ac *AutoscaleController) Reconcile(ctx context.Context) {
 	}
 }
 
-func (ac *AutoscaleController) schedule(ctx context.Context, binding *v1alpha1.AutoscalingPolicyBinding) error {
+func (ac *AutoscaleController) schedule(ctx context.Context, binding *workload.AutoscalingPolicyBinding) error {
 	klog.InfoS("start to process autoscale", "namespace", binding.Namespace, "model name", binding.Name)
 	autoscalePolicy, err := ac.getAutoscalePolicy(binding.Spec.PolicyRef.Name, binding.Namespace)
 	if err != nil {
@@ -221,7 +187,7 @@ func (ac *AutoscaleController) schedule(ctx context.Context, binding *v1alpha1.A
 			optimizer = autoscaler.NewOptimizer(&autoscalePolicy.Spec.Behavior, binding, metricTargets)
 			ac.optimizerMap[optimizerKey] = optimizer
 		}
-		if err := optimizer.Optimize(ctx, ac.client, ac.modelInfersLister, ac.podsLister, autoscalePolicy); err != nil {
+		if err := optimizer.Optimize(ctx, ac.client, ac.modelServingLister, ac.podsLister, autoscalePolicy); err != nil {
 			klog.Errorf("failed to do optimize, err: %v", err)
 			return err
 		}
@@ -233,7 +199,7 @@ func (ac *AutoscaleController) schedule(ctx context.Context, binding *v1alpha1.A
 			scalingAutoscaler = autoscaler.NewAutoscaler(&autoscalePolicy.Spec.Behavior, binding, metricTargets)
 			ac.scalerMap[instanceKey] = scalingAutoscaler
 		}
-		if err := scalingAutoscaler.Scale(ctx, ac.client, ac.modelInfersLister, ac.podsLister, autoscalePolicy); err != nil {
+		if err := scalingAutoscaler.Scale(ctx, ac.client, ac.modelServingLister, ac.podsLister, autoscalePolicy); err != nil {
 			klog.Errorf("failed to do scaling, err: %v", err)
 			return err
 		}
@@ -245,7 +211,7 @@ func (ac *AutoscaleController) schedule(ctx context.Context, binding *v1alpha1.A
 	return nil
 }
 
-func (ac *AutoscaleController) getAutoscalePolicy(autoscalingPolicyName string, namespace string) (*v1alpha1.AutoscalingPolicy, error) {
+func (ac *AutoscaleController) getAutoscalePolicy(autoscalingPolicyName string, namespace string) (*workload.AutoscalingPolicy, error) {
 	autoscalingPolicy, err := ac.autoscalingPoliciesLister.AutoscalingPolicies(namespace).Get(autoscalingPolicyName)
 	if err != nil {
 		klog.Errorf("can not get autosalingpolicyname: %s, error: %v", autoscalingPolicyName, err)
@@ -261,7 +227,7 @@ func formatAutoscalerMapKey(bindingName string, instanceName string) string {
 	return bindingName + "#" + instanceName
 }
 
-func getMetricTargets(autoscalePolicy *v1alpha1.AutoscalingPolicy) algorithm.Metrics {
+func getMetricTargets(autoscalePolicy *workload.AutoscalingPolicy) algorithm.Metrics {
 	metricTargets := algorithm.Metrics{}
 	if autoscalePolicy == nil {
 		klog.Warning("autoscalePolicy is nil, can't get metricTargets")
