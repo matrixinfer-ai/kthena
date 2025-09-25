@@ -15,7 +15,6 @@ metadata:
       name: ds-r1-qwen-7b-pd
       uid: randomUID
 spec:
-  recoveryPolicy: InferGroupRecreate
   replicas: 1
   schedulerName: volcano
   template:

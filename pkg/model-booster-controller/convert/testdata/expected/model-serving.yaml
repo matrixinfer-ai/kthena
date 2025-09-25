@@ -15,7 +15,6 @@ metadata:
       name: test-model
       uid: randomUID
 spec:
-  recoveryPolicy: InferGroupRecreate
   replicas: 0
   schedulerName: ""
   template:
