@@ -163,7 +163,7 @@ All timing values are in milliseconds and provide detailed performance metrics.
 
 ## Configuration
 
-Access logging is configured through environment variables in the infer-router deployment:
+Access logging is configured through environment variables in the kthena router deployment:
 
 ### Environment Variables
 

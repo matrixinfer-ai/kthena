@@ -1,3 +1,10 @@
+---
+slug: scoreplugin-benchmark-blog-post
+title: Kthena Router ScorePlugin Architecture and Benchmark Analysis
+authors: [bytebingo]
+tags: []
+---
+
 # Kthena Router ScorePlugin Architecture and Benchmark Analysis
 
 ## Abstract
@@ -5,6 +12,8 @@
 This paper analyzes the system design and implementation of the **ScorePlugin** module in **Kthena Router**, which leverages a configurable, pluggable architecture to enable multi-dimensional scoring and intelligent routing of inference requests. We provide a detailed examination of the six currently implemented **ScorePlugins**, and construct a standardized benchmarking environment based on the **DeepSeek-R1-Distill-Qwen-7B** model to evaluate the performance of different scheduling strategies under both long and short system prompt scenarios.
 
 Experimental results demonstrate that in **long system prompt scenarios**, the **KVCacheAware Plugin + Least Request Plugin** combination achieves **2.73× higher throughput** and reduces **TTFT latency by 73.5%**, significantly optimizing overall inference service performance and validating the core value of cache-aware scheduling for large-scale model inference.
+
+<!-- truncate -->
 
 ## 1. Introduction
 

@@ -26,10 +26,10 @@ const sidebars: SidebarsConfig = {
       label: 'Architecture',
       items: [
         'architecture/architecture',
-        'architecture/infer-controller',
-        'architecture/infer-router',
+        'architecture/model-serving-controller',
+        'architecture/kthena-router',
         'architecture/autoscaler',
-        'architecture/model-controller',
+        'architecture/model-booster-controller',
       ],
     },
     {
@@ -41,6 +41,7 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'User Guide',
       items: [
+        'user-guide/model-booster',
         'user-guide/router-routing',
         'user-guide/prefill-decode-disaggregation',
         'user-guide/multi-node-inference',
@@ -55,9 +56,9 @@ const sidebars: SidebarsConfig = {
       label: 'Developer Guide',
       items: [
         'developer-guide/release',
-        'developer-guide/modelinfer-rolling-update',
+        'developer-guide/model-serving-rolling-update',
         'developer-guide/ci',
-        'developer-guide/modelinfer-scaling',
+        'developer-guide/model-serving-scaling',
       ],
     },
     {
@@ -80,17 +81,12 @@ const sidebars: SidebarsConfig = {
           items: [
             {
               type: 'doc',
-              id: 'reference/crd/networking.volcano.sh',
+              id: 'reference/crd/networking.serving.volcano.sh',
               label: 'Networking',
             },
             {
               type: 'doc',
-              id: 'reference/crd/registry.volcano.sh',
-              label: 'Registry',
-            },
-            {
-              type: 'doc',
-              id: 'reference/crd/workload.volcano.sh',
+              id: 'reference/crd/workload.serving.volcano.sh',
               label: 'Workload',
             },
           ],

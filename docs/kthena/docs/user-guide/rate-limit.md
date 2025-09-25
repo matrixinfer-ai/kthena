@@ -14,7 +14,7 @@ Limits are based on the number of input/output tokens over a specific time windo
 
 ## Preparation
 
-Before diving into the rate-limiting configurations, let's set up the environment. All the configuration examples in this document can be found in the [examples/infer-router](https://github.com/volcano-sh/kthena/tree/main/examples/infer-router) directory of the Kthena repository.
+Before diving into the rate-limiting configurations, let's set up the environment. All the configuration examples in this document can be found in the [examples/kthena-router](https://github.com/volcano-sh/kthena/tree/main/examples/kthena-router) directory of the Kthena repository.
 
 ### Prerequisites
 
@@ -24,8 +24,8 @@ Before diving into the rate-limiting configurations, let's set up the environmen
 
 ### Getting Started
 
-1.  Deploy a mock LLM inference engine, such as [LLM-Mock-ds1.5b.yaml](../../../../examples/infer-router/LLM-Mock-ds1.5b.yaml), if you don't have a real GPU/NPU environment.
-2.  Deploy the corresponding ModelServer, [ModelServer-ds1.5b.yaml](../../../../examples/infer-router/ModelServer-ds1.5b.yaml).
+1.  Deploy a mock LLM inference engine, such as [LLM-Mock-ds1.5b.yaml](../../../../examples/kthena-router/LLM-Mock-ds1.5b.yaml), if you don't have a real GPU/NPU environment.
+2.  Deploy the corresponding ModelServer, [ModelServer-ds1.5b.yaml](../../../../examples/kthena-router/ModelServer-ds1.5b.yaml).
 3.  All rate-limiting examples in this guide use this mock service.
 
 ## Rate Limiting Scenarios
@@ -67,13 +67,13 @@ To test this, you can set a low limit (e.g., `inputTokensPerUnit: 10`) and send 
 
 ```bash
 # 1. Apply the ModelRoute yaml above
-kubectl apply -f https://github.com/volcano-sh/kthena/blob/main/examples/infer-router/ModelRouteWithRateLimit.yaml
+kubectl apply -f https://github.com/volcano-sh/kthena/blob/main/examples/kthena-router/ModelRouteWithRateLimit.yaml
 
 # 2. Scale down the replicas of the router to 1 to demonstrate local rate limiting
-kubectl scale deployment networking-infer-router -n kthena-system --replicas=1
+kubectl scale deployment networking-kthena-router -n kthena-system --replicas=1
 
 # 3. Get public ip of the router pod
-export ROUTER_IP=$(kubectl get svc networking-infer-router -n kthena-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+export ROUTER_IP=$(kubectl get svc networking-kthena-router -n kthena-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 
 # 4. Request router three times, the final request will be rejected
 export MODEL="deepseek-r1-with-rate-limit"
@@ -89,7 +89,7 @@ curl http://$ROUTER_IP/v1/completions \
 "input token rate limit exceeded"
 
 # 5. Clean up
-kubectl delete -f https://github.com/volcano-sh/kthena/blob/main/examples/infer-router/ModelRouteWithRateLimit.yaml
+kubectl delete -f https://github.com/volcano-sh/kthena/blob/main/examples/kthena-router/ModelRouteWithRateLimit.yaml
 ```
 
 ### 2. Global Rate Limiting
@@ -138,13 +138,13 @@ The test process is similar to local rate limiting. Even if your requests are ha
 kubectl apply -f https://github.com/volcano-sh/kthena/blob/main/examples/redis/redis-standalone.yaml
 
 # 2. Apply the ModelRoute yaml above
-kubectl apply -f https://github.com/volcano-sh/kthena/blob/main/examples/infer-router/ModelRouteWithGlobalRateLimit.yaml
+kubectl apply -f https://github.com/volcano-sh/kthena/blob/main/examples/kthena-router/ModelRouteWithGlobalRateLimit.yaml
 
 # 3. Scale up the replicas of the router to 3 to demonstrate global rate limiting
-kubectl scale deployment networking-infer-router -n kthena-system --replicas=3
+kubectl scale deployment networking-kthena-router -n kthena-system --replicas=3
 
 # 4. Get public ip of the router pod
-export ROUTER_IP=$(kubectl get svc networking-infer-router -n kthena-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+export ROUTER_IP=$(kubectl get svc networking-kthena-router -n kthena-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 
 # 5. Request router three times, the final request will be rejected
 export MODEL="deepseek-r1-with-global-rate-limit"
@@ -160,7 +160,7 @@ curl http://$ROUTER_IP/v1/completions \
 "input token rate limit exceeded"
 
 # 6. Clean up
-kubectl delete -f https://github.com/volcano-sh/kthena/blob/main/examples/infer-router/ModelRouteWithGlobalRateLimit.yaml
+kubectl delete -f https://github.com/volcano-sh/kthena/blob/main/examples/kthena-router/ModelRouteWithGlobalRateLimit.yaml
 ```
 
 By leveraging local and global rate limiting, Kthena gives you fine-grained control over your AI service traffic, enabling robust, scalable, and cost-effective model deployments.
