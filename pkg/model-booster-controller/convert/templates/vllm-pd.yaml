@@ -1,6 +1,6 @@
 apiVersion: workload.volcano.sh/v1alpha1
 kind: modelinfer
-metadata: ${MODEL_INFER_TEMPLATE_METADATA}
+metadata: ${MODEL_SERVING_TEMPLATE_METADATA}
 spec:
   recoveryPolicy: InferGroupRecreate
   rolloutStrategy:
@@ -20,21 +20,21 @@ spec:
             initContainers: ${INIT_CONTAINERS}
             containers:
               - name: runtime
-                image: ${MODEL_INFER_RUNTIME_IMAGE}
+                image: ${MODEL_SERVING_RUNTIME_IMAGE}
                 ports:
-                  - containerPort: ${MODEL_INFER_RUNTIME_PORT}
+                  - containerPort: ${MODEL_SERVING_RUNTIME_PORT}
                 env: ${ENGINE_PREFILL_ENV}
                 args:
                   - --port
-                  - ${MODEL_INFER_RUNTIME_PORT}
+                  - ${MODEL_SERVING_RUNTIME_PORT}
                   - --engine
-                  - ${MODEL_INFER_RUNTIME_ENGINE}
+                  - ${MODEL_SERVING_RUNTIME_ENGINE}
                   - --engine-base-url
-                  - ${MODEL_INFER_RUNTIME_URL}
+                  - ${MODEL_SERVING_RUNTIME_URL}
                   - --engine-metrics-path
-                  - ${MODEL_INFER_RUNTIME_METRICS_PATH}
+                  - ${MODEL_SERVING_RUNTIME_METRICS_PATH}
                   - --pod
-                  - ${MODEL_INFER_RUNTIME_POD}
+                  - ${MODEL_SERVING_RUNTIME_POD}
                   - --model
                   - ${MODEL_NAME}
               - name: vllm
@@ -81,22 +81,22 @@ spec:
             initContainers: ${INIT_CONTAINERS}
             containers:
               - name: runtime
-                image: ${MODEL_INFER_RUNTIME_IMAGE}
+                image: ${MODEL_SERVING_RUNTIME_IMAGE}
                 ports:
-                  - containerPort: ${MODEL_INFER_RUNTIME_PORT}
+                  - containerPort: ${MODEL_SERVING_RUNTIME_PORT}
                 env: ${ENGINE_DECODE_ENV}
                 envFrom: ${MODEL_DOWNLOAD_ENVFROM}
                 args:
                   - --port
-                  - ${MODEL_INFER_RUNTIME_PORT}
+                  - ${MODEL_SERVING_RUNTIME_PORT}
                   - --engine
-                  - ${MODEL_INFER_RUNTIME_ENGINE}
+                  - ${MODEL_SERVING_RUNTIME_ENGINE}
                   - --engine-base-url
-                  - ${MODEL_INFER_RUNTIME_URL}
+                  - ${MODEL_SERVING_RUNTIME_URL}
                   - --engine-metrics-path
-                  - ${MODEL_INFER_RUNTIME_METRICS_PATH}
+                  - ${MODEL_SERVING_RUNTIME_METRICS_PATH}
                   - --pod
-                  - ${MODEL_INFER_RUNTIME_POD}
+                  - ${MODEL_SERVING_RUNTIME_POD}
                   - --model
                   - ${MODEL_NAME}
               - name: vllm

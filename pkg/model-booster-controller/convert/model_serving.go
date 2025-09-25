@@ -53,28 +53,28 @@ var templateFS embed.FS
 
 // BuildModelServing creates ModelServing objects based on the model's backends.
 func BuildModelServing(model *workload.ModelBooster) ([]*workload.ModelServing, error) {
-	var infers []*workload.ModelServing
+	var servings []*workload.ModelServing
 	for idx, backend := range model.Spec.Backends {
-		var infer *workload.ModelServing
+		var serving *workload.ModelServing
 		var err error
 		switch backend.Type {
 		case workload.ModelBackendTypeVLLM:
-			infer, err = buildVllmModelInfer(model, idx)
+			serving, err = buildVllmModelServing(model, idx)
 		case workload.ModelBackendTypeVLLMDisaggregated:
-			infer, err = buildVllmDisaggregatedModelInfer(model, idx)
+			serving, err = buildVllmDisaggregatedModelServing(model, idx)
 		default:
 			return nil, fmt.Errorf("not support model backend type: %s", backend.Type)
 		}
 		if err != nil {
 			return nil, err
 		}
-		infers = append(infers, infer)
+		servings = append(servings, serving)
 	}
-	return infers, nil
+	return servings, nil
 }
 
-// buildVllmDisaggregatedModelInfer handles VLLM disaggregated backend creation.
-func buildVllmDisaggregatedModelInfer(model *workload.ModelBooster, idx int) (*workload.ModelServing, error) {
+// buildVllmDisaggregatedModelServing handles VLLM disaggregated backend creation.
+func buildVllmDisaggregatedModelServing(model *workload.ModelBooster, idx int) (*workload.ModelServing, error) {
 	backend := &model.Spec.Backends[idx]
 	workersMap := mapWorkers(backend.Workers)
 	if workersMap[workload.ModelWorkerTypePrefill] == nil {
@@ -159,7 +159,7 @@ func buildVllmDisaggregatedModelInfer(model *workload.ModelBooster, idx int) (*w
 	)
 
 	data := map[string]interface{}{
-		"MODEL_INFER_TEMPLATE_METADATA": &metav1.ObjectMeta{
+		"MODEL_SERVING_TEMPLATE_METADATA": &metav1.ObjectMeta{
 			Name:      utils.GetBackendResourceName(model.Name, backend.Name),
 			Namespace: model.Namespace,
 			Labels:    utils.GetModelControllerLabels(model, backend.Name, icUtils.Revision(backend)),
@@ -179,32 +179,32 @@ func buildVllmDisaggregatedModelInfer(model *workload.ModelBooster, idx int) (*w
 		"VOLUMES": []*corev1.Volume{
 			cacheVolume,
 		},
-		"MODEL_NAME":                       model.Name,
-		"BACKEND_REPLICAS":                 backend.MinReplicas, // todo: backend replicas
-		"INIT_CONTAINERS":                  initContainers,
-		"MODEL_DOWNLOAD_ENVFROM":           backend.EnvFrom,
-		"ENGINE_PREFILL_COMMAND":           preFillCommand,
-		"ENGINE_DECODE_COMMAND":            decodeCommand,
-		"MODEL_INFER_RUNTIME_IMAGE":        config.Config.RuntimeImage(),
-		"MODEL_INFER_RUNTIME_PORT":         env.GetEnvValueOrDefault[int32](backend, env.RuntimePort, 8100),
-		"MODEL_INFER_RUNTIME_URL":          env.GetEnvValueOrDefault[string](backend, env.RuntimeUrl, "http://localhost:8000"),
-		"MODEL_INFER_RUNTIME_METRICS_PATH": env.GetEnvValueOrDefault[string](backend, env.RuntimeMetricsPath, "/metrics"),
-		"ENGINE_PREFILL_ENV":               prefillEngineEnv,
-		"ENGINE_DECODE_ENV":                decodeEngineEnv,
-		"MODEL_INFER_RUNTIME_ENGINE":       strings.ToLower(string(backend.Type)),
-		"MODEL_INFER_RUNTIME_POD":          "$(POD_NAME).$(NAMESPACE)",
-		"PREFILL_REPLICAS":                 workersMap[workload.ModelWorkerTypePrefill].Replicas,
-		"DECODE_REPLICAS":                  workersMap[workload.ModelWorkerTypeDecode].Replicas,
-		"ENGINE_DECODE_RESOURCES":          workersMap[workload.ModelWorkerTypeDecode].Resources,
-		"ENGINE_DECODE_IMAGE":              workersMap[workload.ModelWorkerTypeDecode].Image,
-		"ENGINE_PREFILL_RESOURCES":         workersMap[workload.ModelWorkerTypePrefill].Resources,
-		"ENGINE_PREFILL_IMAGE":             workersMap[workload.ModelWorkerTypePrefill].Image,
+		"MODEL_NAME":                         model.Name,
+		"BACKEND_REPLICAS":                   backend.MinReplicas, // todo: backend replicas
+		"INIT_CONTAINERS":                    initContainers,
+		"MODEL_DOWNLOAD_ENVFROM":             backend.EnvFrom,
+		"ENGINE_PREFILL_COMMAND":             preFillCommand,
+		"ENGINE_DECODE_COMMAND":              decodeCommand,
+		"MODEL_SERVING_RUNTIME_IMAGE":        config.Config.RuntimeImage(),
+		"MODEL_SERVING_RUNTIME_PORT":         env.GetEnvValueOrDefault[int32](backend, env.RuntimePort, 8100),
+		"MODEL_SERVING_RUNTIME_URL":          env.GetEnvValueOrDefault[string](backend, env.RuntimeUrl, "http://localhost:8000"),
+		"MODEL_SERVING_RUNTIME_METRICS_PATH": env.GetEnvValueOrDefault[string](backend, env.RuntimeMetricsPath, "/metrics"),
+		"ENGINE_PREFILL_ENV":                 prefillEngineEnv,
+		"ENGINE_DECODE_ENV":                  decodeEngineEnv,
+		"MODEL_SERVING_RUNTIME_ENGINE":       strings.ToLower(string(backend.Type)),
+		"MODEL_SERVING_RUNTIME_POD":          "$(POD_NAME).$(NAMESPACE)",
+		"PREFILL_REPLICAS":                   workersMap[workload.ModelWorkerTypePrefill].Replicas,
+		"DECODE_REPLICAS":                    workersMap[workload.ModelWorkerTypeDecode].Replicas,
+		"ENGINE_DECODE_RESOURCES":            workersMap[workload.ModelWorkerTypeDecode].Resources,
+		"ENGINE_DECODE_IMAGE":                workersMap[workload.ModelWorkerTypeDecode].Image,
+		"ENGINE_PREFILL_RESOURCES":           workersMap[workload.ModelWorkerTypePrefill].Resources,
+		"ENGINE_PREFILL_IMAGE":               workersMap[workload.ModelWorkerTypePrefill].Image,
 	}
-	return loadModelInferTemplate(VllmDisaggregatedTemplatePath, &data)
+	return loadModelServingTemplate(VllmDisaggregatedTemplatePath, &data)
 }
 
-// buildVllmModelInfer handles VLLM backend creation.
-func buildVllmModelInfer(model *workload.ModelBooster, idx int) (*workload.ModelServing, error) {
+// buildVllmModelServing handles VLLM backend creation.
+func buildVllmModelServing(model *workload.ModelBooster, idx int) (*workload.ModelServing, error) {
 	backend := &model.Spec.Backends[idx]
 	workersMap := mapWorkers(backend.Workers)
 	if workersMap[workload.ModelWorkerTypeServer] == nil {
@@ -260,11 +260,10 @@ func buildVllmModelInfer(model *workload.ModelBooster, idx int) (*workload.Model
 	}
 	engineEnv := buildEngineEnvVars(backend)
 	data := map[string]interface{}{
-		"MODEL_INFER_TEMPLATE_METADATA": &metav1.ObjectMeta{
+		"MODEL_SERVING_TEMPLATE_METADATA": &metav1.ObjectMeta{
 			Name:      utils.GetBackendResourceName(model.Name, backend.Name),
 			Namespace: model.Namespace,
 			Labels:    utils.GetModelControllerLabels(model, backend.Name, icUtils.Revision(backend)),
-			// model owns model infer. ModelServing will be deleted when the model is deleted
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion: workload.GroupVersion.String(),
@@ -292,20 +291,20 @@ func buildVllmModelInfer(model *workload.ModelBooster, idx int) (*workload.Model
 			Name:      cacheVolume.Name,
 			MountPath: GetCachePath(backend.CacheURI),
 		}},
-		"INIT_CONTAINERS":                  initContainers,
-		"MODEL_DOWNLOAD_ENVFROM":           backend.EnvFrom,
-		"MODEL_INFER_RUNTIME_IMAGE":        config.Config.RuntimeImage(),
-		"MODEL_INFER_RUNTIME_PORT":         env.GetEnvValueOrDefault[int32](backend, env.RuntimePort, 8100),
-		"MODEL_INFER_RUNTIME_URL":          env.GetEnvValueOrDefault[string](backend, env.RuntimeUrl, "http://localhost:8000"),
-		"MODEL_INFER_RUNTIME_METRICS_PATH": env.GetEnvValueOrDefault[string](backend, env.RuntimeMetricsPath, "/metrics"),
-		"MODEL_INFER_RUNTIME_ENGINE":       strings.ToLower(string(backend.Type)),
-		"MODEL_INFER_RUNTIME_POD":          "$(POD_NAME).$(NAMESPACE)",
-		"ENGINE_SERVER_RESOURCES":          workersMap[workload.ModelWorkerTypeServer].Resources,
-		"ENGINE_SERVER_IMAGE":              workersMap[workload.ModelWorkerTypeServer].Image,
-		"ENGINE_SERVER_COMMAND":            commands,
-		"WORKER_REPLICAS":                  workersMap[workload.ModelWorkerTypeServer].Pods - 1,
+		"INIT_CONTAINERS":                    initContainers,
+		"MODEL_DOWNLOAD_ENVFROM":             backend.EnvFrom,
+		"MODEL_SERVING_RUNTIME_IMAGE":        config.Config.RuntimeImage(),
+		"MODEL_SERVING_RUNTIME_PORT":         env.GetEnvValueOrDefault[int32](backend, env.RuntimePort, 8100),
+		"MODEL_SERVING_RUNTIME_URL":          env.GetEnvValueOrDefault[string](backend, env.RuntimeUrl, "http://localhost:8000"),
+		"MODEL_SERVING_RUNTIME_METRICS_PATH": env.GetEnvValueOrDefault[string](backend, env.RuntimeMetricsPath, "/metrics"),
+		"MODEL_SERVING_RUNTIME_ENGINE":       strings.ToLower(string(backend.Type)),
+		"MODEL_SERVING_RUNTIME_POD":          "$(POD_NAME).$(NAMESPACE)",
+		"ENGINE_SERVER_RESOURCES":            workersMap[workload.ModelWorkerTypeServer].Resources,
+		"ENGINE_SERVER_IMAGE":                workersMap[workload.ModelWorkerTypeServer].Image,
+		"ENGINE_SERVER_COMMAND":              commands,
+		"WORKER_REPLICAS":                    workersMap[workload.ModelWorkerTypeServer].Pods - 1,
 	}
-	return loadModelInferTemplate(VllmTemplatePath, &data)
+	return loadModelServingTemplate(VllmTemplatePath, &data)
 }
 
 // mapWorkers creates a map of workers by type.
@@ -385,8 +384,8 @@ func getVolumeName(backendName string) string {
 	return backendName + "-weights"
 }
 
-// loadModelInferTemplate loads and processes the template file.
-func loadModelInferTemplate(templatePath string, data *map[string]interface{}) (*workload.ModelServing, error) {
+// loadModelServingTemplate loads and processes the template file.
+func loadModelServingTemplate(templatePath string, data *map[string]interface{}) (*workload.ModelServing, error) {
 	templateBytes, err := templateFS.ReadFile(templatePath)
 	if err != nil {
 		return nil, err
@@ -405,14 +404,14 @@ func loadModelInferTemplate(templatePath string, data *map[string]interface{}) (
 		return nil, fmt.Errorf("JSON parse failed with replaced json bytes: %w", err)
 	}
 
-	modelInfer := &workload.ModelServing{}
+	modelServing := &workload.ModelServing{}
 	reader := bytes.NewReader(replacedJsonBytes)
 	decoder := yaml.NewYAMLOrJSONDecoder(reader, 1024)
-	if err := decoder.Decode(modelInfer); err != nil {
-		return nil, fmt.Errorf("model infer parse json failed : %w", err)
+	if err := decoder.Decode(modelServing); err != nil {
+		return nil, fmt.Errorf("model serving parse json failed : %w", err)
 	}
 
-	return modelInfer, nil
+	return modelServing, nil
 }
 
 // buildDownloaderContainer builds downloader container to reduce code duplication
