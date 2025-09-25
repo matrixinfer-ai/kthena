@@ -26,10 +26,10 @@ const sidebars: SidebarsConfig = {
       label: 'Architecture',
       items: [
         'architecture/architecture',
-        'architecture/infer-controller',
-        'architecture/infer-router',
+        'architecture/model-serving-controller',
+        'architecture/kthena-router',
         'architecture/autoscaler',
-        'architecture/model-controller',
+        'architecture/model-booster-controller',
       ],
     },
     {
@@ -56,9 +56,9 @@ const sidebars: SidebarsConfig = {
       label: 'Developer Guide',
       items: [
         'developer-guide/release',
-        'developer-guide/modelinfer-rolling-update',
+        'developer-guide/model-serving-rolling-update',
         'developer-guide/ci',
-        'developer-guide/modelinfer-scaling',
+        'developer-guide/model-serving-scaling',
       ],
     },
     {

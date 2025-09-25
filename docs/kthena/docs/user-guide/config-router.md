@@ -57,12 +57,12 @@ Here's a complete ConfigMap example showing how to configure the scheduler:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: kthena-infer-router-config
+  name: kthena-router-config
   namespace: default
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: kthena-infer-router-config
+  name: kthena-router-config
   namespace: default
 data:
   schedulerConfiguration: |-
@@ -102,7 +102,7 @@ If you want to use Authentication feature of router. Here is an example:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "kthena.name" . }}-infer-router-config
+  name: {{ include "kthena.name" . }}-router-config
   namespace: {{ .Release.Namespace }}
 data:
   routerConfiguration: |-
@@ -148,5 +148,5 @@ After creating or updating the ConfigMap, you need to restart the Router Pod for
 kubectl apply -f configmap.yaml
 
 # Restart Router Pod
-kubectl rollout restart deployment/infer-router
+kubectl rollout restart deployment/kthena-router
 ```
