@@ -4,7 +4,7 @@ metadata:
   name: infer-router
 rules:
   - apiGroups:
-      - networking.volcano.sh
+      - networking.serving.volcano.sh
     resources:
       - modelroutes
       - modelservers
@@ -17,7 +17,7 @@ rules:
       - update
       - watch
   - apiGroups:
-      - networking.volcano.sh
+      - networking.serving.volcano.sh
     resources:
       - modelroutes/status
       - modelservers/status
