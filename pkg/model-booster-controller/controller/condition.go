@@ -19,7 +19,7 @@ package controller
 import (
 	"context"
 
-	registryv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
+	workloadv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
@@ -33,42 +33,42 @@ const (
 )
 
 // setModelInitCondition sets model condition to initialized
-func (mc *ModelController) setModelInitCondition(ctx context.Context, model *registryv1alpha1.ModelBooster) error {
-	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeInitialized),
+func (mc *ModelController) setModelInitCondition(ctx context.Context, model *workloadv1alpha1.ModelBooster) error {
+	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(workloadv1alpha1.ModelStatusConditionTypeInitialized),
 		metav1.ConditionTrue, ModelInitsReason, "ModelBooster initialized"))
 	if err := mc.updateModelStatus(ctx, model); err != nil {
-		klog.Errorf("update model status failed: %v", err)
+		klog.Errorf("update ModelBooster status failed: %v", err)
 		return err
 	}
 	return nil
 }
 
 // setModelProcessingCondition sets model condition to processing
-func (mc *ModelController) setModelProcessingCondition(ctx context.Context, model *registryv1alpha1.ModelBooster) error {
-	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeActive),
+func (mc *ModelController) setModelProcessingCondition(ctx context.Context, model *workloadv1alpha1.ModelBooster) error {
+	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(workloadv1alpha1.ModelStatusConditionTypeActive),
 		metav1.ConditionFalse, ModelProcessingReason, "ModelBooster not ready yet"))
 	if err := mc.updateModelStatus(ctx, model); err != nil {
-		klog.Errorf("update model status failed: %v", err)
+		klog.Errorf("update ModelBooster status failed: %v", err)
 		return err
 	}
 	return nil
 }
 
 // setModelFailedCondition sets model condition to failed
-func (mc *ModelController) setModelFailedCondition(ctx context.Context, model *registryv1alpha1.ModelBooster, err error) {
-	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeFailed),
+func (mc *ModelController) setModelFailedCondition(ctx context.Context, model *workloadv1alpha1.ModelBooster, err error) {
+	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(workloadv1alpha1.ModelStatusConditionTypeFailed),
 		metav1.ConditionTrue, ModelFailedReason, err.Error()))
 	if err := mc.updateModelStatus(ctx, model); err != nil {
-		klog.Errorf("update model status failed: %v", err)
+		klog.Errorf("update ModelBooster status failed: %v", err)
 	}
 }
 
-// setModelActiveCondition sets model conditions when all ModelBooster Infers are active.
-func (mc *ModelController) setModelActiveCondition(ctx context.Context, model *registryv1alpha1.ModelBooster) error {
-	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(registryv1alpha1.ModelStatusConditionTypeActive),
+// setModelActiveCondition sets ModelBooster conditions to active
+func (mc *ModelController) setModelActiveCondition(ctx context.Context, model *workloadv1alpha1.ModelBooster) error {
+	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(workloadv1alpha1.ModelStatusConditionTypeActive),
 		metav1.ConditionTrue, ModelActiveReason, "ModelBooster is ready"))
 	if err := mc.updateModelStatus(ctx, model); err != nil {
-		klog.Errorf("update model status failed: %v", err)
+		klog.Errorf("update ModelBooster status failed: %v", err)
 		return err
 	}
 	return nil
