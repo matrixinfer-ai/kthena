@@ -28,10 +28,10 @@ import (
 	"k8s.io/klog/v2"
 )
 
-// createOrUpdateModelInfer attempts to create model infer if model infer does not exist, or update it if it is different from model.
+// createOrUpdateModelServing attempts to create model infer if model infer does not exist, or update it if it is different from model.
 // Meanwhile, delete model infer if it is not in the model spec anymore.
-func (mc *ModelController) createOrUpdateModelInfer(ctx context.Context, model *workload.ModelBooster, excludedBackends []string) error {
-	existingModelInfers, err := mc.listModelInferByLabel(model)
+func (mc *ModelController) createOrUpdateModelServing(ctx context.Context, model *workload.ModelBooster, excludedBackends []string) error {
+	existingModelInfers, err := mc.listModelServingsByLabel(model)
 	if err != nil {
 		return err
 	}
@@ -102,8 +102,8 @@ func (mc *ModelController) createOrUpdateModelInfer(ctx context.Context, model *
 	return nil
 }
 
-// listModelInferByLabel list all model infer which label key is "owner" and label value is model uid
-func (mc *ModelController) listModelInferByLabel(model *workload.ModelBooster) ([]*workload.ModelServing, error) {
+// listModelServingsByLabel list all model infer which label key is "owner" and label value is model uid
+func (mc *ModelController) listModelServingsByLabel(model *workload.ModelBooster) ([]*workload.ModelServing, error) {
 	if modelInfers, err := mc.modelServingLister.ModelServings(model.Namespace).List(labels.SelectorFromSet(map[string]string{
 		utils.OwnerUIDKey: string(model.UID),
 	})); err != nil {

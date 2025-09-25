@@ -46,7 +46,7 @@ import (
 )
 
 const (
-	ConfigMapName = "model-controller-config"
+	ConfigMapName = "model-booster-controller-config"
 )
 
 type ModelController struct {
@@ -221,7 +221,7 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 	if err := mc.setModelProcessingCondition(ctx, model); err != nil {
 		return err
 	}
-	if err := mc.createOrUpdateModelInfer(ctx, model, dynamicUpdatedBackends); err != nil {
+	if err := mc.createOrUpdateModelServing(ctx, model, dynamicUpdatedBackends); err != nil {
 		mc.setModelFailedCondition(ctx, model, err)
 		return err
 	}
@@ -237,8 +237,8 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 		mc.setModelFailedCondition(ctx, model, err)
 		return err
 	}
-	modelInferActive, err := mc.isModelInferActive(model)
-	if err != nil || !modelInferActive {
+	modelServingActive, err := mc.isModelServingActive(model)
+	if err != nil || !modelServingActive {
 		return err
 	}
 	if err := mc.setModelActiveCondition(ctx, model); err != nil {
@@ -248,23 +248,22 @@ func (mc *ModelController) reconcile(ctx context.Context, namespaceAndName strin
 	return nil
 }
 
-// isModelInferActive returns true if all ModelBooster Infers are available.
-func (mc *ModelController) isModelInferActive(model *workload.ModelBooster) (bool, error) {
-	// List all ModelBooster Infers associated with the model
-	modelInfers, err := mc.listModelInferByLabel(model)
+// isModelServingActive returns true if all ModelServings are available.
+func (mc *ModelController) isModelServingActive(model *workload.ModelBooster) (bool, error) {
+	modelServings, err := mc.listModelServingsByLabel(model)
 	if err != nil {
 		return false, err
 	}
-	// Ensure the number of ModelBooster Infers matches the number of backends
-	if len(modelInfers) != len(model.Spec.Backends) {
-		klog.Infof("Number of ModelBooster Infer: %d, number of backends: %d", len(modelInfers), len(model.Spec.Backends))
-		return false, fmt.Errorf("model infer number not equal to backend number")
+	// Ensure the number of ModelServings matches the number of backends
+	if len(modelServings) != len(model.Spec.Backends) {
+		klog.Infof("Number of ModelServings: %d, number of backends: %d", len(modelServings), len(model.Spec.Backends))
+		return false, fmt.Errorf("ModelServing number not equal to backend number")
 	}
-	// Check if all ModelBooster Infers are available
-	for _, modelInfer := range modelInfers {
-		if !meta.IsStatusConditionPresentAndEqual(modelInfer.Status.Conditions, string(workload.ModelServingAvailable), metav1.ConditionTrue) {
-			// requeue until all ModelBooster Infers are active
-			klog.InfoS("model infer is not available", "model infer", klog.KObj(modelInfer))
+	// Check if all ModelServings are available
+	for _, modelServing := range modelServings {
+		if !meta.IsStatusConditionPresentAndEqual(modelServing.Status.Conditions, string(workload.ModelServingAvailable), metav1.ConditionTrue) {
+			// requeue until all ModelServings are active
+			klog.InfoS("ModelServing is not available", "ModelServing", klog.KObj(modelServing))
 			return false, nil
 		}
 	}
@@ -273,15 +272,15 @@ func (mc *ModelController) isModelInferActive(model *workload.ModelBooster) (boo
 
 // updateModelStatus updates model status.
 func (mc *ModelController) updateModelStatus(ctx context.Context, model *workload.ModelBooster) error {
-	modelInfers, err := mc.listModelInferByLabel(model)
+	modelServings, err := mc.listModelServingsByLabel(model)
 	if err != nil {
 		return err
 	}
 	var backendStatus []workload.ModelBackendStatus
-	for _, infer := range modelInfers {
+	for _, modelServing := range modelServings {
 		backendStatus = append(backendStatus, workload.ModelBackendStatus{
-			Name:     infer.Name,
-			Replicas: infer.Status.Replicas,
+			Name:     modelServing.Name,
+			Replicas: modelServing.Status.Replicas,
 		})
 	}
 	model.Status.BackendStatuses = backendStatus
@@ -313,7 +312,7 @@ func NewModelController(kubeClient kubernetes.Interface, client clientset.Interf
 
 	informerFactory := informersv1alpha1.NewSharedInformerFactory(client, 0)
 	modelInformer := informerFactory.Workload().V1alpha1().ModelBoosters()
-	modelInferInformer := filterInformerFactory.Workload().V1alpha1().ModelServings()
+	modelServingInformer := filterInformerFactory.Workload().V1alpha1().ModelServings()
 	modelServerInformer := filterInformerFactory.Networking().V1alpha1().ModelServers()
 	modelRouteInformer := filterInformerFactory.Networking().V1alpha1().ModelRoutes()
 	autoscalingPoliciesInformer := filterInformerFactory.Workload().V1alpha1().AutoscalingPolicies()
@@ -341,8 +340,8 @@ func NewModelController(kubeClient kubernetes.Interface, client clientset.Interf
 		httpClient:                        httpClient,
 		modelBoosterLister:                modelInformer.Lister(),
 		modelsInformer:                    modelInformer.Informer(),
-		modelServingLister:                modelInferInformer.Lister(),
-		modelServingInformer:              modelInferInformer.Informer(),
+		modelServingLister:                modelServingInformer.Lister(),
+		modelServingInformer:              modelServingInformer.Informer(),
 		modelServersLister:                modelServerInformer.Lister(),
 		modelServersInformer:              modelServerInformer.Informer(),
 		modelRoutesLister:                 modelRouteInformer.Lister(),
@@ -369,12 +368,12 @@ func NewModelController(kubeClient kubernetes.Interface, client clientset.Interf
 		klog.Fatal("Unable to add model event handler")
 		return nil
 	}
-	_, err = modelInferInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = modelServingInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: mc.triggerModel,
-		DeleteFunc: mc.deleteModelInfer,
+		DeleteFunc: mc.deleteModelServing,
 	})
 	if err != nil {
-		klog.Fatal("Unable to add model infer event handler")
+		klog.Fatal("Unable to add ModelServing event handler")
 		return nil
 	}
 	_, err = modelRouteInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -409,21 +408,21 @@ func (mc *ModelController) loadConfigFromConfigMap() {
 		klog.Warningf("ConfigMap does not exist. Error: %v", err)
 		return
 	}
-	if modelInferDownloaderImage, ok := cm.Data["model_infer_downloader_image"]; ok {
-		config.Config.SetDownloaderImage(modelInferDownloaderImage)
+	if downloaderImage, ok := cm.Data["model_serving_downloader_image"]; ok {
+		config.Config.SetDownloaderImage(downloaderImage)
 	} else {
-		klog.Warning("Failed to load model infer Downloader Image. Use Default Value.")
+		klog.Warning("Failed to load Downloader Image. Use Default Value.")
 	}
-	if modelInferRuntimeImage, ok := cm.Data["model_infer_runtime_image"]; ok {
-		config.Config.SetRuntimeImage(modelInferRuntimeImage)
+	if runtimeImage, ok := cm.Data["model_serving_runtime_image"]; ok {
+		config.Config.SetRuntimeImage(runtimeImage)
 	} else {
-		klog.Warning("Failed to load model infer Runtime Image. Use Default Value.")
+		klog.Warning("Failed to load Runtime Image. Use Default Value.")
 	}
 }
 
-// When model infer status changed, model reconciles
+// When model serving status changed, model reconciles
 func (mc *ModelController) triggerModel(old any, new any) {
-	newModelInfer, ok := new.(*workload.ModelServing)
+	modelServing, ok := new.(*workload.ModelServing)
 	if !ok {
 		klog.Error("failed to parse new ModelServing")
 		return
@@ -433,24 +432,24 @@ func (mc *ModelController) triggerModel(old any, new any) {
 		klog.Error("failed to parse old ModelServing")
 		return
 	}
-	if len(newModelInfer.OwnerReferences) > 0 {
-		// Find the owner of modelInfer and reconcile the owner to change its status
-		if model, err := mc.modelBoosterLister.ModelBoosters(newModelInfer.Namespace).Get(newModelInfer.OwnerReferences[0].Name); err == nil {
+	if len(modelServing.OwnerReferences) > 0 {
+		// Find the owner of modelServing and reconcile the owner to change its status
+		if model, err := mc.modelBoosterLister.ModelBoosters(modelServing.Namespace).Get(modelServing.OwnerReferences[0].Name); err == nil {
 			mc.enqueueModel(model)
 		}
 	}
 }
 
-// deleteModelInfer is called when a ModelServing is deleted. It will reconcile the ModelBooster. Recreate model infer.
-func (mc *ModelController) deleteModelInfer(obj any) {
-	modelInfer, ok := obj.(*workload.ModelServing)
+// deleteModelServing is called when a ModelServing is deleted. It will reconcile the ModelBooster. Recreate model serving.
+func (mc *ModelController) deleteModelServing(obj any) {
+	modelServing, ok := obj.(*workload.ModelServing)
 	if !ok {
-		klog.Error("failed to parse ModelServing when deleteModelInfer")
+		klog.Error("failed to parse ModelServing when deleteModelServing")
 		return
 	}
-	klog.V(4).Infof("model infer: %s is deleted", klog.KObj(modelInfer))
-	if len(modelInfer.OwnerReferences) > 0 {
-		if model, err := mc.modelBoosterLister.ModelBoosters(modelInfer.Namespace).Get(modelInfer.OwnerReferences[0].Name); err == nil {
+	klog.V(4).Infof("model serving: %s is deleted", klog.KObj(modelServing))
+	if len(modelServing.OwnerReferences) > 0 {
+		if model, err := mc.modelBoosterLister.ModelBoosters(modelServing.Namespace).Get(modelServing.OwnerReferences[0].Name); err == nil {
 			mc.enqueueModel(model)
 		}
 	}
