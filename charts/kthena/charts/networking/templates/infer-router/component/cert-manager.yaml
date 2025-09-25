@@ -1,8 +1,8 @@
-{{- if and .Values.inferRouter.enabled .Values.global.certManager.enabled .Values.inferRouter.tls.enabled }}
+{{- if and .Values.kthenaRouter.enabled .Values.global.certManager.enabled .Values.kthenaRouter.tls.enabled }}
 apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
-  name: {{ include "kthena.name" . }}-infer-router-issuer
+  name: {{ include "kthena.name" . }}-kthena-router-issuer
   namespace: {{ .Release.Namespace }}
 spec:
   selfSigned: {}
@@ -10,24 +10,24 @@ spec:
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: {{ include "kthena.name" . }}-infer-router-cert
+  name: {{ include "kthena.name" . }}-kthena-router-cert
   namespace: {{ .Release.Namespace }}
   labels:
-    app.kubernetes.io/component: infer-router
+    app.kubernetes.io/component: kthena-router
 spec:
   dnsNames:
-    - {{ .Values.inferRouter.tls.dnsName | default (printf "%s-infer-router.%s.svc" (include "kthena.name" .) .Release.Namespace) }}
+    - {{ .Values.kthenaRouter.tls.dnsName | default (printf "%s-kthena-router.%s.svc" (include "kthena.name" .) .Release.Namespace) }}
   issuerRef:
     kind: Issuer
-    name: {{ include "kthena.name" . }}-infer-router-issuer
-  secretName: {{ .Values.inferRouter.tls.secretName }}
+    name: {{ include "kthena.name" . }}-kthena-router-issuer
+  secretName: {{ .Values.kthenaRouter.tls.secretName }}
 {{- end }}
-{{- if and .Values.inferRouter.enabled .Values.global.certManager.enabled .Values.inferRouter.webhook.enabled }}
+{{- if and .Values.kthenaRouter.enabled .Values.global.certManager.enabled .Values.kthenaRouter.webhook.enabled }}
 ---
 apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
-  name: {{ include "kthena.name" . }}-infer-router-webhook-issuer
+  name: {{ include "kthena.name" . }}-kthena-router-webhook-issuer
   namespace: {{ .Release.Namespace }}
 spec:
   selfSigned: {}
@@ -35,16 +35,16 @@ spec:
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: {{ include "kthena.name" . }}-infer-router-webhook-cert
+  name: {{ include "kthena.name" . }}-kthena-router-webhook-cert
   namespace: {{ .Release.Namespace }}
   labels:
-    app.kubernetes.io/component: infer-router
+    app.kubernetes.io/component: kthena-router
 spec:
   dnsNames:
-    - {{ include "kthena.name" . }}-infer-router-webhook.{{ .Release.Namespace }}.svc
-    - {{ include "kthena.name" . }}-infer-router-webhook.{{ .Release.Namespace }}.svc.cluster.local
+    - {{ include "kthena.name" . }}-kthena-router-webhook.{{ .Release.Namespace }}.svc
+    - {{ include "kthena.name" . }}-kthena-router-webhook.{{ .Release.Namespace }}.svc.cluster.local
   issuerRef:
     kind: Issuer
-    name: {{ include "kthena.name" . }}-infer-router-webhook-issuer
-  secretName: {{ .Values.inferRouter.webhook.tls.secretName }}
+    name: {{ include "kthena.name" . }}-kthena-router-webhook-issuer
+  secretName: {{ .Values.kthenaRouter.webhook.tls.secretName }}
 {{- end }}

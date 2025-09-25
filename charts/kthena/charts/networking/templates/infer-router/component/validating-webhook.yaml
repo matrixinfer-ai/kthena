@@ -1,14 +1,14 @@
-{{- if and .Values.inferRouter.enabled .Values.inferRouter.webhook.enabled }}
+{{- if and .Values.kthenaRouter.enabled .Values.kthenaRouter.webhook.enabled }}
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
-  name: {{ include "kthena.name" . }}-infer-router-validating-webhook
+  name: {{ include "kthena.name" . }}-kthena-router-validating-webhook
   labels:
-    app.kubernetes.io/component: infer-router
+    app.kubernetes.io/component: kthena-router
     {{- include "kthena.labels" . | nindent 4 }}
   {{- if .Values.global.certManager.enabled }}
   annotations:
-    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "kthena.name" . }}-infer-router-webhook-cert
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "kthena.name" . }}-kthena-router-webhook-cert
   {{- end }}
 webhooks:
   - name: validate-networking-volcano-sh-v1alpha1-modelroute.volcano.sh
@@ -18,12 +18,12 @@ webhooks:
     timeoutSeconds: 30
     clientConfig:
       service:
-        name: {{ include "kthena.name" . }}-infer-router-webhook
+        name: {{ include "kthena.name" . }}-kthena-router-webhook
         namespace: {{ .Release.Namespace }}
         path: "/validate-modelroute"
-        port: {{ .Values.inferRouter.webhook.servicePort }}
+        port: {{ .Values.kthenaRouter.webhook.servicePort }}
       {{- if not .Values.global.certManager.enabled }}
-      caBundle: {{ required "inferRouter.webhook.caBundle is required when cert-manager is disabled" .Values.inferRouter.webhook.caBundle }}
+      caBundle: {{ required "kthenaRouter.webhook.caBundle is required when cert-manager is disabled" .Values.kthenaRouter.webhook.caBundle }}
       {{- else }}
       caBundle: ""
       {{- end }}
@@ -40,12 +40,12 @@ webhooks:
     timeoutSeconds: 30
     clientConfig:
       service:
-        name: {{ include "kthena.name" . }}-infer-router-webhook
+        name: {{ include "kthena.name" . }}-kthena-router-webhook
         namespace: {{ .Release.Namespace }}
         path: "/validate-modelserver"
-        port: {{ .Values.inferRouter.webhook.servicePort }}
+        port: {{ .Values.kthenaRouter.webhook.servicePort }}
       {{- if not .Values.global.certManager.enabled }}
-      caBundle: {{ required "inferRouter.webhook.caBundle is required when cert-manager is disabled" .Values.inferRouter.webhook.caBundle }}
+      caBundle: {{ required "kthenaRouter.webhook.caBundle is required when cert-manager is disabled" .Values.kthenaRouter.webhook.caBundle }}
       {{- else }}
       caBundle: ""
       {{- end }}

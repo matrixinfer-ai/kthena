@@ -1,15 +1,15 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: infer-router
+  name: kthena-router
   labels:
-    app.kubernetes.io/component: infer-router-role-binding
+    app.kubernetes.io/component: kthena-router-role-binding
     {{- include "kthena.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: infer-router
+  name: kthena-router
 subjects:
   - kind: ServiceAccount
-    name: {{ include "kthena.name" . }}-infer-router
+    name: {{ include "kthena.name" . }}-kthena-router
     namespace: {{ .Release.Namespace }}

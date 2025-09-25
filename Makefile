@@ -115,7 +115,7 @@ lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 .PHONY: build
 build: generate fmt vet
 	go build -o bin/infer-controller cmd/infer-controller/main.go
-	go build -o bin/infer-router cmd/infer-router/main.go
+	go build -o bin/kthena-router cmd/kthena-router/main.go
 	go build -o bin/model-controller cmd/model-controller/main.go
 	go build -o bin/autoscaler cmd/autoscaler/main.go
 	go build -o bin/registry-webhook cmd/registry-webhook/main.go
@@ -125,13 +125,13 @@ build: generate fmt vet
 IMG_MODELINFER ?= ${HUB}/infer-controller:${TAG}
 IMG_MODELCONTROLLER ?= ${HUB}/model-controller:${TAG}
 IMG_AUTOSCALER ?= ${HUB}/autoscaler:${TAG}
-IMG_ROUTER ?= ${HUB}/infer-router:${TAG}
+IMG_ROUTER ?= ${HUB}/kthena-router:${TAG}
 IMG_REGISTRY_WEBHOOK ?= ${HUB}/registry-webhook:${TAG}
 IMG_MODELINFER_WEBHOOK ?= ${HUB}/modelinfer-webhook:${TAG}
 
 .PHONY: docker-build-router
 docker-build-router: generate
-	$(CONTAINER_TOOL) build -t ${IMG_ROUTER} -f docker/Dockerfile.infer-router .
+	$(CONTAINER_TOOL) build -t ${IMG_ROUTER} -f docker/Dockerfile.kthena-router .
 
 .PHONY: docker-build-modelinfer
 docker-build-modelinfer: generate 

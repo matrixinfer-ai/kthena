@@ -44,7 +44,7 @@ For external API access, configure the infer router TLS settings:
 
 ```yaml
 networking:
-  inferRouter:
+  kthenaRouter:
     enabled: true
     tls:
       enabled: true
