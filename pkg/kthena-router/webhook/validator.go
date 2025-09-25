@@ -61,7 +61,7 @@ func NewKthenaRouterValidator(kubeClient kubernetes.Interface, modelInferClient 
 	}
 }
 
-func (v *KthenaRouterValidator) Run(tlsCertFile, tlsPrivateKey string, stopCh <-chan struct{}) {
+func (v *KthenaRouterValidator) Run(ctx context.Context, tlsCertFile, tlsPrivateKey string) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/validate-modelroute", v.HandleModelRoute)
 	mux.HandleFunc("/validate-modelserver", v.HandleModelServer)
@@ -82,7 +82,7 @@ func (v *KthenaRouterValidator) Run(tlsCertFile, tlsPrivateKey string, stopCh <-
 	}()
 
 	// shutdown gracefully shuts down the server
-	<-stopCh
+	<-ctx.Done()
 	v.shutdown()
 }
 

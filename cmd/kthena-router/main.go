@@ -18,12 +18,10 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/spf13/pflag"
 	"k8s.io/client-go/kubernetes"
@@ -116,52 +114,7 @@ func runWebhook(ctx context.Context, port int, certFile, keyFile string) {
 
 	validator := routerwebhook.NewKthenaRouterValidator(kubeClient, kthenaClient, port)
 
-	stopCh := make(chan struct{})
-
-	go func() {
-		<-ctx.Done()
-		close(stopCh)
-	}()
-
-	if err := waitForTLSFiles(ctx, certFile, keyFile); err != nil {
-		if errors.Is(err, context.Canceled) {
-			klog.Info("Context cancelled before TLS certificates became available")
-			return
-		}
-		klog.Fatalf("Failed while waiting for webhook TLS certificates: %v", err)
-	}
-
-	go validator.Run(certFile, keyFile, stopCh)
+	go validator.Run(ctx, certFile, keyFile)
 
 	klog.Infof("Webhook server running on port %d", port)
-}
-
-func waitForTLSFiles(ctx context.Context, files ...string) error {
-	ticker := time.NewTicker(2 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		allReady := true
-		for _, file := range files {
-			if _, err := os.Stat(file); err != nil {
-				if os.IsNotExist(err) {
-					allReady = false
-					break
-				}
-				return err
-			}
-		}
-
-		if allReady {
-			return nil
-		}
-
-		klog.Infof("Waiting for webhook TLS certificates to become available at %v", files)
-
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-ticker.C:
-		}
-	}
 }
