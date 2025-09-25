@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: model-controller-config
+  name: model-booster-controller-config
   namespace: {{ .Release.Namespace }}
   labels:
     app.kubernetes.io/component: model-controller
     {{- include "kthena.labels" . | nindent 4 }}
 data:
-  model_infer_downloader_image: "{{ .Values.modelController.downloaderImage.repository }}:{{ .Values.modelController.downloaderImage.tag }}"
-  model_infer_runtime_image: "{{ .Values.modelController.runtimeImage.repository }}:{{ .Values.modelController.runtimeImage.tag }}"
+  model_serving_downloader_image: "{{ .Values.modelController.downloaderImage.repository }}:{{ .Values.modelController.downloaderImage.tag }}"
+  model_serving_runtime_image: "{{ .Values.modelController.runtimeImage.repository }}:{{ .Values.modelController.runtimeImage.tag }}"

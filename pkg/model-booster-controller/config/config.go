@@ -22,42 +22,42 @@ import (
 )
 
 const (
-	// DefaultModelInferDownloaderImage is the default image used for downloading models.
-	DefaultModelInferDownloaderImage = "kthena/downloader:latest"
-	// DefaultModelInferRuntimeImage is the default image used for running model inference.
-	DefaultModelInferRuntimeImage = "kthena/runtime:latest"
-	DefaultKVEventsPublisher      = "zmq"
-	DefaultKVEventsTopic          = "kv-events"
-	DefaultKVEventsEndpoint       = "tcp://*:5557"
+	// DefaultDownloaderImage is the default image used for downloading models.
+	DefaultDownloaderImage = "kthena/downloader:latest"
+	// DefaultRuntimeImage is the default image used for running model inference.
+	DefaultRuntimeImage      = "kthena/runtime:latest"
+	DefaultKVEventsPublisher = "zmq"
+	DefaultKVEventsTopic     = "kv-events"
+	DefaultKVEventsEndpoint  = "tcp://*:5557"
 )
 
 type ParseConfig struct {
-	modelInferDownloaderImage string
-	modelInferRuntimeImage    string
+	downloaderImage string
+	runtimeImage    string
 }
 
 var Config ParseConfig
 
-func (p *ParseConfig) ModelInferDownloaderImage() string {
-	if len(p.modelInferDownloaderImage) == 0 {
-		return DefaultModelInferDownloaderImage
+func (p *ParseConfig) DownloaderImage() string {
+	if len(p.downloaderImage) == 0 {
+		return DefaultDownloaderImage
 	}
-	return p.modelInferDownloaderImage
+	return p.downloaderImage
 }
 
-func (p *ParseConfig) SetModelInferDownloaderImage(image string) {
-	p.modelInferDownloaderImage = image
+func (p *ParseConfig) SetDownloaderImage(image string) {
+	p.downloaderImage = image
 }
 
-func (p *ParseConfig) ModelInferRuntimeImage() string {
-	if len(p.modelInferRuntimeImage) == 0 {
-		return DefaultModelInferRuntimeImage
+func (p *ParseConfig) RuntimeImage() string {
+	if len(p.runtimeImage) == 0 {
+		return DefaultRuntimeImage
 	}
-	return p.modelInferRuntimeImage
+	return p.runtimeImage
 }
 
-func (p *ParseConfig) SetModelInferRuntimeImage(image string) {
-	p.modelInferRuntimeImage = image
+func (p *ParseConfig) SetRuntimeImage(image string) {
+	p.runtimeImage = image
 }
 
 type KVEventsConfig struct {

@@ -93,7 +93,7 @@ func TestGetCachePath(t *testing.T) {
 	}
 }
 
-func TestCreateModelInferResources(t *testing.T) {
+func TestCreateModelServingResources(t *testing.T) {
 	tests := []struct {
 		name         string
 		input        *workload.ModelBooster
@@ -103,17 +103,17 @@ func TestCreateModelInferResources(t *testing.T) {
 		{
 			name:     "CacheVolume_HuggingFace_HostPath",
 			input:    loadYaml[workload.ModelBooster](t, "testdata/input/model.yaml"),
-			expected: []*workload.ModelServing{loadYaml[workload.ModelServing](t, "testdata/expected/model-infer.yaml")},
+			expected: []*workload.ModelServing{loadYaml[workload.ModelServing](t, "testdata/expected/model-serving.yaml")},
 		},
 		{
 			name:     "PD disaggregation",
 			input:    loadYaml[workload.ModelBooster](t, "testdata/input/pd-disaggregated-model.yaml"),
-			expected: []*workload.ModelServing{loadYaml[workload.ModelServing](t, "testdata/expected/disaggregated-model-infer.yaml")},
+			expected: []*workload.ModelServing{loadYaml[workload.ModelServing](t, "testdata/expected/disaggregated-model-serving.yaml")},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := BuildModelInfer(tt.input)
+			got, err := BuildModelServing(tt.input)
 			if tt.expectErrMsg != "" {
 				assert.Contains(t, err.Error(), tt.expectErrMsg)
 				return

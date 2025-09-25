@@ -46,12 +46,12 @@ func TestReconcile(t *testing.T) {
 	// Load test data
 	model := loadYaml[workload.ModelBooster](t, "../convert/testdata/input/model.yaml")
 
-	// Case1: Create a model with ASP, and then model infer, model server, model route, ASP, ASP binding should be created.
+	// Case1: Create a model with ASP, and then model serving, model server, model route, ASP, ASP binding should be created.
 	// Step1. Create model
 	createdModel, err := kthenaClient.WorkloadV1alpha1().ModelBoosters(model.Namespace).Create(ctx, model, metav1.CreateOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, createdModel)
-	// Step2. Check that ASP, ASP binding, model infer, model server, model route are created
+	// Step2. Check that ASP, ASP binding, model serving, model server, model route are created
 	assert.True(t, waitForCondition(func() bool {
 		aspBindings, err := kthenaClient.WorkloadV1alpha1().AutoscalingPolicyBindings(model.Namespace).List(ctx, metav1.ListOptions{})
 		if err != nil {
@@ -63,10 +63,10 @@ func TestReconcile(t *testing.T) {
 	aspList, err := kthenaClient.WorkloadV1alpha1().AutoscalingPolicies(model.Namespace).List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
 	assert.Len(t, aspList.Items, 1, "Expected 1 AutoscalingPolicy to be created")
-	// model infer should be created
-	modelInfers, err := kthenaClient.WorkloadV1alpha1().ModelServings(model.Namespace).List(ctx, metav1.ListOptions{})
+	// model serving should be created
+	modelServingList, err := kthenaClient.WorkloadV1alpha1().ModelServings(model.Namespace).List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
-	assert.Len(t, modelInfers.Items, 1, "Expected 1 ModelServing to be created")
+	assert.Len(t, modelServingList.Items, 1, "Expected 1 ModelServing to be created")
 	// model server should be created
 	modelServers, err := kthenaClient.NetworkingV1alpha1().ModelServers(model.Namespace).List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
@@ -75,11 +75,11 @@ func TestReconcile(t *testing.T) {
 	modelRoutes, err := kthenaClient.NetworkingV1alpha1().ModelRoutes(model.Namespace).List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
 	assert.Len(t, modelRoutes.Items, 1, "Expected 1 ModelRoute to be create")
-	// Step3. mock model infer status available
-	modelInfer := &modelInfers.Items[0]
-	meta.SetStatusCondition(&modelInfer.Status.Conditions, newCondition(string(workload.ModelServingAvailable),
+	// Step3. mock model serving status available
+	modelServing := &modelServingList.Items[0]
+	meta.SetStatusCondition(&modelServing.Status.Conditions, newCondition(string(workload.ModelServingAvailable),
 		metav1.ConditionTrue, "AllGroupsReady", "AllGroupsReady"))
-	_, err = kthenaClient.WorkloadV1alpha1().ModelServings(model.Namespace).UpdateStatus(ctx, modelInfer, metav1.UpdateOptions{})
+	_, err = kthenaClient.WorkloadV1alpha1().ModelServings(model.Namespace).UpdateStatus(ctx, modelServing, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 	// Step4. Check that model condition should be active
 	assert.True(t, waitForCondition(func() bool {
@@ -107,7 +107,7 @@ func TestReconcile(t *testing.T) {
 		return weight == *modelRoutes.Items[0].Spec.Rules[0].TargetModels[0].Weight
 	}))
 
-	// Case3: delete model. Because we are not running in a real K8s cluster, model server, model route, model infer,
+	// Case3: delete model. Because we are not running in a real K8s cluster, model server, model route, model serving,
 	// ASP and ASP binding will not be deleted automatically. So here only check if model is deleted.
 	err = kthenaClient.WorkloadV1alpha1().ModelBoosters(model.Namespace).Delete(ctx, model.Name, metav1.DeleteOptions{})
 	assert.NoError(t, err)
@@ -139,8 +139,8 @@ func TestReconcile_ReturnsError(t *testing.T) {
 		assert.Errorf(t, err, "invalid resource key: //")
 	})
 
-	// Case2: Create ModelBooster infer failed
-	t.Run("CreateModelInferFailed", func(t *testing.T) {
+	// Case2: Create ModelServing failed
+	t.Run("CreateModelServingFailed", func(t *testing.T) {
 		model := &workload.ModelBooster{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "not-supported-model",
@@ -202,12 +202,12 @@ func TestTriggerModel(t *testing.T) {
 	kthenaClient := kthenafake.NewClientset()
 	controller := NewModelController(kubeClient, kthenaClient)
 	assert.NotNil(t, &controller)
-	modelInfer := loadYaml[workload.ModelServing](t, "../convert/testdata/expected/model-infer.yaml")
+	modelServing := loadYaml[workload.ModelServing](t, "../convert/testdata/expected/model-serving.yaml")
 	// invalid new
-	controller.triggerModel(modelInfer, "invalid")
+	controller.triggerModel(modelServing, "invalid")
 	assert.Equal(t, 0, controller.workQueue.Len())
 	// invalid old
-	controller.triggerModel("invalid", modelInfer)
+	controller.triggerModel("invalid", modelServing)
 	assert.Equal(t, 0, controller.workQueue.Len())
 }
 

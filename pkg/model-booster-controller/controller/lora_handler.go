@@ -84,9 +84,9 @@ func (mc *ModelController) hasOnlyLoraAdaptersChanged(oldModel, newModel *worklo
 	return hasLoraChanges
 }
 
-// isModelInferReady checks if ModelServing is ready for LoRA adapter updates
-func (mc *ModelController) isModelInferReady(modelInfer *workload.ModelServing) bool {
-	return modelInfer.Status.AvailableReplicas > 0
+// isModelServingReady checks if ModelServing is ready for LoRA adapter updates
+func (mc *ModelController) isModelServingReady(modelServing *workload.ModelServing) bool {
+	return modelServing.Status.AvailableReplicas > 0
 }
 
 // LoraUpdateResult tracks the result of LoRA adapter updates across multiple replicas
@@ -99,14 +99,14 @@ type LoraUpdateResult struct {
 }
 
 // updateLoraAdapters updates LoRA adapters for a specific backend across all replicas
-func (mc *ModelController) updateLoraAdapters(ctx context.Context, newBackend, oldBackend *workload.ModelBackend, modelInfer *workload.ModelServing) error {
+func (mc *ModelController) updateLoraAdapters(ctx context.Context, newBackend, oldBackend *workload.ModelBackend, modelServing *workload.ModelServing) error {
 	// Get runtime service URLs for all replicas
-	runtimeURLs, err := mc.getModelInferRuntimeURLs(modelInfer, newBackend)
+	runtimeURLs, err := mc.getModelServingRuntimeURLs(modelServing, newBackend)
 	if err != nil {
-		return fmt.Errorf("failed to get runtime URLs for ModelServing %s: %v", modelInfer.Name, err)
+		return fmt.Errorf("failed to get runtime URLs for ModelServing %s: %v", modelServing.Name, err)
 	}
 
-	klog.Infof("Updating LoRA adapters for ModelServing %s across %d replicas", modelInfer.Name, len(runtimeURLs))
+	klog.Infof("Updating LoRA adapters for ModelServing %s across %d replicas", modelServing.Name, len(runtimeURLs))
 
 	// Prepare adapter maps for comparison
 	oldAdapterMap := make(map[string]workload.LoraAdapter)
@@ -170,7 +170,7 @@ func (mc *ModelController) updateLoraAdapters(ctx context.Context, newBackend, o
 	}
 
 	klog.Infof("LoRA adapter update completed for ModelServing %s: %d/%d replicas successful",
-		modelInfer.Name, overallResult.SuccessReplicas, overallResult.TotalReplicas)
+		modelServing.Name, overallResult.SuccessReplicas, overallResult.TotalReplicas)
 	return nil
 }
 
@@ -238,15 +238,15 @@ func (mc *ModelController) loadLoraAdaptersToAllReplicas(ctx context.Context, ru
 	return result
 }
 
-// getModelInferRuntimeURLs constructs the runtime service URLs for all ModelServing pods
-func (mc *ModelController) getModelInferRuntimeURLs(modelInfer *workload.ModelServing, backend *workload.ModelBackend) ([]string, error) {
+// getModelServingRuntimeURLs constructs the runtime service URLs for all ModelServing pods
+func (mc *ModelController) getModelServingRuntimeURLs(modelServing *workload.ModelServing, backend *workload.ModelBackend) ([]string, error) {
 	// Get port from backend environment variables with default fallback to 8100
 	port := env.GetEnvValueOrDefault[int32](backend, env.RuntimePort, 8100)
 
 	// Get all available pod IPs for this ModelServing
-	podIPs, err := mc.getModelInferPodIPs(modelInfer)
+	podIPs, err := mc.getModelServingPodIPs(modelServing)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get pod IPs for ModelServing %s: %v", modelInfer.Name, err)
+		return nil, fmt.Errorf("failed to get pod IPs for ModelServing %s: %v", modelServing.Name, err)
 	}
 
 	var runtimeURLs []string
@@ -257,20 +257,20 @@ func (mc *ModelController) getModelInferRuntimeURLs(modelInfer *workload.ModelSe
 	return runtimeURLs, nil
 }
 
-// getModelInferPodIPs gets the IPs of all available pods for a ModelServing
-func (mc *ModelController) getModelInferPodIPs(modelInfer *workload.ModelServing) ([]string, error) {
+// getModelServingPodIPs gets the IPs of all available pods for a ModelServing
+func (mc *ModelController) getModelServingPodIPs(modelServing *workload.ModelServing) ([]string, error) {
 	// Use PodLister to get pods with the ModelServing label
 	labelSelector := labels.SelectorFromSet(labels.Set{
-		workload.ModelServingNameLabelKey: modelInfer.Name,
+		workload.ModelServingNameLabelKey: modelServing.Name,
 	})
 
-	podList, err := mc.podsLister.Pods(modelInfer.Namespace).List(labelSelector)
+	podList, err := mc.podsLister.Pods(modelServing.Namespace).List(labelSelector)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list pods: %v", err)
 	}
 
 	if len(podList) == 0 {
-		return nil, fmt.Errorf("no pods found for ModelServing %s", modelInfer.Name)
+		return nil, fmt.Errorf("no pods found for ModelServing %s", modelServing.Name)
 	}
 
 	// Collect all running pod IPs
@@ -282,7 +282,7 @@ func (mc *ModelController) getModelInferPodIPs(modelInfer *workload.ModelServing
 	}
 
 	if len(podIPs) == 0 {
-		return nil, fmt.Errorf("no running pods with IP found for ModelServing %s", modelInfer.Name)
+		return nil, fmt.Errorf("no running pods with IP found for ModelServing %s", modelServing.Name)
 	}
 
 	return podIPs, nil
@@ -522,21 +522,21 @@ func (mc *ModelController) handleDynamicLoraUpdates(oldModel, newModel *workload
 		klog.Infof("Updating LoRA adapters for backend %s", backendName)
 
 		// Get ModelServing for this backend using the correct naming convention
-		modelInferName := utils.GetBackendResourceName(newModel.Name, newBackend.Name)
-		modelInfer, err := mc.modelServingLister.ModelServings(newModel.Namespace).Get(modelInferName)
+		modelServingName := utils.GetBackendResourceName(newModel.Name, newBackend.Name)
+		modelServing, err := mc.modelServingLister.ModelServings(newModel.Namespace).Get(modelServingName)
 		if err != nil {
-			klog.Errorf("Failed to get ModelServing %s: %v", modelInferName, err)
+			klog.Errorf("Failed to get ModelServing %s: %v", modelServingName, err)
 			continue
 		}
 
 		// Check if ModelServing is ready
-		if !mc.isModelInferReady(modelInfer) {
-			klog.Warningf("ModelServing %s is not ready, skipping LoRA adapter update", modelInferName)
+		if !mc.isModelServingReady(modelServing) {
+			klog.Warningf("ModelServing %s is not ready, skipping LoRA adapter update", modelServingName)
 			continue
 		}
 
 		// Handle LoRA adapter changes
-		if err := mc.updateLoraAdapters(ctx, newBackend, oldBackend, modelInfer); err != nil {
+		if err := mc.updateLoraAdapters(ctx, newBackend, oldBackend, modelServing); err != nil {
 			klog.Errorf("Failed to update LoRA adapters for backend %s: %v", newBackend.Name, err)
 			continue
 		}

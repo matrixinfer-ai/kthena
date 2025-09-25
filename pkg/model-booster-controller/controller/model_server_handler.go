@@ -20,7 +20,7 @@ import (
 	"context"
 
 	networking "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
-	registryv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
+	workloadv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	"github.com/volcano-sh/kthena/pkg/model-booster-controller/convert"
 	"github.com/volcano-sh/kthena/pkg/model-booster-controller/utils"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -29,7 +29,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func (mc *ModelController) createOrUpdateModelServer(ctx context.Context, model *registryv1alpha1.ModelBooster) error {
+func (mc *ModelController) createOrUpdateModelServer(ctx context.Context, model *workloadv1alpha1.ModelBooster) error {
 	existingModelServers, err := mc.listModelServerByLabel(model)
 	if err != nil {
 		return err
@@ -76,7 +76,7 @@ func (mc *ModelController) createOrUpdateModelServer(ctx context.Context, model 
 	return nil
 }
 
-func (mc *ModelController) listModelServerByLabel(model *registryv1alpha1.ModelBooster) ([]*networking.ModelServer, error) {
+func (mc *ModelController) listModelServerByLabel(model *workloadv1alpha1.ModelBooster) ([]*networking.ModelServer, error) {
 	if modelServers, err := mc.modelServersLister.ModelServers(model.Namespace).List(labels.SelectorFromSet(map[string]string{
 		utils.OwnerUIDKey: string(model.UID),
 	})); err != nil {

@@ -42,10 +42,10 @@ type resourceSpec struct {
 	labels map[string]string
 }
 
-func TestIsInferGroupOutdated(t *testing.T) {
+func TestIsServingGroupOutdated(t *testing.T) {
 	ns := "test-ns"
 	groupName := "test-group"
-	group := datastore.InferGroup{Name: groupName}
+	group := datastore.ServingGroup{Name: groupName}
 	mi := &workloadv1alpha1.ModelServing{ObjectMeta: metav1.ObjectMeta{Namespace: ns}}
 	newHash := "hash123"
 
@@ -62,7 +62,7 @@ func TestIsInferGroupOutdated(t *testing.T) {
 	informerFactory.Start(stopCh)
 	informerFactory.WaitForCacheSync(stopCh)
 
-	c := &ModelInferController{
+	c := &ModelServingController{
 		podsLister:   podInformer.Lister(),
 		podsInformer: podInformer.Informer(),
 	}
@@ -119,13 +119,13 @@ func TestIsInferGroupOutdated(t *testing.T) {
 				err := indexer.Add(pod)
 				assert.NoError(t, err)
 			}
-			got := c.isInferGroupOutdated(group, mi.Namespace, newHash)
+			got := c.isServingGroupOutdated(group, mi.Namespace, newHash)
 			assert.Equal(t, tc.want, got)
 		})
 	}
 }
 
-func TestCheckInferGroupReady(t *testing.T) {
+func TestCheckServingGroupReady(t *testing.T) {
 	ns := "default"
 	groupName := "test-group"
 	newHash := "hash123"
@@ -142,7 +142,7 @@ func TestCheckInferGroupReady(t *testing.T) {
 	assert.NoError(t, err)
 	store := datastore.New()
 	// build controller
-	controller := &ModelInferController{
+	controller := &ModelServingController{
 		podsInformer: podInformer.Informer(),
 		podsLister:   podInformer.Lister(),
 		store:        store,
@@ -184,7 +184,7 @@ func TestCheckInferGroupReady(t *testing.T) {
 		}
 		err := indexer.Add(pod)
 		assert.NoError(t, err)
-		store.AddRunningPodToInferGroup(utils.GetNamespaceName(mi), groupName, pod.Name, newHash, roleLabel, roleName)
+		store.AddRunningPodToServingGroup(utils.GetNamespaceName(mi), groupName, pod.Name, newHash, roleLabel, roleName)
 	}
 
 	// Waiting for pod cache to sync
@@ -196,7 +196,7 @@ func TestCheckInferGroupReady(t *testing.T) {
 	})
 	assert.True(t, sync, "Pods should be found in cache")
 
-	ok, err := controller.checkInferGroupReady(mi, groupName)
+	ok, err := controller.checkServingGroupReady(mi, groupName)
 	assert.NoError(t, err)
 	assert.True(t, ok)
 
@@ -219,14 +219,14 @@ func TestCheckInferGroupReady(t *testing.T) {
 		return len(pods) == int(expectedPodNum)-1
 	})
 	assert.True(t, sync, "Pods should be found in cache after deletion")
-	store.DeleteRunningPodFromInferGroup(utils.GetNamespaceName(mi), groupName, "pod-1")
+	store.DeleteRunningPodFromServingGroup(utils.GetNamespaceName(mi), groupName, "pod-1")
 
-	ok, err = controller.checkInferGroupReady(mi, groupName)
+	ok, err = controller.checkServingGroupReady(mi, groupName)
 	assert.NoError(t, err)
 	assert.False(t, ok)
 }
 
-func TestIsInferGroupDeleted(t *testing.T) {
+func TestIsServingGroupDeleted(t *testing.T) {
 	ns := "default"
 	groupName := "test-mi-0"
 	otherGroupName := "other-group"
@@ -249,7 +249,7 @@ func TestIsInferGroupDeleted(t *testing.T) {
 	assert.NoError(t, err)
 
 	store := datastore.New()
-	controller := &ModelInferController{
+	controller := &ModelServingController{
 		podsInformer:     podInformer.Informer(),
 		servicesInformer: serviceInformer.Informer(),
 		podsLister:       podInformer.Lister(),
@@ -270,68 +270,68 @@ func TestIsInferGroupDeleted(t *testing.T) {
 	}
 
 	cases := []struct {
-		name             string
-		pods             []resourceSpec
-		services         []resourceSpec
-		inferGroupStatus datastore.InferGroupStatus
-		want             bool
+		name               string
+		pods               []resourceSpec
+		services           []resourceSpec
+		servingGroupStatus datastore.ServingGroupStatus
+		want               bool
 	}{
 		{
-			name:             "inferGroup status is not Deleting - should return false",
-			pods:             nil,
-			services:         nil,
-			inferGroupStatus: datastore.InferGroupCreating,
-			want:             false,
+			name:               "ServingGroup status is not Deleting - should return false",
+			pods:               nil,
+			services:           nil,
+			servingGroupStatus: datastore.ServingGroupCreating,
+			want:               false,
 		},
 		{
-			name:             "inferGroup status is Deleting - no resources - should return true",
-			pods:             nil,
-			services:         nil,
-			inferGroupStatus: datastore.InferGroupDeleting,
-			want:             true,
+			name:               "ServingGroup status is Deleting - no resources - should return true",
+			pods:               nil,
+			services:           nil,
+			servingGroupStatus: datastore.ServingGroupDeleting,
+			want:               true,
 		},
 		{
-			name: "inferGroup status is Deleting - target group pods exist - should return false",
+			name: "ServingGroup status is Deleting - target group pods exist - should return false",
 			pods: []resourceSpec{
 				{name: "pod-1", labels: map[string]string{workloadv1alpha1.GroupNameLabelKey: groupName}},
 			},
-			services:         nil,
-			inferGroupStatus: datastore.InferGroupDeleting,
-			want:             false,
+			services:           nil,
+			servingGroupStatus: datastore.ServingGroupDeleting,
+			want:               false,
 		},
 		{
-			name: "inferGroup status is Deleting - target group services exist - should return false",
+			name: "ServingGroup status is Deleting - target group services exist - should return false",
 			pods: nil,
 			services: []resourceSpec{
 				{name: "svc-1", labels: map[string]string{workloadv1alpha1.GroupNameLabelKey: groupName}},
 			},
-			inferGroupStatus: datastore.InferGroupDeleting,
-			want:             false,
+			servingGroupStatus: datastore.ServingGroupDeleting,
+			want:               false,
 		},
 		{
-			name: "inferGroup status is Deleting - both target group resources exist - should return false",
+			name: "ServingGroup status is Deleting - both target group resources exist - should return false",
 			pods: []resourceSpec{
 				{name: "pod-1", labels: map[string]string{workloadv1alpha1.GroupNameLabelKey: groupName}},
 			},
 			services: []resourceSpec{
 				{name: "svc-1", labels: map[string]string{workloadv1alpha1.GroupNameLabelKey: groupName}},
 			},
-			inferGroupStatus: datastore.InferGroupDeleting,
-			want:             false,
+			servingGroupStatus: datastore.ServingGroupDeleting,
+			want:               false,
 		},
 		{
-			name: "inferGroup status is Deleting - only other group resources exist - should return true",
+			name: "ServingGroup status is Deleting - only other group resources exist - should return true",
 			pods: []resourceSpec{
 				{name: "pod-1", labels: map[string]string{workloadv1alpha1.GroupNameLabelKey: otherGroupName}},
 			},
 			services: []resourceSpec{
 				{name: "svc-1", labels: map[string]string{workloadv1alpha1.GroupNameLabelKey: otherGroupName}},
 			},
-			inferGroupStatus: datastore.InferGroupDeleting,
-			want:             true,
+			servingGroupStatus: datastore.ServingGroupDeleting,
+			want:               true,
 		},
 		{
-			name: "inferGroup status is Deleting - mixed group resources - target group exists - should return false",
+			name: "ServingGroup status is Deleting - mixed group resources - target group exists - should return false",
 			pods: []resourceSpec{
 				{name: "pod-1", labels: map[string]string{workloadv1alpha1.GroupNameLabelKey: groupName}},
 				{name: "pod-2", labels: map[string]string{workloadv1alpha1.GroupNameLabelKey: otherGroupName}},
@@ -339,11 +339,11 @@ func TestIsInferGroupDeleted(t *testing.T) {
 			services: []resourceSpec{
 				{name: "svc-1", labels: map[string]string{workloadv1alpha1.GroupNameLabelKey: otherGroupName}},
 			},
-			inferGroupStatus: datastore.InferGroupDeleting,
-			want:             false,
+			servingGroupStatus: datastore.ServingGroupDeleting,
+			want:               false,
 		},
 		{
-			name: "inferGroup status is Deleting - multiple target group resources - should return false",
+			name: "ServingGroup status is Deleting - multiple target group resources - should return false",
 			pods: []resourceSpec{
 				{name: "pod-1", labels: map[string]string{workloadv1alpha1.GroupNameLabelKey: groupName}},
 				{name: "pod-2", labels: map[string]string{workloadv1alpha1.GroupNameLabelKey: groupName}},
@@ -352,8 +352,8 @@ func TestIsInferGroupDeleted(t *testing.T) {
 				{name: "svc-1", labels: map[string]string{workloadv1alpha1.GroupNameLabelKey: groupName}},
 				{name: "svc-2", labels: map[string]string{workloadv1alpha1.GroupNameLabelKey: groupName}},
 			},
-			inferGroupStatus: datastore.InferGroupDeleting,
-			want:             false,
+			servingGroupStatus: datastore.ServingGroupDeleting,
+			want:               false,
 		},
 	}
 
@@ -372,8 +372,8 @@ func TestIsInferGroupDeleted(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			store.AddInferGroup(utils.GetNamespaceName(mi), 0, "test-revision")
-			err := store.UpdateInferGroupStatus(utils.GetNamespaceName(mi), groupName, tc.inferGroupStatus)
+			store.AddServingGroup(utils.GetNamespaceName(mi), 0, "test-revision")
+			err := store.UpdateServingGroupStatus(utils.GetNamespaceName(mi), groupName, tc.servingGroupStatus)
 			assert.NoError(t, err)
 
 			// Add test pods
@@ -411,10 +411,10 @@ func TestIsInferGroupDeleted(t *testing.T) {
 			assert.True(t, sync, "Resources should be synced in cache")
 
 			// Test the function
-			got := controller.isInferGroupDeleted(mi, groupName)
-			assert.Equal(t, tc.want, got, "isInferGroupDeleted result should match expected")
+			got := controller.isServingGroupDeleted(mi, groupName)
+			assert.Equal(t, tc.want, got, "isServingGroupDeleted result should match expected")
 
-			store.DeleteInferGroup(utils.GetNamespaceName(mi), groupName)
+			store.DeleteServingGroup(utils.GetNamespaceName(mi), groupName)
 		})
 	}
 }
@@ -447,7 +447,7 @@ func TestIsRoleDeleted(t *testing.T) {
 	assert.NoError(t, err)
 
 	store := datastore.New()
-	controller := &ModelInferController{
+	controller := &ModelServingController{
 		podsInformer:     podInformer.Informer(),
 		servicesInformer: serviceInformer.Informer(),
 		podsLister:       podInformer.Lister(),
@@ -722,12 +722,12 @@ func TestIsRoleDeleted(t *testing.T) {
 			got := controller.isRoleDeleted(mi, groupName, roleName, roleID)
 			assert.Equal(t, tc.want, got, "isRoleDeleted result should match expected")
 
-			store.DeleteInferGroup(utils.GetNamespaceName(mi), groupName)
+			store.DeleteServingGroup(utils.GetNamespaceName(mi), groupName)
 		})
 	}
 }
 
-func TestModelInferController_ModelInferLifecycle(t *testing.T) {
+func TestModelServingControllerModelServingLifecycle(t *testing.T) {
 	// Create fake clients
 	kubeClient := kubefake.NewSimpleClientset()
 	kthenaClient := kthenafake.NewSimpleClientset()
@@ -738,7 +738,7 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 	kthenaInformerFactory := informersv1alpha1.NewSharedInformerFactory(kthenaClient, 0)
 
 	// Create controller
-	controller, err := NewModelInferController(kubeClient, kthenaClient, volcanoClient)
+	controller, err := NewModelServingController(kubeClient, kthenaClient, volcanoClient)
 	assert.NoError(t, err)
 
 	stop := make(chan struct{})
@@ -752,14 +752,14 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 
 	// Wait for cache sync
 	cache.WaitForCacheSync(stop,
-		controller.modelInfersInformer.HasSynced,
+		controller.modelServingsInformer.HasSynced,
 		controller.podsInformer.HasSynced,
 		controller.servicesInformer.HasSynced,
 	)
 
 	// Test Case 1: ModelServing Creation
-	t.Run("ModelInferCreate", func(t *testing.T) {
-		mi := createStandardModelInfer("test-mi", 2, 3)
+	t.Run("ModelServingCreate", func(t *testing.T) {
+		mi := createStandardModelServing("test-mi", 2, 3)
 		// Add ModelServing to fake client
 		_, err := kthenaClient.WorkloadV1alpha1().ModelServings("default").Create(
 			context.Background(), mi, metav1.CreateOptions{})
@@ -773,7 +773,7 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		assert.True(t, found, "ModelServing should be found in cache after creation")
 
 		// Simulate controller processing the creation
-		err = controller.syncModelInfer(context.Background(), "default/test-mi")
+		err = controller.syncModelServing(context.Background(), "default/test-mi")
 		assert.NoError(t, err)
 
 		// Wait for pods to be created and synced to cache
@@ -787,17 +787,17 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		})
 		assert.True(t, found, "Pods should be created and synced to cache")
 
-		// Verify InferGroups were created in store
-		verifyInferGroups(t, controller, mi, 2)
-		// Verify each InferGroup has correct roles
+		// Verify ServingGroups were created in store
+		verifyServingGroups(t, controller, mi, 2)
+		// Verify each ServingGroup has correct roles
 		verifyRoles(t, controller, mi, 2)
-		// Verify each InferGroup has correct pods
+		// Verify each ServingGroup has correct pods
 		verifyPodCount(t, controller, mi, 2)
 	})
 
 	// Test Case 2: ModelServing Scale Up
-	t.Run("ModelInferScaleUp", func(t *testing.T) {
-		mi := createStandardModelInfer("test-mi-scale-up", 1, 2)
+	t.Run("ModelServingScaleUp", func(t *testing.T) {
+		mi := createStandardModelServing("test-mi-scale-up", 1, 2)
 		// Create initial ModelServing
 		_, err := kthenaClient.WorkloadV1alpha1().ModelServings("default").Create(
 			context.Background(), mi, metav1.CreateOptions{})
@@ -811,15 +811,15 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		assert.True(t, found, "ModelServing should be found in cache after creation")
 
 		// Process initial creation
-		err = controller.syncModelInfer(context.Background(), "default/test-mi-scale-up")
+		err = controller.syncModelServing(context.Background(), "default/test-mi-scale-up")
 		assert.NoError(t, err)
 
-		// Verify InferGroups initial state
-		verifyInferGroups(t, controller, mi, 1)
+		// Verify ServingGroups initial state
+		verifyServingGroups(t, controller, mi, 1)
 
 		// Update ModelServing to scale up
 		updatedMI := mi.DeepCopy()
-		updatedMI.Spec.Replicas = ptr.To[int32](3) // Scale up to 3 InferGroups
+		updatedMI.Spec.Replicas = ptr.To[int32](3) // Scale up to 3 ServingGroups
 
 		_, err = kthenaClient.WorkloadV1alpha1().ModelServings("default").Update(
 			context.Background(), updatedMI, metav1.UpdateOptions{})
@@ -833,7 +833,7 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		assert.True(t, found, "Updated ModelServing should be found in cache")
 
 		// Process the update
-		err = controller.syncModelInfer(context.Background(), "default/test-mi-scale-up")
+		err = controller.syncModelServing(context.Background(), "default/test-mi-scale-up")
 		assert.NoError(t, err)
 
 		// Wait for pods to be created and synced to cache
@@ -847,17 +847,17 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		})
 		assert.True(t, found, "Pods should be created and synced to cache")
 
-		// Verify InferGroups were created in store
-		verifyInferGroups(t, controller, updatedMI, 3)
-		// Verify each InferGroup has correct roles
+		// Verify ServingGroups were created in store
+		verifyServingGroups(t, controller, updatedMI, 3)
+		// Verify each ServingGroup has correct roles
 		verifyRoles(t, controller, updatedMI, 3)
-		// Verify each InferGroup has correct pods
+		// Verify each ServingGroup has correct pods
 		verifyPodCount(t, controller, updatedMI, 3)
 	})
 
 	// Test Case 3: ModelServing Update - Scale Down Replicas
-	t.Run("ModelInferUpdateScaleDown", func(t *testing.T) {
-		mi := createStandardModelInfer("test-mi-scale-down", 3, 2)
+	t.Run("ModelServingUpdateScaleDown", func(t *testing.T) {
+		mi := createStandardModelServing("test-mi-scale-down", 3, 2)
 		// Create initial ModelServing
 		_, err := kthenaClient.WorkloadV1alpha1().ModelServings("default").Create(
 			context.Background(), mi, metav1.CreateOptions{})
@@ -871,7 +871,7 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		assert.True(t, found, "ModelServing should be found in cache after creation")
 
 		// Process initial creation
-		err = controller.syncModelInfer(context.Background(), "default/test-mi-scale-down")
+		err = controller.syncModelServing(context.Background(), "default/test-mi-scale-down")
 		assert.NoError(t, err)
 
 		// Wait for pods to be created and synced to cache
@@ -886,13 +886,13 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		assert.True(t, found, "Pods should be created and synced to cache")
 
 		// Initial status check
-		verifyInferGroups(t, controller, mi, 3)
+		verifyServingGroups(t, controller, mi, 3)
 		verifyPodCount(t, controller, mi, 3)
 		verifyRoles(t, controller, mi, 3)
 
 		// Update ModelServing to scale down
 		updatedMI := mi.DeepCopy()
-		updatedMI.Spec.Replicas = ptr.To[int32](1) // Scale up to 1 InferGroups
+		updatedMI.Spec.Replicas = ptr.To[int32](1) // Scale up to 1 ServingGroups
 
 		_, err = kthenaClient.WorkloadV1alpha1().ModelServings("default").Update(
 			context.Background(), updatedMI, metav1.UpdateOptions{})
@@ -906,7 +906,7 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		assert.True(t, found, "Updated ModelServing should be found in cache")
 
 		// Process the update
-		err = controller.syncModelInfer(context.Background(), "default/test-mi-scale-down")
+		err = controller.syncModelServing(context.Background(), "default/test-mi-scale-down")
 		assert.NoError(t, err)
 
 		requirement, err := labels.NewRequirement(
@@ -954,17 +954,17 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		})
 		assert.True(t, found, "Pods should be created and synced to cache")
 
-		// Verify InferGroups were created in store
-		verifyInferGroups(t, controller, updatedMI, 1)
-		// Verify each InferGroup has correct roles
+		// Verify ServingGroups were created in store
+		verifyServingGroups(t, controller, updatedMI, 1)
+		// Verify each ServingGroup has correct roles
 		verifyRoles(t, controller, updatedMI, 1)
-		// Verify each InferGroup has correct pods
+		// Verify each ServingGroup has correct pods
 		verifyPodCount(t, controller, updatedMI, 1)
 	})
 
 	// Test Case 4: ModelServing Update - Role Replicas Scale Up
-	t.Run("ModelInferRoleReplicasScaleUp", func(t *testing.T) {
-		mi := createStandardModelInfer("test-role-scale-up", 2, 1)
+	t.Run("ModelServingRoleReplicasScaleUp", func(t *testing.T) {
+		mi := createStandardModelServing("test-role-scale-up", 2, 1)
 		// Create initial ModelServing
 		_, err := kthenaClient.WorkloadV1alpha1().ModelServings("default").Create(
 			context.Background(), mi, metav1.CreateOptions{})
@@ -978,11 +978,11 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		assert.True(t, found, "ModelServing should be found in cache after creation")
 
 		// Process initial creation
-		err = controller.syncModelInfer(context.Background(), "default/test-role-scale-up")
+		err = controller.syncModelServing(context.Background(), "default/test-role-scale-up")
 		assert.NoError(t, err)
 
-		// Verify InferGroups initial state
-		verifyInferGroups(t, controller, mi, 2)
+		// Verify ServingGroups initial state
+		verifyServingGroups(t, controller, mi, 2)
 
 		// Update ModelServing to role scale down
 		updatedMI := mi.DeepCopy()
@@ -1000,7 +1000,7 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		assert.True(t, found, "Updated ModelServing should be found in cache")
 
 		// Process the update
-		err = controller.syncModelInfer(context.Background(), "default/test-role-scale-up")
+		err = controller.syncModelServing(context.Background(), "default/test-role-scale-up")
 		assert.NoError(t, err)
 
 		// Wait for pods to be created and synced to cache
@@ -1014,17 +1014,17 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		})
 		assert.True(t, found, "Pods should be created and synced to cache")
 
-		// Verify InferGroups were created in store
-		verifyInferGroups(t, controller, updatedMI, 2)
-		// Verify each InferGroup has correct roles
+		// Verify ServingGroups were created in store
+		verifyServingGroups(t, controller, updatedMI, 2)
+		// Verify each ServingGroup has correct roles
 		verifyRoles(t, controller, updatedMI, 2)
-		// Verify each InferGroup has correct pods
+		// Verify each ServingGroup has correct pods
 		verifyPodCount(t, controller, updatedMI, 2)
 	})
 
 	// Test Case 5: ModelServing Update - Role Replicas Scale Down
-	t.Run("ModelInferRoleReplicasScaleDown", func(t *testing.T) {
-		mi := createStandardModelInfer("test-role-scale-down", 2, 3)
+	t.Run("ModelServingRoleReplicasScaleDown", func(t *testing.T) {
+		mi := createStandardModelServing("test-role-scale-down", 2, 3)
 
 		// Create initial ModelServing
 		_, err := kthenaClient.WorkloadV1alpha1().ModelServings("default").Create(
@@ -1039,7 +1039,7 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		assert.True(t, found, "ModelServing should be found in cache after creation")
 
 		// Process initial creation
-		err = controller.syncModelInfer(context.Background(), "default/test-role-scale-down")
+		err = controller.syncModelServing(context.Background(), "default/test-role-scale-down")
 		assert.NoError(t, err)
 
 		// Wait for pods to be created and synced to cache
@@ -1054,7 +1054,7 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		assert.True(t, found, "Pods should be created and synced to cache")
 
 		// Initial status check
-		verifyInferGroups(t, controller, mi, 2)
+		verifyServingGroups(t, controller, mi, 2)
 		verifyPodCount(t, controller, mi, 2)
 		verifyRoles(t, controller, mi, 2)
 
@@ -1074,7 +1074,7 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		assert.True(t, found, "Updated ModelServing should be found in cache")
 
 		// Process the update
-		err = controller.syncModelInfer(context.Background(), "default/test-role-scale-down")
+		err = controller.syncModelServing(context.Background(), "default/test-role-scale-down")
 		assert.NoError(t, err)
 
 		requirement, err := labels.NewRequirement(
@@ -1122,11 +1122,11 @@ func TestModelInferController_ModelInferLifecycle(t *testing.T) {
 		})
 		assert.True(t, found, "Pods should be created and synced to cache")
 
-		// Verify InferGroups were created in store
-		verifyInferGroups(t, controller, updatedMI, 2)
-		// Verify each InferGroup has correct roles
+		// Verify ServingGroups were created in store
+		verifyServingGroups(t, controller, updatedMI, 2)
+		// Verify each ServingGroup has correct roles
 		verifyRoles(t, controller, updatedMI, 2)
-		// Verify each InferGroup has correct pods
+		// Verify each ServingGroup has correct pods
 		verifyPodCount(t, controller, updatedMI, 2)
 	})
 }
@@ -1152,8 +1152,8 @@ func waitForObjectInCache(t *testing.T, timeout time.Duration, checkFunc func() 
 	}
 }
 
-// createStandardModelInfer Create a standard ModelServing
-func createStandardModelInfer(name string, replicas int32, roleReplicas int32) *workloadv1alpha1.ModelServing {
+// createStandardModelServing Create a standard ModelServing
+func createStandardModelServing(name string, replicas int32, roleReplicas int32) *workloadv1alpha1.ModelServing {
 	return &workloadv1alpha1.ModelServing{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "default",
@@ -1185,13 +1185,13 @@ func createStandardModelInfer(name string, replicas int32, roleReplicas int32) *
 	}
 }
 
-// verifyInferGroups Verify the number and name of InferGroup
-func verifyInferGroups(t *testing.T, controller *ModelInferController, mi *workloadv1alpha1.ModelServing, expectedCount int) {
-	groups, err := controller.store.GetInferGroupByModelInfer(utils.GetNamespaceName(mi))
+// verifyServingGroups Verify the number and name of ServingGroup
+func verifyServingGroups(t *testing.T, controller *ModelServingController, mi *workloadv1alpha1.ModelServing, expectedCount int) {
+	groups, err := controller.store.GetServingGroupByModelServing(utils.GetNamespaceName(mi))
 	assert.NoError(t, err)
-	assert.Equal(t, expectedCount, len(groups), fmt.Sprintf("Should have %d InferGroups", expectedCount))
+	assert.Equal(t, expectedCount, len(groups), fmt.Sprintf("Should have %d ServingGroups", expectedCount))
 
-	// Verify that the InferGroup name follows the expected pattern
+	// Verify that the ServingGroup name follows the expected pattern
 	expectedGroupNames := make([]string, expectedCount)
 	for i := 0; i < expectedCount; i++ {
 		expectedGroupNames[i] = fmt.Sprintf("%s-%d", mi.Name, i)
@@ -1201,11 +1201,11 @@ func verifyInferGroups(t *testing.T, controller *ModelInferController, mi *workl
 	for i, group := range groups {
 		actualGroupNames[i] = group.Name
 	}
-	assert.ElementsMatch(t, expectedGroupNames, actualGroupNames, "InferGroup names should follow expected pattern")
+	assert.ElementsMatch(t, expectedGroupNames, actualGroupNames, "ServingGroup names should follow expected pattern")
 }
 
-// verifyPodCount Verify the number of Pods in each InferGroup
-func verifyPodCount(t *testing.T, controller *ModelInferController, mi *workloadv1alpha1.ModelServing, expectedGroups int) {
+// verifyPodCount Verify the number of Pods in each ServingGroup
+func verifyPodCount(t *testing.T, controller *ModelServingController, mi *workloadv1alpha1.ModelServing, expectedGroups int) {
 	expectPodNum := utils.ExpectedPodNum(mi)
 	for i := 0; i < expectedGroups; i++ {
 		groupName := fmt.Sprintf("%s-%d", mi.Name, i)
@@ -1215,13 +1215,13 @@ func verifyPodCount(t *testing.T, controller *ModelInferController, mi *workload
 
 		groupPods, err := controller.podsLister.Pods(mi.Namespace).List(groupSelector)
 		assert.NoError(t, err)
-		assert.Equal(t, expectPodNum, len(groupPods), fmt.Sprintf("InferGroup %s should have %d pods", groupName, expectPodNum))
+		assert.Equal(t, expectPodNum, len(groupPods), fmt.Sprintf("ServingGroup %s should have %d pods", groupName, expectPodNum))
 	}
 }
 
 // verifyRoles Verify the number and name of Role
-func verifyRoles(t *testing.T, controller *ModelInferController, mi *workloadv1alpha1.ModelServing, expectedGroups int) {
-	// Traverse each InferGroup
+func verifyRoles(t *testing.T, controller *ModelServingController, mi *workloadv1alpha1.ModelServing, expectedGroups int) {
+	// Traverse each ServingGroup
 	for i := 0; i < expectedGroups; i++ {
 		groupName := fmt.Sprintf("%s-%d", mi.Name, i)
 
