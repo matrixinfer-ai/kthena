@@ -15,10 +15,7 @@ metadata:
       name: test-model
       uid: randomUID
 spec:
-  recoveryPolicy: InferGroupRecreate
   replicas: 0
-  rolloutStrategy:
-    type: InferGroupRollingUpdate
   schedulerName: ""
   template:
     restartGracePeriodSeconds: 60

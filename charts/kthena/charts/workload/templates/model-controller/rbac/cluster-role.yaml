@@ -12,24 +12,24 @@ rules:
       - list
       - watch
   - apiGroups:
-      - registry.kthena.ai
+      - workload.serving.volcano.sh
     resources:
-      - models
+      - modelboosters
     verbs:
       - get
       - list
       - patch
       - watch
   - apiGroups:
-      - registry.kthena.ai
+      - workload.serving.volcano.sh
     resources:
-      - models/status
+      - modelboosters/status
     verbs:
       - get
       - patch
       - update
   - apiGroups:
-      - registry.kthena.ai
+      - workload.serving.volcano.sh
     resources:
       - autoscalingpolicies
       - autoscalingpolicybindings
@@ -42,24 +42,24 @@ rules:
       - update
       - watch
   - apiGroups:
-      - registry.kthena.ai
+      - workload.serving.volcano.sh
     resources:
       - autoscalingpolicies/status
       - autoscalingpolicybindings/status
     verbs:
       - get
   - apiGroups:
-      - registry.kthena.ai
+      - workload.serving.volcano.sh
     resources:
       - autoscalingpolicies/finalizers
       - autoscalingpolicybindings/finalizers
-      - models/finalizers
+      - modelboosters/finalizers
     verbs:
       - update
   - apiGroups:
-      - workload.kthena.ai
+      - workload.serving.volcano.sh
     resources:
-      - modelinfers
+      - modelservings
     verbs:
       - create
       - delete
@@ -69,13 +69,13 @@ rules:
       - update
       - watch
   - apiGroups:
-      - workload.kthena.ai
+      - workload.serving.volcano.sh
     resources:
-      - modelinfers/status
+      - modelservings/status
     verbs:
       - get
   - apiGroups:
-      - networking.kthena.ai
+      - networking.serving.volcano.sh
     resources:
       - modelroutes
       - modelservers
@@ -88,7 +88,7 @@ rules:
       - update
       - watch
   - apiGroups:
-      - workload.kthena.ai
+      - networking.serving.volcano.sh
     resources:
       - modelroutes/status
       - modelservers/status

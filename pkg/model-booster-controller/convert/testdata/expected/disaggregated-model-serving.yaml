@@ -15,10 +15,7 @@ metadata:
       name: ds-r1-qwen-7b-pd
       uid: randomUID
 spec:
-  recoveryPolicy: InferGroupRecreate
   replicas: 1
-  rolloutStrategy:
-    type: InferGroupRollingUpdate
   schedulerName: volcano
   template:
     restartGracePeriodSeconds: 60
