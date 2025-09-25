@@ -113,7 +113,7 @@ func TestCreateModelInferResources(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := BuildModelInfer(tt.input)
+			got, err := BuildModelServing(tt.input)
 			if tt.expectErrMsg != "" {
 				assert.Contains(t, err.Error(), tt.expectErrMsg)
 				return

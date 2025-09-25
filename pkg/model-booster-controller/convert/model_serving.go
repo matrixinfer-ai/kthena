@@ -51,8 +51,8 @@ const (
 //go:embed templates/*
 var templateFS embed.FS
 
-// BuildModelInfer creates ModelServing objects based on the model's backends.
-func BuildModelInfer(model *workload.ModelBooster) ([]*workload.ModelServing, error) {
+// BuildModelServing creates ModelServing objects based on the model's backends.
+func BuildModelServing(model *workload.ModelBooster) ([]*workload.ModelServing, error) {
 	var infers []*workload.ModelServing
 	for idx, backend := range model.Spec.Backends {
 		var infer *workload.ModelServing
