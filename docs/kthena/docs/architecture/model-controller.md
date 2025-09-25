@@ -8,11 +8,12 @@ As an optional component of the Kthena project, the Model Controller primarily p
 
 ## Feature Description
 
-The Model Controller provides one-stop deployment capabilities, enabling users to only need to be aware of `Model` information while ignoring the complex interaction specifications between various components within ModelInfer, such as the use of some built-in labels and the binding relationships between CRDs. The following diagram illustrates the interaction principle of the Model Controller:
+The Model Controller provides one-stop deployment capabilities, enabling users to only need to be aware of `ModelBooster` information while ignoring the complex interaction specifications between various components within ModelServing, such as the use of some built-in labels and the binding relationships between CRDs. The following diagram illustrates the interaction principle of the Model Controller:
 
 <LightboxImage src="/img/diagrams/architecture/model-controller-architecture.svg" alt="Architecture Overview"></LightboxImage>
 
-The Model Controller subscribes to the creation/modification/deletion events of the `Model` CR and synchronizes them to the CRs of `ModelServer`, `ModelRoute`, `ModelInfer`, `AutoscalingPolicy`, and `AutoscalingPolicyBinding` that have the same semantic content as the corresponding events. All these CRs will carry the label `registry.volcano.sh/managed-by=registry.volcano.sh`.
+<!-- TODO: Update this line after renaming -->
+The Model Controller subscribes to the creation/modification/deletion events of the `ModelBooster` CR and synchronizes them to the CRs of `ModelServer`, `ModelRoute`, `ModelServing`, `AutoscalingPolicy`, and `AutoscalingPolicyBinding` that have the same semantic content as the corresponding events. All these CRs will carry the label `registry.volcano.sh/managed-by=registry.volcano.sh`.
 
 ## Example
 

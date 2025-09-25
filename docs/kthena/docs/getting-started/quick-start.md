@@ -20,7 +20,7 @@ We'll install a model from Hugging Face and perform inference using a simple cur
 Create the example model in your namespace (replace `<your-namespace>` with your actual namespace):
 
 ```shell
-kubectl apply -n <your-namespace> -f https://raw.githubusercontent.com/volcano-sh/kthena/refs/heads/main/examples/model/Qwen2.5-0.5B-Instruct.yaml
+kubectl apply -n <your-namespace> -f https://raw.githubusercontent.com/volcano-sh/kthena/refs/heads/main/examples/model-booster/Qwen2.5-0.5B-Instruct.yaml
 ```
 
 Content of the Model:
