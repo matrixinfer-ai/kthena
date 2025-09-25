@@ -48,7 +48,8 @@ the related resources will be deleted as well.
 
 ## Examples of Model CR
 
-You can find examples of model CR [here](https://github.com/matrixinfer-ai/matrixinfer/tree/main/examples/model)
+You can find examples of model CR [here](/examples/model/examples/model)
+You can find examples of model CR [here](/examples/model-booster)
 
 ## Advanced features
 

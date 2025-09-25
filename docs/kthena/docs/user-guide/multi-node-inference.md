@@ -8,9 +8,9 @@ With the development of LLM, the scale of model parameters has grown exponential
 
 The industry has proposed various innovative optimization strategies, such as PD-disaggregation and hybrid deployment of large and small models. These strategies have significantly changed the execution pattern of inference tasks, making inference instances no longer limited to the level of a single pod, but rather evolving into scenarios where multiple pods collaboratively complete a single inference prediction.
 
-To address this issue, kthena provides a new `ModelInfer` CR to describe specific inference depolyment, enabling flexible and diverse deployment methods for inference task pods.
+To address this issue, kthena provides a new `ModelServing` CR to describe specific inference depolyment, enabling flexible and diverse deployment methods for inference task pods.
 
-For a detailed definition of the `ModelInfer`, please refer to the [ModelInfer Reference](../reference/crd/workload.serving.volcano.sh.md) pages.
+For a detailed definition of the `ModelServing`, please refer to the [ModelServing Reference](../reference/crd/workload.volcano.sh.md) pages.
 
 ## Preparation
 
@@ -18,22 +18,22 @@ For a detailed definition of the `ModelInfer`, please refer to the [ModelInfer R
 
 - Kubernetes cluster with Kthena installed and [volcano](https://volcano.sh/en/docs/installation/) installed
 - Access to the Kthena examples repository
-- Basic understanding of ModelInfer CRD
+- Basic understanding of ModelServing CRD
 
 ### Geting Started
 
-Deploy [llama LLM inference engine](../../../../examples/model-infer/multi-node.yaml). Set the tensor parallel size is 8 and the pipeline parallel size is 2.
+Deploy [llama LLM inference engine](../../../../examples/model-serving/multi-node.yaml). Set the tensor parallel size is 8 and the pipeline parallel size is 2.
 
-You can run the following command to check the ModelInfer status and pod status in the cluster.
+You can run the following command to check the ModelServing status and pod status in the cluster.
 
 ```sh
-kubectl get modelinfer -oyaml | grep status -A 10
+kubectl get modelServing -oyaml | grep status -A 10
 
 status:
   availableReplicas: 1
   conditions:
   - lastTransitionTime: "2025-09-05T08:53:25Z"
-    message: All infer groups are ready
+    message: All Serving groups are ready
     reason: AllGroupsReady
     status: "True"
     type: Available
@@ -47,7 +47,7 @@ status:
   replicas: 1
   updatedReplicas: 1
 
-kubectl get pod -owide -l modelinfer.volcano.sh/name=llama-multinode
+kubectl get pod -owide -l modelserving.volcano.sh/name=llama-multinode
 
 NAMESPACE   NAME                          READY   STATUS    RESTARTS   AGE     IP            NODE           NOMINATED NODE   READINESS GATES
 default     llama-multinode-0-405b-0-0    1/1     Running   0          15m     10.244.0.56   192.168.5.12   <none>           <none>
@@ -56,11 +56,11 @@ default     llama-multinode-0-405b-1-0    1/1     Running   0          15m     1
 default     llama-multinode-0-405b-1-1    1/1     Running   0          15m     10.244.0.53   192.168.5.36   <none>           <none>
 ```
 
-**Note:** The first number in the pod name indicates which `InferGroup` this pod belongs to. The second number indicates which `Role` it belongs to. The third number indicates the pod's sequence number within `Role`.
+**Note:** The first number in the pod name indicates which `ServingGroup` this pod belongs to. The second number indicates which `Role` it belongs to. The third number indicates the pod's sequence number within `Role`.
 
 ## Scaling
 
-ModelInfer supports scale strategies at two levels: `InferGroup` and `Role`.
+ModelServing supports scale strategies at two levels: `ServingGroup` and `Role`.
 
 You can modify `modelServing.Spec.Replicas` to trigger scaling at the group level.
 Additionally, modifying `modelServing.Spec.Template.Role.Replicas` triggers role-level scaling.
@@ -72,7 +72,7 @@ Reduce the `modelServing.Spec.Template.Role.Replicas` from 2 to 1. To trigger a 
 You can see the result:
 
 ```sh
-kubectl get pod -l modelinfer.volcano.sh/name=llama-multinode
+kubectl get pod -l modelserving.volcano.sh/name=llama-multinode
 
 NAMESPACE            NAME                                          READY   STATUS    RESTARTS   AGE
 default              llama-multinode-0-405b-0-0                    1/1     Running   0          28m
@@ -81,14 +81,14 @@ default              llama-multinode-0-405b-0-1                    1/1     Runni
 
 You can see that all pods in `Role1` have been deleted.
 
-### InferGroup Level Scale Up
+### ServingGroup Level Scale Up
 
-Add the `modelServing.Spec.Replicas` from 1 to 2. To trigger a `InferGroup Level` scale up.
+Add the `modelServing.Spec.Replicas` from 1 to 2. To trigger a `ServingGroup Level` scale up.
 
 You can see the result:
 
 ```sh
-kubectl get pod -l modelinfer.volcano.sh/name=llama-multinode
+kubectl get pod -l modelserving.volcano.sh/name=llama-multinode
 
 NAMESPACE            NAME                                          READY   STATUS    RESTARTS   AGE
 default              llama-multinode-0-405b-0-0                    1/1     Running   0          35m
@@ -97,24 +97,24 @@ default              llama-multinode-1-405b-0-0                    1/1     Runni
 default              llama-multinode-1-405b-0-1                    1/1     Running   0          2m
 ```
 
-You can see that all roles in `InferGroup1` are created.
+You can see that all roles in `ServingGroup1` are created.
 
-You can also scale both the `InferGroup` and `Role Level`.
+You can also scale both the `ServingGroup` and `Role Level`.
 
 ## Rolling Update
 
-Currently, `ModelInfer` supports rolling upgrades at the `InferGroup` level, enabling users to configure `Partitions` to control the rolling process.
+Currently, `ModelServing` supports rolling upgrades at the `ServingGroup` level, enabling users to configure `Partitions` to control the rolling process.
 
-- Partition: Indicates the ordinal at which the `ModelInfer` should be partitioned for updates. During a rolling update, replicas with an ordinal greater than or equal to `Partition` will be updated. Replicas with an ordinal less than `Partition` will not be updated.
+- Partition: Indicates the ordinal at which the `ModelServing` should be partitioned for updates. During a rolling update, replicas with an ordinal greater than or equal to `Partition` will be updated. Replicas with an ordinal less than `Partition` will not be updated.
   
-### InferGroup Rolling Update
+### ServingGroup Rolling Update
 
 We configure the corresponding rolling update strategy for llama-multinode.
 
 ```yaml
 spec:
   rolloutStrategy:
-    type: InferGroupRollingUpdate
+    type: ServingGroupRollingUpdate
     rollingUpdateConfiguration:
       partition: 1
 ```
@@ -124,7 +124,7 @@ Modifying the parameters of entryTemplate or workerTemplate triggers a rolling u
 You can see the result:
 
 ```sh
-kubectl get pods -l modelinfer.volcano.sh/name=llama-multinode -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.containers[*].image}{"\n"}{end}'
+kubectl get pods -l modelserving.volcano.sh/name=llama-multinode -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.containers[*].image}{"\n"}{end}'
 
 llama-multinode-0-405b-0-0        vllm/vllm-openai:latest    
 llama-multinode-0-405b-0-1        vllm/vllm-openai:latest        
@@ -150,7 +150,7 @@ helm repo update
 helm install volcano volcano-sh/volcano -n volcano-system --create-namespace
 ```
 
-We will create podGroups based on modelinfer. Among these, the important one is `MinRoleReplicas`. Defines the minimum number of replicas required for each role in gang scheduling. This map allows users to specify different minimum replica requirements for different roles.
+We will create podGroups based on modelServing. Among these, the important one is `MinRoleReplicas`. Defines the minimum number of replicas required for each role in gang scheduling. This map allows users to specify different minimum replica requirements for different roles.
 
 - **Key:** role name
 - **Value:** minimum number of replicas required for that role
@@ -166,7 +166,7 @@ PodGroup can set the topology constraints of the job through the networkTopology
   - soft: Soft constraint, tasks are deployed within the same HyperNode as much as possible.
 - **highestTierAllowed:** Used with hard mode, indicating the highest tier of HyperNode allowed for job deployment. This field is not required when mode is soft.
 
-You can run the follow command to see the `PodGroup` created by the kthena base ob the `llama-multinode modelinfer`.
+You can run the follow command to see the `PodGroup` created by the kthena base ob the `llama-multinode modelServing`.
 
 ```sh
 kubectl get podgroup-0 -oyaml
@@ -179,14 +179,14 @@ metadata:
   creationTimestamp: "2025-09-05T08:43:40Z"
   generation: 9
   labels:
-    modelinfer.volcano.sh/group-name: llama-multinode-0
-    modelinfer.volcano.sh/name: llama-multinode
+    modelserving.volcano.sh/group-name: llama-multinode-0
+    modelserving.volcano.sh/name: llama-multinode
   name: llama-multinode-0
   namespace: default
   ownerReferences:
   - apiVersion: workload.volcano.sh/v1alpha1
     controller: true
-    kind: ModelInfer
+    kind: ModelServing
     name: llama-multinode
     uid: a08cd31a-9f39-450e-a3dc-bc868e08ce0a
   resourceVersion: "2621200"
@@ -211,7 +211,7 @@ status:
 ## Clean up
 
 ```sh
-kubectl delete modelinfer llama-multinode
+kubectl delete modelserving llama-multinode
 
 helm uninstall matrixinfe -n kthena-system
 
