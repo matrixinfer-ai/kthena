@@ -29,7 +29,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func (mc *ModelController) createOrUpdateModelServer(ctx context.Context, model *workloadv1alpha1.ModelBooster) error {
+func (mc *ModelBoosterController) createOrUpdateModelServer(ctx context.Context, model *workloadv1alpha1.ModelBooster) error {
 	existingModelServers, err := mc.listModelServerByLabel(model)
 	if err != nil {
 		return err
@@ -76,7 +76,7 @@ func (mc *ModelController) createOrUpdateModelServer(ctx context.Context, model 
 	return nil
 }
 
-func (mc *ModelController) listModelServerByLabel(model *workloadv1alpha1.ModelBooster) ([]*networking.ModelServer, error) {
+func (mc *ModelBoosterController) listModelServerByLabel(model *workloadv1alpha1.ModelBooster) ([]*networking.ModelServer, error) {
 	if modelServers, err := mc.modelServersLister.ModelServers(model.Namespace).List(labels.SelectorFromSet(map[string]string{
 		utils.OwnerUIDKey: string(model.UID),
 	})); err != nil {

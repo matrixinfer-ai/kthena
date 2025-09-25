@@ -77,7 +77,7 @@ func main() {
 	kubeClient := kubernetes.NewForConfigOrDie(config)
 	client := clientset.NewForConfigOrDie(config)
 	// create Model controller
-	mc := controller.NewModelController(kubeClient, client)
+	mc := controller.NewModelBoosterController(kubeClient, client)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -104,7 +104,7 @@ func main() {
 }
 
 // initLeaderElector inits a leader elector for leader election
-func initLeaderElector(kubeClient kubernetes.Interface, mc *controller.ModelController, workers int) (*leaderelection.LeaderElector, error) {
+func initLeaderElector(kubeClient kubernetes.Interface, mc *controller.ModelBoosterController, workers int) (*leaderelection.LeaderElector, error) {
 	resourceLock, err := newResourceLock(kubeClient)
 	if err != nil {
 		return nil, err
