@@ -22,19 +22,19 @@ modelServingController:
 
 servingWebhook:
   enabled: true
-  # replicas is the number of modelinfer-webhook instances to run.
+  # replicas is the number of model-serving-webhook instances to run.
   replicas: 1
   image:
-    # repository is the container image repository for the modelinfer-webhook.
+    # repository is the container image repository for the model-serving-webhook.
     repository: ghcr.io/volcano-sh/model-serving-webhook
-    # tag is the container image tag for the modelinfer-webhook.
+    # tag is the container image tag for the model-serving-webhook.
     # node: edit by CI. No need to modify manually
     tag: latest
-    # pullPolicy is the image pull policy for the modelinfer-webhook.
+    # pullPolicy is the image pull policy for the model-serving-webhook.
     pullPolicy: IfNotPresent
-    # args are the command line arguments for the modelinfer-webhook.
+    # args are the command line arguments for the model-serving-webhook.
     args: [ "--port=8443"]
-  # resource defines the resource limits and requests for the modelinfer-webhook.
+  # resource defines the resource limits and requests for the model-serving-webhook.
   resource:
     limits:
       cpu: 100m
