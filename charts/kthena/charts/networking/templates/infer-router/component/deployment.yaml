@@ -1,36 +1,46 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "kthena.name" . }}-infer-router
+  name: {{ include "kthena.name" . }}-kthena-router
   namespace: {{ .Release.Namespace }}
   labels:
-    app.kubernetes.io/component: infer-router
+    app.kubernetes.io/component: kthena-router
     {{- include "kthena.labels" . | nindent 4 }}
 spec:
-  replicas: {{.Values.inferRouter.replicas}}
+  replicas: {{.Values.kthenaRouter.replicas}}
   selector:
     matchLabels:
-      app.kubernetes.io/component: infer-router
+      app.kubernetes.io/component: kthena-router
       {{- include "kthena.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app.kubernetes.io/component: infer-router
+        app.kubernetes.io/component: kthena-router
         {{- include "kthena.labels" . | nindent 8 }}
     spec:
       containers:
-        - name: infer-router
-          image: "{{ .Values.inferRouter.image.repository }}:{{ .Values.inferRouter.image.tag }}"
-          imagePullPolicy: {{ .Values.inferRouter.image.pullPolicy }}
+        - name: kthena-router
+          image: "{{ .Values.kthenaRouter.image.repository }}:{{ .Values.kthenaRouter.image.tag }}"
+          imagePullPolicy: {{ .Values.kthenaRouter.image.pullPolicy }}
           args:
-            - --port={{ .Values.inferRouter.port }}
-          {{- if and .Values.global.certManager.enabled .Values.inferRouter.tls.enabled }}
+            - --port={{ .Values.kthenaRouter.port }}
+            - --enable-webhook={{ .Values.kthenaRouter.webhook.enabled }}
+          {{- if .Values.kthenaRouter.webhook.enabled }}
+            - --webhook-port={{ .Values.kthenaRouter.webhook.port }}
+            - --webhook-tls-cert-file={{ .Values.kthenaRouter.webhook.tls.certFile }}
+            - --webhook-tls-private-key-file={{ .Values.kthenaRouter.webhook.tls.keyFile }}
+          {{- end }}
+          {{- if and .Values.global.certManager.enabled .Values.kthenaRouter.tls.enabled }}
             - --tls-cert=/etc/tls/tls.crt
             - --tls-key=/etc/tls/tls.key
           {{- end }}
           ports:
-            - containerPort: {{ .Values.inferRouter.port }}
+            - containerPort: {{ .Values.kthenaRouter.port }}
               name: http
+          {{- if .Values.kthenaRouter.webhook.enabled }}
+            - containerPort: {{ .Values.kthenaRouter.webhook.port }}
+              name: webhook
+          {{- end }}
           env:
             - name: REDIS_HOST
               valueFrom:
@@ -52,28 +62,28 @@ spec:
                   optional: true
             # Fairness scheduling configuration
             - name: ENABLE_FAIRNESS_SCHEDULING
-              value: {{ .Values.inferRouter.fairness.enabled | quote }}
-            {{- if .Values.inferRouter.fairness.enabled }}
+              value: {{ .Values.kthenaRouter.fairness.enabled | quote }}
+            {{- if .Values.kthenaRouter.fairness.enabled }}
             - name: FAIRNESS_WINDOW_SIZE
-              value: {{ .Values.inferRouter.fairness.windowSize | quote }}
+              value: {{ .Values.kthenaRouter.fairness.windowSize | quote }}
             - name: FAIRNESS_INPUT_TOKEN_WEIGHT
-              value: {{ .Values.inferRouter.fairness.inputTokenWeight | quote }}
+              value: {{ .Values.kthenaRouter.fairness.inputTokenWeight | quote }}
             - name: FAIRNESS_OUTPUT_TOKEN_WEIGHT
-              value: {{ .Values.inferRouter.fairness.outputTokenWeight | quote }}
+              value: {{ .Values.kthenaRouter.fairness.outputTokenWeight | quote }}
             {{- end }}
             # Access log configuration
             - name: ACCESS_LOG_ENABLED
-              value: {{ .Values.inferRouter.accessLog.enabled | quote }}
+              value: {{ .Values.kthenaRouter.accessLog.enabled | quote }}
             - name: ACCESS_LOG_FORMAT
-              value: {{ .Values.inferRouter.accessLog.format | quote }}
+              value: {{ .Values.kthenaRouter.accessLog.format | quote }}
             - name: ACCESS_LOG_OUTPUT
-              value: {{ .Values.inferRouter.accessLog.output | quote }}
-          resources: {{- toYaml .Values.inferRouter.resource | nindent 12 }}
+              value: {{ .Values.kthenaRouter.accessLog.output | quote }}
+          resources: {{- toYaml .Values.kthenaRouter.resource | nindent 12 }}
           livenessProbe:
             httpGet:
               path: /healthz
-              port: {{ .Values.inferRouter.port }}
-              {{- if and .Values.global.certManager.enabled .Values.inferRouter.tls.enabled }}
+              port: {{ .Values.kthenaRouter.port }}
+              {{- if and .Values.global.certManager.enabled .Values.kthenaRouter.tls.enabled }}
               scheme: HTTPS
               {{- end }}
             initialDelaySeconds: 1
@@ -81,8 +91,8 @@ spec:
           readinessProbe:
             httpGet:
               path: /healthz
-              port: {{ .Values.inferRouter.port }}
-              {{- if and .Values.global.certManager.enabled .Values.inferRouter.tls.enabled }}
+              port: {{ .Values.kthenaRouter.port }}
+              {{- if and .Values.global.certManager.enabled .Values.kthenaRouter.tls.enabled }}
               scheme: HTTPS
               {{- end }}
             initialDelaySeconds: 1
@@ -91,18 +101,28 @@ spec:
           - name: scheduler-config
             mountPath: /etc/config/routerConfiguration.yaml
             subPath: routerConfiguration
-          {{- if and .Values.global.certManager.enabled .Values.inferRouter.tls.enabled }}
+          {{- if and .Values.global.certManager.enabled .Values.kthenaRouter.tls.enabled }}
           - name: tls-certs
             mountPath: "/etc/tls"
+            readOnly: true
+          {{- end }}
+          {{- if .Values.kthenaRouter.webhook.enabled }}
+          - name: webhook-certs
+            mountPath: /etc/webhook/certs
             readOnly: true
           {{- end }}
       volumes:
         - name: scheduler-config
           configMap:
-            name: {{ include "kthena.name" . }}-infer-router-config
-        {{- if and .Values.global.certManager.enabled .Values.inferRouter.tls.enabled }}
+            name: {{ include "kthena.name" . }}-kthena-router-config
+        {{- if and .Values.global.certManager.enabled .Values.kthenaRouter.tls.enabled }}
         - name: tls-certs
           secret:
-            secretName: {{ .Values.inferRouter.tls.secretName }}
+            secretName: {{ .Values.kthenaRouter.tls.secretName }}
         {{- end }}
-      serviceAccountName:  {{ include "kthena.name" . }}-infer-router
+        {{- if .Values.kthenaRouter.webhook.enabled }}
+        - name: webhook-certs
+          secret:
+            secretName: {{ .Values.kthenaRouter.webhook.tls.secretName }}
+        {{- end }}
+      serviceAccountName:  {{ include "kthena.name" . }}-kthena-router

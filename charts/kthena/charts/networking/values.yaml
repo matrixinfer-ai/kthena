@@ -1,5 +1,5 @@
-inferRouter:
-  # replicas is the number of infer-router instances to run.
+kthenaRouter:
+  # replicas is the number of kthena-router instances to run.
   replicas: 1
   enabled: true
   tls:
@@ -7,16 +7,27 @@ inferRouter:
     # The DNS name to use for the certificate.
     dnsName: ""
     # The name of the secret to store the certificate and key.
-    secretName: "infer-router-tls"
+    secretName: "kthena-router-tls"
+    autoCreateSecret: true
+  webhook:
+    enabled: true
+    port: 8443
+    servicePort: 443
+    tls:
+      certFile: /etc/webhook/certs/tls.crt
+      keyFile: /etc/webhook/certs/tls.key
+      secretName: kthena-router-webhook-certs
+      autoCreateSecret: false
+    caBundle: ""
   image:
-    # repository is the container image repository for the infer-router.
-    repository: ghcr.io/volcano-sh/infer-router
-    # tag is the container image tag for the infer-router.
+    # repository is the container image repository for the kthena-router.
+    repository: ghcr.io/volcano-sh/kthena-router
+    # tag is the container image tag for the kthena-router.
     # node: edit by CI. No need to modify manually
     tag: latest
-    # pullPolicy is the image pull policy for the infer-router.
+    # pullPolicy is the image pull policy for the kthena-router.
     pullPolicy: IfNotPresent
-  # resource defines the resource limits and requests for the infer-router.
+  # resource defines the resource limits and requests for the kthena-router.
   resource:
     limits:
       cpu: 500m

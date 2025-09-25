@@ -1,10 +1,10 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: infer-router
+  name: kthena-router
 rules:
   - apiGroups:
-      - networking.volcano.sh
+      - networking.serving.volcano.sh
     resources:
       - modelroutes
       - modelservers
@@ -17,7 +17,7 @@ rules:
       - update
       - watch
   - apiGroups:
-      - networking.volcano.sh
+      - networking.serving.volcano.sh
     resources:
       - modelroutes/status
       - modelservers/status

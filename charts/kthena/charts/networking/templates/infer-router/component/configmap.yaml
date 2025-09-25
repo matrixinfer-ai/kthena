@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "kthena.name" . }}-infer-router-config
+  name: {{ include "kthena.name" . }}-kthena-router-config
   namespace: {{ .Release.Namespace }}
 data:
   routerConfiguration: |-

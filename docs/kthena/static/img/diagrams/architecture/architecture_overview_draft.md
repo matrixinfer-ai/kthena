@@ -84,7 +84,7 @@ rectangle "Control Plane" as control_plane {
 	}
 	
 	rectangle "Network" as network {
-		component "InferRouter Webhook (main.go)" as inferrouter_webhook
+		component "KthenaRouter Webhook (main.go)" as inferrouter_webhook
 		rectangle "Infer Router (main.go)" {
 			component "Model Router" as modelrouter {
 				component "Auth" as auth

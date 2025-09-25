@@ -115,25 +115,23 @@ lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 .PHONY: build
 build: generate fmt vet
 	go build -o bin/infer-controller cmd/infer-controller/main.go
-	go build -o bin/infer-router cmd/infer-router/main.go
+	go build -o bin/kthena-router cmd/kthena-router/main.go
 	go build -o bin/model-controller cmd/model-controller/main.go
 	go build -o bin/autoscaler cmd/autoscaler/main.go
 	go build -o bin/registry-webhook cmd/registry-webhook/main.go
 	go build -o bin/infer-webhook cmd/modelinfer-webhook/main.go
-	go build -o bin/infer-router-webhook cmd/infer-router-webhook/main.go
 	go build -o bin/minfer cli/minfer/main.go
 
 IMG_MODELINFER ?= ${HUB}/infer-controller:${TAG}
 IMG_MODELCONTROLLER ?= ${HUB}/model-controller:${TAG}
 IMG_AUTOSCALER ?= ${HUB}/autoscaler:${TAG}
-IMG_ROUTER ?= ${HUB}/infer-router:${TAG}
+IMG_ROUTER ?= ${HUB}/kthena-router:${TAG}
 IMG_REGISTRY_WEBHOOK ?= ${HUB}/registry-webhook:${TAG}
 IMG_MODELINFER_WEBHOOK ?= ${HUB}/modelinfer-webhook:${TAG}
-IMG_INFER_ROUTER_WEBHOOK ?= ${HUB}/infer-router-webhook:${TAG}
 
 .PHONY: docker-build-router
 docker-build-router: generate
-	$(CONTAINER_TOOL) build -t ${IMG_ROUTER} -f docker/Dockerfile.infer-router .
+	$(CONTAINER_TOOL) build -t ${IMG_ROUTER} -f docker/Dockerfile.kthena-router .
 
 .PHONY: docker-build-modelinfer
 docker-build-modelinfer: generate 
@@ -151,23 +149,15 @@ docker-build-autoscaler: generate
 docker-build-registry-webhook: generate
 	$(CONTAINER_TOOL) build -t ${IMG_REGISTRY_WEBHOOK} -f docker/Dockerfile.registry-webhook .
 
-.PHONY: docker-build-modelinfer-webhook
-docker-build-modelinfer-webhook: generate
-	$(CONTAINER_TOOL) build -t ${IMG_MODELINFER_WEBHOOK} -f docker/Dockerfile.modelinfer-webhook .
-
-.PHONY: docker-build-infer-router-webhook
-docker-build-infer-router-webhook: generate
-	$(CONTAINER_TOOL) build -t ${IMG_INFER_ROUTER_WEBHOOK} -f docker/Dockerfile.infer-router-webhook .
 
 .PHONY: docker-push
-docker-push: docker-build-router docker-build-modelinfer docker-build-modelcontroller docker-build-registry-webhook docker-build-modelinfer-webhook docker-build-autoscaler docker-build-infer-router-webhook ## Push all images to the registry.
+docker-push: docker-build-router docker-build-modelinfer docker-build-modelcontroller docker-build-registry-webhook docker-build-modelinfer-webhook docker-build-autoscaler ## Push all images to the registry.
 	$(CONTAINER_TOOL) push ${IMG_ROUTER}
 	$(CONTAINER_TOOL) push ${IMG_MODELINFER}
 	$(CONTAINER_TOOL) push ${IMG_MODELCONTROLLER}
 	$(CONTAINER_TOOL) push ${IMG_AUTOSCALER}
 	$(CONTAINER_TOOL) push ${IMG_REGISTRY_WEBHOOK}
 	$(CONTAINER_TOOL) push ${IMG_MODELINFER_WEBHOOK}
-	$(CONTAINER_TOOL) push ${IMG_INFER_ROUTER_WEBHOOK}
 
 # PLATFORMS defines the target platforms for the images be built to provide support to multiple
 # architectures.
