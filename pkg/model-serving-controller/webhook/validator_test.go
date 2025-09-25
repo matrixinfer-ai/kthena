@@ -45,7 +45,7 @@ func TestValidateScheduler(t *testing.T) {
 				},
 			},
 			want: field.ErrorList{
-				field.Invalid(field.NewPath("spec").Child("schedulerName"), "vo", "invalid SchedulerName: vo, modelInfer support: volcano ..."),
+				field.Invalid(field.NewPath("spec").Child("schedulerName"), "vo", "invalid SchedulerName: vo, modelServing support: volcano ..."),
 			},
 		},
 		{
@@ -58,7 +58,7 @@ func TestValidateScheduler(t *testing.T) {
 				},
 			},
 			want: field.ErrorList{
-				field.Invalid(field.NewPath("spec").Child("schedulerName"), "", "invalid SchedulerName: , modelInfer support: volcano ..."),
+				field.Invalid(field.NewPath("spec").Child("schedulerName"), "", "invalid SchedulerName: , modelServing support: volcano ..."),
 			},
 		},
 		{
