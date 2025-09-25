@@ -114,16 +114,16 @@ lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 
 .PHONY: build
 build: generate fmt vet
-	go build -o bin/infer-controller cmd/infer-controller/main.go
+	go build -o bin/model-serving-controller cmd/model-serving-controller/main.go
 	go build -o bin/kthena-router cmd/kthena-router/main.go
-	go build -o bin/model-controller cmd/model-controller/main.go
+	go build -o bin/model-booster-controller cmd/model-booster-controller/main.go
 	go build -o bin/autoscaler cmd/autoscaler/main.go
 	go build -o bin/registry-webhook cmd/registry-webhook/main.go
 	go build -o bin/infer-webhook cmd/modelinfer-webhook/main.go
 	go build -o bin/minfer cli/minfer/main.go
 
-IMG_MODELINFER ?= ${HUB}/infer-controller:${TAG}
-IMG_MODELCONTROLLER ?= ${HUB}/model-controller:${TAG}
+IMG_MODELINFER ?= ${HUB}/model-serving-controller:${TAG}
+IMG_MODELCONTROLLER ?= ${HUB}/model-booster-controller:${TAG}
 IMG_AUTOSCALER ?= ${HUB}/autoscaler:${TAG}
 IMG_ROUTER ?= ${HUB}/kthena-router:${TAG}
 IMG_REGISTRY_WEBHOOK ?= ${HUB}/registry-webhook:${TAG}
@@ -135,11 +135,11 @@ docker-build-router: generate
 
 .PHONY: docker-build-modelinfer
 docker-build-modelinfer: generate 
-	$(CONTAINER_TOOL) build -t ${IMG_MODELINFER} -f docker/Dockerfile.infer-controller .
+	$(CONTAINER_TOOL) build -t ${IMG_MODELINFER} -f docker/Dockerfile.model-serving-controller .
 
 .PHONY: docker-build-modelcontroller
 docker-build-modelcontroller: generate
-	$(CONTAINER_TOOL) build -t ${IMG_MODELCONTROLLER} -f docker/Dockerfile.model-controller .
+	$(CONTAINER_TOOL) build -t ${IMG_MODELCONTROLLER} -f docker/Dockerfile.model-booster-controller .
 
 .PHONY: docker-build-autoscaler
 docker-build-autoscaler: generate
