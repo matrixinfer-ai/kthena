@@ -118,8 +118,8 @@ build: generate fmt vet
 	go build -o bin/kthena-router cmd/kthena-router/main.go
 	go build -o bin/model-booster-controller cmd/model-booster-controller/main.go
 	go build -o bin/autoscaler cmd/autoscaler/main.go
-	go build -o bin/registry-webhook cmd/registry-webhook/main.go
-	go build -o bin/infer-webhook cmd/modelinfer-webhook/main.go
+	go build -o bin/model-booster-webhook cmd/model-booster-webhook/main.go
+	go build -o bin/model-serving-webhook cmd/model-serving-webhook/main.go
 	go build -o bin/minfer cli/minfer/main.go
 
 IMG_MODELINFER ?= ${HUB}/model-serving-controller:${TAG}
