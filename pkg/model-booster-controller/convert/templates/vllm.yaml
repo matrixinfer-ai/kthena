@@ -1,5 +1,5 @@
-apiVersion: workload.volcano.sh/v1alpha1
-kind: modelinfer
+apiVersion: workload.serving.volcano.sh/v1alpha1
+kind: ModelServing
 metadata: ${MODEL_SERVING_TEMPLATE_METADATA}
 spec:
   recoveryPolicy: InferGroupRecreate
@@ -14,7 +14,7 @@ spec:
       whenUnsatisfiable: DoNotSchedule
       labelSelector:
         matchLabels:
-          modelinfer/name: ${MODEL_NAME}
+          modelserving/name: ${MODEL_NAME}
   replicas: ${BACKEND_REPLICAS}
   template:
     restartGracePeriodSeconds: 60
