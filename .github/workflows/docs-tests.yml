@@ -5,12 +5,12 @@ on:
     branches:
       - main
     paths:
-      - '../../docs/kthena/**'
+      - 'docs/kthena/**'
   push:
     branches:
       - main
     paths:
-      - '../../docs/kthena/**'
+      - 'docs/kthena/**'
 
 jobs:
   docs_test:
