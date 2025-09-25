@@ -410,12 +410,12 @@ func (mc *ModelController) loadConfigFromConfigMap() {
 		return
 	}
 	if modelInferDownloaderImage, ok := cm.Data["model_infer_downloader_image"]; ok {
-		config.Config.SetModelInferDownloaderImage(modelInferDownloaderImage)
+		config.Config.SetDownloaderImage(modelInferDownloaderImage)
 	} else {
 		klog.Warning("Failed to load model infer Downloader Image. Use Default Value.")
 	}
 	if modelInferRuntimeImage, ok := cm.Data["model_infer_runtime_image"]; ok {
-		config.Config.SetModelInferRuntimeImage(modelInferRuntimeImage)
+		config.Config.SetRuntimeImage(modelInferRuntimeImage)
 	} else {
 		klog.Warning("Failed to load model infer Runtime Image. Use Default Value.")
 	}

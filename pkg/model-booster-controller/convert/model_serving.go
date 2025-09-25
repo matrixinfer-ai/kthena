@@ -106,7 +106,7 @@ func buildVllmDisaggregatedModelInfer(model *workload.ModelBooster, idx int) (*w
 	initContainers := []corev1.Container{
 		{
 			Name:  model.Name + "-model-downloader",
-			Image: config.Config.ModelInferDownloaderImage(),
+			Image: config.Config.DownloaderImage(),
 			Args: []string{
 				"--source", backend.ModelURI,
 				"--output-dir", modelDownloadPath,
@@ -185,7 +185,7 @@ func buildVllmDisaggregatedModelInfer(model *workload.ModelBooster, idx int) (*w
 		"MODEL_DOWNLOAD_ENVFROM":           backend.EnvFrom,
 		"ENGINE_PREFILL_COMMAND":           preFillCommand,
 		"ENGINE_DECODE_COMMAND":            decodeCommand,
-		"MODEL_INFER_RUNTIME_IMAGE":        config.Config.ModelInferRuntimeImage(),
+		"MODEL_INFER_RUNTIME_IMAGE":        config.Config.RuntimeImage(),
 		"MODEL_INFER_RUNTIME_PORT":         env.GetEnvValueOrDefault[int32](backend, env.RuntimePort, 8100),
 		"MODEL_INFER_RUNTIME_URL":          env.GetEnvValueOrDefault[string](backend, env.RuntimeUrl, "http://localhost:8000"),
 		"MODEL_INFER_RUNTIME_METRICS_PATH": env.GetEnvValueOrDefault[string](backend, env.RuntimeMetricsPath, "/metrics"),
@@ -238,7 +238,7 @@ func buildVllmModelInfer(model *workload.ModelBooster, idx int) (*workload.Model
 	initContainers := []corev1.Container{
 		{
 			Name:  model.Name + "-model-downloader",
-			Image: config.Config.ModelInferDownloaderImage(),
+			Image: config.Config.DownloaderImage(),
 			Args: []string{
 				"--source", backend.ModelURI,
 				"--output-dir", modelDownloadPath,
@@ -294,7 +294,7 @@ func buildVllmModelInfer(model *workload.ModelBooster, idx int) (*workload.Model
 		}},
 		"INIT_CONTAINERS":                  initContainers,
 		"MODEL_DOWNLOAD_ENVFROM":           backend.EnvFrom,
-		"MODEL_INFER_RUNTIME_IMAGE":        config.Config.ModelInferRuntimeImage(),
+		"MODEL_INFER_RUNTIME_IMAGE":        config.Config.RuntimeImage(),
 		"MODEL_INFER_RUNTIME_PORT":         env.GetEnvValueOrDefault[int32](backend, env.RuntimePort, 8100),
 		"MODEL_INFER_RUNTIME_URL":          env.GetEnvValueOrDefault[string](backend, env.RuntimeUrl, "http://localhost:8000"),
 		"MODEL_INFER_RUNTIME_METRICS_PATH": env.GetEnvValueOrDefault[string](backend, env.RuntimeMetricsPath, "/metrics"),
@@ -499,7 +499,7 @@ func buildLoraComponents(model *workload.ModelBooster, backend *workload.ModelBa
 
 		loraContainer := buildDownloaderContainer(
 			containerName,
-			config.Config.ModelInferDownloaderImage(),
+			config.Config.DownloaderImage(),
 			adapter.ArtifactURL,
 			outputDir,
 			backend,
