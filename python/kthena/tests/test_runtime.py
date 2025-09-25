@@ -16,7 +16,7 @@ from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 
-from matrixinfer.runtime.app import create_application, get_app_state
+from kthena.runtime.app import create_application, get_app_state
 
 
 class _FakeAsyncResponse:
@@ -85,7 +85,7 @@ def test_load_lora_adapter_success(monkeypatch):
     monkeypatch.setattr("httpx.AsyncClient", _FakeAsyncClient)
     state.client = _FakeAsyncClient()
 
-    monkeypatch.setattr("matrixinfer.runtime.app.download_model", lambda *args, **kwargs: None)
+    monkeypatch.setattr("kthena.runtime.app.download_model", lambda *args, **kwargs: None)
     monkeypatch.setattr("httpx.Client", _FakeSyncClient)
 
     with TestClient(app) as client:
@@ -134,7 +134,7 @@ def test_load_lora_adapter_async_download_success(monkeypatch):
     monkeypatch.setattr("httpx.AsyncClient", _FakeAsyncClient)
     state.client = _FakeAsyncClient()
 
-    monkeypatch.setattr("matrixinfer.runtime.app.download_model", lambda *args, **kwargs: None)
+    monkeypatch.setattr("kthena.runtime.app.download_model", lambda *args, **kwargs: None)
     monkeypatch.setattr("httpx.Client", _FakeSyncClient)
 
     with TestClient(app) as client:
