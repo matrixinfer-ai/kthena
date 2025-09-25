@@ -40,8 +40,8 @@ import (
 const (
 	Entry = "true"
 
-	// condition status of ModelInferStatus
-	AllGroupsIsReady         = "All infer groups are ready"
+	// condition status of ModelServingStatus
+	AllGroupsIsReady         = "All Serving groups are ready"
 	SomeGroupsAreProgressing = "Some groups is progressing"
 	SomeGroupsAreUpdated     = "Updated Groups are"
 )
@@ -53,16 +53,16 @@ func GetNamespaceName(obj metav1.Object) types.NamespacedName {
 	}
 }
 
-// inferGroupRegex is a regular expression that extracts the parent modelInfer and ordinal from the Name of an inferGroup
-var inferGroupRegex = regexp.MustCompile("(.*)-([0-9]+)$")
+// ServingGroupRegex is a regular expression that extracts the parent modelServing and ordinal from the Name of an ServingGroup
+var servingGroupRegex = regexp.MustCompile("(.*)-([0-9]+)$")
 
-// GetParentNameAndOrdinal gets the name of inferGroup's parent modelInfer and inferGroup's ordinal as extracted from its Name.
-// For example, the infergroup name is vllm-sample-0, this function can be used to obtain the modelinfer name corresponding to the infergroup,
+// GetParentNameAndOrdinal gets the name of ServingGroup's parent modelServing and ServingGroup's ordinal as extracted from its Name.
+// For example, the Servinggroup name is vllm-sample-0, this function can be used to obtain the modelServing name corresponding to the ServingGroup,
 // which is vllm-sample and the serial number is 0.
 func GetParentNameAndOrdinal(groupName string) (string, int) {
 	parent := ""
 	ordinal := -1
-	subMatches := inferGroupRegex.FindStringSubmatch(groupName)
+	subMatches := servingGroupRegex.FindStringSubmatch(groupName)
 	if len(subMatches) < 3 {
 		return parent, ordinal
 	}
@@ -73,7 +73,7 @@ func GetParentNameAndOrdinal(groupName string) (string, int) {
 	return parent, ordinal
 }
 
-func GenerateInferGroupName(miName string, idx int) string {
+func GenerateServingGroupName(miName string, idx int) string {
 	return miName + "-" + strconv.Itoa(idx)
 }
 
@@ -133,7 +133,7 @@ func createBasePod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelServing
 				workloadv1alpha1.RevisionLabelKey:         revision,
 			},
 			OwnerReferences: []metav1.OwnerReference{
-				newModelInferOwnerRef(mi),
+				newModelServingOwnerRef(mi),
 			},
 		},
 	}
@@ -210,8 +210,8 @@ func addEnvVars(container *corev1.Container, newEnvVars ...corev1.EnvVar) {
 	container.Env = append(retainedEnvVars, newEnvVars...)
 }
 
-// newModelInferOwnerRef creates an OwnerReference pointing to the given ModelServing.
-func newModelInferOwnerRef(mi *workloadv1alpha1.ModelServing) metav1.OwnerReference {
+// newModelServingOwnerRef creates an OwnerReference pointing to the given ModelServing.
+func newModelServingOwnerRef(mi *workloadv1alpha1.ModelServing) metav1.OwnerReference {
 	return metav1.OwnerReference{
 		APIVersion:         workloadv1alpha1.ModelServingKind.GroupVersion().String(),
 		Kind:               workloadv1alpha1.ModelServingKind.Kind,
@@ -229,7 +229,7 @@ func CreateHeadlessService(ctx context.Context, k8sClient kubernetes.Interface, 
 			Name:      serviceName,
 			Namespace: mi.Namespace,
 			OwnerReferences: []metav1.OwnerReference{
-				newModelInferOwnerRef(mi),
+				newModelServingOwnerRef(mi),
 			},
 			Labels: map[string]string{
 				workloadv1alpha1.GroupNameLabelKey: groupName,
@@ -255,16 +255,16 @@ func CreateHeadlessService(ctx context.Context, k8sClient kubernetes.Interface, 
 	return nil
 }
 
-func GetModelInferAndGroupByLabel(podLabels map[string]string) (string, string, bool) {
-	modelInferName, ok := podLabels[workloadv1alpha1.ModelServingNameLabelKey]
+func GetModelServingAndGroupByLabel(podLabels map[string]string) (string, string, bool) {
+	modelServingName, ok := podLabels[workloadv1alpha1.ModelServingNameLabelKey]
 	if !ok {
 		return "", "", false
 	}
-	inferGroupName, ok := podLabels[workloadv1alpha1.GroupNameLabelKey]
+	servingGroupName, ok := podLabels[workloadv1alpha1.GroupNameLabelKey]
 	if !ok {
 		return "", "", false
 	}
-	return modelInferName, inferGroupName, true
+	return modelServingName, servingGroupName, true
 }
 
 // IsPodRunningAndReady returns true if pod is in the PodRunning Phase, if it has a condition of PodReady.
@@ -450,7 +450,7 @@ func exclusiveConditionTypes(condition1 metav1.Condition, condition2 metav1.Cond
 }
 
 // ParseAdmissionRequest parses the HTTP request and extracts the AdmissionReview and ModelServing.
-func ParseModelInferFromRequest(r *http.Request) (*admissionv1.AdmissionReview, *workloadv1alpha1.ModelServing, error) {
+func ParseModelServingFromRequest(r *http.Request) (*admissionv1.AdmissionReview, *workloadv1alpha1.ModelServing, error) {
 	// Verify the content type is accurate
 	contentType := r.Header.Get("Content-Type")
 	if contentType != "application/json" {
@@ -475,7 +475,7 @@ func ParseModelInferFromRequest(r *http.Request) (*admissionv1.AdmissionReview, 
 
 	var mi workloadv1alpha1.ModelServing
 	if err := json.Unmarshal(admissionReview.Request.Object.Raw, &mi); err != nil {
-		return nil, nil, fmt.Errorf("failed to decode modelInfer: %v", err)
+		return nil, nil, fmt.Errorf("failed to decode modelServing: %v", err)
 	}
 
 	return &admissionReview, &mi, nil

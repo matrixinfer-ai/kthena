@@ -1,5 +1,5 @@
-apiVersion: workload.volcano.sh/v1alpha1
-kind: modelinfer
+apiVersion: workload.serving.volcano.sh/v1alpha1
+kind: ModelServing
 metadata:
   labels:
     workload.serving.volcano.sh/backend-name: backend1
@@ -294,7 +294,7 @@ spec:
   topologySpreadConstraints:
     - labelSelector:
         matchLabels:
-          modelinfer/name: test-model
+          modelserving.volcano.sh/name: test-model
       maxSkew: 1
       topologyKey: kubernetes.io/hostname
       whenUnsatisfiable: DoNotSchedule

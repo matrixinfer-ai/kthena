@@ -30,36 +30,36 @@ import (
 
 // Store is an interface for storing and retrieving data
 type Store interface {
-	GetInferGroupByModelInfer(modelInferName types.NamespacedName) ([]InferGroup, error)
-	GetInferGroup(modelInferName types.NamespacedName, inferGroupName string) *InferGroup
-	GetRunningPodNumByInferGroup(modelInferName types.NamespacedName, inferGroupName string) (int, error)
-	GetInferGroupStatus(modelInferName types.NamespacedName, inferGroupName string) InferGroupStatus
-	GetRoleList(modelInferName types.NamespacedName, groupName, roleName string) ([]Role, error)
-	GetRoleStatus(modelInferName types.NamespacedName, groupName, roleName, roleID string) RoleStatus
-	UpdateRoleStatus(modelInferName types.NamespacedName, groupName, roleName, roleID string, status RoleStatus) error
-	DeleteRole(modelInferName types.NamespacedName, groupName, roleName, roleID string)
-	DeleteModelInfer(modelInferName types.NamespacedName)
-	DeleteInferGroup(modelInferName types.NamespacedName, inferGroupName string)
-	AddInferGroup(modelInferName types.NamespacedName, idx int, revision string)
-	AddRole(modelInferName types.NamespacedName, groupName, roleName, roleID, revision string)
-	AddRunningPodToInferGroup(modelInferName types.NamespacedName, inferGroupName, pod, revision, roleName, roleID string)
-	DeleteRunningPodFromInferGroup(modelInferName types.NamespacedName, inferGroupName string, pod string)
-	UpdateInferGroupStatus(modelInferName types.NamespacedName, inferGroupName string, Status InferGroupStatus) error
+	GetServingGroupByModelServing(modelServingName types.NamespacedName) ([]ServingGroup, error)
+	GetServingGroup(modelServingName types.NamespacedName, groupName string) *ServingGroup
+	GetRunningPodNumByServingGroup(modelServingName types.NamespacedName, groupName string) (int, error)
+	GetServingGroupStatus(modelServingName types.NamespacedName, groupName string) ServingGroupStatus
+	GetRoleList(modelServingName types.NamespacedName, groupName, roleName string) ([]Role, error)
+	GetRoleStatus(modelServingName types.NamespacedName, groupName, roleName, roleID string) RoleStatus
+	UpdateRoleStatus(modelServingName types.NamespacedName, groupName, roleName, roleID string, status RoleStatus) error
+	DeleteRole(modelServingName types.NamespacedName, groupName, roleName, roleID string)
+	DeleteModelServing(modelServingName types.NamespacedName)
+	DeleteServingGroup(modelServingName types.NamespacedName, groupName string)
+	AddServingGroup(modelServingName types.NamespacedName, idx int, revision string)
+	AddRole(modelServingName types.NamespacedName, groupName, roleName, roleID, revision string)
+	AddRunningPodToServingGroup(modelServingName types.NamespacedName, groupName, pod, revision, roleName, roleID string)
+	DeleteRunningPodFromServingGroup(modelServingName types.NamespacedName, groupName string, pod string)
+	UpdateServingGroupStatus(modelServingName types.NamespacedName, groupName string, Status ServingGroupStatus) error
 }
 
 type store struct {
 	mutex sync.RWMutex
 
-	// inferGroup is a map of model infer names to their infer groups
-	// modelInfer -> group name-> InferGroup
-	inferGroup map[types.NamespacedName]map[string]*InferGroup
+	// ServingGroup is a map of modelServing names to their ServingGroups
+	// modelServing -> group name-> ServingGroup
+	servingGroup map[types.NamespacedName]map[string]*ServingGroup
 }
 
-type InferGroup struct {
+type ServingGroup struct {
 	Name        string
-	runningPods map[string]struct{} // Map of pod names in this infer group
+	runningPods map[string]struct{} // Map of pod names in this ServingGroup
 	Revision    string
-	Status      InferGroupStatus
+	Status      ServingGroupStatus
 	roles       map[string]map[string]*Role // roleName -> roleID -> *Role, like prefill -> prefill-0 -> *Role
 }
 
@@ -69,14 +69,14 @@ type Role struct {
 	Status   RoleStatus
 }
 
-type InferGroupStatus string
+type ServingGroupStatus string
 
 const (
-	InferGroupRunning  InferGroupStatus = "Running"
-	InferGroupCreating InferGroupStatus = "Creating"
-	InferGroupDeleting InferGroupStatus = "Deleting"
-	InferGroupScaling  InferGroupStatus = "Scaling"
-	InferGroupNotFound InferGroupStatus = "NotFound"
+	ServingGroupRunning  ServingGroupStatus = "Running"
+	ServingGroupCreating ServingGroupStatus = "Creating"
+	ServingGroupDeleting ServingGroupStatus = "Deleting"
+	ServingGroupScaling  ServingGroupStatus = "Scaling"
+	ServingGroupNotFound ServingGroupStatus = "NotFound"
 )
 
 type RoleStatus string
@@ -87,50 +87,50 @@ const (
 	RoleNotFound RoleStatus = "NotFound"
 )
 
-var ErrInferGroupNotFound = errors.New("infer group not found")
+var ErrServingGroupNotFound = errors.New("serving group not found")
 
 func New() Store {
 	return &store{
-		inferGroup: make(map[types.NamespacedName]map[string]*InferGroup),
+		servingGroup: make(map[types.NamespacedName]map[string]*ServingGroup),
 	}
 }
 
-// GetInferGroupByModelInfer returns the list of inferGroups and errors
-func (s *store) GetInferGroupByModelInfer(modelInferName types.NamespacedName) ([]InferGroup, error) {
+// GetServingGroupByModelServing returns the list of ServingGroups and errors
+func (s *store) GetServingGroupByModelServing(modelServingName types.NamespacedName) ([]ServingGroup, error) {
 	s.mutex.RLock()
-	inferGroups, ok := s.inferGroup[modelInferName]
+	servingGroups, ok := s.servingGroup[modelServingName]
 	if !ok {
 		s.mutex.RUnlock()
-		return nil, ErrInferGroupNotFound
+		return nil, ErrServingGroupNotFound
 	}
-	// sort inferGroups by name
-	inferGroupsSlice := make([]InferGroup, 0, len(inferGroups))
-	for _, inferGroup := range inferGroups {
+	// sort ServingGroups by name
+	servingGroupsSlice := make([]ServingGroup, 0, len(servingGroups))
+	for _, servingGroup := range servingGroups {
 		// This is o clone to prevent r/w conflict later
-		inferGroupsSlice = append(inferGroupsSlice, *inferGroup)
+		servingGroupsSlice = append(servingGroupsSlice, *servingGroup)
 	}
 	s.mutex.RUnlock()
 
-	slices.SortFunc(inferGroupsSlice, func(a, b InferGroup) int {
+	slices.SortFunc(servingGroupsSlice, func(a, b ServingGroup) int {
 		return strings.Compare(a.Name, b.Name)
 	})
 
-	return inferGroupsSlice, nil
+	return servingGroupsSlice, nil
 }
 
 // GetRoleList returns the list of roles and errors
-func (s *store) GetRoleList(modelInferName types.NamespacedName, groupName, roleName string) ([]Role, error) {
+func (s *store) GetRoleList(modelServingName types.NamespacedName, groupName, roleName string) ([]Role, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	inferGroups, ok := s.inferGroup[modelInferName]
+	servingGroups, ok := s.servingGroup[modelServingName]
 	if !ok {
-		return nil, fmt.Errorf("cannot list inferGroup of modelInfer %s", modelInferName.Name)
+		return nil, fmt.Errorf("cannot list ServingGroup of modelServing %s", modelServingName.Name)
 	}
-	inferGroup, ok := inferGroups[groupName]
+	servingGroup, ok := servingGroups[groupName]
 	if !ok {
-		return nil, ErrInferGroupNotFound
+		return nil, ErrServingGroupNotFound
 	}
-	roleMap, ok := inferGroup.roles[roleName]
+	roleMap, ok := servingGroup.roles[roleName]
 	if !ok {
 		// If the roleName does not exist, return an empty list instead of an error
 		return []Role{}, nil
@@ -150,21 +150,21 @@ func (s *store) GetRoleList(modelInferName types.NamespacedName, groupName, role
 }
 
 // UpdateRoleStatus updates the status of a specific role
-func (s *store) UpdateRoleStatus(modelInferName types.NamespacedName, groupName, roleName, roleID string, status RoleStatus) error {
+func (s *store) UpdateRoleStatus(modelServingName types.NamespacedName, groupName, roleName, roleID string, status RoleStatus) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	inferGroups, ok := s.inferGroup[modelInferName]
+	servingGroups, ok := s.servingGroup[modelServingName]
 	if !ok {
-		return fmt.Errorf("cannot find modelInfer %s", modelInferName.Name)
+		return fmt.Errorf("cannot find modelServing %s", modelServingName.Name)
 	}
 
-	inferGroup, ok := inferGroups[groupName]
+	servingGroup, ok := servingGroups[groupName]
 	if !ok {
-		return ErrInferGroupNotFound
+		return ErrServingGroupNotFound
 	}
 
-	roleMap, ok := inferGroup.roles[roleName]
+	roleMap, ok := servingGroup.roles[roleName]
 	if !ok {
 		return fmt.Errorf("roleName %s not found in group %s", roleName, groupName)
 	}
@@ -179,12 +179,12 @@ func (s *store) UpdateRoleStatus(modelInferName types.NamespacedName, groupName,
 }
 
 // GetRoleStatus returns the status of a specific role
-func (s *store) GetRoleStatus(modelInferName types.NamespacedName, groupName, roleName, roleID string) RoleStatus {
+func (s *store) GetRoleStatus(modelServingName types.NamespacedName, groupName, roleName, roleID string) RoleStatus {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	if inferGroups, exist := s.inferGroup[modelInferName]; exist {
-		if group, ok := inferGroups[groupName]; ok {
+	if servingGroups, exist := s.servingGroup[modelServingName]; exist {
+		if group, ok := servingGroups[groupName]; ok {
 			if roleMap, exists := group.roles[roleName]; exists {
 				if role, found := roleMap[roleID]; found {
 					return role.Status
@@ -195,106 +195,106 @@ func (s *store) GetRoleStatus(modelInferName types.NamespacedName, groupName, ro
 	return RoleNotFound
 }
 
-// GetRunningPodNumByInferGroup returns the number of running pods and errors
-func (s *store) GetRunningPodNumByInferGroup(modelInferName types.NamespacedName, inferGroupName string) (int, error) {
+// GetRunningPodNumByServingGroup returns the number of running pods and errors
+func (s *store) GetRunningPodNumByServingGroup(modelServingName types.NamespacedName, groupName string) (int, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	groups, ok := s.inferGroup[modelInferName]
+	groups, ok := s.servingGroup[modelServingName]
 	if !ok {
-		return 0, fmt.Errorf("model infer %s not found", modelInferName)
+		return 0, fmt.Errorf("modelServing %s not found", modelServingName)
 	}
 
-	group, ok := groups[inferGroupName]
+	group, ok := groups[groupName]
 	if !ok {
 		return 0, nil
 	}
 	return len(group.runningPods), nil
 }
 
-// GetInferGroup returns the GetInferGroup
-func (s *store) GetInferGroup(modelInferName types.NamespacedName, inferGroupName string) *InferGroup {
+// GetServingGroup returns the GetServingGroup
+func (s *store) GetServingGroup(modelServingName types.NamespacedName, groupName string) *ServingGroup {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	groups, ok := s.inferGroup[modelInferName]
+	groups, ok := s.servingGroup[modelServingName]
 	if !ok {
 		return nil
 	}
 
-	return groups[inferGroupName]
+	return groups[groupName]
 }
 
-// GetInferGroupStatus returns the status of inferGroup
-func (s *store) GetInferGroupStatus(modelInferName types.NamespacedName, inferGroupName string) InferGroupStatus {
+// GetServingGroupStatus returns the status of ServingGroup
+func (s *store) GetServingGroupStatus(modelServingName types.NamespacedName, groupName string) ServingGroupStatus {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	if inferGroups, exist := s.inferGroup[modelInferName]; exist {
-		if group, ok := inferGroups[inferGroupName]; ok {
+	if groups, exist := s.servingGroup[modelServingName]; exist {
+		if group, ok := groups[groupName]; ok {
 			return group.Status
 		}
 	}
-	return InferGroupNotFound
+	return ServingGroupNotFound
 }
 
-// DeleteModelInfer delete modelInfer in inferGroup map
-func (s *store) DeleteModelInfer(modelInferName types.NamespacedName) {
+// DeleteModelServing delete modelServing in ServingGroup map
+func (s *store) DeleteModelServing(modelServingName types.NamespacedName) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	delete(s.inferGroup, modelInferName)
+	delete(s.servingGroup, modelServingName)
 }
 
-// DeleteInferGroup delete inferGroup in map
-func (s *store) DeleteInferGroup(modelInferName types.NamespacedName, inferGroupName string) {
+// DeleteServingGroup delete ServingGroup in map
+func (s *store) DeleteServingGroup(modelServingName types.NamespacedName, groupName string) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	if inferGroups, ok := s.inferGroup[modelInferName]; ok {
-		delete(inferGroups, inferGroupName)
+	if groups, ok := s.servingGroup[modelServingName]; ok {
+		delete(groups, groupName)
 	}
 }
 
-// DeleteRole deletes a specific role from an infer group
-func (s *store) DeleteRole(modelInferName types.NamespacedName, groupName, roleName, roleID string) {
+// DeleteRole deletes a specific role from an ServingGroup
+func (s *store) DeleteRole(modelServingName types.NamespacedName, groupName, roleName, roleID string) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	inferGroups, ok := s.inferGroup[modelInferName]
+	servingGroups, ok := s.servingGroup[modelServingName]
 	if !ok {
 		return
 	}
 
-	inferGroup, ok := inferGroups[groupName]
+	servingGroup, ok := servingGroups[groupName]
 	if !ok {
 		return
 	}
 
-	roleMap, ok := inferGroup.roles[roleName]
+	roleMap, ok := servingGroup.roles[roleName]
 	if !ok {
 		return
 	}
 	delete(roleMap, roleID)
 }
 
-// AddInferGroup add inferGroup item of one modelInfer
-func (s *store) AddInferGroup(modelInferName types.NamespacedName, idx int, revision string) {
+// AddServingGroup add ServingGroup item of one modelServing
+func (s *store) AddServingGroup(modelServingName types.NamespacedName, idx int, revision string) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	newGroup := &InferGroup{
-		Name:        utils.GenerateInferGroupName(modelInferName.Name, idx),
+	newGroup := &ServingGroup{
+		Name:        utils.GenerateServingGroupName(modelServingName.Name, idx),
 		runningPods: make(map[string]struct{}),
-		Status:      InferGroupCreating,
+		Status:      ServingGroupCreating,
 		Revision:    revision,
 		roles:       make(map[string]map[string]*Role),
 	}
 
-	if _, ok := s.inferGroup[modelInferName]; !ok {
-		s.inferGroup[modelInferName] = make(map[string]*InferGroup)
+	if _, ok := s.servingGroup[modelServingName]; !ok {
+		s.servingGroup[modelServingName] = make(map[string]*ServingGroup)
 	}
-	s.inferGroup[modelInferName][newGroup.Name] = newGroup
+	s.servingGroup[modelServingName][newGroup.Name] = newGroup
 }
 
-// AddRole adds a new role to an infer group
-func (s *store) AddRole(modelInferName types.NamespacedName, groupName, roleName, roleID, revision string) {
+// AddRole adds a new role to an ServingGroup
+func (s *store) AddRole(modelServingName types.NamespacedName, groupName, roleName, roleID, revision string) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -304,20 +304,20 @@ func (s *store) AddRole(modelInferName types.NamespacedName, groupName, roleName
 		Revision: revision,
 	}
 
-	if _, ok := s.inferGroup[modelInferName]; !ok {
-		s.inferGroup[modelInferName] = make(map[string]*InferGroup)
+	if _, ok := s.servingGroup[modelServingName]; !ok {
+		s.servingGroup[modelServingName] = make(map[string]*ServingGroup)
 	}
 
-	group, ok := s.inferGroup[modelInferName][groupName]
+	group, ok := s.servingGroup[modelServingName][groupName]
 	if !ok {
-		group = &InferGroup{
+		group = &ServingGroup{
 			Name:        groupName,
 			runningPods: make(map[string]struct{}),
-			Status:      InferGroupCreating,
+			Status:      ServingGroupCreating,
 			Revision:    revision,
 			roles:       make(map[string]map[string]*Role),
 		}
-		s.inferGroup[modelInferName][groupName] = group
+		s.servingGroup[modelServingName][groupName] = group
 	}
 
 	if _, exists := group.roles[roleName]; !exists {
@@ -327,8 +327,8 @@ func (s *store) AddRole(modelInferName types.NamespacedName, groupName, roleName
 	group.roles[roleName][roleID] = newRole
 }
 
-// AddRunningPodToInferGroup add inferGroup in runningPodOfInferGroup map
-func (s *store) AddRunningPodToInferGroup(modelInferName types.NamespacedName, inferGroupName, runningPodName, revision, roleName, roleID string) {
+// AddRunningPodToServingGroup add ServingGroup in runningPodOfServingGroup map
+func (s *store) AddRunningPodToServingGroup(modelServingName types.NamespacedName, servingGroupName, runningPodName, revision, roleName, roleID string) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	role := &Role{
@@ -336,29 +336,29 @@ func (s *store) AddRunningPodToInferGroup(modelInferName types.NamespacedName, i
 		Status:   RoleCreating,
 		Revision: revision,
 	}
-	if _, ok := s.inferGroup[modelInferName]; !ok {
-		// If modelInferName not exist, create a new one
-		s.inferGroup[modelInferName] = make(map[string]*InferGroup)
+	if _, ok := s.servingGroup[modelServingName]; !ok {
+		// If modelServingName not exist, create a new one
+		s.servingGroup[modelServingName] = make(map[string]*ServingGroup)
 	}
 
-	group, ok := s.inferGroup[modelInferName][inferGroupName]
+	group, ok := s.servingGroup[modelServingName][servingGroupName]
 	if !ok {
-		// If inferGroupName not exist, create a new one
-		group = &InferGroup{
-			Name:        inferGroupName,
+		// If ServingGroupName not exist, create a new one
+		group = &ServingGroup{
+			Name:        servingGroupName,
 			runningPods: map[string]struct{}{runningPodName: {}},
-			Status:      InferGroupCreating,
+			Status:      ServingGroupCreating,
 			Revision:    revision,
 			roles:       make(map[string]map[string]*Role),
 		}
 		group.roles[roleName] = make(map[string]*Role)
 		group.roles[roleName][roleID] = role
 
-		s.inferGroup[modelInferName][inferGroupName] = group
+		s.servingGroup[modelServingName][servingGroupName] = group
 		return
 	}
 
-	group.runningPods[runningPodName] = struct{}{} // runningPods map has been initialized during AddInferGroup.
+	group.runningPods[runningPodName] = struct{}{} // runningPods map has been initialized during AddServingGroup.
 
 	// Check if roleName exists, and initialize it if not
 	if _, ok = group.roles[roleName]; !ok {
@@ -370,32 +370,32 @@ func (s *store) AddRunningPodToInferGroup(modelInferName types.NamespacedName, i
 	}
 }
 
-// DeleteRunningPodFromInferGroup delete runningPod in map
-func (s *store) DeleteRunningPodFromInferGroup(modelInferName types.NamespacedName, inferGroupName string, pod string) {
+// DeleteRunningPodFromServingGroup delete runningPod in map
+func (s *store) DeleteRunningPodFromServingGroup(modelServingName types.NamespacedName, servingGroupName string, pod string) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	if inferGroups, exist := s.inferGroup[modelInferName]; exist {
-		if group, ok := inferGroups[inferGroupName]; ok {
+	if groups, exist := s.servingGroup[modelServingName]; exist {
+		if group, ok := groups[servingGroupName]; ok {
 			delete(group.runningPods, pod)
 		}
 	}
 }
 
-// UpdateInferGroupStatus update status of one inferGroup
-func (s *store) UpdateInferGroupStatus(modelInferName types.NamespacedName, inferGroupName string, status InferGroupStatus) error {
+// UpdateServingGroupStatus update status of one ServingGroup
+func (s *store) UpdateServingGroupStatus(modelServingName types.NamespacedName, groupName string, status ServingGroupStatus) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	inferGroups, ok := s.inferGroup[modelInferName]
+	groups, ok := s.servingGroup[modelServingName]
 	if !ok {
-		return fmt.Errorf("failed to find modelInfer %s", modelInferName.Namespace+"/"+modelInferName.Name)
+		return fmt.Errorf("failed to find modelServing %s", modelServingName.Namespace+"/"+modelServingName.Name)
 	}
-	if group, ok := inferGroups[inferGroupName]; ok {
+	if group, ok := groups[groupName]; ok {
 		group.Status = status
-		inferGroups[inferGroupName] = group
+		groups[groupName] = group
 	} else {
-		return fmt.Errorf("failed to find inferGroup %s in modelInfer %s", inferGroupName, modelInferName.Namespace+"/"+modelInferName.Name)
+		return fmt.Errorf("failed to find ServingGroup %s in modelServing %s", groupName, modelServingName.Namespace+"/"+modelServingName.Name)
 	}
 	return nil
 }

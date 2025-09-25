@@ -54,18 +54,18 @@ const (
 	RoleIDKey    = "RoleID"
 )
 
-type ModelInferController struct {
-	kubeClientSet    kubernetes.Interface
-	modelInferClient clientset.Interface
+type ModelServingController struct {
+	kubeClientSet      kubernetes.Interface
+	modelServingClient clientset.Interface
 
-	syncHandler         func(ctx context.Context, miKey string) error
-	gangManager         gangscheduling.Manager
-	podsLister          listerv1.PodLister
-	podsInformer        cache.SharedIndexInformer
-	servicesLister      listerv1.ServiceLister
-	servicesInformer    cache.SharedIndexInformer
-	modelServingLister  listerv1alpha1.ModelServingLister
-	modelInfersInformer cache.SharedIndexInformer
+	syncHandler           func(ctx context.Context, miKey string) error
+	gangManager           gangscheduling.Manager
+	podsLister            listerv1.PodLister
+	podsInformer          cache.SharedIndexInformer
+	servicesLister        listerv1.ServiceLister
+	servicesInformer      cache.SharedIndexInformer
+	modelServingLister    listerv1alpha1.ModelServingLister
+	modelServingsInformer cache.SharedIndexInformer
 
 	// nolint
 	workqueue   workqueue.RateLimitingInterface
@@ -74,7 +74,7 @@ type ModelInferController struct {
 	initialSync bool     // indicates whether the initial sync has been completed
 }
 
-func NewModelInferController(kubeClientSet kubernetes.Interface, modelInferClient clientset.Interface, volcanoClient volcano.Interface) (*ModelInferController, error) {
+func NewModelServingController(kubeClientSet kubernetes.Interface, modelServingClient clientset.Interface, volcanoClient volcano.Interface) (*ModelServingController, error) {
 	selector, err := labels.NewRequirement(workloadv1alpha1.GroupNameLabelKey, selection.Exists, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create label selector, err: %v", err)
@@ -89,8 +89,8 @@ func NewModelInferController(kubeClientSet kubernetes.Interface, modelInferClien
 	)
 	podsInformer := kubeInformerFactory.Core().V1().Pods()
 	servicesInformer := kubeInformerFactory.Core().V1().Services()
-	modelInferInformerFactory := informersv1alpha1.NewSharedInformerFactory(modelInferClient, 0)
-	modelInferInformer := modelInferInformerFactory.Workload().V1alpha1().ModelServings()
+	modelServingInformerFactory := informersv1alpha1.NewSharedInformerFactory(modelServingClient, 0)
+	modelServingInformer := modelServingInformerFactory.Workload().V1alpha1().ModelServings()
 
 	err = podsInformer.Informer().AddIndexers(cache.Indexers{
 		GroupNameKey: utils.GroupNameIndexFunc,
@@ -110,31 +110,31 @@ func NewModelInferController(kubeClientSet kubernetes.Interface, modelInferClien
 
 	store := datastore.New()
 
-	c := &ModelInferController{
-		kubeClientSet:       kubeClientSet,
-		modelInferClient:    modelInferClient,
-		gangManager:         gangscheduling.NewManager(kubeClientSet, volcanoClient),
-		podsLister:          podsInformer.Lister(),
-		podsInformer:        podsInformer.Informer(),
-		servicesLister:      servicesInformer.Lister(),
-		servicesInformer:    servicesInformer.Informer(),
-		modelServingLister:  modelInferInformer.Lister(),
-		modelInfersInformer: modelInferInformer.Informer(),
+	c := &ModelServingController{
+		kubeClientSet:         kubeClientSet,
+		modelServingClient:    modelServingClient,
+		gangManager:           gangscheduling.NewManager(kubeClientSet, volcanoClient),
+		podsLister:            podsInformer.Lister(),
+		podsInformer:          podsInformer.Informer(),
+		servicesLister:        servicesInformer.Lister(),
+		servicesInformer:      servicesInformer.Informer(),
+		modelServingLister:    modelServingInformer.Lister(),
+		modelServingsInformer: modelServingInformer.Informer(),
 		// nolint
-		workqueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "ModelInfers"),
+		workqueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "ModelServings"),
 		store:     store,
 	}
 
 	klog.Info("Set the ModelServing event handler")
-	_, _ = c.modelInfersInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, _ = c.modelServingsInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			c.addModelInfer(obj)
+			c.addModelServing(obj)
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
-			c.updateModelInfer(oldObj, newObj)
+			c.updateModelServing(oldObj, newObj)
 		},
 		DeleteFunc: func(obj interface{}) {
-			c.deleteModelInfer(obj)
+			c.deleteModelServing(obj)
 		},
 	})
 
@@ -150,22 +150,22 @@ func NewModelInferController(kubeClientSet kubernetes.Interface, modelInferClien
 		},
 	})
 
-	c.syncHandler = c.syncModelInfer
+	c.syncHandler = c.syncModelServing
 
 	return c, nil
 }
 
-func (c *ModelInferController) addModelInfer(obj interface{}) {
+func (c *ModelServingController) addModelServing(obj interface{}) {
 	mi, ok := obj.(*workloadv1alpha1.ModelServing)
 	if !ok {
 		klog.Error("failed to parse ModelServing type when addMI")
 		return
 	}
-	klog.V(4).InfoS("Adding", "modelinfer", klog.KObj(mi))
-	c.enqueueModelInfer(mi)
+	klog.V(4).InfoS("Adding", "modelServing", klog.KObj(mi))
+	c.enqueueModelServing(mi)
 }
 
-func (c *ModelInferController) updateModelInfer(old, cur interface{}) {
+func (c *ModelServingController) updateModelServing(old, cur interface{}) {
 	curMI, ok := cur.(*workloadv1alpha1.ModelServing)
 	if !ok {
 		klog.Error("failed to parse ModelServing type when updateMI")
@@ -179,14 +179,14 @@ func (c *ModelInferController) updateModelInfer(old, cur interface{}) {
 
 	if reflect.DeepEqual(oldMI.Spec, curMI.Spec) {
 		// If the spec has not changed, we do not need to reconcile.
-		klog.V(4).InfoS("Spec has not changed, skipping update", "modelinfer", klog.KObj(curMI))
+		klog.V(4).InfoS("Spec has not changed, skipping update", "modelServing", klog.KObj(curMI))
 		return
 	}
 
-	c.enqueueModelInfer(curMI)
+	c.enqueueModelServing(curMI)
 }
 
-func (c *ModelInferController) deleteModelInfer(obj interface{}) {
+func (c *ModelServingController) deleteModelServing(obj interface{}) {
 	mi, ok := obj.(*workloadv1alpha1.ModelServing)
 	if !ok {
 		// If the object is not a ModelServing, it might be a tombstone object.
@@ -202,17 +202,17 @@ func (c *ModelInferController) deleteModelInfer(obj interface{}) {
 		}
 	}
 
-	c.store.DeleteModelInfer(types.NamespacedName{
+	c.store.DeleteModelServing(types.NamespacedName{
 		Namespace: mi.Namespace,
 		Name:      mi.Name,
 	})
 }
 
-func (c *ModelInferController) addPod(obj interface{}) {
+func (c *ModelServingController) addPod(obj interface{}) {
 	c.updatePod(nil, obj)
 }
 
-func (c *ModelInferController) updatePod(oldObj, newObj interface{}) {
+func (c *ModelServingController) updatePod(oldObj, newObj interface{}) {
 	newPod, ok := newObj.(*corev1.Pod)
 	if !ok {
 		klog.Error("failed to parse newPod type when updatePod")
@@ -225,42 +225,42 @@ func (c *ModelInferController) updatePod(oldObj, newObj interface{}) {
 		return
 	}
 
-	mi, inferGroupName, err := c.getModelInfer(newPod)
+	mi, servingGroupName, err := c.getModelServing(newPod)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.V(4).Infof("modelInfer of pod %s has been deleted", newPod.Name)
+			klog.V(4).Infof("modelServing of pod %s has been deleted", newPod.Name)
 		} else {
-			klog.Errorf("get model infer failed when update pod: %v", err)
+			klog.Errorf("get model Serving failed when update pod: %v", err)
 		}
 		return
 	}
 
-	if c.shouldSkipPodHandling(mi, inferGroupName, newPod) {
-		// Pod revision mismatch inferGroup, this can rarely happen
+	if c.shouldSkipPodHandling(mi, servingGroupName, newPod) {
+		// Pod revision mismatch ServingGroup, this can rarely happen
 		return
 	}
 
 	switch {
 	case utils.IsPodRunningAndReady(newPod):
 		// The pod is available, that is, the state is running, and the container is ready
-		err = c.handleReadyPod(mi, inferGroupName, newPod)
+		err = c.handleReadyPod(mi, servingGroupName, newPod)
 		if err != nil {
 			klog.Errorf("handle running pod failed: %v", err)
 		}
 	case utils.IsPodFailed(newPod) || utils.ContainerRestarted(newPod):
-		// handleErrorPod is not called until modelInfer has been called.
+		// handleErrorPod is not called until modelServing has been called.
 		if !c.initialSync {
 			return
 		}
 		// Failure occurs in pod and we need to wait for a grace period before making a judgment.
-		err = c.handleErrorPod(mi, inferGroupName, newPod)
+		err = c.handleErrorPod(mi, servingGroupName, newPod)
 		if err != nil {
 			klog.Errorf("handle error pod failed: %v", err)
 		}
 	}
 }
 
-func (c *ModelInferController) deletePod(obj interface{}) {
+func (c *ModelServingController) deletePod(obj interface{}) {
 	pod, ok := obj.(*corev1.Pod)
 	if !ok {
 		// If the object is not a Pod, it might be a tombstone object.
@@ -276,57 +276,57 @@ func (c *ModelInferController) deletePod(obj interface{}) {
 		}
 	}
 
-	mi, inferGroupName, err := c.getModelInfer(pod)
+	mi, servingGroupName, err := c.getModelServing(pod)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.V(4).Infof("modelInfer of pod %s/%s has been deleted", pod.GetNamespace(), pod.GetName())
+			klog.V(4).Infof("modelServing of pod %s/%s has been deleted", pod.GetNamespace(), pod.GetName())
 		} else {
-			klog.Errorf("failed to get modelInfer of pod %s/%s: %v", pod.GetNamespace(), pod.GetName(), err)
+			klog.Errorf("failed to get modelServing of pod %s/%s: %v", pod.GetNamespace(), pod.GetName(), err)
 		}
 		return
 	}
 
 	roleName, roleID := utils.PodRoleName(pod), utils.PodRoleID(pod)
-	// check inferGroup status
-	if c.store.GetInferGroupStatus(utils.GetNamespaceName(mi), inferGroupName) == datastore.InferGroupDeleting {
-		// inferGroup is already in the deletion process, only checking whether the deletion is completed
-		if c.isInferGroupDeleted(mi, inferGroupName) {
-			// inferGroup has been deleted, so the storage needs to be updated and need to reconcile.
-			klog.V(2).Infof("inferGroup %s has been deleted", inferGroupName)
-			c.store.DeleteInferGroup(utils.GetNamespaceName(mi), inferGroupName)
-			c.enqueueModelInfer(mi)
+	// check ServingGroup status
+	if c.store.GetServingGroupStatus(utils.GetNamespaceName(mi), servingGroupName) == datastore.ServingGroupDeleting {
+		// ServingGroup is already in the deletion process, only checking whether the deletion is completed
+		if c.isServingGroupDeleted(mi, servingGroupName) {
+			// ServingGroup has been deleted, so the storage needs to be updated and need to reconcile.
+			klog.V(2).Infof("servingGroup %s has been deleted", servingGroupName)
+			c.store.DeleteServingGroup(utils.GetNamespaceName(mi), servingGroupName)
+			c.enqueueModelServing(mi)
 		}
 		return
 	}
 
-	c.store.DeleteRunningPodFromInferGroup(types.NamespacedName{
+	c.store.DeleteRunningPodFromServingGroup(types.NamespacedName{
 		Namespace: mi.Namespace,
 		Name:      mi.Name,
-	}, inferGroupName, pod.Name)
+	}, servingGroupName, pod.Name)
 
 	// check role status
-	if c.store.GetRoleStatus(utils.GetNamespaceName(mi), inferGroupName, roleName, roleID) == datastore.RoleDeleting {
+	if c.store.GetRoleStatus(utils.GetNamespaceName(mi), servingGroupName, roleName, roleID) == datastore.RoleDeleting {
 		// role is already in the deletion process, only checking whether the deletion is completed
-		if c.isRoleDeleted(mi, inferGroupName, utils.PodRoleName(pod), utils.PodRoleID(pod)) {
+		if c.isRoleDeleted(mi, servingGroupName, utils.PodRoleName(pod), utils.PodRoleID(pod)) {
 			// role has been deleted, so the storage needs to be updated and need to reconcile.
-			klog.V(2).Infof("role %s of inferGroup %s has been deleted", utils.PodRoleID(pod), inferGroupName)
-			c.store.DeleteRole(utils.GetNamespaceName(mi), inferGroupName, roleName, roleID)
-			c.enqueueModelInfer(mi)
+			klog.V(2).Infof("role %s of servingGroup %s has been deleted", utils.PodRoleID(pod), servingGroupName)
+			c.store.DeleteRole(utils.GetNamespaceName(mi), servingGroupName, roleName, roleID)
+			c.enqueueModelServing(mi)
 		}
 		return
 	}
 
-	if c.shouldSkipPodHandling(mi, inferGroupName, pod) {
+	if c.shouldSkipPodHandling(mi, servingGroupName, pod) {
 		return
 	}
 
-	err = c.handleDeletedPod(mi, inferGroupName, pod)
+	err = c.handleDeletedPod(mi, servingGroupName, pod)
 	if err != nil {
 		klog.Errorf("handle deleted pod failed: %v", err)
 	}
 }
 
-func (c *ModelInferController) enqueueModelInfer(mi *workloadv1alpha1.ModelServing) {
+func (c *ModelServingController) enqueueModelServing(mi *workloadv1alpha1.ModelServing) {
 	var key string
 	var err error
 	if key, err = cache.MetaNamespaceKeyFunc(mi); err != nil {
@@ -336,12 +336,12 @@ func (c *ModelInferController) enqueueModelInfer(mi *workloadv1alpha1.ModelServi
 	c.workqueue.Add(key)
 }
 
-func (c *ModelInferController) worker(ctx context.Context) {
+func (c *ModelServingController) worker(ctx context.Context) {
 	for c.processNextWorkItem(ctx) {
 	}
 }
 
-func (c *ModelInferController) processNextWorkItem(ctx context.Context) bool {
+func (c *ModelServingController) processNextWorkItem(ctx context.Context) bool {
 	key, quit := c.workqueue.Get()
 	if quit {
 		return false
@@ -360,8 +360,8 @@ func (c *ModelInferController) processNextWorkItem(ctx context.Context) bool {
 	return true
 }
 
-func (c *ModelInferController) syncModelInfer(ctx context.Context, key string) error {
-	// TODO: Consider obtaining the pod status during the modelinfer reconcile to process the infergroup status. This can ensure the real-time status.
+func (c *ModelServingController) syncModelServing(ctx context.Context, key string) error {
+	// TODO: Consider obtaining the pod status during the modelServing reconcile to process the Servinggroup status. This can ensure the real-time status.
 	klog.V(4).Info("Started syncing ModelServing")
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
@@ -386,9 +386,9 @@ func (c *ModelInferController) syncModelInfer(ctx context.Context, key string) e
 		return fmt.Errorf("Failed to manage PodGroups for ModelServing %s/%s: %v", mi.Namespace, mi.Name, err)
 	}
 
-	err = c.manageInferGroupReplicas(ctx, mi, revision)
+	err = c.manageServingGroupReplicas(ctx, mi, revision)
 	if err != nil {
-		return fmt.Errorf("cannot manage inferGroup replicas: %v", err)
+		return fmt.Errorf("cannot manage ServingGroup replicas: %v", err)
 	}
 
 	err = c.manageRole(ctx, mi, revision)
@@ -396,49 +396,49 @@ func (c *ModelInferController) syncModelInfer(ctx context.Context, key string) e
 		return fmt.Errorf("cannot manage role replicas: %v", err)
 	}
 
-	err = c.manageInferGroupRollingUpdate(mi, revision)
+	err = c.manageServingGroupRollingUpdate(mi, revision)
 	if err != nil {
-		return fmt.Errorf("cannot manage inferGroup rollingUpdate: %v", err)
+		return fmt.Errorf("cannot manage ServingGroup rollingUpdate: %v", err)
 	}
 
-	if err := c.UpdateModelInferStatus(mi, revision); err != nil {
+	if err := c.UpdateModelServingStatus(mi, revision); err != nil {
 		return fmt.Errorf("failed to update status of mi %s/%s: %v", namespace, name, err)
 	}
 
 	return nil
 }
 
-func (c *ModelInferController) Run(ctx context.Context, workers int) {
+func (c *ModelServingController) Run(ctx context.Context, workers int) {
 	defer utilruntime.HandleCrash()
 	defer c.workqueue.ShutDown()
 
 	// start informers
 	go c.podsInformer.RunWithContext(ctx)
 	go c.servicesInformer.RunWithContext(ctx)
-	go c.modelInfersInformer.RunWithContext(ctx)
+	go c.modelServingsInformer.RunWithContext(ctx)
 
 	cache.WaitForCacheSync(ctx.Done(),
 		c.podsInformer.HasSynced,
 		c.servicesInformer.HasSynced,
-		c.modelInfersInformer.HasSynced,
+		c.modelServingsInformer.HasSynced,
 	)
 
 	// sync pods first
 	c.syncAll()
 	klog.Info("initial sync has been done")
 
-	klog.Info("start modelInfer controller")
+	klog.Info("start modelServing controller")
 	for i := 0; i < workers; i++ {
 		go c.worker(ctx)
 	}
 	<-ctx.Done()
-	klog.Info("shut down modelInfer controller")
+	klog.Info("shut down modelServing controller")
 }
 
 // sync all pods before starting the worker
-// we donot need to sync ModelServing here, because the ModelServing controller will sync all ModelInfers after the initial sync.
-// Related inferGroups will be created when syncing pods.
-func (c *ModelInferController) syncAll() {
+// we donot need to sync ModelServing here, because the ModelServing controller will sync all ModelServings after the initial sync.
+// Related ServingGroups will be created when syncing pods.
+func (c *ModelServingController) syncAll() {
 	pods, _ := c.podsLister.List(labels.Everything())
 	for _, pod := range pods {
 		c.addPod(pod)
@@ -447,17 +447,17 @@ func (c *ModelInferController) syncAll() {
 	c.initialSync = true
 }
 
-// UpdateModelInferConditionsStatus update conditions ModelServing status.
-func (c *ModelInferController) UpdateModelInferConditionsStatus(mi *workloadv1alpha1.ModelServing, condition metav1.Condition) error {
+// UpdateModelServingConditionsStatus update conditions ModelServing status.
+func (c *ModelServingController) UpdateModelServingConditionsStatus(mi *workloadv1alpha1.ModelServing, condition metav1.Condition) error {
 	if !meta.SetStatusCondition(&mi.Status.Conditions, condition) {
-		return fmt.Errorf("failed to update modelInfer %s/%s status conditions", mi.GetNamespace(), mi.GetName())
+		return fmt.Errorf("failed to update modelServing %s/%s status conditions", mi.GetNamespace(), mi.GetName())
 	}
 	return nil
 }
 
-// UpdateModelInferStatus update replicas in modelInfer status.
-func (c *ModelInferController) UpdateModelInferStatus(mi *workloadv1alpha1.ModelServing, revision string) error {
-	groups, err := c.store.GetInferGroupByModelInfer(utils.GetNamespaceName(mi))
+// UpdateModelServingStatus update replicas in modelServing status.
+func (c *ModelServingController) UpdateModelServingStatus(mi *workloadv1alpha1.ModelServing, revision string) error {
+	groups, err := c.store.GetServingGroupByModelServing(utils.GetNamespaceName(mi))
 	if err != nil {
 		return err
 	}
@@ -465,16 +465,16 @@ func (c *ModelInferController) UpdateModelInferStatus(mi *workloadv1alpha1.Model
 	available, updated, current := 0, 0, 0
 	progressingGroups, updatedGroups, currentGroups := []int{}, []int{}, []int{}
 	for index := range groups {
-		if groups[index].Status == datastore.InferGroupRunning {
+		if groups[index].Status == datastore.ServingGroupRunning {
 			available = available + 1
-		} else if ok, err := c.checkInferGroupReady(mi, groups[index].Name); ok && err == nil {
+		} else if ok, err := c.checkServingGroupReady(mi, groups[index].Name); ok && err == nil {
 			// some scenarios, pod events may not trigger group status updates, such as role scaling down.
-			err = c.store.UpdateInferGroupStatus(utils.GetNamespaceName(mi), groups[index].Name, datastore.InferGroupRunning)
+			err = c.store.UpdateServingGroupStatus(utils.GetNamespaceName(mi), groups[index].Name, datastore.ServingGroupRunning)
 			if err != nil {
-				return fmt.Errorf("failed to set inferGroup %s status: %v", groups[index].Name, err)
+				return fmt.Errorf("failed to set servingGroup %s status: %v", groups[index].Name, err)
 			}
 			available = available + 1
-			klog.V(2).Infof("Update inferGroup %s status to Running", groups[index].Name)
+			klog.V(2).Infof("Update servingGroup %s status to Running", groups[index].Name)
 		} else {
 			progressingGroups = append(progressingGroups, index)
 		}
@@ -515,7 +515,7 @@ func (c *ModelInferController) UpdateModelInferStatus(mi *workloadv1alpha1.Model
 	}
 
 	if shouldUpdate {
-		_, err := c.modelInferClient.WorkloadV1alpha1().ModelServings(copy.GetNamespace()).UpdateStatus(context.TODO(), copy, metav1.UpdateOptions{})
+		_, err := c.modelServingClient.WorkloadV1alpha1().ModelServings(copy.GetNamespace()).UpdateStatus(context.TODO(), copy, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
@@ -524,52 +524,52 @@ func (c *ModelInferController) UpdateModelInferStatus(mi *workloadv1alpha1.Model
 	return nil
 }
 
-func (c *ModelInferController) manageInferGroupReplicas(ctx context.Context, mi *workloadv1alpha1.ModelServing, newRevision string) error {
-	inferGroupList, err := c.store.GetInferGroupByModelInfer(utils.GetNamespaceName(mi))
-	if err != nil && !errors.Is(err, datastore.ErrInferGroupNotFound) {
-		return fmt.Errorf("cannot get inferGroup of modelInfer: %s from map: %v", mi.GetName(), err)
+func (c *ModelServingController) manageServingGroupReplicas(ctx context.Context, mi *workloadv1alpha1.ModelServing, newRevision string) error {
+	servingGroupList, err := c.store.GetServingGroupByModelServing(utils.GetNamespaceName(mi))
+	if err != nil && !errors.Is(err, datastore.ErrServingGroupNotFound) {
+		return fmt.Errorf("cannot get servingGroup of modelServing: %s from map: %v", mi.GetName(), err)
 	}
 	expectedCount := int(*mi.Spec.Replicas)
-	curReplicas := len(inferGroupList)
+	curReplicas := len(servingGroupList)
 	if curReplicas == expectedCount {
 		klog.V(4).Info("The number of replicas is consistent, no need to scale up or down")
 		return nil
 	}
-	// slice that will contain all InferGroups as excepted
-	replicas := make([]*datastore.InferGroup, expectedCount)
-	// slice that will contain all InferGroups Out of except or fails to parse ordinal
-	condemned := make([]datastore.InferGroup, 0)
-	// First we partition inferGroups into two lists valid replicas and condemned inferGroups
-	for _, group := range inferGroupList {
-		_, inferGroupOrdinal := utils.GetParentNameAndOrdinal(group.Name)
-		if inferGroupOrdinal >= 0 && inferGroupOrdinal < expectedCount {
-			copyInferGroup := group
-			replicas[inferGroupOrdinal] = &copyInferGroup
+	// slice that will contain all ServingGroups as excepted
+	replicas := make([]*datastore.ServingGroup, expectedCount)
+	// slice that will contain all ServingGroups Out of except or fails to parse ordinal
+	condemned := make([]datastore.ServingGroup, 0)
+	// First we partition ServingGroups into two lists valid replicas and condemned ServingGroups
+	for _, group := range servingGroupList {
+		_, servingGroupOrdinal := utils.GetParentNameAndOrdinal(group.Name)
+		if servingGroupOrdinal >= 0 && servingGroupOrdinal < expectedCount {
+			copyServingGroup := group
+			replicas[servingGroupOrdinal] = &copyServingGroup
 		} else {
-			// Whether the inferGroup sequence number fails to parse or out of except, a rebuild should be performed
+			// Whether the ServingGroup sequence number fails to parse or out of except, a rebuild should be performed
 			condemned = append(condemned, group)
 		}
 	}
 	for idx := 0; idx < expectedCount; idx++ {
 		if replicas[idx] == nil {
-			// Insert new InferGroup to global storage
-			c.store.AddInferGroup(utils.GetNamespaceName(mi), idx, newRevision)
-			// Create pods for inferGroup
-			err = c.CreatePodsForInferGroup(ctx, mi, idx, newRevision)
+			// Insert new ServingGroup to global storage
+			c.store.AddServingGroup(utils.GetNamespaceName(mi), idx, newRevision)
+			// Create pods for ServingGroup
+			err = c.CreatePodsForServingGroup(ctx, mi, idx, newRevision)
 			if err != nil {
 				// I think that after create a pod failed, a period of time should pass before joining the coordination queue.
-				return fmt.Errorf("create infer group failed: %v", err)
+				return fmt.Errorf("create Serving group failed: %v", err)
 			}
 		}
 	}
 	for _, group := range condemned {
-		c.DeleteInferGroup(mi, group.Name)
+		c.DeleteServingGroup(mi, group.Name)
 	}
 	return nil
 }
 
-func (c *ModelInferController) CreatePodsForInferGroup(ctx context.Context, mi *workloadv1alpha1.ModelServing, groupIndex int, newHash string) error {
-	// traverse each role in inferGroup to create entry-worker pod group.
+func (c *ModelServingController) CreatePodsForServingGroup(ctx context.Context, mi *workloadv1alpha1.ModelServing, groupIndex int, newHash string) error {
+	// traverse each role in ServingGroup to create entry-worker pod group.
 	roleList := mi.Spec.Template.Roles
 	for _, role := range roleList {
 		// there will be multiple replicas in a role, such as xPyD type
@@ -583,22 +583,22 @@ func (c *ModelInferController) CreatePodsForInferGroup(ctx context.Context, mi *
 	return nil
 }
 
-func (c *ModelInferController) DeleteInferGroup(mi *workloadv1alpha1.ModelServing, groupname string) {
+func (c *ModelServingController) DeleteServingGroup(mi *workloadv1alpha1.ModelServing, groupname string) {
 	miNamedName := utils.GetNamespaceName(mi)
-	inferGroupStatus := c.store.GetInferGroupStatus(miNamedName, groupname)
-	if inferGroupStatus == datastore.InferGroupNotFound {
+	servingGroupStatus := c.store.GetServingGroupStatus(miNamedName, groupname)
+	if servingGroupStatus == datastore.ServingGroupNotFound {
 		return
 	}
 
 	groupNameValue := fmt.Sprintf("%s/%s", miNamedName.Namespace, groupname)
 	label := fmt.Sprintf("%s=%s", workloadv1alpha1.GroupNameLabelKey, groupname)
-	if inferGroupStatus != datastore.InferGroupDeleting {
-		err := c.store.UpdateInferGroupStatus(miNamedName, groupname, datastore.InferGroupDeleting)
+	if servingGroupStatus != datastore.ServingGroupDeleting {
+		err := c.store.UpdateServingGroupStatus(miNamedName, groupname, datastore.ServingGroupDeleting)
 		if err != nil {
-			klog.Errorf("failed to set inferGroup %s/%s status: %v", miNamedName.Namespace+"/"+mi.Name, groupname, err)
+			klog.Errorf("failed to set ServingGroup %s/%s status: %v", miNamedName.Namespace+"/"+mi.Name, groupname, err)
 			return
 		}
-		// Delete all pods in inferGroup
+		// Delete all pods in ServingGroup
 		err = c.kubeClientSet.CoreV1().Pods(miNamedName.Namespace).DeleteCollection(
 			context.TODO(),
 			metav1.DeleteOptions{},
@@ -607,7 +607,7 @@ func (c *ModelInferController) DeleteInferGroup(mi *workloadv1alpha1.ModelServin
 			},
 		)
 		if err != nil {
-			klog.Errorf("failed to delete inferGroup %s/%s: %v", miNamedName.Namespace+"/"+mi.Name, groupname, err)
+			klog.Errorf("failed to delete ServingGroup %s/%s: %v", miNamedName.Namespace+"/"+mi.Name, groupname, err)
 			return
 		}
 		// There is no DeleteCollection operation in the service of client-go. We need to list and delete them one by one.
@@ -639,15 +639,15 @@ func (c *ModelInferController) DeleteInferGroup(mi *workloadv1alpha1.ModelServin
 		klog.Errorf("failed to get service, err:%v", err)
 	}
 	if len(pods) == 0 && len(services) == 0 {
-		klog.V(2).Infof("inferGroup %s has been deleted", groupname)
-		c.store.DeleteInferGroup(miNamedName, groupname)
-		c.enqueueModelInfer(mi)
+		klog.V(2).Infof("ServingGroup %s has been deleted", groupname)
+		c.store.DeleteServingGroup(miNamedName, groupname)
+		c.enqueueModelServing(mi)
 		return
 	}
 }
 
-func (c *ModelInferController) CreatePodByRole(ctx context.Context, role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelServing, roleIndex, groupIndex int, newHash string) error {
-	groupName := utils.GenerateInferGroupName(mi.Name, groupIndex)
+func (c *ModelServingController) CreatePodByRole(ctx context.Context, role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelServing, roleIndex, groupIndex int, newHash string) error {
+	groupName := utils.GenerateServingGroupName(mi.Name, groupIndex)
 	taskName := c.gangManager.GenerateTaskName(role.Name, roleIndex)
 	// Create entry pod
 	entryPod := utils.GenerateEntryPod(role, mi, groupName, roleIndex, newHash)
@@ -688,38 +688,38 @@ func (c *ModelInferController) CreatePodByRole(ctx context.Context, role workloa
 	return nil
 }
 
-func (c *ModelInferController) manageRole(ctx context.Context, mi *workloadv1alpha1.ModelServing, newRevision string) error {
-	inferGroupList, err := c.store.GetInferGroupByModelInfer(utils.GetNamespaceName(mi))
-	if err != nil && !errors.Is(err, datastore.ErrInferGroupNotFound) {
-		return fmt.Errorf("cannot get inferGroup of modelInfer: %s from map: %v", mi.GetName(), err)
+func (c *ModelServingController) manageRole(ctx context.Context, mi *workloadv1alpha1.ModelServing, newRevision string) error {
+	servingGroupList, err := c.store.GetServingGroupByModelServing(utils.GetNamespaceName(mi))
+	if err != nil && !errors.Is(err, datastore.ErrServingGroupNotFound) {
+		return fmt.Errorf("cannot get ServingGroup of modelServing: %s from map: %v", mi.GetName(), err)
 	}
-	for _, inferGroup := range inferGroupList {
-		if c.store.GetInferGroupStatus(utils.GetNamespaceName(mi), inferGroup.Name) == datastore.InferGroupDeleting {
-			// Deleting inferGroup will be recreated after the deletion is complete, so there is no need to scale the roles
+	for _, servingGroup := range servingGroupList {
+		if c.store.GetServingGroupStatus(utils.GetNamespaceName(mi), servingGroup.Name) == datastore.ServingGroupDeleting {
+			// Deleting ServingGroup will be recreated after the deletion is complete, so there is no need to scale the roles
 			continue
 		}
-		_, inferGroupOrdinal := utils.GetParentNameAndOrdinal(inferGroup.Name)
+		_, servingGroupOrdinal := utils.GetParentNameAndOrdinal(servingGroup.Name)
 		for _, targetRole := range mi.Spec.Template.Roles {
-			c.manageRoleReplicas(ctx, mi, inferGroup.Name, targetRole, inferGroupOrdinal, newRevision)
+			c.manageRoleReplicas(ctx, mi, servingGroup.Name, targetRole, servingGroupOrdinal, newRevision)
 		}
 	}
 	return nil
 }
 
-// manageRoleReplicas manages the replicas of a specific role within an infer group
+// manageRoleReplicas manages the replicas of a specific role within an Serving group
 // It handles both scale up and scale down operations for the role
-func (c *ModelInferController) manageRoleReplicas(ctx context.Context, mi *workloadv1alpha1.ModelServing, groupName string, targetRole workloadv1alpha1.Role, inferGroupOrdinal int, newRevision string) {
+func (c *ModelServingController) manageRoleReplicas(ctx context.Context, mi *workloadv1alpha1.ModelServing, groupName string, targetRole workloadv1alpha1.Role, servingGroupOrdinal int, newRevision string) {
 	// TODO: add podGroup update after gang scheduler finished
 	// Get all replicas of a role from storage, for example, prefill-0, prefill-1...
 	roleList, err := c.store.GetRoleList(utils.GetNamespaceName(mi), groupName, targetRole.Name)
 	if err != nil {
-		klog.Errorf("cannot get role %s in inferGroup %s, err:%v", targetRole.Name, groupName, err)
+		klog.Errorf("cannot get role %s in ServingGroup %s, err:%v", targetRole.Name, groupName, err)
 		return
 	}
 
 	expectedCount := int(*targetRole.Replicas)
 	if len(roleList) == expectedCount {
-		klog.V(4).Infof("The replicas of role %s in inferGroup %s is consistent, no need to scale up or down", targetRole.Name, groupName)
+		klog.V(4).Infof("The replicas of role %s in ServingGroup %s is consistent, no need to scale up or down", targetRole.Name, groupName)
 		return
 	}
 
@@ -743,31 +743,31 @@ func (c *ModelInferController) manageRoleReplicas(ctx context.Context, mi *workl
 	// Handle scale up
 	for idx := 0; idx < expectedCount; idx++ {
 		if replicas[idx] == nil {
-			// Role needs to scale up, and the inferGroup status needs to be set to Scaling
-			if c.store.GetInferGroupStatus(utils.GetNamespaceName(mi), groupName) != datastore.InferGroupScaling {
-				err := c.store.UpdateInferGroupStatus(utils.GetNamespaceName(mi), groupName, datastore.InferGroupScaling)
+			// Role needs to scale up, and the ServingGroup status needs to be set to Scaling
+			if c.store.GetServingGroupStatus(utils.GetNamespaceName(mi), groupName) != datastore.ServingGroupScaling {
+				err := c.store.UpdateServingGroupStatus(utils.GetNamespaceName(mi), groupName, datastore.ServingGroupScaling)
 				if err != nil {
-					klog.Errorf("failed to set inferGroup %s/%s status: %v", mi.Namespace+"/"+mi.Name, groupName, err)
+					klog.Errorf("failed to set ServingGroup %s/%s status: %v", mi.Namespace+"/"+mi.Name, groupName, err)
 					return
 				}
 			}
 			// Insert new Role to global storage
 			c.store.AddRole(utils.GetNamespaceName(mi), groupName, targetRole.Name, utils.GenerateRoleID(targetRole.Name, idx), newRevision)
 			// Create pods for role
-			err = c.CreatePodByRole(ctx, *targetRole.DeepCopy(), mi, idx, inferGroupOrdinal, newRevision)
+			err = c.CreatePodByRole(ctx, *targetRole.DeepCopy(), mi, idx, servingGroupOrdinal, newRevision)
 			if err != nil {
-				klog.Errorf("create role %s for inferGroup %s failed: %v", utils.GenerateRoleID(targetRole.Name, idx), groupName, err)
+				klog.Errorf("create role %s for ServingGroup %s failed: %v", utils.GenerateRoleID(targetRole.Name, idx), groupName, err)
 			}
 		}
 	}
 
 	// Handle scale down
 	for _, role := range condemned {
-		// Role needs to scale down, and the inferGroup status needs to be set to Scaling
-		if c.store.GetInferGroupStatus(utils.GetNamespaceName(mi), groupName) != datastore.InferGroupScaling {
-			err := c.store.UpdateInferGroupStatus(utils.GetNamespaceName(mi), groupName, datastore.InferGroupScaling)
+		// Role needs to scale down, and the ServingGroup status needs to be set to Scaling
+		if c.store.GetServingGroupStatus(utils.GetNamespaceName(mi), groupName) != datastore.ServingGroupScaling {
+			err := c.store.UpdateServingGroupStatus(utils.GetNamespaceName(mi), groupName, datastore.ServingGroupScaling)
 			if err != nil {
-				klog.Errorf("failed to set inferGroup %s/%s status: %v", mi.Namespace+"/"+mi.Name, groupName, err)
+				klog.Errorf("failed to set ServingGroup %s/%s status: %v", mi.Namespace+"/"+mi.Name, groupName, err)
 				return
 			}
 		}
@@ -775,7 +775,7 @@ func (c *ModelInferController) manageRoleReplicas(ctx context.Context, mi *workl
 	}
 }
 
-func (c *ModelInferController) DeleteRole(ctx context.Context, mi *workloadv1alpha1.ModelServing, groupName, roleName, roleID string) {
+func (c *ModelServingController) DeleteRole(ctx context.Context, mi *workloadv1alpha1.ModelServing, groupName, roleName, roleID string) {
 	selector := labels.SelectorFromSet(map[string]string{
 		workloadv1alpha1.GroupNameLabelKey: groupName,
 		workloadv1alpha1.RoleLabelKey:      roleName,
@@ -820,63 +820,63 @@ func (c *ModelInferController) DeleteRole(ctx context.Context, mi *workloadv1alp
 	}
 }
 
-func (c *ModelInferController) manageInferGroupRollingUpdate(mi *workloadv1alpha1.ModelServing, revision string) error {
+func (c *ModelServingController) manageServingGroupRollingUpdate(mi *workloadv1alpha1.ModelServing, revision string) error {
 	// we compute the minimum ordinal of the target sequence for a destructive update based on the strategy.
 	updateMin := 0
 	if mi.Spec.RolloutStrategy != nil && mi.Spec.RolloutStrategy.RollingUpdateConfiguration != nil && mi.Spec.RolloutStrategy.RollingUpdateConfiguration.Partition != nil {
 		updateMin = int(*mi.Spec.RolloutStrategy.RollingUpdateConfiguration.Partition)
 	}
-	inferGroupList, err := c.store.GetInferGroupByModelInfer(utils.GetNamespaceName(mi))
+	servingGroupList, err := c.store.GetServingGroupByModelServing(utils.GetNamespaceName(mi))
 	if err != nil {
-		return fmt.Errorf("cannot get inferGroupList from store, err:%v", err)
+		return fmt.Errorf("cannot get ServingGroupList from store, err:%v", err)
 	}
-	// we terminate the inferGroup with the largest ordinal that does not match the update revision.
-	for i := len(inferGroupList) - 1; i >= updateMin; i-- {
-		if c.isInferGroupOutdated(inferGroupList[i], mi.Namespace, revision) {
-			// target inferGroup is not the latest version, needs to be updated
-			klog.V(2).Infof("inferGroup %s will be terminating for update", inferGroupList[i].Name)
-			c.DeleteInferGroup(mi, inferGroupList[i].Name)
+	// we terminate the ServingGroup with the largest ordinal that does not match the update revision.
+	for i := len(servingGroupList) - 1; i >= updateMin; i-- {
+		if c.isServingGroupOutdated(servingGroupList[i], mi.Namespace, revision) {
+			// target ServingGroup is not the latest version, needs to be updated
+			klog.V(2).Infof("ServingGroup %s will be terminating for update", servingGroupList[i].Name)
+			c.DeleteServingGroup(mi, servingGroupList[i].Name)
 			return nil
 		}
-		if inferGroupList[i].Status != datastore.InferGroupRunning {
-			// target inferGroup is the latest version, but not running. We need to wait for the status to change to running.
+		if servingGroupList[i].Status != datastore.ServingGroupRunning {
+			// target ServingGroup is the latest version, but not running. We need to wait for the status to change to running.
 			// If the group fails after rolling, it will automatically be deleted and rebuilt when detecting the pod failure.
 			// If the group still pending due to reasons such as being unable to be scheduled, rolling update process will stop
 			// to avoid affecting other groups that are running normally.
-			klog.V(4).Infof("waiting for the infergroup %s status become running", inferGroupList[i].Name)
+			klog.V(4).Infof("waiting for the ServingGroup %s status become running", servingGroupList[i].Name)
 			return nil
 		}
-		// target inferGroup is already the latest version and running, processing the rolling update of the next group.
+		// target ServingGroup is already the latest version and running, processing the rolling update of the next group.
 	}
-	klog.V(2).Infof("all target groups of modelInfer %s have been updated", mi.Name)
+	klog.V(2).Infof("all target groups of modelServing %s have been updated", mi.Name)
 	return nil
 }
 
-func (c *ModelInferController) handleReadyPod(mi *workloadv1alpha1.ModelServing, inferGroupName string, newPod *corev1.Pod) error {
-	// Add the running pod to the global storage and try to update the inferGroup status
-	c.store.AddRunningPodToInferGroup(types.NamespacedName{
+func (c *ModelServingController) handleReadyPod(mi *workloadv1alpha1.ModelServing, servingGroupName string, newPod *corev1.Pod) error {
+	// Add the running pod to the global storage and try to update the ServingGroup status
+	c.store.AddRunningPodToServingGroup(types.NamespacedName{
 		Namespace: mi.Namespace,
 		Name:      mi.Name,
-	}, inferGroupName, newPod.Name, utils.PodRevision(newPod), utils.PodRoleName(newPod), utils.PodRoleID(newPod))
-	ready, err := c.checkInferGroupReady(mi, inferGroupName)
+	}, servingGroupName, newPod.Name, utils.PodRevision(newPod), utils.PodRoleName(newPod), utils.PodRoleID(newPod))
+	ready, err := c.checkServingGroupReady(mi, servingGroupName)
 	if err != nil {
-		return fmt.Errorf("failed to check inferGroup status, err: %v", err)
+		return fmt.Errorf("failed to check ServingGroup status, err: %v", err)
 	}
 	if ready {
-		// All pods in the inferGroup are running, so the inferGroup status also needs to be set to running
-		err = c.store.UpdateInferGroupStatus(utils.GetNamespaceName(mi), inferGroupName, datastore.InferGroupRunning)
+		// All pods in the ServingGroup are running, so the ServingGroup status also needs to be set to running
+		err = c.store.UpdateServingGroupStatus(utils.GetNamespaceName(mi), servingGroupName, datastore.ServingGroupRunning)
 		if err != nil {
-			return fmt.Errorf("failed to set inferGroup %s status: %v", inferGroupName, err)
+			return fmt.Errorf("failed to set ServingGroup %s status: %v", servingGroupName, err)
 		}
-		klog.V(2).Infof("Update inferGroup %s status to Running", inferGroupName)
-		c.enqueueModelInfer(mi)
+		klog.V(2).Infof("Update ServingGroup %s status to Running", servingGroupName)
+		c.enqueueModelServing(mi)
 	} else {
-		klog.V(4).Infof("inferGroup %s still creating", inferGroupName)
+		klog.V(4).Infof("ServingGroup %s still creating", servingGroupName)
 	}
 	return nil
 }
 
-func (c *ModelInferController) handleErrorPod(mi *workloadv1alpha1.ModelServing, inferGroupName string, errPod *corev1.Pod) error {
+func (c *ModelServingController) handleErrorPod(mi *workloadv1alpha1.ModelServing, servingGroupName string, errPod *corev1.Pod) error {
 	// pod is already in the grace period and does not need to be processed for the time being.
 	_, exists := c.graceMap.Load(utils.GetNamespaceName(errPod))
 	now := time.Now()
@@ -886,26 +886,26 @@ func (c *ModelInferController) handleErrorPod(mi *workloadv1alpha1.ModelServing,
 	}
 	// add pod to the grace period map
 	c.graceMap.Store(utils.GetNamespaceName(errPod), now)
-	c.store.DeleteRunningPodFromInferGroup(types.NamespacedName{
+	c.store.DeleteRunningPodFromServingGroup(types.NamespacedName{
 		Namespace: mi.Namespace,
 		Name:      mi.Name,
-	}, inferGroupName, errPod.Name)
-	// If the inferGroup status is already running, the status needs to be updated
-	if groupStatus := c.store.GetInferGroupStatus(utils.GetNamespaceName(mi), inferGroupName); groupStatus == datastore.InferGroupRunning {
-		err := c.store.UpdateInferGroupStatus(utils.GetNamespaceName(mi), inferGroupName, datastore.InferGroupCreating)
+	}, servingGroupName, errPod.Name)
+	// If the ServingGroup status is already running, the status needs to be updated
+	if groupStatus := c.store.GetServingGroupStatus(utils.GetNamespaceName(mi), servingGroupName); groupStatus == datastore.ServingGroupRunning {
+		err := c.store.UpdateServingGroupStatus(utils.GetNamespaceName(mi), servingGroupName, datastore.ServingGroupCreating)
 		if err != nil {
-			return fmt.Errorf("update infergroup status failed, err:%v", err)
+			return fmt.Errorf("update ServingGroup status failed, err:%v", err)
 		}
-		klog.V(2).Infof("update infergroup %s to processing when pod fails", inferGroupName)
+		klog.V(2).Infof("update ServingGroup %s to processing when pod fails", servingGroupName)
 	}
 	// Wait for the grace period before processing
 	go c.handlePodAfterGraceTime(mi, errPod)
-	// InferGroup status may change, needs reconcile
-	c.enqueueModelInfer(mi)
+	// ServingGroup status may change, needs reconcile
+	c.enqueueModelServing(mi)
 	return nil
 }
 
-func (c *ModelInferController) handlePodAfterGraceTime(mi *workloadv1alpha1.ModelServing, errPod *corev1.Pod) {
+func (c *ModelServingController) handlePodAfterGraceTime(mi *workloadv1alpha1.ModelServing, errPod *corev1.Pod) {
 	if mi.Spec.Template.RestartGracePeriodSeconds != nil && *mi.Spec.Template.RestartGracePeriodSeconds > 0 {
 		// Wait for the grace period before making a decision
 		time.Sleep(time.Duration(*mi.Spec.Template.RestartGracePeriodSeconds) * time.Second)
@@ -924,7 +924,7 @@ func (c *ModelInferController) handlePodAfterGraceTime(mi *workloadv1alpha1.Mode
 
 		if !utils.IsPodRunningAndReady(newPod) {
 			// pod has not recovered after the grace period, needs to be rebuilt
-			// After this pod has been deleted, we will rebuild the inferGroup in deletePod function
+			// After this pod has been deleted, we will rebuild the ServingGroup in deletePod function
 			err = c.kubeClientSet.CoreV1().Pods(mi.Namespace).Delete(context.TODO(), newPod.Name, metav1.DeleteOptions{})
 			if err != nil {
 				klog.Errorf("cannot delete pod %s after grace time, err: %v", newPod.Name, err)
@@ -945,28 +945,28 @@ func (c *ModelInferController) handlePodAfterGraceTime(mi *workloadv1alpha1.Mode
 	}
 }
 
-func (c *ModelInferController) handleDeletedPod(mi *workloadv1alpha1.ModelServing, inferGroupName string, pod *corev1.Pod) error {
+func (c *ModelServingController) handleDeletedPod(mi *workloadv1alpha1.ModelServing, servingGroupName string, pod *corev1.Pod) error {
 	// pod is deleted due to failure or other reasons and needs to be rebuilt according to the RecoveryPolicy
 	switch mi.Spec.RecoveryPolicy {
 	case workloadv1alpha1.ServingGroupRecreate:
-		// Rebuild the entire inferGroup directly
-		c.DeleteInferGroup(mi, inferGroupName)
+		// Rebuild the entire ServingGroup directly
+		c.DeleteServingGroup(mi, servingGroupName)
 	case workloadv1alpha1.RoleRecreate:
-		if c.store.GetInferGroupStatus(utils.GetNamespaceName(mi), inferGroupName) == datastore.InferGroupRunning {
-			// If the inferGroup status is running when the pod fails, we need to set it to creating
-			err := c.store.UpdateInferGroupStatus(utils.GetNamespaceName(mi), inferGroupName, datastore.InferGroupCreating)
+		if c.store.GetServingGroupStatus(utils.GetNamespaceName(mi), servingGroupName) == datastore.ServingGroupRunning {
+			// If the ServingGroup status is running when the pod fails, we need to set it to creating
+			err := c.store.UpdateServingGroupStatus(utils.GetNamespaceName(mi), servingGroupName, datastore.ServingGroupCreating)
 			if err != nil {
-				return fmt.Errorf("failed to set inferGroup %s status: %v", inferGroupName, err)
+				return fmt.Errorf("failed to set ServingGroup %s status: %v", servingGroupName, err)
 			}
 		}
-		c.DeleteRole(context.Background(), mi, inferGroupName, utils.PodRoleName(pod), utils.PodRoleID(pod))
+		c.DeleteRole(context.Background(), mi, servingGroupName, utils.PodRoleName(pod), utils.PodRoleID(pod))
 	}
 	return nil
 }
 
-func (c *ModelInferController) checkInferGroupReady(mi *workloadv1alpha1.ModelServing, inferGroupName string) (bool, error) {
-	// TODO: modify inferGroupReady logic after rolling update functionality is implemented
-	runningPodsNum, err := c.store.GetRunningPodNumByInferGroup(utils.GetNamespaceName(mi), inferGroupName)
+func (c *ModelServingController) checkServingGroupReady(mi *workloadv1alpha1.ModelServing, servingGroupName string) (bool, error) {
+	// TODO: modify ServingGroupReady logic after rolling update functionality is implemented
+	runningPodsNum, err := c.store.GetRunningPodNumByServingGroup(utils.GetNamespaceName(mi), servingGroupName)
 	if err != nil {
 		return false, err
 	}
@@ -977,8 +977,8 @@ func (c *ModelInferController) checkInferGroupReady(mi *workloadv1alpha1.ModelSe
 	return true, nil
 }
 
-func (c *ModelInferController) isInferGroupOutdated(group datastore.InferGroup, namespace, newRevision string) bool {
-	// Find the pods corresponding to inferGroup
+func (c *ModelServingController) isServingGroupOutdated(group datastore.ServingGroup, namespace, newRevision string) bool {
+	// Find the pods corresponding to ServingGroup
 	groupNameValue := fmt.Sprintf("%s/%s", namespace, group.Name)
 	pods, err := c.getPodsByIndex(GroupNameKey, groupNameValue)
 	if err != nil {
@@ -994,42 +994,42 @@ func (c *ModelInferController) isInferGroupOutdated(group datastore.InferGroup, 
 	return false
 }
 
-func (c *ModelInferController) getModelInfer(pod *corev1.Pod) (*workloadv1alpha1.ModelServing, string, error) {
-	modelInferName, inferGroupName, ok := utils.GetModelInferAndGroupByLabel(pod.GetLabels())
+func (c *ModelServingController) getModelServing(pod *corev1.Pod) (*workloadv1alpha1.ModelServing, string, error) {
+	modelServingName, servingGroupName, ok := utils.GetModelServingAndGroupByLabel(pod.GetLabels())
 	if !ok {
-		return nil, "", fmt.Errorf("cannot get modelInfer name and inferGroup name from pod %s", pod.Name)
+		return nil, "", fmt.Errorf("cannot get modelServing name and ServingGroup name from pod %s", pod.Name)
 	}
-	mi, err := c.modelServingLister.ModelServings(pod.Namespace).Get(modelInferName)
+	mi, err := c.modelServingLister.ModelServings(pod.Namespace).Get(modelServingName)
 	if err != nil {
 		return nil, "", err
 	}
-	return mi, inferGroupName, nil
+	return mi, servingGroupName, nil
 }
 
 // shouldSkipPodHandling checks if a pod should be skipped based on revision mismatch
-func (c *ModelInferController) shouldSkipPodHandling(mi *workloadv1alpha1.ModelServing, inferGroupName string, pod *corev1.Pod) bool {
+func (c *ModelServingController) shouldSkipPodHandling(mi *workloadv1alpha1.ModelServing, servingGroupName string, pod *corev1.Pod) bool {
 	podRevision := utils.PodRevision(pod)
-	inferGroup := c.store.GetInferGroup(types.NamespacedName{
+	servingGroup := c.store.GetServingGroup(types.NamespacedName{
 		Namespace: mi.Namespace,
 		Name:      mi.Name,
-	}, inferGroupName)
-	if inferGroup != nil && inferGroup.Revision != podRevision {
-		// If the pod revision is not equal to the inferGroup revision, we do not need to handle it.
-		klog.V(4).Infof("pod %s/%s revision %s is not equal to inferGroup %s revision %s, skip handling",
-			pod.Namespace, pod.Name, podRevision, inferGroupName, inferGroup.Revision)
+	}, servingGroupName)
+	if servingGroup != nil && servingGroup.Revision != podRevision {
+		// If the pod revision is not equal to the ServingGroup revision, we do not need to handle it.
+		klog.V(4).Infof("pod %s/%s revision %s is not equal to ServingGroup %s revision %s, skip handling",
+			pod.Namespace, pod.Name, podRevision, servingGroupName, servingGroup.Revision)
 		return true
 	}
 	return false
 }
 
-func (c *ModelInferController) isInferGroupDeleted(mi *workloadv1alpha1.ModelServing, inferGroupName string) bool {
-	status := c.store.GetInferGroupStatus(utils.GetNamespaceName(mi), inferGroupName)
-	if status != datastore.InferGroupDeleting {
+func (c *ModelServingController) isServingGroupDeleted(mi *workloadv1alpha1.ModelServing, servingGroupName string) bool {
+	status := c.store.GetServingGroupStatus(utils.GetNamespaceName(mi), servingGroupName)
+	if status != datastore.ServingGroupDeleting {
 		// It will be determined whether all resource have been deleted only when the group status is deleting.
 		return false
 	}
-	// check whether the inferGroup deletion has been completed
-	groupNameValue := fmt.Sprintf("%s/%s", mi.Namespace, inferGroupName)
+	// check whether the ServingGroup deletion has been completed
+	groupNameValue := fmt.Sprintf("%s/%s", mi.Namespace, servingGroupName)
 	pods, err := c.getPodsByIndex(GroupNameKey, groupNameValue)
 	if err != nil {
 		klog.Errorf("failed to get pod, err: %v", err)
@@ -1043,12 +1043,12 @@ func (c *ModelInferController) isInferGroupDeleted(mi *workloadv1alpha1.ModelSer
 	return len(pods) == 0 && len(services) == 0
 }
 
-func (c *ModelInferController) isRoleDeleted(mi *workloadv1alpha1.ModelServing, inferGroupName, roleName, roleID string) bool {
-	if c.store.GetRoleStatus(utils.GetNamespaceName(mi), inferGroupName, roleName, roleID) != datastore.RoleDeleting {
+func (c *ModelServingController) isRoleDeleted(mi *workloadv1alpha1.ModelServing, servingGroupName, roleName, roleID string) bool {
+	if c.store.GetRoleStatus(utils.GetNamespaceName(mi), servingGroupName, roleName, roleID) != datastore.RoleDeleting {
 		// It will be determined whether all resource have been deleted only when the role status is deleting.
 		return false
 	}
-	roleIDValue := fmt.Sprintf("%s/%s/%s/%s", mi.Namespace, inferGroupName, roleName, roleID)
+	roleIDValue := fmt.Sprintf("%s/%s/%s/%s", mi.Namespace, servingGroupName, roleName, roleID)
 	// check whether the role deletion has been completed
 	pods, err := c.getPodsByIndex(RoleIDKey, roleIDValue)
 	if err != nil {
@@ -1064,7 +1064,7 @@ func (c *ModelInferController) isRoleDeleted(mi *workloadv1alpha1.ModelServing, 
 }
 
 // getPodsByIndex filter pods using the informer indexer.
-func (c *ModelInferController) getPodsByIndex(indexName, indexValue string) ([]*corev1.Pod, error) {
+func (c *ModelServingController) getPodsByIndex(indexName, indexValue string) ([]*corev1.Pod, error) {
 	indexer := c.podsInformer.GetIndexer()
 	if _, exists := indexer.GetIndexers()[indexName]; !exists {
 		return nil, fmt.Errorf("pod indexer %s not found", indexName)
@@ -1087,7 +1087,7 @@ func (c *ModelInferController) getPodsByIndex(indexName, indexValue string) ([]*
 }
 
 // getServicesByIndex filter services using the informer indexer.
-func (c *ModelInferController) getServicesByIndex(indexName, indexValue string) ([]*corev1.Service, error) {
+func (c *ModelServingController) getServicesByIndex(indexName, indexValue string) ([]*corev1.Service, error) {
 	indexer := c.servicesInformer.GetIndexer()
 	if _, exists := indexer.GetIndexers()[indexName]; !exists {
 		return nil, fmt.Errorf("service indexer %s not found", indexName)

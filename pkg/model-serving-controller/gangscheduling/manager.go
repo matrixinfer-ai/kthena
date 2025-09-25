@@ -79,7 +79,7 @@ func (m *Manager) managePodGroups(ctx context.Context, mi *workloadv1alpha1.Mode
 
 		if existingPG, exists := existingPodGroups[podGroupName]; exists {
 			// Update existing PodGroup if needed
-			if err := m.updatePodGroupIfNeeded(ctx, existingPG, mi, i); err != nil {
+			if err := m.updatePodGroupIfNeeded(ctx, existingPG, mi); err != nil {
 				return fmt.Errorf("failed to update PodGroup %s: %v", podGroupName, err)
 			}
 		} else {
@@ -95,8 +95,8 @@ func (m *Manager) managePodGroups(ctx context.Context, mi *workloadv1alpha1.Mode
 }
 
 // createPodGroup creates a PodGroup for group-level gang scheduling
-func (m *Manager) createPodGroup(ctx context.Context, mi *workloadv1alpha1.ModelServing, inferGroupIndex int) error {
-	podGroupName := m.generatePodGroupName(mi.Name, inferGroupIndex)
+func (m *Manager) createPodGroup(ctx context.Context, mi *workloadv1alpha1.ModelServing, groupIndex int) error {
+	podGroupName := m.generatePodGroupName(mi.Name, groupIndex)
 
 	// Calculate total pods and resources for this ServingGroup
 	minMember, minTaskMember, minResources := m.calculateRequirements(mi)
@@ -200,8 +200,8 @@ func (m *Manager) aggregateResources(total *corev1.ResourceList, podSpec *corev1
 }
 
 // generatePodGroupName generates PodGroup name for group-level scheduling
-func (m *Manager) generatePodGroupName(modelInferName string, inferGroupIndex int) string {
-	return fmt.Sprintf("%s-%d", modelInferName, inferGroupIndex)
+func (m *Manager) generatePodGroupName(modelServingName string, groupIndex int) string {
+	return fmt.Sprintf("%s-%d", modelServingName, groupIndex)
 }
 
 // GenerateTaskName generates task name for MinTaskMember
@@ -232,7 +232,7 @@ func (m *Manager) getExistingPodGroups(ctx context.Context, mi *workloadv1alpha1
 }
 
 // updatePodGroupIfNeeded updates a PodGroup if needed for group-level scheduling
-func (m *Manager) updatePodGroupIfNeeded(ctx context.Context, existing *schedulingv1beta1.PodGroup, mi *workloadv1alpha1.ModelServing, inferGroupIndex int) error {
+func (m *Manager) updatePodGroupIfNeeded(ctx context.Context, existing *schedulingv1beta1.PodGroup, mi *workloadv1alpha1.ModelServing) error {
 	// Calculate current requirements
 	minMember, minTaskMember, minResources := m.calculateRequirements(mi)
 

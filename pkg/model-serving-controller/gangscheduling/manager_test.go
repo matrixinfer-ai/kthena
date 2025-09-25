@@ -53,7 +53,7 @@ func TestCalculateRequirements(t *testing.T) {
 	}
 
 	// Helper function to create a basic ModelServing object
-	createBasicModelInfer := func() *workloadv1alpha1.ModelServing {
+	createBasicModelServing := func() *workloadv1alpha1.ModelServing {
 		return &workloadv1alpha1.ModelServing{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "test-model",
@@ -85,7 +85,7 @@ func TestCalculateRequirements(t *testing.T) {
 
 	t.Run("basic calculation", func(t *testing.T) {
 		manager := NewManager(nil, nil)
-		mi := createBasicModelInfer()
+		mi := createBasicModelServing()
 
 		minMember, minTaskMember, minResources := manager.calculateRequirements(mi)
 
@@ -116,7 +116,7 @@ func TestCalculateRequirements(t *testing.T) {
 
 	t.Run("with MinRoleReplicas constraint", func(t *testing.T) {
 		manager := NewManager(nil, nil)
-		mi := createBasicModelInfer()
+		mi := createBasicModelServing()
 
 		// Set MinRoleReplicas to limit the number of roles considered
 		minRoleReplicas := map[string]int32{
@@ -153,7 +153,7 @@ func TestCalculateRequirements(t *testing.T) {
 
 	t.Run("nil MinRoleReplicas", func(t *testing.T) {
 		manager := NewManager(nil, nil)
-		mi := createBasicModelInfer()
+		mi := createBasicModelServing()
 		mi.Spec.Template.GangSchedule.MinRoleReplicas = nil
 
 		minMember, _, _ := manager.calculateRequirements(mi)
@@ -165,7 +165,7 @@ func TestCalculateRequirements(t *testing.T) {
 
 	t.Run("empty roles", func(t *testing.T) {
 		manager := NewManager(nil, nil)
-		mi := createBasicModelInfer()
+		mi := createBasicModelServing()
 		mi.Spec.Template.Roles = []workloadv1alpha1.Role{} // Empty roles
 
 		minMember, minTaskMember, minResources := manager.calculateRequirements(mi)
@@ -178,7 +178,7 @@ func TestCalculateRequirements(t *testing.T) {
 
 	t.Run("role with no worker template", func(t *testing.T) {
 		manager := NewManager(nil, nil)
-		mi := createBasicModelInfer()
+		mi := createBasicModelServing()
 
 		// Modify one role to have no worker template
 		mi.Spec.Template.Roles[1].WorkerTemplate = nil
@@ -200,7 +200,7 @@ func TestCalculateRequirements(t *testing.T) {
 
 	t.Run("zero worker replicas", func(t *testing.T) {
 		manager := NewManager(nil, nil)
-		mi := createBasicModelInfer()
+		mi := createBasicModelServing()
 
 		// Set worker replicas to zero for one role
 		mi.Spec.Template.Roles[0].WorkerReplicas = 0
@@ -440,7 +440,7 @@ func TestAggregateResources(t *testing.T) {
 
 func TestGetExistingPodGroups(t *testing.T) {
 	// Setup test objects
-	modelInfer := &workloadv1alpha1.ModelServing{
+	modelServing := &workloadv1alpha1.ModelServing{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-model",
 			Namespace: "default",
@@ -492,7 +492,7 @@ func TestGetExistingPodGroups(t *testing.T) {
 		fakeVolcanoClient := volcanofake.NewSimpleClientset(podGroup1, podGroup2, podGroup3, podGroupDifferentNamespace)
 		manager := NewManager(nil, fakeVolcanoClient)
 
-		result, err := manager.getExistingPodGroups(context.Background(), modelInfer)
+		result, err := manager.getExistingPodGroups(context.Background(), modelServing)
 
 		// Assertions
 		assert.NoError(t, err)
@@ -516,7 +516,7 @@ func TestGetExistingPodGroups(t *testing.T) {
 		fakeVolcanoClient := volcanofake.NewSimpleClientset(podGroup3)
 		manager := NewManager(nil, fakeVolcanoClient)
 
-		result, err := manager.getExistingPodGroups(context.Background(), modelInfer)
+		result, err := manager.getExistingPodGroups(context.Background(), modelServing)
 
 		// Assertions
 		assert.NoError(t, err)
@@ -529,7 +529,7 @@ func TestGetExistingPodGroups(t *testing.T) {
 		fakeVolcanoClient := volcanofake.NewSimpleClientset()
 		manager := NewManager(nil, fakeVolcanoClient)
 
-		result, err := manager.getExistingPodGroups(context.Background(), modelInfer)
+		result, err := manager.getExistingPodGroups(context.Background(), modelServing)
 
 		// Assertions
 		assert.NoError(t, err)
@@ -542,7 +542,7 @@ func TestGetExistingPodGroups(t *testing.T) {
 		fakeVolcanoClient := volcanofake.NewSimpleClientset(podGroup1, podGroupDifferentNamespace)
 		manager := NewManager(nil, fakeVolcanoClient)
 
-		result, err := manager.getExistingPodGroups(context.Background(), modelInfer)
+		result, err := manager.getExistingPodGroups(context.Background(), modelServing)
 
 		// Should only get pod groups from the same namespace
 		assert.NoError(t, err)
@@ -552,7 +552,7 @@ func TestGetExistingPodGroups(t *testing.T) {
 		assert.NotEqual(t, "other-namespace", result["test-model-0"].Namespace)
 	})
 
-	t.Run("nil model infer parameter", func(t *testing.T) {
+	t.Run("nil model Serving parameter", func(t *testing.T) {
 		fakeVolcanoClient := volcanofake.NewSimpleClientset(podGroup1)
 		manager := NewManager(nil, fakeVolcanoClient)
 
