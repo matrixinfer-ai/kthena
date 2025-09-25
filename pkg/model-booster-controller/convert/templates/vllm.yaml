@@ -3,11 +3,6 @@ kind: ModelServing
 metadata: ${MODEL_SERVING_TEMPLATE_METADATA}
 spec:
   recoveryPolicy: InferGroupRecreate
-  rolloutStrategy:
-    rollingUpdate:
-      maxSurge: 25%
-      maxUnavailable: 25%
-    type: InferGroupRollingUpdate
   topologySpreadConstraints:
     - maxSkew: 1
       topologyKey: kubernetes.io/hostname

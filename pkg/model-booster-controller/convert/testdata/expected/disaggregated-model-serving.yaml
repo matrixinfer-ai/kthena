@@ -17,8 +17,6 @@ metadata:
 spec:
   recoveryPolicy: InferGroupRecreate
   replicas: 1
-  rolloutStrategy:
-    type: InferGroupRollingUpdate
   schedulerName: volcano
   template:
     restartGracePeriodSeconds: 60
