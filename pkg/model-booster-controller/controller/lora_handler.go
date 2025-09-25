@@ -42,13 +42,13 @@ func (mc *ModelBoosterController) dynamicUpdateLoraBackends(model *workload.Mode
 	var dynamicUpdatedBackends []string
 	// check if only LoRA adapters have changed for runtime update
 	if model.Generation != model.Status.ObservedGeneration {
-		klog.Info("model generation is not equal to observed generation, checking for LoRA adapter changes")
+		klog.V(4).Info("model generation is not equal to observed generation, checking for LoRA adapter changes")
 		if oldModel := mc.getPreviousModelVersion(model); oldModel != nil && mc.hasOnlyLoraAdaptersChanged(oldModel, model) {
 			dynamicBackends := mc.getDynamicLoraUpdateBackends(oldModel, model)
 			if len(dynamicBackends) > 0 {
-				klog.Infof("Detected LoRA adapter changes for backends: %v, attempting runtime update", dynamicBackends)
+				klog.V(4).Infof("Detected LoRA adapter changes for backends: %v, attempting runtime update", dynamicBackends)
 				successUpdatedBackends := mc.handleDynamicLoraUpdates(oldModel, model, dynamicBackends)
-				klog.Infof("Dynamic LoRA updates completed successfully for backends: %v", successUpdatedBackends)
+				klog.V(4).Infof("Dynamic LoRA updates completed successfully for backends: %v", successUpdatedBackends)
 				dynamicUpdatedBackends = successUpdatedBackends
 			}
 		}
