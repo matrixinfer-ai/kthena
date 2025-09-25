@@ -21,7 +21,7 @@ rules:
       - patch
       - watch
   - apiGroups:
-      - registry.kthena.ai
+      - workload.serving.volcano.sh
     resources:
       - modelboosters/status
     verbs:
@@ -53,7 +53,7 @@ rules:
     resources:
       - autoscalingpolicies/finalizers
       - autoscalingpolicybindings/finalizers
-      - models/finalizers
+      - modelboosters/finalizers
     verbs:
       - update
   - apiGroups:

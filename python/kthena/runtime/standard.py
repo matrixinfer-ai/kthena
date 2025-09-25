@@ -87,27 +87,31 @@ class MetricStandard:
         self.engine = self._get_real_engine_type(engine)
         self.metric_operators_dict = self._build_operators_dict()
 
-    def _get_real_engine_type(self) -> EngineType:
-        if self.engine.lower() in {
+    def _get_real_engine_type(self, engine: str) -> EngineType:
+        if engine.lower() in {
             EngineType.VLLM.value,
             EngineType.VLLM_DISAGGREGATED.value,
         }:
             return EngineType.VLLM
-        if self.engine.lower() == EngineType.SGLANG.value:
+        if engine.lower() == EngineType.SGLANG.value:
             return EngineType.SGLANG
-        raise UnsupportedEngineError(f"Unsupported engine: {self.engine}")
+        supported_engines = list(STANDARD_RULES.keys())
+        raise UnsupportedEngineError(
+            f"Unsupported engine: {engine}. "
+            f"Supported engine: {', '.join(supported_engines)}"
+        )
 
     def _build_operators_dict(self) -> Dict[str, MetricOperator]:
-        if self.engine not in STANDARD_RULES:
+        if self.engine.value not in STANDARD_RULES:
             supported_engines = list(STANDARD_RULES.keys())
             raise UnsupportedEngineError(
-                f"Unsupported engine: {self.engine}. "
+                f"Unsupported engine: {self.engine.value}. "
                 f"Supported engine: {', '.join(supported_engines)}"
             )
 
         return {
             operator.register_name(): operator
-            for operator in STANDARD_RULES[self.engine]
+            for operator in STANDARD_RULES[self.engine.value]
         }
 
     def process(self, origin_metric: Metric) -> Optional[Metric]:
