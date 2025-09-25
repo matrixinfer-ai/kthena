@@ -1,12 +1,12 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: infer-controller
+  name: model-serving-controller
 rules:
   - apiGroups:
-      - workload.volcano.sh
+      - workload.serving.volcano.sh
     resources:
-      - modelinfers
+      - modelservings
     verbs:
       - create
       - delete
@@ -16,9 +16,9 @@ rules:
       - update
       - watch
   - apiGroups:
-      - workload.volcano.sh
+      - workload.serving.volcano.sh
     resources:
-      - modelinfers/status
+      - modelservings/status
     verbs:
       - get
       - patch

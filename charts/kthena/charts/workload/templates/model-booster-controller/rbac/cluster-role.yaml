@@ -1,7 +1,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: model-controller
+  name: model-booster-controller
 rules:
   - apiGroups:
       - ""
@@ -12,9 +12,9 @@ rules:
       - list
       - watch
   - apiGroups:
-      - registry.kthena.ai
+      - workload.serving.volcano.sh
     resources:
-      - models
+      - modelboosters
     verbs:
       - get
       - list
@@ -23,13 +23,13 @@ rules:
   - apiGroups:
       - registry.kthena.ai
     resources:
-      - models/status
+      - modelboosters/status
     verbs:
       - get
       - patch
       - update
   - apiGroups:
-      - registry.kthena.ai
+      - workload.serving.volcano.sh
     resources:
       - autoscalingpolicies
       - autoscalingpolicybindings
@@ -42,14 +42,14 @@ rules:
       - update
       - watch
   - apiGroups:
-      - registry.kthena.ai
+      - workload.serving.volcano.sh
     resources:
       - autoscalingpolicies/status
       - autoscalingpolicybindings/status
     verbs:
       - get
   - apiGroups:
-      - registry.kthena.ai
+      - workload.serving.volcano.sh
     resources:
       - autoscalingpolicies/finalizers
       - autoscalingpolicybindings/finalizers
@@ -57,9 +57,9 @@ rules:
     verbs:
       - update
   - apiGroups:
-      - workload.kthena.ai
+      - workload.serving.volcano.sh
     resources:
-      - modelinfers
+      - modelservings
     verbs:
       - create
       - delete
@@ -69,13 +69,13 @@ rules:
       - update
       - watch
   - apiGroups:
-      - workload.kthena.ai
+      - workload.serving.volcano.sh
     resources:
-      - modelinfers/status
+      - modelservings/status
     verbs:
       - get
   - apiGroups:
-      - networking.kthena.ai
+      - networking.serving.volcano.sh
     resources:
       - modelroutes
       - modelservers
@@ -88,7 +88,7 @@ rules:
       - update
       - watch
   - apiGroups:
-      - workload.kthena.ai
+      - networking.serving.volcano.sh
     resources:
       - modelroutes/status
       - modelservers/status

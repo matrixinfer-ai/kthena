@@ -1,12 +1,12 @@
 # Kthena Networking Chart
 
-This chart deploys the Kthena networking components, including the infer-router and webhook.
+This chart deploys the Kthena networking components, including the kthena-router and webhook.
 
 ## Configuration
 
-### Infer Router
+### Kthena Router
 
-The infer-router is the main component that handles inference requests and provides fairness scheduling.
+The kthena-router is the main component that handles serving requests and provides fairness scheduling.
 
 #### Basic Configuration
 
@@ -15,7 +15,7 @@ kthenaRouter:
   enabled: true
   replicas: 1
   image:
-    repository: ghcr.io/volcano-sh/infer-router
+    repository: ghcr.io/volcano-sh/kthena-router
     tag: latest
     pullPolicy: IfNotPresent
 ```
@@ -91,7 +91,7 @@ kthenaRouter:
   tls:
     enabled: true
     dnsName: "your-domain.com"
-    secretName: "infer-router-tls"
+    secretName: "kthena-router-tls"
 ```
 
 ### Resource Configuration

@@ -1,17 +1,17 @@
-inferController:
-  # replicas is the number of infer-controller instances to run.
+modelServingController:
+  # replicas is the number of model-serving-controller instances to run.
   replicas: 1
   image:
-    # repository is the container image repository for the infer-controller.
-    repository: ghcr.io/volcano-sh/infer-controller
-    # tag is the container image tag for the infer-controller.
+    # repository is the container image repository for the model-serving-controller.
+    repository: ghcr.io/volcano-sh/model-serving-controller
+    # tag is the container image tag for the model-serving-controller.
     # node: edit by CI. No need to modify manually
     tag: latest
-    # pullPolicy is the image pull policy for the infer-controller.
+    # pullPolicy is the image pull policy for the model-serving-controller.
     pullPolicy: IfNotPresent
-    # args are the command line arguments for the infer-controller.
+    # args are the command line arguments for the model-serving-controller.
     args: [ "--v=2" ]
-  # resource defines the resource limits and requests for the infer-controller.
+  # resource defines the resource limits and requests for the model-serving-controller.
   resource:
     limits:
       cpu: 500m
@@ -26,7 +26,7 @@ servingWebhook:
   replicas: 1
   image:
     # repository is the container image repository for the modelinfer-webhook.
-    repository: ghcr.io/volcano-sh/modelinfer-webhook
+    repository: ghcr.io/volcano-sh/model-serving-webhook
     # tag is the container image tag for the modelinfer-webhook.
     # node: edit by CI. No need to modify manually
     tag: latest
@@ -43,21 +43,21 @@ servingWebhook:
       cpu: 100m
       memory: 128Mi
 
-modelController:
-  # replicas is the number of model-controller instances to run.
+modelBoosterController:
+  # replicas is the number of model-booster-controller instances to run.
   replicas: 3
   image:
-    # repository is the container image repository for the model-controller.
-    repository: ghcr.io/volcano-sh/model-controller
-    # tag is the container image tag for the model-controller.
+    # repository is the container image repository for the model-booster-controller.
+    repository: ghcr.io/volcano-sh/model-booster-controller
+    # tag is the container image tag for the model-booster-controller.
     # node: edit by CI. No need to modify manually
     tag: latest
-    # pullPolicy is the image pull policy for the model-controller.
+    # pullPolicy is the image pull policy for the model-booster-controller.
     pullPolicy: IfNotPresent
-    # args are the command line arguments for the model-controller.
+    # args are the command line arguments for the model-booster-controller.
     # Must set --leader-elect to true if replicas are greater than or equal to 2. Default is false.
     args: [ "--leader-elect=true" ]
-  # resource defines the resource limits and requests for the model-controller.
+  # resource defines the resource limits and requests for the model-booster-controller.
   resource:
     limits:
       cpu: 500m
@@ -82,20 +82,20 @@ modelController:
     secretKey: ""
 
 autoscaler:
-  # replicas is the number of model-controller instances to run.
+  # replicas is the number of autoscaler instances to run.
   replicas: 3
   image:
-    # repository is the container image repository for the model-controller.
+    # repository is the container image repository for the autoscaler.
     repository: ghcr.io/volcano-sh/autoscaler
-    # tag is the container image tag for the model-controller.
+    # tag is the container image tag for the autoscaler.
     # node: edit by CI. No need to modify manually
     tag: latest
-    # pullPolicy is the image pull policy for the model-controller.
+    # pullPolicy is the image pull policy for the autoscaler.
     pullPolicy: IfNotPresent
-    # args are the command line arguments for the model-controller.
+    # args are the command line arguments for the autoscaler.
     # Must set --leader-elect to true if replicas are greater than or equal to 2. Default is false.
     args: [ "--leader-elect=true" ]
-  # resource defines the resource limits and requests for the model-controller.
+  # resource defines the resource limits and requests for the autoscaler.
   resource:
     limits:
       cpu: 500m
@@ -106,19 +106,19 @@ autoscaler:
 
 boosterWebhook:
   enabled: true
-  # replicas is the number of registry-webhook instances to run.
+  # replicas is the number of booster-webhook instances to run.
   replicas: 1
   image:
-    # repository is the container image repository for the registry-webhook.
-    repository: ghcr.io/volcano-sh/registry-webhook
-    # tag is the container image tag for the registry-webhook.
+    # repository is the container image repository for the booster-webhook.
+    repository: ghcr.io/volcano-sh/model-booster-webhook
+    # tag is the container image tag for the booster-webhook.
     # node: edit by CI. No need to modify manually
     tag: latest
-    # pullPolicy is the image pull policy for the registry-webhook.
+    # pullPolicy is the image pull policy for the booster-webhook.
     pullPolicy: IfNotPresent
-    # args are the command line arguments for the registry-webhook.
+    # args are the command line arguments for the booster-webhook.
     args: [ "--port=8443", "--webhook-timeout=30" ]
-  # resource defines the resource limits and requests for the registry-webhook.
+  # resource defines the resource limits and requests for the booster-webhook.
   resource:
     limits:
       cpu: 100m
