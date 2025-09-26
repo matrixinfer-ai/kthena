@@ -120,6 +120,8 @@ build: generate fmt vet
 
 IMG_CONTROLLER ?= ${HUB}/kthena-controller-manager:${TAG}
 IMG_ROUTER ?= ${HUB}/kthena-router:${TAG}
+IMG_DOWNLOADER ?= ${HUB}/downloader:${TAG}
+IMG_RUNTIME ?= ${HUB}/runtime:${TAG}
 
 .PHONY: docker-build-router
 docker-build-router: generate
@@ -129,10 +131,21 @@ docker-build-router: generate
 docker-build-controller: generate
 	$(CONTAINER_TOOL) build -t ${IMG_CONTROLLER} -f docker/Dockerfile.kthena-controller-manager .
 
+.PHONY: docker-build-downloader
+docker-build-downloader: generate
+	$(CONTAINER_TOOL) build -t ${IMG_DOWNLOADER} -f docker/Dockerfile.downloader .
+
+.PHONY: docker-build-runtime
+docker-build-runtime: generate
+	$(CONTAINER_TOOL) build -t ${IMG_RUNTIME} -f docker/Dockerfile.runtime .
+
+
 .PHONY: docker-push
-docker-push: docker-build-router docker-build-controller ## Push all images to the registry.
+docker-push: docker-build-router docker-build-controller docker-build-downloader docker-build-runtime ## Push all images to the registry.
 	$(CONTAINER_TOOL) push ${IMG_ROUTER}
 	$(CONTAINER_TOOL) push ${IMG_CONTROLLER}
+	$(CONTAINER_TOOL) push ${IMG_DOWNLOADER}
+    $(CONTAINER_TOOL) push ${IMG_RUNTIME}
 
 # PLATFORMS defines the target platforms for the images be built to provide support to multiple
 # architectures.
@@ -154,6 +167,16 @@ docker-buildx: ## Build and push docker image for cross-platform support
 		-t ${IMG_CONTROLLER} \
 		-f docker/Dockerfile.kthena-controller-manager \
 		--push .
+	$(CONTAINER_TOOL) buildx build \
+    	--platform ${PLATFORMS} \
+    	-t ${IMG_DOWNLOADER} \
+    	-f docker/Dockerfile.downloader \
+    	--push .
+    $(CONTAINER_TOOL) buildx build \
+    	--platform ${PLATFORMS} \
+    	-t ${IMG_RUNTIME} \
+    	-f docker/Dockerfile.runtime \
+    	--push .
 
 ##@ Deployment
 
