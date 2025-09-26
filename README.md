@@ -15,50 +15,42 @@
 
 ## Overview
 
-**Kthena** is a Kubernetes-native LLM inference platform that provides declarative model lifecycle management and intelligent request routing for production deployments.
+**Kthena** is a Kubernetes-native LLM inference platform that transforms how organizations deploy and manage Large Language Models in production. Built with declarative model lifecycle management and intelligent request routing, it provides high performance and enterprise-grade scalability for LLM inference workloads.
 
-The platform extends Kubernetes with Custom Resource Definitions (CRDs) for managing LLM workloads, supporting multiple inference engines (vLLM, SGLang) and advanced serving patterns like prefill-decode disaggregation. Kthena's architecture separates control plane operations (model lifecycle, autoscaling policies) from data plane traffic routing through an intelligent router.
+The platform extends Kubernetes with purpose-built Custom Resource Definitions (CRDs) for managing LLM workloads, supporting multiple inference engines (vLLM, SGLang, Triton) and advanced serving patterns like prefill-decode disaggregation. Kthena's architecture separates control plane operations (model lifecycle, autoscaling policies) from data plane traffic routing through an intelligent router, enabling teams to manage complex LLM deployments with familiar cloud-native patterns while delivering cost-driven autoscaling, heterogeneous accelerators support, and multi-backend inference engines.
 
 ## Key Features
 
-### **Multi-Backend Inference Engine**
--   **Engine Support**: Native support for vLLM, SGLang, Triton, TorchServe inference engines with consistent Kubernetes-native APIs
--   **Serving Patterns**: Support for both standard and disaggregated serving patterns across heterogeneous hardware accelerators
--   **Advanced Load Balancing**: Pluggable scheduling algorithms including least request, least latency, random, LoRA affinity, prefix-cache, KV-cache and PD Groups aware routing
--   **Traffic Management**: Supports canary releases, weighted traffic distribution, token-based rate limiting, and automated failover policies
--   **LoRA Adapter Management**: Dynamic LoRA adapter routing and management without service interruption
--   **Rolling Updates**: Zero-downtime model updates with configurable rollout strategies
+### **Production-Ready LLM Serving**
+Deploy and scale Large Language Models with enterprise-grade reliability, supporting vLLM, SGLang, Triton, and TorchServe inference engines through consistent Kubernetes-native APIs.
 
-### **Prefill-Decode Disaggregation**
--   **Workload Separation**: Optimize large model serving by separating prefill and decode workloads for enhanced performance
--   **KV Cache Coordination**: Seamless coordination through LMCache, MoonCake, or NIXL connectors for optimized resource utilization
--   **Intelligent Routing**: Model-aware request distribution with PD Groups awareness for disaggregated serving patterns
+### **Simplified LLM Management**
+- **Prefill-Decode Disaggregation**: Separate compute-intensive prefill operations from token generation decode processes to optimize hardware utilization and meet latency-based SLOs.
+- **Cost-Driven Autoscaling**: Intelligent scaling based on multiple metrics (CPU, GPU, memory, custom) with configurable budget constraints and cost optimization policies
+- **Zero-Downtime Updates**: Rolling model updates with configurable strategies
+- **Dynamic LoRA Management**: Hot-swap adapters without service interruption  
 
-### **Cost-Driven Autoscaling**
--   **Multi-Metric Scaling**: Autoscaling based on custom metrics, CPU, memory, GPU utilization, and budget constraints
--   **Flexible Policies**: Flexible scaling behaviors with panic mode, stable scaling policies, and configurable scaling behaviors
--   **Policy Binding**: Granular autoscaling policy assignment to specific model deployments not limited to `ModelInfer`
+### **Built-in Network Topology-Aware Scheduling**
+Network topology-aware scheduling places inference instances within the same network domain to maximize inter-instance communication bandwidth and enhance inference performance.
 
-### **Observability & Monitoring**
--   **Prometheus Metrics**: Built-in metrics collection for router performance and model serving
--   **Request Tracking**: Detailed request routing and performance monitoring
--   **Health Checks**: Comprehensive health checks for all model servers
+### **Built-in Gang Scheduling**
+Gang scheduling ensures atomic scheduling of distributed inference groups like xPyD, preventing resource waste from partial deployments.
+
+### Intelligent Routing & Traffic Control
+- Multi-model routing with pluggable load-balancing algorithms, including model load aware and KV-cache aware strategies.
+- PD group aware request distribution for xPyD (x-prefill/y-decode) deployment patterns.
+- Rich traffic policies, including canary releases, weighted traffic distribution, token-based rate limiting, and automated failover.
+- LoRA adapter aware routing without inference outage
 
 ## Architecture
 
-Kthena implements a Kubernetes-native architecture with separate control plane and data plane components. The platform manages LLM inference workloads through CRD and provides intelligent request routing through a dedicated router.
+Kthena implements a Kubernetes-native architecture with separate control plane and data plane components, each can be deployed and used alone. The platform manages LLM inference workloads through CRD and provides intelligent request routing through a dedicated router.
 
 For more details, please refer to [Kthena Architecture](docs/kthena/docs/architecture/architecture.mdx)
 
-
-## Performance and Benchmarks
-
-Kthena delivers significant performance improvements and cost savings compared to traditional LLM serving approaches. Here are key performance characteristics and benchmark results:
-
-// TODO: Add some perf stats
-
 > [!Note]
-> Benchmark results may vary based on model size, hardware configuration, and workload patterns. Contact us for environment-specific performance testing.
+> The router component is a reference implementation, because Gateway Inference Extension does not natively support prefill-decode distribution. kthena router is still under active iteration, and it can be deployed behind a standard api gateway.
+
 
 ## Getting Started
 
