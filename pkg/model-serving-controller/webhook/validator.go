@@ -43,13 +43,13 @@ const timeout = 30 * time.Second
 
 // ModelServingValidator handles validation of ModelServing resources.
 type ModelServingValidator struct {
-	httpServer         *http.Server
-	kubeClient         kubernetes.Interface
-	modelServingClient clientset.Interface
+	httpServer   *http.Server
+	kubeClient   kubernetes.Interface
+	kthenaClient clientset.Interface
 }
 
 // NewModelServingValidator creates a new ModelServingValidator.
-func NewModelServingValidator(kubeClient kubernetes.Interface, modelServingClient clientset.Interface, port int) *ModelServingValidator {
+func NewModelServingValidator(kubeClient kubernetes.Interface, kthenaClient clientset.Interface, port int) *ModelServingValidator {
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", port),
 		ReadTimeout:  timeout,
@@ -60,9 +60,9 @@ func NewModelServingValidator(kubeClient kubernetes.Interface, modelServingClien
 	}
 
 	return &ModelServingValidator{
-		httpServer:         server,
-		kubeClient:         kubeClient,
-		modelServingClient: modelServingClient,
+		httpServer:   server,
+		kubeClient:   kubeClient,
+		kthenaClient: kthenaClient,
 	}
 }
 
