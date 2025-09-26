@@ -20,18 +20,23 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	networkingv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
+	"github.com/volcano-sh/kthena/pkg/controller"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	listerv1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/leaderelection"
+	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -46,7 +51,12 @@ import (
 )
 
 const (
-	ConfigMapName = "model-booster-controller-config"
+	ConfigMapName        = "model-booster-controller-config"
+	defaultLeaseDuration = 15 * time.Second
+	defaultRenewDeadline = 10 * time.Second
+	defaultRetryPeriod   = 2 * time.Second
+	leaderElectionId     = "kthena.model-controller"
+	leaseName            = "lease.kthena.model-controller"
 )
 
 type ModelBoosterController struct {
@@ -77,6 +87,74 @@ type ModelBoosterController struct {
 	// loraUpdateCache stores the previous model version for LoRA adapter comparison
 	// Key format: "namespace/name:generation" to avoid version conflicts
 	loraUpdateCache map[string]*workload.ModelBooster
+}
+
+func SetupModelBoosterController(ctx context.Context, cc controller.Config, kubeClient *kubernetes.Clientset, client clientset.Interface) {
+	mc := NewModelBoosterController(kubeClient, client)
+	if cc.EnableLeaderElection {
+		leaderElector, err := initLeaderElector(kubeClient, mc, cc.Workers)
+		if err != nil {
+			panic(err)
+		}
+		leaderElector.Run(ctx)
+	} else {
+		go mc.Run(ctx, cc.Workers)
+		klog.Info("Started model controller without leader election")
+	}
+	<-ctx.Done()
+}
+
+// initLeaderElector inits a leader elector for leader election
+func initLeaderElector(kubeClient kubernetes.Interface, mc *ModelBoosterController, workers int) (*leaderelection.LeaderElector, error) {
+	resourceLock, err := newResourceLock(kubeClient)
+	if err != nil {
+		return nil, err
+	}
+	leaderElector, err := leaderelection.NewLeaderElector(leaderelection.LeaderElectionConfig{
+		Lock:          resourceLock,
+		LeaseDuration: defaultLeaseDuration,
+		RenewDeadline: defaultRenewDeadline,
+		RetryPeriod:   defaultRetryPeriod,
+		Callbacks: leaderelection.LeaderCallbacks{
+			OnStartedLeading: func(ctx context.Context) {
+				go mc.Run(ctx, workers)
+				klog.Info("Start as leader")
+			},
+			OnStoppedLeading: func() {
+				klog.Error("leader election lost")
+			},
+		},
+		ReleaseOnCancel: false,
+		Name:            leaderElectionId,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return leaderElector, nil
+}
+
+// newResourceLock returns a lease lock which is used to elect leader
+func newResourceLock(client kubernetes.Interface) (*resourcelock.LeaseLock, error) {
+	namespace, err := utils.GetInClusterNameSpace()
+	if err != nil {
+		return nil, err
+	}
+	// Leader id, should be unique
+	id, err := os.Hostname()
+	if err != nil {
+		return nil, err
+	}
+	id = id + "_" + string(uuid.NewUUID())
+	return &resourcelock.LeaseLock{
+		LeaseMeta: metav1.ObjectMeta{
+			Name:      leaseName,
+			Namespace: namespace,
+		},
+		Client: client.CoordinationV1(),
+		LockConfig: resourcelock.ResourceLockConfig{
+			Identity: id,
+		},
+	}, nil
 }
 
 func (mc *ModelBoosterController) Run(ctx context.Context, workers int) {
