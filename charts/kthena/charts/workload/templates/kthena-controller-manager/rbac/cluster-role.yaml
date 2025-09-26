@@ -1,8 +1,65 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: model-booster-controller
+  name: kthena-controller-manager
 rules:
+  - apiGroups:
+      - workload.serving.volcano.sh
+    resources:
+      - autoscalingpolicybindings
+      - autoscalingpolicies
+    verbs:
+      - get
+      - list
+      - patch
+      - watch
+  - apiGroups:
+      - workload.serving.volcano.sh
+    resources:
+      - autoscalingpolicies/status
+      - autoscalingpolicybindings/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - workload.serving.volcano.sh
+    resources:
+      - modelservings
+    verbs:
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - workload.serving.volcano.sh
+    resources:
+      - modelservings/status
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - get
+      - create
+      - update
+  - apiGroups:
+      - registry.volcano.sh
+    resources:
+      - autoscalingpolicies
+    verbs:
+      - get
   - apiGroups:
       - ""
     resources:
@@ -51,14 +108,6 @@ rules:
   - apiGroups:
       - workload.serving.volcano.sh
     resources:
-      - autoscalingpolicies/finalizers
-      - autoscalingpolicybindings/finalizers
-      - modelboosters/finalizers
-    verbs:
-      - update
-  - apiGroups:
-      - workload.serving.volcano.sh
-    resources:
       - modelservings
     verbs:
       - create
@@ -74,42 +123,33 @@ rules:
       - modelservings/status
     verbs:
       - get
-  - apiGroups:
-      - networking.serving.volcano.sh
-    resources:
-      - modelroutes
-      - modelservers
-    verbs:
-      - create
-      - delete
-      - get
-      - list
       - patch
       - update
-      - watch
-  - apiGroups:
-      - networking.serving.volcano.sh
-    resources:
-      - modelroutes/status
-      - modelservers/status
-    verbs:
-      - get
-  - apiGroups:
-      - coordination.k8s.io
-    resources:
-      - leases
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - update
-      - patch
-      - delete
   - apiGroups:
       - ""
     resources:
       - pods
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - services
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - scheduling.volcano.sh
+    resources:
+      - podgroups
     verbs:
       - get
       - list

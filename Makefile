@@ -129,7 +129,6 @@ docker-build-router: generate
 docker-build-manager: generate
 	$(CONTAINER_TOOL) build -t ${IMG_MANAGER} -f docker/Dockerfile.kthena-controller-manager .
 
-
 .PHONY: docker-push
 docker-push: docker-build-router docker-build-manager ## Push all images to the registry.
 	$(CONTAINER_TOOL) push ${IMG_ROUTER}

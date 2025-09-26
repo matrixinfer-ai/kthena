@@ -1,10 +1,9 @@
 workload:
   # enabled is a flag to enable or disable the workload subchart. Default is true.
   enabled: true
-  boosterWebhook:
-    enabled: true
-  servingWebhook:
-    enabled: true
+  controllerManager:
+    webhook:
+      enabled: true
 
 networking:
   # enabled is a flag to enable or disable the networking subchart. Default is true.

@@ -1,63 +1,15 @@
-modelServingController:
-  # replicas is the number of model-serving-controller instances to run.
+controllerManager:
+  webhook:
+    enabled: true
+  # replicas is the number of instances to run.
   replicas: 1
   image:
-    # repository is the container image repository for the model-serving-controller.
-    repository: ghcr.io/volcano-sh/model-serving-controller
-    # tag is the container image tag for the model-serving-controller.
+    repository: ghcr.io/volcano-sh/kthena-controller-manager
     # node: edit by CI. No need to modify manually
     tag: latest
-    # pullPolicy is the image pull policy for the model-serving-controller.
     pullPolicy: IfNotPresent
-    # args are the command line arguments for the model-serving-controller.
+    # enable-webhook to false to disable webhook, default is true
     args: [ "--v=2" ]
-  # resource defines the resource limits and requests for the model-serving-controller.
-  resource:
-    limits:
-      cpu: 500m
-      memory: 512Mi
-    requests:
-      cpu: 100m
-      memory: 128Mi
-
-servingWebhook:
-  enabled: true
-  # replicas is the number of model-serving-webhook instances to run.
-  replicas: 1
-  image:
-    # repository is the container image repository for the model-serving-webhook.
-    repository: ghcr.io/volcano-sh/model-serving-webhook
-    # tag is the container image tag for the model-serving-webhook.
-    # node: edit by CI. No need to modify manually
-    tag: latest
-    # pullPolicy is the image pull policy for the model-serving-webhook.
-    pullPolicy: IfNotPresent
-    # args are the command line arguments for the model-serving-webhook.
-    args: [ "--port=8443"]
-  # resource defines the resource limits and requests for the model-serving-webhook.
-  resource:
-    limits:
-      cpu: 100m
-      memory: 128Mi
-    requests:
-      cpu: 100m
-      memory: 128Mi
-
-modelBoosterController:
-  # replicas is the number of model-booster-controller instances to run.
-  replicas: 3
-  image:
-    # repository is the container image repository for the model-booster-controller.
-    repository: ghcr.io/volcano-sh/model-booster-controller
-    # tag is the container image tag for the model-booster-controller.
-    # node: edit by CI. No need to modify manually
-    tag: latest
-    # pullPolicy is the image pull policy for the model-booster-controller.
-    pullPolicy: IfNotPresent
-    # args are the command line arguments for the model-booster-controller.
-    # Must set --leader-elect to true if replicas are greater than or equal to 2. Default is false.
-    args: [ "--leader-elect=true" ]
-  # resource defines the resource limits and requests for the model-booster-controller.
   resource:
     limits:
       cpu: 500m
@@ -81,57 +33,11 @@ modelBoosterController:
     # secretKey is the secret key for the downloader.
     secretKey: ""
 
-autoscaler:
-  # replicas is the number of autoscaler instances to run.
-  replicas: 3
-  image:
-    # repository is the container image repository for the autoscaler.
-    repository: ghcr.io/volcano-sh/autoscaler
-    # tag is the container image tag for the autoscaler.
-    # node: edit by CI. No need to modify manually
-    tag: latest
-    # pullPolicy is the image pull policy for the autoscaler.
-    pullPolicy: IfNotPresent
-    # args are the command line arguments for the autoscaler.
-    # Must set --leader-elect to true if replicas are greater than or equal to 2. Default is false.
-    args: [ "--leader-elect=true" ]
-  # resource defines the resource limits and requests for the autoscaler.
-  resource:
-    limits:
-      cpu: 500m
-      memory: 512Mi
-    requests:
-      cpu: 100m
-      memory: 128Mi
-
-boosterWebhook:
-  enabled: true
-  # replicas is the number of booster-webhook instances to run.
-  replicas: 1
-  image:
-    # repository is the container image repository for the booster-webhook.
-    repository: ghcr.io/volcano-sh/model-booster-webhook
-    # tag is the container image tag for the booster-webhook.
-    # node: edit by CI. No need to modify manually
-    tag: latest
-    # pullPolicy is the image pull policy for the booster-webhook.
-    pullPolicy: IfNotPresent
-    # args are the command line arguments for the booster-webhook.
-    args: [ "--port=8443", "--webhook-timeout=30" ]
-  # resource defines the resource limits and requests for the booster-webhook.
-  resource:
-    limits:
-      cpu: 100m
-      memory: 128Mi
-    requests:
-      cpu: 100m
-      memory: 128Mi
-
 global:
   certManager:
     enabled: true
   webhook:
-    # caBundle is the base64-encoded CA bundle for webhook server certificates.
-    # This is required when cert-manager is disabled (global.certManager.enabled=false).
-    # You can generate it with: cat /path/to/your/ca.crt | base64 | tr -d '\n'
-    # caBundle: ""
+  # caBundle is the base64-encoded CA bundle for webhook server certificates.
+  # This is required when cert-manager is disabled (global.certManager.enabled=false).
+  # You can generate it with: cat /path/to/your/ca.crt | base64 | tr -d '\n'
+  # caBundle: ""
