@@ -127,12 +127,12 @@ docker-build-router: generate
 
 .PHONY: docker-build-manager
 docker-build-manager: generate
-	$(CONTAINER_TOOL) build -t ${IMG_MANAGER} -f docker/Dockerfile.kthena-controller-manager .
+	$(CONTAINER_TOOL) build -t ${IMG_CONTROLLER} -f docker/Dockerfile.kthena-controller-manager .
 
 .PHONY: docker-push
 docker-push: docker-build-router docker-build-manager ## Push all images to the registry.
 	$(CONTAINER_TOOL) push ${IMG_ROUTER}
-	$(CONTAINER_TOOL) push ${IMG_MANAGER}
+	$(CONTAINER_TOOL) push ${IMG_CONTROLLER}
 
 # PLATFORMS defines the target platforms for the images be built to provide support to multiple
 # architectures.
@@ -151,7 +151,7 @@ docker-buildx: ## Build and push docker image for cross-platform support
 		--push .
 	$(CONTAINER_TOOL) buildx build \
 		--platform ${PLATFORMS} \
-		-t ${IMG_MANAGER} \
+		-t ${IMG_CONTROLLER} \
 		-f docker/Dockerfile.kthena-controller-manager \
 		--push .
 
