@@ -171,7 +171,7 @@ async def health_check() -> JSONResponse:
 @router.get("/metrics", tags=["Metrics"])
 async def get_metrics(request: Request) -> Response:
     try:
-        state = request.app.state
+        state = get_app_state(request.app)
 
         response = await state.client.get(state.engine_metrics_url)
         response.raise_for_status()
@@ -314,7 +314,7 @@ async def load_lora_adapter(request: Request, background_tasks: BackgroundTasks)
     - async_download: bool (optional) - Whether to run download in background (default: False)
     """
     try:
-        state = request.app.state
+        state = get_app_state(request.app)
         body = await request.json()
         # Extract parameters
         lora_name = body.get("lora_name")
@@ -402,7 +402,7 @@ async def load_lora_adapter(request: Request, background_tasks: BackgroundTasks)
 @router.post("/v1/unload_lora_adapter", tags=["LoRA"])
 async def unload_lora_adapter(request: Request) -> JSONResponse:
     try:
-        state = request.app.state
+        state = get_app_state(request.app)
         body = await request.json()
         response = await state.client.post(f"{state.engine_base_url}/v1/unload_lora_adapter", json=body)
         if response.status_code >= 400:

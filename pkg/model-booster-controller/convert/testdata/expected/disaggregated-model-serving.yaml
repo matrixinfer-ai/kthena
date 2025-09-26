@@ -109,7 +109,6 @@ spec:
                   - --trust-remote-code
                   - --kv-events-config
                   - '{"enable_kv_cache_events":true,"publisher":"zmq","topic":"kv-events","endpoint":"tcp://*:5557"}'
-                  - --enforce-eager
                 env:
                   - name: ENDPOINT
                     value: https://obs.test.com
@@ -301,7 +300,6 @@ spec:
                   - --trust-remote-code
                   - --kv-events-config
                   - '{"enable_kv_cache_events":true,"publisher":"zmq","topic":"kv-events","endpoint":"tcp://*:5557"}'
-                  - --enforce-eager
                 env:
                   - name: ENDPOINT
                     value: https://obs.test.com

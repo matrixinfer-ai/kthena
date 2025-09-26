@@ -37,18 +37,36 @@ import (
 	"k8s.io/klog/v2"
 )
 
-// getPreviousModelVersion gets the previous version of the model from cache for comparison
-func (mc *ModelBoosterController) getPreviousModelVersion(model *workload.ModelBooster) (*workload.ModelBooster, error) {
-	cacheKey := fmt.Sprintf("%s/%s:%d", model.Namespace, model.Name, model.Generation)
+// DynamicUpdateLoraBackends checks for LoRA adapter changes and performs dynamic updates if possible
+func (mc *ModelBoosterController) dynamicUpdateLoraBackends(model *workload.ModelBooster) []string {
+	var dynamicUpdatedBackends []string
+	// check if only LoRA adapters have changed for runtime update
+	if model.Generation != model.Status.ObservedGeneration {
+		klog.V(4).Info("model generation is not equal to observed generation, checking for LoRA adapter changes")
+		if oldModel := mc.getPreviousModelVersion(model); oldModel != nil && mc.hasOnlyLoraAdaptersChanged(oldModel, model) {
+			dynamicBackends := mc.getDynamicLoraUpdateBackends(oldModel, model)
+			if len(dynamicBackends) > 0 {
+				klog.V(4).Infof("Detected LoRA adapter changes for backends: %v, attempting runtime update", dynamicBackends)
+				successUpdatedBackends := mc.handleDynamicLoraUpdates(oldModel, model, dynamicBackends)
+				klog.V(4).Infof("Dynamic LoRA updates completed successfully for backends: %v", successUpdatedBackends)
+				dynamicUpdatedBackends = successUpdatedBackends
+			}
+		}
+	}
+	return dynamicUpdatedBackends
+}
 
+// getPreviousModelVersion gets the previous version of the model from cache for comparison
+func (mc *ModelBoosterController) getPreviousModelVersion(model *workload.ModelBooster) *workload.ModelBooster {
+	cacheKey := fmt.Sprintf("%s/%s:%d", model.Namespace, model.Name, model.Generation)
 	// Get the previous model from cache
 	oldModel, exists := mc.loraUpdateCache[cacheKey]
 	if !exists {
 		klog.Warningf("Get previous ModelBooster version failed: %s", cacheKey)
-		return nil, nil
+		return nil
 	}
 
-	return oldModel, nil
+	return oldModel
 }
 
 // hasOnlyLoraAdaptersChanged checks if only LoRA adapters have changed between old and new model
