@@ -118,7 +118,7 @@ build: generate fmt vet
 	go build -o bin/kthena-controller-manager cmd/kthena-controller-manager/main.go
 	go build -o bin/minfer cli/minfer/main.go
 
-IMG_MANAGER ?= ${HUB}/kthena-controller-manager:${TAG}
+IMG_CONTROLLER ?= ${HUB}/kthena-controller-manager:${TAG}
 IMG_ROUTER ?= ${HUB}/kthena-router:${TAG}
 
 .PHONY: docker-build-router
