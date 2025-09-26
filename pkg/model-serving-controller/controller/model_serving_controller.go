@@ -24,6 +24,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/volcano-sh/kthena/pkg/controller"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -72,6 +73,15 @@ type ModelServingController struct {
 	store       datastore.Store
 	graceMap    sync.Map // key: errorPod.namespace/errorPod.name, value:time
 	initialSync bool     // indicates whether the initial sync has been completed
+}
+
+func SetupModelServingController(ctx context.Context, cc controller.Config, kubeClient *kubernetes.Clientset, client *clientset.Clientset, volcanoClient volcano.Interface) {
+	mic, err := NewModelServingController(kubeClient, client, volcanoClient)
+	if err != nil {
+		klog.Fatalf("failed to create ModelServing controller: %v", err)
+	}
+	go mic.Run(ctx, cc.Workers)
+	<-ctx.Done()
 }
 
 func NewModelServingController(kubeClientSet kubernetes.Interface, modelServingClient clientset.Interface, volcanoClient volcano.Interface) (*ModelServingController, error) {

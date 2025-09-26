@@ -30,11 +30,13 @@ import (
 	"github.com/volcano-sh/kthena/pkg/controller"
 	modelbooster "github.com/volcano-sh/kthena/pkg/model-booster-controller/controller"
 	"github.com/volcano-sh/kthena/pkg/model-booster-webhook/server"
+	modelserving "github.com/volcano-sh/kthena/pkg/model-serving-controller/controller"
 	"github.com/volcano-sh/kthena/pkg/model-serving-controller/webhook"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
+	volcanoClientSet "volcano.sh/apis/pkg/client/clientset/versioned"
 )
 
 type webhookConfig struct {
@@ -90,8 +92,14 @@ func setupController(cc controller.Config) {
 		klog.Info("Received termination, signaling shutdown")
 		cancel()
 	}()
+	volcanoClient, err := volcanoClientSet.NewForConfig(config)
+	if err != nil {
+		klog.Fatalf("failed to create volcano client: %v", err)
+	}
+
 	go modelbooster.SetupModelBoosterController(ctx, cc, kubeClient, client)
 	go autoscaler.SetupAutoscaleController(ctx, cc, kubeClient, client)
+	go modelserving.SetupModelServingController(ctx, cc, kubeClient, client, volcanoClient)
 }
 
 func setupWebhook(wc webhookConfig) error {
