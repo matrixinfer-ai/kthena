@@ -25,13 +25,8 @@ jobs:
     strategy:
       matrix:
         service:
-          - autoscaler
-          - infer-router
-          - infer-router-webhook
-          - model-controller
-          - infer-controller
-          - modelinfer-webhook
-          - registry-webhook
+          - kthena-router
+          - kthena-controller-manager
     steps:
       - name: Checkout
         uses: actions/checkout@v5
