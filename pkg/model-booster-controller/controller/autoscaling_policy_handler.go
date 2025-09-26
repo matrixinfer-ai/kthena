@@ -27,7 +27,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func (mc *ModelController) createOrUpdateAutoscalingPolicyAndBinding(ctx context.Context, model *v1alpha1.ModelBooster) error {
+func (mc *ModelBoosterController) createOrUpdateAutoscalingPolicyAndBinding(ctx context.Context, model *v1alpha1.ModelBooster) error {
 	if model.Spec.AutoscalingPolicy != nil {
 		// Create autoscaling policy and optimize policy binding
 		asp := convert.BuildAutoscalingPolicy(model.Spec.AutoscalingPolicy, model, "")
@@ -57,7 +57,7 @@ func (mc *ModelController) createOrUpdateAutoscalingPolicyAndBinding(ctx context
 	return nil
 }
 
-func (mc *ModelController) createOrUpdateAsp(ctx context.Context, policy *v1alpha1.AutoscalingPolicy) error {
+func (mc *ModelBoosterController) createOrUpdateAsp(ctx context.Context, policy *v1alpha1.AutoscalingPolicy) error {
 	oldPolicy, err := mc.autoscalingPoliciesLister.AutoscalingPolicies(policy.Namespace).Get(policy.Name)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -79,7 +79,7 @@ func (mc *ModelController) createOrUpdateAsp(ctx context.Context, policy *v1alph
 	return nil
 }
 
-func (mc *ModelController) createOrUpdateAspBinding(ctx context.Context, binding *v1alpha1.AutoscalingPolicyBinding) error {
+func (mc *ModelBoosterController) createOrUpdateAspBinding(ctx context.Context, binding *v1alpha1.AutoscalingPolicyBinding) error {
 	oldPolicy, err := mc.autoscalingPolicyBindingsLister.AutoscalingPolicyBindings(binding.Namespace).Get(binding.Name)
 	if err != nil {
 		if apierrors.IsNotFound(err) {

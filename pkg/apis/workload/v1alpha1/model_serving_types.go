@@ -204,7 +204,7 @@ type ModelServingStatus struct {
 // +kubebuilder:storageversion
 // +genclient
 
-// ModelServing is the Schema for the LLM infer API
+// ModelServing is the Schema for the LLM Serving API
 type ModelServing struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

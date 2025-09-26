@@ -24,7 +24,7 @@ import (
 
 	"github.com/spf13/pflag"
 	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
-	"github.com/volcano-sh/kthena/pkg/registry-webhook/server"
+	"github.com/volcano-sh/kthena/pkg/model-booster-webhook/server"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 )

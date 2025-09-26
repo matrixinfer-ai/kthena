@@ -114,50 +114,54 @@ lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 
 .PHONY: build
 build: generate fmt vet
-	go build -o bin/infer-controller cmd/infer-controller/main.go
+	go build -o bin/model-serving-controller cmd/model-serving-controller/main.go
 	go build -o bin/kthena-router cmd/kthena-router/main.go
-	go build -o bin/model-controller cmd/model-controller/main.go
+	go build -o bin/model-booster-controller cmd/model-booster-controller/main.go
 	go build -o bin/autoscaler cmd/autoscaler/main.go
-	go build -o bin/registry-webhook cmd/registry-webhook/main.go
-	go build -o bin/infer-webhook cmd/modelinfer-webhook/main.go
+	go build -o bin/model-booster-webhook cmd/model-booster-webhook/main.go
+	go build -o bin/model-serving-webhook cmd/model-serving-webhook/main.go
 	go build -o bin/minfer cli/minfer/main.go
 
-IMG_MODELINFER ?= ${HUB}/infer-controller:${TAG}
-IMG_MODELCONTROLLER ?= ${HUB}/model-controller:${TAG}
+IMG_MODEL_SERVING ?= ${HUB}/model-serving-controller:${TAG}
+IMG_MODEL_BOOSTER ?= ${HUB}/model-booster-controller:${TAG}
 IMG_AUTOSCALER ?= ${HUB}/autoscaler:${TAG}
 IMG_ROUTER ?= ${HUB}/kthena-router:${TAG}
-IMG_REGISTRY_WEBHOOK ?= ${HUB}/registry-webhook:${TAG}
-IMG_MODELINFER_WEBHOOK ?= ${HUB}/modelinfer-webhook:${TAG}
+IMG_MODEL_BOOSTER_WEBHOOK ?= ${HUB}/model-booster-webhook:${TAG}
+IMG_MODEL_SERVING_WEBHOOK ?= ${HUB}/model-serving-webhook:${TAG}
 
 .PHONY: docker-build-router
 docker-build-router: generate
 	$(CONTAINER_TOOL) build -t ${IMG_ROUTER} -f docker/Dockerfile.kthena-router .
 
-.PHONY: docker-build-modelinfer
-docker-build-modelinfer: generate 
-	$(CONTAINER_TOOL) build -t ${IMG_MODELINFER} -f docker/Dockerfile.infer-controller .
+.PHONY: docker-build-model-serving
+docker-build-model-serving: generate 
+	$(CONTAINER_TOOL) build -t ${IMG_MODEL_SERVING} -f docker/Dockerfile.model-serving-controller .
 
-.PHONY: docker-build-modelcontroller
-docker-build-modelcontroller: generate
-	$(CONTAINER_TOOL) build -t ${IMG_MODELCONTROLLER} -f docker/Dockerfile.model-controller .
+.PHONY: docker-build-model-booster
+docker-build-model-booster: generate
+	$(CONTAINER_TOOL) build -t ${IMG_MODEL_BOOSTER} -f docker/Dockerfile.model-booster-controller .
 
 .PHONY: docker-build-autoscaler
 docker-build-autoscaler: generate
 	$(CONTAINER_TOOL) build -t ${IMG_AUTOSCALER} -f docker/Dockerfile.autoscaler .
 
-.PHONY: docker-build-registry-webhook
-docker-build-registry-webhook: generate
-	$(CONTAINER_TOOL) build -t ${IMG_REGISTRY_WEBHOOK} -f docker/Dockerfile.registry-webhook .
+.PHONY: docker-build-model-booster-webhook
+docker-build-model-booster-webhook: generate
+	$(CONTAINER_TOOL) build -t ${IMG_MODEL_BOOSTER_WEBHOOK} -f docker/Dockerfile.model-booster-webhook .
+
+.PHONY: docker-build-model-serving-webhook
+docker-build-model-serving-webhook: generate
+	$(CONTAINER_TOOL) build -t ${IMG_MODEL_SERVING_WEBHOOK} -f docker/Dockerfile.model-serving-webhook .
 
 
 .PHONY: docker-push
-docker-push: docker-build-router docker-build-modelinfer docker-build-modelcontroller docker-build-registry-webhook docker-build-modelinfer-webhook docker-build-autoscaler ## Push all images to the registry.
+docker-push: docker-build-router docker-build-model-serving docker-build-model-booster docker-build-model-booster-webhook docker-build-model-serving-webhook docker-build-autoscaler ## Push all images to the registry.
 	$(CONTAINER_TOOL) push ${IMG_ROUTER}
-	$(CONTAINER_TOOL) push ${IMG_MODELINFER}
-	$(CONTAINER_TOOL) push ${IMG_MODELCONTROLLER}
+	$(CONTAINER_TOOL) push ${IMG_MODEL_SERVING}
+	$(CONTAINER_TOOL) push ${IMG_MODEL_BOOSTER}
 	$(CONTAINER_TOOL) push ${IMG_AUTOSCALER}
-	$(CONTAINER_TOOL) push ${IMG_REGISTRY_WEBHOOK}
-	$(CONTAINER_TOOL) push ${IMG_MODELINFER_WEBHOOK}
+	$(CONTAINER_TOOL) push ${IMG_MODEL_BOOSTER_WEBHOOK}
+	$(CONTAINER_TOOL) push ${IMG_MODEL_SERVING_WEBHOOK}
 
 # PLATFORMS defines the target platforms for the images be built to provide support to multiple
 # architectures.
@@ -172,17 +176,17 @@ docker-buildx: ## Build and push docker image for cross-platform support
 	$(CONTAINER_TOOL) buildx build \
 		--platform ${PLATFORMS} \
 		-t ${IMG_ROUTER} \
-		-f docker/Dockerfile.router \
+		-f docker/Dockerfile.kthena-router \
 		--push .
 	$(CONTAINER_TOOL) buildx build \
 		--platform ${PLATFORMS}\
-		-t ${IMG_MODELINFER} \
-		-f docker/Dockerfile.modelinfer \
+		-t ${IMG_MODEL_SERVING} \
+		-f docker/Dockerfile.model-serving-controller \
 		--push .
 	$(CONTAINER_TOOL) buildx build \
 		--platform ${PLATFORMS} \
-		-t ${IMG_MODELCONTROLLER} \
-		-f docker/Dockerfile.modelcontroller \
+		-t ${IMG_MODEL_BOOSTER} \
+		-f docker/Dockerfile.model-booster-controller \
 		--push .
 	$(CONTAINER_TOOL) buildx build \
 		--platform ${PLATFORMS} \
@@ -191,13 +195,13 @@ docker-buildx: ## Build and push docker image for cross-platform support
 		--push .
 	$(CONTAINER_TOOL) buildx build \
 		--platform ${PLATFORMS} \
-		-t ${IMG_REGISTRY_WEBHOOK} \
-		-f docker/Dockerfile.registry.webhook \
+		-t ${IMG_MODEL_BOOSTER_WEBHOOK} \
+		-f docker/Dockerfile.model-booster-webhook \
 		--push .
 	$(CONTAINER_TOOL) buildx build \
 		--platform ${PLATFORMS} \
-		-t ${IMG_MODELINFER_WEBHOOK} \
-		-f docker/Dockerfile.modelinfer.webhook \
+		-t ${IMG_MODEL_SERVING_WEBHOOK} \
+		-f docker/Dockerfile.model-serving-webhook \
 		--push .
 	$(CONTAINER_TOOL) buildx build \
 		--platform ${PLATFORMS} \

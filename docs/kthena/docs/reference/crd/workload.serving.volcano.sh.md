@@ -462,7 +462,7 @@ _Appears in:_
 
 
 
-ModelServing is the Schema for the LLM infer API
+ModelServing is the Schema for the LLM Serving API
 
 
 

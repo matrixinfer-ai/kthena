@@ -27,7 +27,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func (mc *ModelController) createOrUpdateModelRoute(ctx context.Context, model *workloadv1alpha1.ModelBooster) error {
+func (mc *ModelBoosterController) createOrUpdateModelRoute(ctx context.Context, model *workloadv1alpha1.ModelBooster) error {
 	modelRoute := convert.BuildModelRoute(model)
 	oldModelRoute, err := mc.modelRoutesLister.ModelRoutes(modelRoute.Namespace).Get(modelRoute.Name)
 	if err != nil {

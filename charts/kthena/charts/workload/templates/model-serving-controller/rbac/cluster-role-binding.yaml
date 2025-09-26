@@ -1,15 +1,15 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: infer-controller
+  name: model-serving-controller
   labels:
-    app.kubernetes.io/component: infer-controller-role-binding
+    app.kubernetes.io/component: model-serving-controller-role-binding
     {{- include "kthena.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: infer-controller
+  name: model-serving-controller
 subjects:
   - kind: ServiceAccount
-    name: {{ include "kthena.name" . }}-infer-controller
+    name: {{ include "kthena.name" . }}-model-serving-controller
     namespace: {{ .Release.Namespace }}

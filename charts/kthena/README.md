@@ -7,9 +7,8 @@ Files in `crds/` are custom resource definitions, which are used to define the c
 `Chart.yaml` is a YAML file containing information about the chart.
 Visit [here](https://helm.sh/docs/topics/charts/#the-chartyaml-file) for more information.
 
-`charts/` is a directory containing the dependencies of the chart. There are three subcharts `registry`, `workload` and
-`networking` in
-it.
+`charts/` is a directory containing the dependencies of the chart. There are two subcharts `workload` and
+`networking` in it.
 
 `values.yaml` is a YAML file containing the default configuration values for this chart.
 
@@ -42,7 +41,7 @@ You can override the default value of `values.yaml` by using the `--set` flag an
 
 ```shell
 helm install <release-name> <chart> --namespace <namespace> \
-  --set registry.enabled=true \
+  --set workload.enabled=true \
   --set networking.enabled=false \
   -f values-dev.yaml # And you can even specify a customized `values.yaml` file for installation.
 ```
@@ -92,12 +91,12 @@ HELM manages the installation of CRDs. However, if you need to update or uninsta
 ```shell
 # Update CRDs
 kubectl apply -f charts/kthena/charts/networking/crds/
-kubectl apply -f charts/kthena/charts/registry/crds/
+# Note: registry subchart has been removed
 kubectl apply -f charts/kthena/charts/workload/crds/ --server-side
 
 # Uninstall CRDs 
 kubectl delete -f charts/kthena/charts/networking/crds/
-kubectl delete -f charts/kthena/charts/registry/crds/
+# Note: registry subchart has been removed
 kubectl delete -f charts/kthena/charts/workload/crds/
 ```
 > **WARNING:**  
@@ -183,13 +182,13 @@ global:
 
 If cert-manager is not available or you prefer to manage certificates manually, you can provide your own certificates using the CLI parameters when starting the webhooks:
 
-For registry-webhook:
+For model-booster-webhook:
 ```
 --tls-cert-file=/path/to/your/cert.crt
 --tls-private-key-file=/path/to/your/key.key
 ```
 
-For modelinfer-webhook:
+For model-serving-webhook:
 ```
 --tls-cert-file=/path/to/your/cert.crt
 --tls-private-key-file=/path/to/your/key.key

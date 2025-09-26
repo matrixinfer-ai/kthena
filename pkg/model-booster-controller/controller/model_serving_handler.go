@@ -30,7 +30,7 @@ import (
 
 // createOrUpdateModelServing attempts to create model serving if model serving does not exist, or update it if it is different from model.
 // Meanwhile, delete model serving if it is not in the model spec anymore.
-func (mc *ModelController) createOrUpdateModelServing(ctx context.Context, model *workload.ModelBooster, excludedBackends []string) error {
+func (mc *ModelBoosterController) createOrUpdateModelServing(ctx context.Context, model *workload.ModelBooster, excludedBackends []string) error {
 	existingModelServings, err := mc.listModelServingsByLabel(model)
 	if err != nil {
 		return err
@@ -103,7 +103,7 @@ func (mc *ModelController) createOrUpdateModelServing(ctx context.Context, model
 }
 
 // listModelServingsByLabel list all model serving which label key is "owner" and label value is model uid
-func (mc *ModelController) listModelServingsByLabel(model *workload.ModelBooster) ([]*workload.ModelServing, error) {
+func (mc *ModelBoosterController) listModelServingsByLabel(model *workload.ModelBooster) ([]*workload.ModelServing, error) {
 	if modelServings, err := mc.modelServingLister.ModelServings(model.Namespace).List(labels.SelectorFromSet(map[string]string{
 		utils.OwnerUIDKey: string(model.UID),
 	})); err != nil {

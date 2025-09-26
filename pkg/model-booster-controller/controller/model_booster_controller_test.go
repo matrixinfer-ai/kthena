@@ -39,7 +39,7 @@ func TestReconcile(t *testing.T) {
 	// Create fake clients for Kubernetes and Kthena
 	kubeClient := fake.NewClientset()
 	kthenaClient := kthenafake.NewSimpleClientset()
-	controller := NewModelController(kubeClient, kthenaClient)
+	controller := NewModelBoosterController(kubeClient, kthenaClient)
 	assert.NotNil(t, controller)
 	// Start controller
 	go controller.Run(ctx, 1)
@@ -126,7 +126,7 @@ func TestReconcile_ReturnsError(t *testing.T) {
 	// Create fake clients for Kubernetes and Kthena
 	kubeClient := fake.NewClientset()
 	kthenaClient := kthenafake.NewSimpleClientset()
-	controller := NewModelController(kubeClient, kthenaClient)
+	controller := NewModelBoosterController(kubeClient, kthenaClient)
 	assert.NotNil(t, &controller)
 	// start informers
 	go controller.modelsInformer.RunWithContext(ctx)
@@ -172,35 +172,35 @@ func TestReconcile_ReturnsError(t *testing.T) {
 func TestCreateModel(t *testing.T) {
 	kubeClient := fake.NewClientset()
 	kthenaClient := kthenafake.NewClientset()
-	controller := NewModelController(kubeClient, kthenaClient)
-	controller.createModel("wrong")
+	controller := NewModelBoosterController(kubeClient, kthenaClient)
+	controller.createModelBooster("wrong")
 }
 
 func TestUpdateModel(t *testing.T) {
 	kubeClient := fake.NewClientset()
 	kthenaClient := kthenafake.NewClientset()
-	controller := NewModelController(kubeClient, kthenaClient)
+	controller := NewModelBoosterController(kubeClient, kthenaClient)
 	assert.NotNil(t, &controller)
 	model := loadYaml[workload.ModelBooster](t, "../convert/testdata/input/model.yaml")
 	// invalid old
-	controller.updateModel("invalid", model)
+	controller.updateModelBooster("invalid", model)
 	assert.Equal(t, 0, controller.workQueue.Len())
 	// invalid new
-	controller.updateModel(model, "invalid")
+	controller.updateModelBooster(model, "invalid")
 	assert.Equal(t, 0, controller.workQueue.Len())
 }
 
 func TestDeleteModel(t *testing.T) {
 	kubeClient := fake.NewClientset()
 	kthenaClient := kthenafake.NewClientset()
-	controller := NewModelController(kubeClient, kthenaClient)
-	controller.deleteModel("invalid")
+	controller := NewModelBoosterController(kubeClient, kthenaClient)
+	controller.deleteModelBooster("invalid")
 }
 
 func TestTriggerModel(t *testing.T) {
 	kubeClient := fake.NewClientset()
 	kthenaClient := kthenafake.NewClientset()
-	controller := NewModelController(kubeClient, kthenaClient)
+	controller := NewModelBoosterController(kubeClient, kthenaClient)
 	assert.NotNil(t, &controller)
 	modelServing := loadYaml[workload.ModelServing](t, "../convert/testdata/expected/model-serving.yaml")
 	// invalid new
@@ -214,7 +214,7 @@ func TestTriggerModel(t *testing.T) {
 func TestHasOnlyLoraAdaptersChanged(t *testing.T) {
 	kubeClient := fake.NewClientset()
 	kthenaClient := kthenafake.NewClientset()
-	controller := NewModelController(kubeClient, kthenaClient)
+	controller := NewModelBoosterController(kubeClient, kthenaClient)
 
 	tests := []struct {
 		name     string
