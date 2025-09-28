@@ -17,7 +17,6 @@ limitations under the License.
 package webhook
 
 import (
-	"context"
 	"crypto/tls"
 	"fmt"
 	"net/http"
@@ -64,30 +63,6 @@ func NewModelServingValidator(kubeClient kubernetes.Interface, kthenaClient clie
 		kubeClient:   kubeClient,
 		kthenaClient: kthenaClient,
 	}
-}
-
-func (v *ModelServingValidator) Run(tlsCertFile, tlsPrivateKey string, ctx context.Context) {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/validate-workload-ai-v1alpha1-modelServing", v.Handle)
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		if _, err := w.Write([]byte("ok")); err != nil {
-			klog.Errorf("failed to write health check response: %v", err)
-		}
-	})
-	v.httpServer.Handler = mux
-
-	// Start server
-	klog.Infof("Starting webhook server on %s", v.httpServer.Addr)
-	go func() {
-		if err := v.httpServer.ListenAndServeTLS(tlsCertFile, tlsPrivateKey); err != nil && err != http.ErrServerClosed {
-			klog.Fatalf("failed to listen and serve validator: %v", err)
-		}
-	}()
-
-	// shutdown gracefully shuts down the server
-	<-ctx.Done()
-	v.shutdown()
 }
 
 // Handle handles admission requests for ModelServing resources
@@ -404,16 +379,6 @@ func validateWorkerImages(mi *workloadv1alpha1.ModelServing) field.ErrorList {
 		}
 	}
 	return allErrs
-}
-
-func (v *ModelServingValidator) shutdown() {
-	klog.Info("shutting down webhook server")
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	if err := v.httpServer.Shutdown(ctx); err != nil {
-		klog.Errorf("failed to shutdown server: %v", err)
-	}
 }
 
 // validateImageField checks if a container image string is a valid Docker reference.

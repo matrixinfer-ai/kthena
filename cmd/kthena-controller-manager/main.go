@@ -18,15 +18,20 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"errors"
 	"flag"
+	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/spf13/pflag"
 	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
 	"github.com/volcano-sh/kthena/pkg/controller"
-	"github.com/volcano-sh/kthena/pkg/model-booster-webhook/server"
+	"github.com/volcano-sh/kthena/pkg/model-booster-webhook/handlers"
 	"github.com/volcano-sh/kthena/pkg/model-serving-controller/webhook"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -79,16 +84,6 @@ func main() {
 }
 
 func setupWebhook(ctx context.Context, wc webhookConfig) error {
-	if err := setupModelBoosterWebhook(wc, ctx); err != nil {
-		return err
-	}
-	if err := setupModelServingWebhook(wc, ctx); err != nil {
-		return err
-	}
-	return nil
-}
-
-func setupModelServingWebhook(wc webhookConfig, ctx context.Context) error {
 	cfg, err := rest.InClusterConfig()
 	if err != nil {
 		klog.Fatalf("build client config: %v", err)
@@ -104,35 +99,50 @@ func setupModelServingWebhook(wc webhookConfig, ctx context.Context) error {
 		klog.Fatalf("failed to create kthenaClient: %v", err)
 		return err
 	}
-	modelServingWebhook := webhook.NewModelServingValidator(kubeClient, kthenaClient, wc.port)
-	go func() {
-		modelServingWebhook.Run(wc.tlsCertFile, wc.tlsPrivateKey, ctx)
-	}()
-	return nil
-}
 
-func setupModelBoosterWebhook(wc webhookConfig, ctx context.Context) error {
-	cfg, err := rest.InClusterConfig()
-	if err != nil {
-		klog.Fatalf("Error building kubeconfig: %s", err.Error())
-		return err
+	mux := http.NewServeMux()
+
+	modelServingValidator := webhook.NewModelServingValidator(kubeClient, kthenaClient, wc.port)
+	mux.HandleFunc("/validate-workload-ai-v1alpha1-modelServing", modelServingValidator.Handle)
+
+	modelValidator := handlers.NewModelValidator()
+	modelMutator := handlers.NewModelMutator()
+	autoscalingPolicyValidator := handlers.NewAutoscalingPolicyValidator()
+	autoscalingPolicyMutator := handlers.NewAutoscalingPolicyMutator()
+	autoscalingBindingValidator := handlers.NewAutoscalingBindingValidator(kthenaClient)
+	mux.HandleFunc("/validate-registry-volcano-sh-v1alpha1-model", modelValidator.Handle)
+	mux.HandleFunc("/mutate-registry-volcano-sh-v1alpha1-model", modelMutator.Handle)
+	mux.HandleFunc("/validate-registry-volcano-sh-v1alpha1-autoscalingpolicy", autoscalingPolicyValidator.Handle)
+	mux.HandleFunc("/mutate-registry-volcano-sh-v1alpha1-autoscalingpolicy", autoscalingPolicyMutator.Handle)
+	mux.HandleFunc("/validate-registry-volcano-sh-v1alpha1-autoscalingpolicybinding", autoscalingBindingValidator.Handle)
+
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write([]byte("ok")); err != nil {
+			klog.Errorf("failed to write health check response: %v", err)
+		}
+	})
+
+	server := &http.Server{
+		Addr:         fmt.Sprintf(":%d", wc.port),
+		Handler:      mux,
+		ReadTimeout:  time.Duration(wc.webhookTimeout) * time.Second,
+		WriteTimeout: time.Duration(wc.webhookTimeout) * time.Second,
+		TLSConfig: &tls.Config{
+			MinVersion: tls.VersionTLS12,
+		},
 	}
-	kthenaClient, err := clientset.NewForConfig(cfg)
-	if err != nil {
-		klog.Fatalf("Error building kthena clientset: %s", err.Error())
-		return err
-	}
-	modelBoosterWebhook := server.NewWebhookServer(
-		kthenaClient,
-		wc.tlsCertFile,
-		wc.tlsPrivateKey,
-		wc.port,
-		wc.webhookTimeout,
-	)
+
 	go func() {
-		if err := modelBoosterWebhook.Start(ctx); err != nil {
-			klog.Fatalf("Failed to start webhook server: %v", err)
+		klog.Infof("Starting webhook server on %s", server.Addr)
+		if err := server.ListenAndServeTLS(wc.tlsCertFile, wc.tlsPrivateKey); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			klog.Fatalf("failed to start unified webhook server: %v", err)
 		}
 	}()
+
+	<-ctx.Done()
+	ctxTimeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_ = server.Shutdown(ctxTimeout)
 	return nil
 }
