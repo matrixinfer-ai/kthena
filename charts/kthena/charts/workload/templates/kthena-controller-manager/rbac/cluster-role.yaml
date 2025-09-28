@@ -4,6 +4,19 @@ metadata:
   name: kthena-controller-manager
 rules:
   - apiGroups:
+      - networking.serving.volcano.sh
+    resources:
+      - modelservers
+      - modelroutes
+    verbs:
+      - watch
+      - list
+      - create
+      - delete
+      - update
+      - patch
+      - get
+  - apiGroups:
       - workload.serving.volcano.sh
     resources:
       - autoscalingpolicybindings
