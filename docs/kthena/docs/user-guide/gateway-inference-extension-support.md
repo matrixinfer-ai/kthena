@@ -22,7 +22,7 @@ The Gateway API Inference Extension extends the standard Kubernetes Gateway API 
 
 ### Deploy Sample Model Server
 
-First, deploy a model that will serve as the backend for the Gateway Inference Extension. Follow the [Quick Start](../getting-started/quick-start.md) guide to deploy a model and ensure it's in `Active` state.
+First, deploy a model that will serve as the backend for the Gateway Inference Extension. Follow the [Quick Start](../getting-started/quick-start.md) guide to deploy a model in the `default` namespace and ensure it's in `Active` state.
 
 After deployment, identify the labels of your model pods as these will be used to associate the InferencePool with your model instances:
 
