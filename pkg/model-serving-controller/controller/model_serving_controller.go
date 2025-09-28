@@ -465,6 +465,15 @@ func (c *ModelServingController) UpdateModelServingStatus(mi *workloadv1alpha1.M
 	available, updated, current := 0, 0, 0
 	progressingGroups, updatedGroups, currentGroups := []int{}, []int{}, []int{}
 	for index := range groups {
+		if groups[index].Status == datastore.ServingGroupDeleting {
+			// Scaling -> Running or
+			// Creating -> Running
+			// No Deleting -> Running.
+			// So directly add deleting groups to progressingGroups
+			progressingGroups = append(progressingGroups, index)
+			continue
+		}
+
 		if groups[index].Status == datastore.ServingGroupRunning {
 			available = available + 1
 		} else if ok, err := c.checkServingGroupReady(mi, groups[index].Name); ok && err == nil {
@@ -952,7 +961,11 @@ func (c *ModelServingController) handleDeletedPod(mi *workloadv1alpha1.ModelServ
 		// Rebuild the entire ServingGroup directly
 		c.DeleteServingGroup(mi, servingGroupName)
 	case workloadv1alpha1.RoleRecreate:
-		if c.store.GetServingGroupStatus(utils.GetNamespaceName(mi), servingGroupName) == datastore.ServingGroupRunning {
+		// If Rolling update in RoleRecreate mode, requires re-entering the queue during the pod delete event.
+		if c.store.GetServingGroupStatus(utils.GetNamespaceName(mi), servingGroupName) == datastore.ServingGroupDeleting {
+			c.DeleteServingGroup(mi, servingGroupName)
+			return nil
+		} else if c.store.GetServingGroupStatus(utils.GetNamespaceName(mi), servingGroupName) == datastore.ServingGroupRunning {
 			// If the ServingGroup status is running when the pod fails, we need to set it to creating
 			err := c.store.UpdateServingGroupStatus(utils.GetNamespaceName(mi), servingGroupName, datastore.ServingGroupCreating)
 			if err != nil {
