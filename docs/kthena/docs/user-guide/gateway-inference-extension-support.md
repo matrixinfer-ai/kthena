@@ -14,60 +14,29 @@ The Gateway API Inference Extension extends the standard Kubernetes Gateway API 
 
 ## Prerequisites
 
-A cluster with:
-- **Kubernetes cluster** (version 1.20 or later) with support for services of type `LoadBalancer`
-- **Support for sidecar containers** (enabled by default since Kubernetes v1.29) to run the model server deployment
-- **Kthena installed** on your cluster (see [Installation](../getting-started/installation.md))
+- Kubernetes cluster with Kthena installed (see [Installation](../getting-started/installation.md))
+- Gateway API installed (see [Gateway API](https://gateway-api.sigs.k8s.io/))
+- Basic understanding of Gateway API and Gateway Inference Extension
 
-Tooling:
-- **kubectl** configured to access your cluster
-- **Helm** installed
-
-## Steps
+## Getting Started
 
 ### Deploy Sample Model Server
 
-First, deploy a Kthena model that will serve as the backend for the Gateway Inference Extension. Follow the [Quick Start](../getting-started/quick-start.md) guide to deploy a model. For this example, we'll use the Qwen2.5-0.5B-Instruct model:
+First, deploy a model that will serve as the backend for the Gateway Inference Extension. Follow the [Quick Start](../getting-started/quick-start.md) guide to deploy a model and ensure it's in `Active` state.
 
-```bash
-# Deploy the example model
-kubectl apply -n <your-namespace> -f https://raw.githubusercontent.com/volcano-sh/kthena/refs/heads/main/examples/model-booster/Qwen2.5-0.5B-Instruct.yaml
-
-# Wait for the model to be ready
-kubectl get model demo -o jsonpath='{.status.conditions}' -n <your-namespace>
-```
-
-Verify that your model is running and has the Active condition set to `true`:
-
-```json
-[
-  {
-    "lastTransitionTime": "2025-09-05T02:14:16Z",
-    "message": "Model initialized",
-    "reason": "ModelCreating",
-    "status": "True",
-    "type": "Initialized"
-  },
-  {
-    "lastTransitionTime": "2025-09-05T02:18:46Z",
-    "message": "Model is ready",
-    "reason": "ModelAvailable",
-    "status": "True",
-    "type": "Active"
-  }
-]
-```
-
-Identify the labels of your deployed model pods, as these will be used to associate the InferencePool with your model instances:
+After deployment, identify the labels of your model pods as these will be used to associate the InferencePool with your model instances:
 
 ```bash
 # Get the model pods and their labels
-kubectl get pods -n <your-namespace> -l app.kubernetes.io/managed-by=kthena --show-labels
+kubectl get pods -n <your-namespace> -l workload.serving.volcano.sh/managed-by=workload.serving.volcano.sh --show-labels
 
 # Example output shows labels like:
-# app.kubernetes.io/instance=demo
-# app.kubernetes.io/managed-by=kthena
-# modelbooster.workload.serving.volcano.sh/owner-uid=<uid>
+# modelserving.volcano.sh/name=demo-backend1
+# modelserving.volcano.sh/group-name=demo-backend1-0
+# modelserving.volcano.sh/role=leader
+# workload.serving.volcano.sh/model-name=demo
+# workload.serving.volcano.sh/backend-name=backend1
+# workload.serving.volcano.sh/managed-by=workload.serving.volcano.sh
 ```
 
 ### Install the Inference Extension CRDs
@@ -90,8 +59,7 @@ export IGW_CHART_VERSION=v1.0.1-rc.1
 
 # Install InferencePool pointing to your Kthena model pods
 helm install kthena-demo \
-  --set inferencePool.modelServers.matchLabels."app\.kubernetes\.io/instance"=demo \
-  --set inferencePool.modelServers.matchLabels."app\.kubernetes\.io/managed-by"=kthena \
+  --set inferencePool.modelServers.matchLabels."workload\.serving\.volcano\.sh/model-name"=demo \
   --set provider.name=$GATEWAY_PROVIDER \
   --version $IGW_CHART_VERSION \
   oci://registry.k8s.io/gateway-api-inference-extension/charts/inferencepool
@@ -102,40 +70,47 @@ helm install kthena-demo \
 Deploy the Istio-based inference gateway and routing configuration:
 
 1. **Install Istio** (if not already installed):
-   ```bash
-   # Download and install Istio
-   curl -L https://istio.io/downloadIstio | sh -
-   cd istio-*
-   export PATH=$PWD/bin:$PATH
-   
-   # Install Istio with default configuration
-   istioctl install --set values.defaultRevision=default -y
-   
-   # Enable automatic sidecar injection for your namespace
-   kubectl label namespace <your-namespace> istio-injection=enabled
-   ```
+```bash
+TAG=$(curl https://storage.googleapis.com/istio-build/dev/1.28-dev)
+# on Linux
+wget https://storage.googleapis.com/istio-build/dev/$TAG/istioctl-$TAG-linux-amd64.tar.gz
+tar -xvf istioctl-$TAG-linux-amd64.tar.gz
+
+./istioctl install --set tag=$TAG --set hub=gcr.io/istio-testing --set values.pilot.env.ENABLE_GATEWAY_API_INFERENCE_EXTENSION=true
+```
 
 2. **Deploy the Gateway**:
-   ```bash
-   kubectl apply -f https://github.com/kubernetes-sigs/gateway-api-inference-extension/raw/main/config/manifests/gateway/istio/gateway.yaml
-   ```
+```bash
+kubectl apply -f https://github.com/kubernetes-sigs/gateway-api-inference-extension/raw/main/config/manifests/gateway/istio/gateway.yaml
+```
 
-3. **Deploy the DestinationRule**:
-   ```bash
-   kubectl apply -f https://github.com/kubernetes-sigs/gateway-api-inference-extension/raw/main/config/manifests/gateway/istio/destination-rule.yaml
-   ```
+3. **Deploy the HTTPRoute**:
 
-4. **Deploy the HTTPRoute**:
-   ```bash
-   kubectl apply -f https://github.com/kubernetes-sigs/gateway-api-inference-extension/raw/main/config/manifests/gateway/istio/httproute.yaml
-   ```
-
-### Deploy InferenceObjective (Optional)
-
-Deploy the sample InferenceObjective which allows you to specify priority of requests:
+Create and apply the HTTPRoute configuration that connects the gateway to your InferencePool:
 
 ```bash
-kubectl apply -f https://github.com/kubernetes-sigs/gateway-api-inference-extension/raw/main/config/manifests/inferenceobjective.yaml
+cat <<EOF | kubectl apply -f -
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: kthena-demo-route
+spec:
+  parentRefs:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    name: inference-gateway
+  rules:
+  - backendRefs:
+    - group: inference.networking.k8s.io
+      kind: InferencePool
+      name: kthena-demo
+    matches:
+    - path:
+        type: PathPrefix
+        value: /
+    timeouts:
+      request: 300s
+EOF
 ```
 
 ### Verify Gateway Installation
@@ -150,12 +125,17 @@ kubectl get gateway inference-gateway
 # inference-gateway   istio     <GATEWAY_IP>    True         30s
 ```
 
-Get the gateway external IP address:
+Verify that all components are properly configured:
 
 ```bash
-IP=$(kubectl get gateway/inference-gateway -o jsonpath='{.status.addresses[0].value}')
-PORT=80
-echo "Gateway IP: $IP"
+# Check Gateway status
+kubectl get gateway inference-gateway -o yaml
+
+# Check HTTPRoute status - should show Accepted=True and ResolvedRefs=True
+kubectl get httproute kthena-demo-route -o yaml
+
+# Check InferencePool status
+kubectl get inferencepool kthena-demo -o yaml
 ```
 
 ## Try it out
@@ -171,101 +151,11 @@ PORT=80
 curl -i ${IP}:${PORT}/v1/completions \
   -H 'Content-Type: application/json' \
   -d '{
-    "model": "demo",
+    "model": "Qwen2.5-0.5B-Instruct",
     "prompt": "Write as if you were a critic: San Francisco",
     "max_tokens": 100,
     "temperature": 0
   }'
-```
-
-Expected response format:
-```json
-{
-  "id": "cmpl-xxx",
-  "object": "text_completion",
-  "created": 1677652288,
-  "model": "demo",
-  "choices": [
-    {
-      "index": 0,
-      "text": "San Francisco is a vibrant city known for its iconic landmarks...",
-      "finish_reason": "length"
-    }
-  ],
-  "usage": {
-    "prompt_tokens": 8,
-    "completion_tokens": 100,
-    "total_tokens": 108
-  }
-}
-```
-
-### Test Chat Completions
-
-You can also test the chat completions endpoint:
-
-```bash
-# Test chat completions endpoint
-curl -i ${IP}:${PORT}/v1/chat/completions \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "model": "demo",
-    "messages": [
-      {
-        "role": "user",
-        "content": "What is the capital of China?"
-      }
-    ],
-    "max_tokens": 50,
-    "temperature": 0
-  }'
-```
-
-## Verification Steps
-
-### 1. Check Gateway Status
-
-Verify that all components are properly configured:
-
-```bash
-# Check Gateway status
-kubectl get gateway inference-gateway -o yaml
-
-# Check HTTPRoute status - should show Accepted=True and ResolvedRefs=True
-kubectl get httproute llm-route -o yaml
-
-# Check InferencePool status
-kubectl get inferencepool kthena-demo -o yaml
-```
-
-### 2. Monitor Traffic Flow
-
-Monitor that requests are being properly routed to your Kthena model pods:
-
-```bash
-# Monitor gateway access logs
-kubectl logs -f deployment/istio-ingressgateway -n istio-system
-
-# Check your model pod logs to confirm requests are reaching them
-kubectl logs -f <model-pod-name> -n <your-namespace>
-
-# Check InferencePool endpoints discovery
-kubectl describe inferencepool kthena-demo
-```
-
-### 3. Advanced Verification
-
-For detailed verification, inspect the Istio proxy configuration:
-
-```bash
-# Check that the gateway configuration is applied
-istioctl proxy-config listeners deployment/istio-ingressgateway -n istio-system
-
-# Verify routing rules
-istioctl proxy-config routes deployment/istio-ingressgateway -n istio-system --name 80
-
-# Check discovered endpoints
-istioctl proxy-config endpoints deployment/istio-ingressgateway -n istio-system
 ```
 
 ## Cleanup
@@ -273,27 +163,24 @@ istioctl proxy-config endpoints deployment/istio-ingressgateway -n istio-system
 To clean up all resources created in this guide:
 
 1. **Uninstall the InferencePool and model resources**:
-   ```bash
-   helm uninstall kthena-demo
-   kubectl delete -f https://github.com/kubernetes-sigs/gateway-api-inference-extension/raw/main/config/manifests/inferenceobjective.yaml --ignore-not-found
-   kubectl delete model demo -n <your-namespace> --ignore-not-found
-   ```
+```bash
+helm uninstall kthena-demo
+kubectl delete modelbooster demo -n <your-namespace> --ignore-not-found
+```
 
 2. **Remove Gateway API Inference Extension CRDs**:
-   ```bash
-   kubectl delete -f https://github.com/kubernetes-sigs/gateway-api-inference-extension/releases/latest/download/manifests.yaml --ignore-not-found
-   ```
+```bash
+kubectl delete -f https://github.com/kubernetes-sigs/gateway-api-inference-extension/releases/latest/download/manifests.yaml --ignore-not-found
+```
 
 3. **Clean up Istio Gateway resources**:
-   ```bash
-   kubectl delete -f https://github.com/kubernetes-sigs/gateway-api-inference-extension/raw/main/config/manifests/gateway/istio/gateway.yaml --ignore-not-found
-   kubectl delete -f https://github.com/kubernetes-sigs/gateway-api-inference-extension/raw/main/config/manifests/gateway/istio/destination-rule.yaml --ignore-not-found
-   kubectl delete -f https://github.com/kubernetes-sigs/gateway-api-inference-extension/raw/main/config/manifests/gateway/istio/httproute.yaml --ignore-not-found
-   ```
+```bash
+kubectl delete -f https://github.com/kubernetes-sigs/gateway-api-inference-extension/raw/main/config/manifests/gateway/istio/gateway.yaml --ignore-not-found
+kubectl delete -f https://github.com/kubernetes-sigs/gateway-api-inference-extension/raw/main/config/manifests/gateway/istio/httproute.yaml --ignore-not-found
+```
 
-4. **Optionally remove Istio** (if you want to clean up everything):
-   ```bash
-   istioctl uninstall -y --purge
-   kubectl delete ns istio-system
-   ```
-
+4. **Remove Istio** (if you want to clean up everything):
+```bash
+istioctl uninstall -y --purge
+kubectl delete ns istio-system
+```
