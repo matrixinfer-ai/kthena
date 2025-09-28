@@ -2,13 +2,13 @@
 
 ## Overview
 
-Gateway Inference Extension provides a standardized way to expose AI/ML inference services through [Kubernetes Gateway API](https://gateway-api.sigs.k8s.io/). This guide demonstrates how to integrate Kthena-deployed models with the upstream Gateway API Inference Extension, enabling intelligent routing and traffic management for inference workloads.
+[Gateway Inference Extension](https://gateway-api-inference-extension.sigs.k8s.io/) provides a standardized way to expose AI/ML inference services through [Kubernetes Gateway API](https://gateway-api.sigs.k8s.io/). This guide demonstrates how to integrate Kthena-deployed models with the upstream Gateway API Inference Extension, enabling intelligent routing and traffic management for inference workloads.
 
 The Gateway API Inference Extension extends the standard Kubernetes Gateway API with inference-specific resources:
 
 - **InferencePool**: Manages collections of model server endpoints with automatic discovery and health monitoring
 - **InferenceObjective**: Defines priority and capacity policies for inference requests  
-- **Gateway Integration**: Seamless integration with popular gateway implementations including Istio, GKE Gateway, and Kgateway
+- **Gateway Integration**: Seamless integration with popular gateway implementations including Envoy Gateway, Istio and Kgateway
 - **Model-Aware Routing**: Advanced routing capabilities based on model names, adapters, and request characteristics
 - **OpenAI API Compatibility**: Full support for OpenAI-compatible endpoints (`/v1/chat/completions`, `/v1/completions`)
 
@@ -57,7 +57,7 @@ For Istio deployment:
 export GATEWAY_PROVIDER=istio
 export IGW_CHART_VERSION=v1.0.1-rc.1
 
-# Install InferencePool pointing to your Kthena model pods
+# Install InferencePool and Endpoint Picker pointing to your Kthena model pods
 helm install kthena-demo \
   --set inferencePool.modelServers.matchLabels."workload\.serving\.volcano\.sh/model-name"=demo \
   --set provider.name=$GATEWAY_PROVIDER \
@@ -71,12 +71,13 @@ Deploy the Istio-based inference gateway and routing configuration:
 
 1. **Install Istio** (if not already installed):
 ```bash
-TAG=$(curl https://storage.googleapis.com/istio-build/dev/1.28-dev)
-# on Linux
-wget https://storage.googleapis.com/istio-build/dev/$TAG/istioctl-$TAG-linux-amd64.tar.gz
-tar -xvf istioctl-$TAG-linux-amd64.tar.gz
+TAG=1.27.1
 
-./istioctl install --set tag=$TAG --set hub=gcr.io/istio-testing --set values.pilot.env.ENABLE_GATEWAY_API_INFERENCE_EXTENSION=true
+curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.27.1 TARGET_ARCH=x86_64 sh -
+
+cd istio-$TAG/bin
+
+./istioctl install --set values.pilot.env.ENABLE_GATEWAY_API_INFERENCE_EXTENSION=true
 ```
 
 2. **Deploy the Gateway**:
