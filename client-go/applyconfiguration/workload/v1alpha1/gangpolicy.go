@@ -18,36 +18,23 @@ limitations under the License.
 
 package v1alpha1
 
-import (
-	v1beta1 "volcano.sh/apis/pkg/apis/scheduling/v1beta1"
-)
-
-// GangScheduleApplyConfiguration represents a declarative configuration of the GangSchedule type for use
+// GangPolicyApplyConfiguration represents a declarative configuration of the GangPolicy type for use
 // with apply.
-type GangScheduleApplyConfiguration struct {
-	NetworkTopology *v1beta1.NetworkTopologySpec `json:"networkTopology,omitempty"`
-	MinRoleReplicas map[string]int32             `json:"minRoleReplicas,omitempty"`
+type GangPolicyApplyConfiguration struct {
+	MinRoleReplicas map[string]int32 `json:"minRoleReplicas,omitempty"`
 }
 
-// GangScheduleApplyConfiguration constructs a declarative configuration of the GangSchedule type for use with
+// GangPolicyApplyConfiguration constructs a declarative configuration of the GangPolicy type for use with
 // apply.
-func GangSchedule() *GangScheduleApplyConfiguration {
-	return &GangScheduleApplyConfiguration{}
-}
-
-// WithNetworkTopology sets the NetworkTopology field in the declarative configuration to the given value
-// and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the NetworkTopology field is set to the value of the last call.
-func (b *GangScheduleApplyConfiguration) WithNetworkTopology(value v1beta1.NetworkTopologySpec) *GangScheduleApplyConfiguration {
-	b.NetworkTopology = &value
-	return b
+func GangPolicy() *GangPolicyApplyConfiguration {
+	return &GangPolicyApplyConfiguration{}
 }
 
 // WithMinRoleReplicas puts the entries into the MinRoleReplicas field in the declarative configuration
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, the entries provided by each call will be put on the MinRoleReplicas field,
 // overwriting an existing map entries in MinRoleReplicas field with the same key.
-func (b *GangScheduleApplyConfiguration) WithMinRoleReplicas(entries map[string]int32) *GangScheduleApplyConfiguration {
+func (b *GangPolicyApplyConfiguration) WithMinRoleReplicas(entries map[string]int32) *GangPolicyApplyConfiguration {
 	if b.MinRoleReplicas == nil && len(entries) > 0 {
 		b.MinRoleReplicas = make(map[string]int32, len(entries))
 	}

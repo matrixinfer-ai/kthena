@@ -591,7 +591,7 @@ func TestValidatorReplicas(t *testing.T) {
 	}
 }
 
-func TestValidateGangSchedule(t *testing.T) {
+func TestValidateGangPolicy(t *testing.T) {
 	replicas := int32(3)
 	roleReplicas := int32(2)
 	type args struct {
@@ -616,7 +616,7 @@ func TestValidateGangSchedule(t *testing.T) {
 									WorkerReplicas: 3,
 								},
 							},
-							GangSchedule: &workloadv1alpha1.GangSchedule{
+							GangPolicy: &workloadv1alpha1.GangPolicy{
 								MinRoleReplicas: map[string]int32{
 									"worker": 3, // 2*1 (entry) + 3 (workers) = 5 total, min=3 is valid
 								},
@@ -641,7 +641,7 @@ func TestValidateGangSchedule(t *testing.T) {
 									WorkerReplicas: 3,
 								},
 							},
-							GangSchedule: &workloadv1alpha1.GangSchedule{
+							GangPolicy: &workloadv1alpha1.GangPolicy{
 								MinRoleReplicas: map[string]int32{
 									"nonexistent": 1,
 								},
@@ -652,7 +652,7 @@ func TestValidateGangSchedule(t *testing.T) {
 			},
 			want: field.ErrorList{
 				field.Invalid(
-					field.NewPath("spec").Child("template").Child("gangSchedule").Child("minRoleReplicas").Key("nonexistent"),
+					field.NewPath("spec").Child("template").Child("gangPolicy").Child("minRoleReplicas").Key("nonexistent"),
 					"nonexistent",
 					"role nonexistent does not exist in template.roles",
 				),
@@ -672,7 +672,7 @@ func TestValidateGangSchedule(t *testing.T) {
 									WorkerReplicas: 3,
 								},
 							},
-							GangSchedule: &workloadv1alpha1.GangSchedule{
+							GangPolicy: &workloadv1alpha1.GangPolicy{
 								MinRoleReplicas: map[string]int32{
 									"worker": 10, // 2*1 (entry) + 3 (workers) = 5 total, min=10 is invalid
 								},
@@ -683,7 +683,7 @@ func TestValidateGangSchedule(t *testing.T) {
 			},
 			want: field.ErrorList{
 				field.Invalid(
-					field.NewPath("spec").Child("template").Child("gangSchedule").Child("minRoleReplicas").Key("worker"),
+					field.NewPath("spec").Child("template").Child("gangPolicy").Child("minRoleReplicas").Key("worker"),
 					int32(10),
 					"minRoleReplicas (10) for role worker cannot exceed total replicas (5)",
 				),
@@ -703,7 +703,7 @@ func TestValidateGangSchedule(t *testing.T) {
 									WorkerReplicas: 3,
 								},
 							},
-							GangSchedule: &workloadv1alpha1.GangSchedule{
+							GangPolicy: &workloadv1alpha1.GangPolicy{
 								MinRoleReplicas: map[string]int32{
 									"worker": -1,
 								},
@@ -714,14 +714,14 @@ func TestValidateGangSchedule(t *testing.T) {
 			},
 			want: field.ErrorList{
 				field.Invalid(
-					field.NewPath("spec").Child("template").Child("gangSchedule").Child("minRoleReplicas").Key("worker"),
+					field.NewPath("spec").Child("template").Child("gangPolicy").Child("minRoleReplicas").Key("worker"),
 					int32(-1),
 					"minRoleReplicas for role worker must be non-negative",
 				),
 			},
 		},
 		{
-			name: "nil gang schedule",
+			name: "nil gang Policy",
 			args: args{
 				mi: &workloadv1alpha1.ModelServing{
 					Spec: workloadv1alpha1.ModelServingSpec{
@@ -734,7 +734,7 @@ func TestValidateGangSchedule(t *testing.T) {
 									WorkerReplicas: 3,
 								},
 							},
-							GangSchedule: nil,
+							GangPolicy: nil,
 						},
 					},
 				},
@@ -755,7 +755,7 @@ func TestValidateGangSchedule(t *testing.T) {
 									WorkerReplicas: 3,
 								},
 							},
-							GangSchedule: &workloadv1alpha1.GangSchedule{
+							GangPolicy: &workloadv1alpha1.GangPolicy{
 								MinRoleReplicas: nil,
 							},
 						},
@@ -767,7 +767,7 @@ func TestValidateGangSchedule(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := validateGangSchedule(tt.args.mi)
+			got := validateGangPolicy(tt.args.mi)
 			if got != nil {
 				assert.EqualValues(t, tt.want, got)
 			} else {

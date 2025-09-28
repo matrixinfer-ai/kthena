@@ -162,23 +162,25 @@ proposal will be implemented, this is the place to discuss them.
 
 The design uses an enum-based approach for gang scheduling instead of separate boolean fields, providing better clarity and preventing invalid combinations:
 
-It only works when `GangSchedule` is configured.
+It only works when `GangPolicy` and `NetworkTopology` is configured.
 
 ```go
-// GangSchedule defines the gang scheduling configuration.
-type GangSchedule struct {
-  // NetworkTopology defines the NetworkTopology config, this field works in conjunction with network topology feature and hyperNode CRD.
-  // Fields can only be configured if enable=true
-  // +optional
-  NetworkTopology *volcanoV1Beta1.NetworkTopologySpec `json:"networkTopology,omitempty" protobuf:"bytes,5,opt,name=networkTopology"`
-
+// GangPolicy defines the gang scheduling configuration.
+type GangPolicy struct {
   // MinRoleReplicas defines the minimum number of replicas required for each role
-  // This map allows users to specify different
+  // in gang scheduling. This map allows users to specify different
   // minimum replica requirements for different roles.
-  // Key: role name, Value: minimum number of replicas required for that role
+  // Key: role name
+  // Value: minimum number of replicas required for that role
   // +optional
+  // +kubebuilder:validation:XValidation:rule="!has(oldSelf.minRoleReplicas) || has(self.minRoleReplicas)", message="minRoleReplicas cannot be removed once set"
+  // +kubebuilder:validation:XValidation:rule="!has(oldSelf.minRoleReplicas) || self.minRoleReplicas == oldSelf.minRoleReplicas", message="minRoleReplicas        cannot be modified once set. You can only set it when it's not previously configured."
   MinRoleReplicas map[string]int32 `json:"minRoleReplicas,omitempty"`
 }
+
+  // NetworkTopology defines the NetworkTopology of scheduling config, this field works in conjunction with network topology feature and hyperNode CRD.
+  // +optional
+  NetworkTopology *volcanoV1Beta1.NetworkTopologySpec `json:"networkTopology,omitempty" protobuf:"bytes,5,opt,name=networkTopology"`
 ```
 
 Use [`MinTaskMember`](https://github.com/volcano-sh/volcano/blob/master/docs/design/task-minavailable.md) to control the gang-scheduling scope.
@@ -309,7 +311,7 @@ If `MinRoleReplicas` is configured, the value of `minMember` is calculated as:
 **Example Configuration:**
 
 ```yaml
-gangSchedule:
+gangPolicy:
   minRoleReplicas:
     prefill: 2    # Require at least 2 prefill role replicas
     decode: 1     # Require at least 1 decode role replica

@@ -260,11 +260,11 @@ _Appears in:_
 
 
 
-#### GangSchedule
+#### GangPolicy
 
 
 
-GangSchedule defines the gang scheduling configuration.
+GangPolicy defines the gang scheduling configuration.
 
 
 
@@ -273,7 +273,6 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `networkTopology` _[NetworkTopologySpec](#networktopologyspec)_ | NetworkTopology defines the NetworkTopology config, this field works in conjunction with network topology feature and hyperNode CRD. |  |  |
 | `minRoleReplicas` _object (keys:string, values:integer)_ | MinRoleReplicas defines the minimum number of replicas required for each role<br />in gang scheduling. This map allows users to specify different<br />minimum replica requirements for different roles.<br />Key: role name<br />Value: minimum number of replicas required for that role |  |  |
 
 
@@ -800,7 +799,8 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `restartGracePeriodSeconds` _integer_ | RestartGracePeriodSeconds defines the grace time for the controller to rebuild the ServingGroup when an error occurs<br />Defaults to 0 (ServingGroup will be rebuilt immediately after an error) | 0 |  |
-| `gangSchedule` _[GangSchedule](#gangschedule)_ | GangSchedule defines the GangSchedule config. |  |  |
+| `gangPolicy` _[GangPolicy](#gangpolicy)_ | GangPolicy defines the Gang Scheduler config. |  |  |
+| `networkTopology` _[NetworkTopologySpec](#networktopologyspec)_ | NetworkTopology defines the NetworkTopology of scheduling config, this field works in conjunction with network topology feature and hyperNode CRD. |  |  |
 | `roles` _[Role](#role) array_ |  |  | MaxItems: 4 <br />MinItems: 1 <br /> |
 
 
