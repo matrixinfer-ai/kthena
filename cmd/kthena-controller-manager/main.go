@@ -66,22 +66,6 @@ func main() {
 	pflag.CommandLine.VisitAll(func(f *pflag.Flag) {
 		klog.Infof("Flag: %s, Value: %s", f.Name, f.Value.String())
 	})
-
-	if enableWebhook {
-		if err := setupWebhook(wc); err != nil {
-			os.Exit(1)
-		}
-	}
-	setupController(cc)
-}
-
-func setupController(cc controller.Config) {
-	config, err := clientcmd.BuildConfigFromFlags(cc.MasterURL, cc.Kubeconfig)
-	if err != nil {
-		klog.Fatalf("build client config: %v", err)
-	}
-	kubeClient := kubernetes.NewForConfigOrDie(config)
-	client := clientset.NewForConfigOrDie(config)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	ch := make(chan os.Signal, 1)
@@ -91,6 +75,22 @@ func setupController(cc controller.Config) {
 		klog.Info("Received termination, signaling shutdown")
 		cancel()
 	}()
+	if enableWebhook {
+		if err := setupWebhook(ctx, wc); err != nil {
+			os.Exit(1)
+		}
+	}
+	setupController(ctx, cc)
+}
+
+func setupController(ctx context.Context, cc controller.Config) {
+	config, err := clientcmd.BuildConfigFromFlags(cc.MasterURL, cc.Kubeconfig)
+	if err != nil {
+		klog.Fatalf("build client config: %v", err)
+	}
+	kubeClient := kubernetes.NewForConfigOrDie(config)
+	client := clientset.NewForConfigOrDie(config)
+
 	volcanoClient, err := volcanoClientSet.NewForConfig(config)
 	if err != nil {
 		klog.Fatalf("failed to create volcano client: %v", err)
@@ -102,19 +102,17 @@ func setupController(cc controller.Config) {
 	<-ctx.Done()
 }
 
-func setupWebhook(wc webhookConfig) error {
-	// Set up signals so we handle the first shutdown signal gracefully
-	stopCh := setupSignalHandler()
-	if err := setupModelBoosterWebhook(wc, stopCh); err != nil {
+func setupWebhook(ctx context.Context, wc webhookConfig) error {
+	if err := setupModelBoosterWebhook(wc, ctx); err != nil {
 		return err
 	}
-	if err := setupModelServingWebhook(wc, stopCh); err != nil {
+	if err := setupModelServingWebhook(wc, ctx); err != nil {
 		return err
 	}
 	return nil
 }
 
-func setupModelServingWebhook(wc webhookConfig, stopCh <-chan struct{}) error {
+func setupModelServingWebhook(wc webhookConfig, ctx context.Context) error {
 	cfg, err := rest.InClusterConfig()
 	if err != nil {
 		klog.Fatalf("build client config: %v", err)
@@ -132,12 +130,12 @@ func setupModelServingWebhook(wc webhookConfig, stopCh <-chan struct{}) error {
 	}
 	modelServingWebhook := webhook.NewModelServingValidator(kubeClient, kthenaClient, wc.port)
 	go func() {
-		modelServingWebhook.Run(wc.tlsCertFile, wc.tlsPrivateKey, stopCh)
+		modelServingWebhook.Run(wc.tlsCertFile, wc.tlsPrivateKey, ctx)
 	}()
 	return nil
 }
 
-func setupModelBoosterWebhook(wc webhookConfig, stopCh <-chan struct{}) error {
+func setupModelBoosterWebhook(wc webhookConfig, ctx context.Context) error {
 	cfg, err := rest.InClusterConfig()
 	if err != nil {
 		klog.Fatalf("Error building kubeconfig: %s", err.Error())
@@ -156,22 +154,9 @@ func setupModelBoosterWebhook(wc webhookConfig, stopCh <-chan struct{}) error {
 		wc.webhookTimeout,
 	)
 	go func() {
-		if err := modelBoosterWebhook.Start(stopCh); err != nil {
+		if err := modelBoosterWebhook.Start(ctx); err != nil {
 			klog.Fatalf("Failed to start webhook server: %v", err)
 		}
 	}()
 	return nil
-}
-
-func setupSignalHandler() <-chan struct{} {
-	stopCh := make(chan struct{})
-	c := make(chan os.Signal, 2)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-c
-		close(stopCh)
-		<-c
-		os.Exit(1) // second signal. Exit directly.
-	}()
-	return stopCh
 }

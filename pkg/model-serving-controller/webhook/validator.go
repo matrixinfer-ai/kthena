@@ -66,7 +66,7 @@ func NewModelServingValidator(kubeClient kubernetes.Interface, kthenaClient clie
 	}
 }
 
-func (v *ModelServingValidator) Run(tlsCertFile, tlsPrivateKey string, stopCh <-chan struct{}) {
+func (v *ModelServingValidator) Run(tlsCertFile, tlsPrivateKey string, ctx context.Context) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/validate-workload-ai-v1alpha1-modelServing", v.Handle)
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -86,7 +86,7 @@ func (v *ModelServingValidator) Run(tlsCertFile, tlsPrivateKey string, stopCh <-
 	}()
 
 	// shutdown gracefully shuts down the server
-	<-stopCh
+	<-ctx.Done()
 	v.shutdown()
 }
 

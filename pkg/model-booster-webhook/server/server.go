@@ -56,7 +56,7 @@ func NewWebhookServer(
 }
 
 // Start starts the webhook server
-func (ws *WebhookServer) Start(stopCh <-chan struct{}) error {
+func (ws *WebhookServer) Start(ctx context.Context) error {
 	mux := http.NewServeMux()
 	// Create model handlers
 	modelValidator := handlers.NewModelValidator()
@@ -101,7 +101,7 @@ func (ws *WebhookServer) Start(stopCh <-chan struct{}) error {
 	}()
 
 	// Wait for stop signal
-	<-stopCh
+	<-ctx.Done()
 	return ws.shutdown()
 }
 
