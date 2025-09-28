@@ -96,13 +96,12 @@ type ServingGroup struct {
 	// +kubebuilder:default=0
 	RestartGracePeriodSeconds *int64 `json:"restartGracePeriodSeconds,omitempty"`
 
-	// GangPolicy defines the Gang Scheduler config.
+	// GangPolicy defines the gang scheduler config.
 	// +optional
 	GangPolicy *GangPolicy `json:"gangPolicy,omitempty"`
 
-	// NetworkTopology defines the NetworkTopology of scheduling config, this field works in conjunction with network topology feature and hyperNode CRD.
-	// +optional
-	NetworkTopology *volcanoV1Beta1.NetworkTopologySpec `json:"networkTopology,omitempty" protobuf:"bytes,5,opt,name=networkTopology"`
+	// NetworkTopology defines the network topology affinity scheduling policy for the roles of the group, it works only when the scheduler supports network topology feature.	// +optional
+	NetworkTopology *volcanoV1Beta1.NetworkTopologySpec `json:"networkTopology,omitempty"`
 
 	// +kubebuilder:validation:MaxItems=4
 	// +kubebuilder:validation:MinItems=1

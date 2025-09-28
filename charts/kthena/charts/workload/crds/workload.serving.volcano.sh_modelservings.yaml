@@ -117,7 +117,7 @@ spec:
                 description: Template defines the template for ServingGroup
                 properties:
                   gangPolicy:
-                    description: GangPolicy defines the Gang Scheduler config.
+                    description: GangPolicy defines the gang scheduler config.
                     properties:
                       minRoleReplicas:
                         additionalProperties:
@@ -139,9 +139,9 @@ spec:
                             == oldSelf.minRoleReplicas'
                     type: object
                   networkTopology:
-                    description: NetworkTopology defines the NetworkTopology of scheduling
-                      config, this field works in conjunction with network topology
-                      feature and hyperNode CRD.
+                    description: "NetworkTopology defines the network topology affinity
+                      scheduling policy for the roles of the group, it works only
+                      when the scheduler supports network topology feature.\t// +optional"
                     properties:
                       highestTierAllowed:
                         default: 1

@@ -799,8 +799,8 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `restartGracePeriodSeconds` _integer_ | RestartGracePeriodSeconds defines the grace time for the controller to rebuild the ServingGroup when an error occurs<br />Defaults to 0 (ServingGroup will be rebuilt immediately after an error) | 0 |  |
-| `gangPolicy` _[GangPolicy](#gangpolicy)_ | GangPolicy defines the Gang Scheduler config. |  |  |
-| `networkTopology` _[NetworkTopologySpec](#networktopologyspec)_ | NetworkTopology defines the NetworkTopology of scheduling config, this field works in conjunction with network topology feature and hyperNode CRD. |  |  |
+| `gangPolicy` _[GangPolicy](#gangpolicy)_ | GangPolicy defines the gang scheduler config. |  |  |
+| `networkTopology` _[NetworkTopologySpec](#networktopologyspec)_ | NetworkTopology defines the network topology affinity scheduling policy for the roles of the group, it works only when the scheduler supports network topology feature.	// +optional |  |  |
 | `roles` _[Role](#role) array_ |  |  | MaxItems: 4 <br />MinItems: 1 <br /> |
 
 
