@@ -99,6 +99,7 @@ func setupController(cc controller.Config) {
 	go modelbooster.SetupModelBoosterController(ctx, cc, kubeClient, client)
 	go autoscaler.SetupAutoscaleController(ctx, cc, kubeClient, client)
 	go modelserving.SetupModelServingController(ctx, cc, kubeClient, client, volcanoClient)
+	<-ctx.Done()
 }
 
 func setupWebhook(wc webhookConfig) error {
