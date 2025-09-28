@@ -18,14 +18,9 @@ package controller
 
 import (
 	"context"
-	"os"
 	"time"
 
 	"github.com/volcano-sh/kthena/pkg/autoscaler/autoscaler"
-	"github.com/volcano-sh/kthena/pkg/controller"
-	"github.com/volcano-sh/kthena/pkg/model-booster-controller/utils"
-	"k8s.io/client-go/tools/leaderelection"
-	"k8s.io/client-go/tools/leaderelection/resourcelock"
 
 	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
 	informersv1alpha1 "github.com/volcano-sh/kthena/client-go/informers/externalversions"
@@ -38,7 +33,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -46,14 +40,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-)
-
-const (
-	defaultLeaseDuration = 15 * time.Second
-	defaultRenewDeadline = 10 * time.Second
-	defaultRetryPeriod   = 2 * time.Second
-	leaderElectionId     = "kthena.autoscaler"
-	leaseName            = "lease.kthena.autoscaler"
 )
 
 type AutoscaleController struct {
@@ -72,75 +58,6 @@ type AutoscaleController struct {
 	podsInformer                       cache.Controller
 	scalerMap                          map[string]*autoscaler.Autoscaler
 	optimizerMap                       map[string]*autoscaler.Optimizer
-}
-
-func SetupAutoscaleController(ctx context.Context, cc controller.Config, kubeClient *kubernetes.Clientset, client *clientset.Clientset) {
-	namespace, err := utils.GetInClusterNameSpace()
-	if err != nil {
-		klog.Fatalf("create Autoscaler client: %v", err)
-	}
-
-	asc := NewAutoscaleController(kubeClient, client, namespace)
-
-	if cc.EnableLeaderElection {
-		leaderElector, err := initLeaderElector(kubeClient, asc, namespace)
-		if err != nil {
-			klog.Fatalf("failed to init leader elector: %v", err)
-			panic(err)
-		}
-		// Start the leader elector process
-		leaderElector.Run(ctx)
-	} else {
-		go asc.Run(ctx)
-		klog.Info("Started autoscaler without leader election")
-	}
-	<-ctx.Done()
-}
-
-func initLeaderElector(kubeClient *kubernetes.Clientset, asc *AutoscaleController, namespace string) (*leaderelection.LeaderElector, error) {
-	resourceLock, err := newResourceLock(kubeClient, namespace)
-	if err != nil {
-		return nil, err
-	}
-	leaderElector, err := leaderelection.NewLeaderElector(leaderelection.LeaderElectionConfig{
-		Lock:          resourceLock,
-		LeaseDuration: defaultLeaseDuration,
-		RenewDeadline: defaultRenewDeadline,
-		RetryPeriod:   defaultRetryPeriod,
-		Callbacks: leaderelection.LeaderCallbacks{
-			OnStartedLeading: func(ctx context.Context) {
-				go asc.Run(ctx)
-				klog.Info("Started autoscaler as leader")
-			},
-			OnStoppedLeading: func() {
-				klog.Fatalf("leader election lost")
-			},
-		},
-		ReleaseOnCancel: false,
-		Name:            leaderElectionId,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return leaderElector, nil
-}
-
-// newResourceLock returns a lease lock which is used to elect leader
-func newResourceLock(client kubernetes.Interface, namespace string) (*resourcelock.LeaseLock, error) {
-	hostname, err := os.Hostname()
-	if err != nil {
-		return nil, err
-	}
-	return &resourcelock.LeaseLock{
-		LeaseMeta: metav1.ObjectMeta{
-			Name:      leaseName,
-			Namespace: namespace,
-		},
-		Client: client.CoordinationV1(),
-		LockConfig: resourcelock.ResourceLockConfig{
-			Identity: hostname + "_" + string(uuid.NewUUID()),
-		},
-	}, nil
 }
 
 func NewAutoscaleController(kubeClient kubernetes.Interface, client clientset.Interface, namespace string) *AutoscaleController {

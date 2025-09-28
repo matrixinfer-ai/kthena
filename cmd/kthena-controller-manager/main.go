@@ -25,17 +25,12 @@ import (
 
 	"github.com/spf13/pflag"
 	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
-	autoscaler "github.com/volcano-sh/kthena/pkg/autoscaler/controller"
 	"github.com/volcano-sh/kthena/pkg/controller"
-	modelbooster "github.com/volcano-sh/kthena/pkg/model-booster-controller/controller"
 	"github.com/volcano-sh/kthena/pkg/model-booster-webhook/server"
-	modelserving "github.com/volcano-sh/kthena/pkg/model-serving-controller/controller"
 	"github.com/volcano-sh/kthena/pkg/model-serving-controller/webhook"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
-	volcanoClientSet "volcano.sh/apis/pkg/client/clientset/versioned"
 )
 
 type webhookConfig struct {
@@ -80,26 +75,7 @@ func main() {
 			os.Exit(1)
 		}
 	}
-	setupController(ctx, cc)
-}
-
-func setupController(ctx context.Context, cc controller.Config) {
-	config, err := clientcmd.BuildConfigFromFlags(cc.MasterURL, cc.Kubeconfig)
-	if err != nil {
-		klog.Fatalf("build client config: %v", err)
-	}
-	kubeClient := kubernetes.NewForConfigOrDie(config)
-	client := clientset.NewForConfigOrDie(config)
-
-	volcanoClient, err := volcanoClientSet.NewForConfig(config)
-	if err != nil {
-		klog.Fatalf("failed to create volcano client: %v", err)
-	}
-
-	go modelbooster.SetupModelBoosterController(ctx, cc, kubeClient, client)
-	go autoscaler.SetupAutoscaleController(ctx, cc, kubeClient, client)
-	go modelserving.SetupModelServingController(ctx, cc, kubeClient, client, volcanoClient)
-	<-ctx.Done()
+	controller.SetupController(ctx, cc)
 }
 
 func setupWebhook(ctx context.Context, wc webhookConfig) error {
