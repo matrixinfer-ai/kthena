@@ -21,7 +21,6 @@ import (
 	"flag"
 	"os"
 	"os/signal"
-	"runtime"
 	"syscall"
 
 	"github.com/spf13/pflag"
@@ -62,7 +61,7 @@ func main() {
 	pflag.IntVar(&wc.webhookTimeout, "webhook-timeout", 30, "Timeout for webhook operations in seconds")
 	pflag.BoolVar(&cc.EnableLeaderElection, "leader-elect", false, "Enable leader election for controller. "+
 		"Enabling this will ensure there is only one active controller. Default is false.")
-	pflag.IntVar(&cc.Workers, "workers", runtime.NumCPU(), "number of workers to run. Default is number of CPU")
+	pflag.IntVar(&cc.Workers, "workers", 5, "number of workers to run. Default is 5")
 	pflag.Parse()
 	pflag.CommandLine.VisitAll(func(f *pflag.Flag) {
 		klog.Infof("Flag: %s, Value: %s", f.Name, f.Value.String())
