@@ -61,7 +61,7 @@ func main() {
 	pflag.IntVar(&wc.port, "port", 8443, "Secure port that the webhook listens on")
 	pflag.IntVar(&wc.webhookTimeout, "webhook-timeout", 30, "Timeout for webhook operations in seconds")
 	pflag.BoolVar(&cc.EnableLeaderElection, "leader-elect", false, "Enable leader election for controller. "+
-		"Enabling this will ensure there is only one active model controller. Default is false.")
+		"Enabling this will ensure there is only one active controller. Default is false.")
 	pflag.IntVar(&cc.Workers, "workers", runtime.NumCPU(), "number of workers to run. Default is number of CPU")
 	pflag.Parse()
 	pflag.CommandLine.VisitAll(func(f *pflag.Flag) {
