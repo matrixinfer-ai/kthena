@@ -8,7 +8,7 @@
 
 ## 1. Introduction
 
-The infer-router serves as a critical component in the AI inference system, managing model routing, request scheduling, and resource allocation. Effective observability is essential for:
+The kthena-router serves as a critical component in the AI inference system, managing model routing, request scheduling, and resource allocation. Effective observability is essential for:
 
 1. **Performance Monitoring**: Track request latencies, token processing rates, and resource utilization to ensure optimal system performance.
 
@@ -480,7 +480,7 @@ The following debug endpoints are available:
 
 ## 3. Conclusion
 
-This proposal defines a comprehensive observability framework for the infer-router that provides:
+This proposal defines a comprehensive observability framework for the kthena-router that provides:
 
 1. **Metrics**: Prometheus-compatible metrics covering HTTP requests, AI-specific token processing, rate limiting, and error tracking with carefully chosen labels to avoid high cardinality issues.
 

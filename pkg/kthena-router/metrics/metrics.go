@@ -51,7 +51,7 @@ const (
 	LimitTypeRequests     = "requests"
 )
 
-// Metrics holds all Prometheus metrics for the infer-router
+// Metrics holds all Prometheus metrics for the kthena-router
 type Metrics struct {
 	// Request counters
 	RequestsTotal prometheus.CounterVec
