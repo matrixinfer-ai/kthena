@@ -60,7 +60,7 @@ And the status section should look like this when the model is ready:
 
 ## Step 3: Perform Inference
 
-You can now perform inference using the model. Here’s an example of how to send a request:
+You can now perform inference using the model. Here's an example of how to send a request:
 
 ```bash
 curl -X POST http://<model-route-ip>/v1/chat/completions \

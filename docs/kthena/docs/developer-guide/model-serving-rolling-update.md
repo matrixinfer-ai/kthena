@@ -6,7 +6,7 @@ Currently, `ModelServing` supports rolling upgrades at the `ServingGroup` level,
 
 - Partition: Indicates the ordinal at which the `ModelServing` should be partitioned for updates. During a rolling update, replicas with an ordinal greater than or equal to `Partition` will be updated. Replicas with an ordinal less than `Partition` will not be updated.
 
-Here’s a ModelServing configured with rollout strategy:
+Here's a ModelServing configured with rollout strategy:
 
 ```yaml
 spec:
@@ -16,10 +16,10 @@ spec:
       partition: 0
 ```
 
-In the following we’ll show how rolling update processes for a `ModelServing` with four replicas. Three Replica status are simulated here:
+In the following we'll show how rolling update processes for a `ModelServing` with four replicas. Three Replica status are simulated here:
 
 - ✅ Replica has been updated
-- ❎ Replica hasn’t been updated
+- ❎ Replica hasn't been updated
 - ⏳ Replica is in rolling update
 
 |        | R-0 | R-1 | R-2 | R-3 | Note                                                                          |
