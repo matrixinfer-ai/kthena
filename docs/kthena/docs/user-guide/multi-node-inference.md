@@ -10,7 +10,7 @@ The industry has proposed various innovative optimization strategies, such as PD
 
 To address this issue, kthena provides a new `ModelServing` CR to describe specific inference depolyment, enabling flexible and diverse deployment methods for inference task pods.
 
-For a detailed definition of the `ModelServing`, please refer to the [ModelServing Reference](../reference/crd/workload.volcano.sh.md) pages.
+For a detailed definition of the `ModelServing`, please refer to the [ModelServing Reference](../reference/crd/workload.serving.volcano.sh.md) pages.
 
 ## Preparation
 

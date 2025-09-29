@@ -17,7 +17,7 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: ModelServing is the Schema for the LLM infer API
+        description: ModelServing is the Schema for the LLM Serving API
         properties:
           apiVersion:
             description: |-

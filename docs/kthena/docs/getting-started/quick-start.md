@@ -20,7 +20,7 @@ We'll install a model from Hugging Face and perform inference using a simple cur
 Create the example model in your namespace (replace `<your-namespace>` with your actual namespace):
 
 ```shell
-kubectl apply -n <your-namespace> -f https://raw.githubusercontent.com/volcano-sh/kthena/refs/heads/main/examples/model/Qwen2.5-0.5B-Instruct.yaml
+kubectl apply -n <your-namespace> -f https://raw.githubusercontent.com/volcano-sh/kthena/refs/heads/main/examples/model-booster/Qwen2.5-0.5B-Instruct.yaml
 ```
 
 Content of the Model:
@@ -80,8 +80,8 @@ curl -X POST http://<model-route-ip>/v1/chat/completions \
 Use the following command to get the `<model-route-ip>`:
 
 ```bash
-kubectl get svc networking-infer-router -o jsonpath='{.spec.clusterIP}' -n <your-namespace>
+kubectl get svc networking-kthena-router -o jsonpath='{.spec.clusterIP}' -n <your-namespace>
 ```
 
 This IP can only be used inside the cluster. If you want to chat from outside the cluster, you can use the `EXTERNAL-IP`
-of `networking-infer-router` after you bind it.
+of `networking-kthena-router` after you bind it.

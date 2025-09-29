@@ -1,0 +1,59 @@
+{{- if and .Values.kthenaRouter.enabled .Values.kthenaRouter.webhook.enabled }}
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: {{ include "kthena.name" . }}-kthena-router-validating-webhook
+  labels:
+    app.kubernetes.io/component: kthena-router
+    {{- include "kthena.labels" . | nindent 4 }}
+  {{- if .Values.global.certManager.enabled }}
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "kthena.name" . }}-kthena-router-webhook-cert
+  {{- end }}
+webhooks:
+  - name: validate-networking-volcano-sh-v1alpha1-modelroute.volcano.sh
+    admissionReviewVersions: [ "v1" ]
+    sideEffects: None
+    failurePolicy: Fail
+    timeoutSeconds: 30
+    clientConfig:
+      service:
+        name: {{ include "kthena.name" . }}-kthena-router-webhook
+        namespace: {{ .Release.Namespace }}
+        path: "/validate-modelroute"
+        port: {{ .Values.kthenaRouter.webhook.servicePort }}
+      {{- if not .Values.global.certManager.enabled }}
+      caBundle: {{ required "kthenaRouter.webhook.caBundle is required when cert-manager is disabled" .Values.kthenaRouter.webhook.caBundle }}
+      {{- else }}
+      caBundle: ""
+      {{- end }}
+    rules:
+      - apiGroups: [ "networking.volcano.sh" ]
+        apiVersions: [ "v1alpha1" ]
+        resources: [ "modelroutes" ]
+        operations: [ "CREATE", "UPDATE" ]
+        scope: "Namespaced"
+  - name: validate-networking-volcano-sh-v1alpha1-modelserver.volcano.sh
+    admissionReviewVersions: [ "v1" ]
+    sideEffects: None
+    failurePolicy: Fail
+    timeoutSeconds: 30
+    clientConfig:
+      service:
+        name: {{ include "kthena.name" . }}-kthena-router-webhook
+        namespace: {{ .Release.Namespace }}
+        path: "/validate-modelserver"
+        port: {{ .Values.kthenaRouter.webhook.servicePort }}
+      {{- if not .Values.global.certManager.enabled }}
+      caBundle: {{ required "kthenaRouter.webhook.caBundle is required when cert-manager is disabled" .Values.kthenaRouter.webhook.caBundle }}
+      {{- else }}
+      caBundle: ""
+      {{- end }}
+    rules:
+      - apiGroups: [ "networking.volcano.sh" ]
+        apiVersions: [ "v1alpha1" ]
+        resources: [ "modelservers" ]
+        operations: [ "CREATE", "UPDATE" ]
+        scope: "Namespaced"
+{{- end }}
+

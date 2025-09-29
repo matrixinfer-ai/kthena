@@ -15,10 +15,7 @@ metadata:
       name: test-model
       uid: randomUID
 spec:
-  recoveryPolicy: InferGroupRecreate
   replicas: 0
-  rolloutStrategy:
-    type: InferGroupRollingUpdate
   schedulerName: ""
   template:
     restartGracePeriodSeconds: 60
@@ -104,7 +101,6 @@ spec:
                     --tensor-parallel-size 2 --trust-remote-code --distributed_executor_backend ray
                   - --kv-events-config
                   - '{"enable_kv_cache_events":true,"publisher":"zmq","topic":"kv-events","endpoint":"tcp://*:5557"}'
-                  - --enforce-eager
                   - --enable-lora
                   - --lora-modules
                   - lora-sql=/tmp/test/11e9a15be1e19ff056520bf67eaeb688

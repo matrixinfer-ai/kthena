@@ -33,10 +33,10 @@ const (
 )
 
 // setModelInitCondition sets model condition to initialized
-func (mc *ModelController) setModelInitCondition(ctx context.Context, model *workloadv1alpha1.ModelBooster) error {
+func (mc *ModelBoosterController) setModelInitCondition(ctx context.Context, model *workloadv1alpha1.ModelBooster) error {
 	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(workloadv1alpha1.ModelStatusConditionTypeInitialized),
 		metav1.ConditionTrue, ModelInitsReason, "ModelBooster initialized"))
-	if err := mc.updateModelStatus(ctx, model); err != nil {
+	if err := mc.updateModelBoosterStatus(ctx, model); err != nil {
 		klog.Errorf("update ModelBooster status failed: %v", err)
 		return err
 	}
@@ -44,10 +44,10 @@ func (mc *ModelController) setModelInitCondition(ctx context.Context, model *wor
 }
 
 // setModelProcessingCondition sets model condition to processing
-func (mc *ModelController) setModelProcessingCondition(ctx context.Context, model *workloadv1alpha1.ModelBooster) error {
+func (mc *ModelBoosterController) setModelProcessingCondition(ctx context.Context, model *workloadv1alpha1.ModelBooster) error {
 	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(workloadv1alpha1.ModelStatusConditionTypeActive),
 		metav1.ConditionFalse, ModelProcessingReason, "ModelBooster not ready yet"))
-	if err := mc.updateModelStatus(ctx, model); err != nil {
+	if err := mc.updateModelBoosterStatus(ctx, model); err != nil {
 		klog.Errorf("update ModelBooster status failed: %v", err)
 		return err
 	}
@@ -55,19 +55,19 @@ func (mc *ModelController) setModelProcessingCondition(ctx context.Context, mode
 }
 
 // setModelFailedCondition sets model condition to failed
-func (mc *ModelController) setModelFailedCondition(ctx context.Context, model *workloadv1alpha1.ModelBooster, err error) {
+func (mc *ModelBoosterController) setModelFailedCondition(ctx context.Context, model *workloadv1alpha1.ModelBooster, err error) {
 	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(workloadv1alpha1.ModelStatusConditionTypeFailed),
 		metav1.ConditionTrue, ModelFailedReason, err.Error()))
-	if err := mc.updateModelStatus(ctx, model); err != nil {
+	if err := mc.updateModelBoosterStatus(ctx, model); err != nil {
 		klog.Errorf("update ModelBooster status failed: %v", err)
 	}
 }
 
 // setModelActiveCondition sets ModelBooster conditions to active
-func (mc *ModelController) setModelActiveCondition(ctx context.Context, model *workloadv1alpha1.ModelBooster) error {
+func (mc *ModelBoosterController) setModelActiveCondition(ctx context.Context, model *workloadv1alpha1.ModelBooster) error {
 	meta.SetStatusCondition(&model.Status.Conditions, newCondition(string(workloadv1alpha1.ModelStatusConditionTypeActive),
 		metav1.ConditionTrue, ModelActiveReason, "ModelBooster is ready"))
-	if err := mc.updateModelStatus(ctx, model); err != nil {
+	if err := mc.updateModelBoosterStatus(ctx, model); err != nil {
 		klog.Errorf("update ModelBooster status failed: %v", err)
 		return err
 	}

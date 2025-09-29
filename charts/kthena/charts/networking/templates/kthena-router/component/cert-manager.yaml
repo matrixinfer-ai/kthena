@@ -1,0 +1,50 @@
+{{- if and .Values.kthenaRouter.enabled .Values.global.certManager.enabled .Values.kthenaRouter.tls.enabled }}
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ include "kthena.name" . }}-kthena-router-issuer
+  namespace: {{ .Release.Namespace }}
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "kthena.name" . }}-kthena-router-cert
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/component: kthena-router
+spec:
+  dnsNames:
+    - {{ .Values.kthenaRouter.tls.dnsName | default (printf "%s-kthena-router.%s.svc" (include "kthena.name" .) .Release.Namespace) }}
+  issuerRef:
+    kind: Issuer
+    name: {{ include "kthena.name" . }}-kthena-router-issuer
+  secretName: {{ .Values.kthenaRouter.tls.secretName }}
+{{- end }}
+{{- if and .Values.kthenaRouter.enabled .Values.global.certManager.enabled .Values.kthenaRouter.webhook.enabled }}
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ include "kthena.name" . }}-kthena-router-webhook-issuer
+  namespace: {{ .Release.Namespace }}
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "kthena.name" . }}-kthena-router-webhook-cert
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/component: kthena-router
+spec:
+  dnsNames:
+    - {{ include "kthena.name" . }}-kthena-router-webhook.{{ .Release.Namespace }}.svc
+    - {{ include "kthena.name" . }}-kthena-router-webhook.{{ .Release.Namespace }}.svc.cluster.local
+  issuerRef:
+    kind: Issuer
+    name: {{ include "kthena.name" . }}-kthena-router-webhook-issuer
+  secretName: {{ .Values.kthenaRouter.webhook.tls.secretName }}
+{{- end }}

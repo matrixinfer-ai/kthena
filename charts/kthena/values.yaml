@@ -9,7 +9,7 @@ workload:
 networking:
   # enabled is a flag to enable or disable the networking subchart. Default is true.
   enabled: true
-  inferRouter:
+  kthenaRouter:
     enabled: true
     port: 8080
     tls:
@@ -17,7 +17,17 @@ networking:
       # The DNS name to use for the certificate.
       dnsName: "your-domain.com"
       # The name of the secret to store the certificate and key.
-      secretName: "infer-router-tls"
+      secretName: "kthena-router-tls"
+    webhook:
+      enabled: true
+      port: 8443
+      servicePort: 443
+      tls:
+        certFile: /etc/webhook/certs/tls.crt
+        keyFile: /etc/webhook/certs/tls.key
+        secretName: kthena-router-webhook-certs
+      autoCreateSecret: false
+      caBundle: ""
     # fairness configuration for request scheduling
     fairness:
       # enabled controls whether fairness scheduling is active

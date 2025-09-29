@@ -4,7 +4,7 @@ metadata:
   name: autoscaler
 rules:
   - apiGroups:
-      - registry.kthena.ai
+      - workload.serving.volcano.sh
     resources:
       - autoscalingpolicybindings
       - autoscalingpolicies
@@ -14,7 +14,7 @@ rules:
       - patch
       - watch
   - apiGroups:
-      - registry.kthena.ai
+      - workload.serving.volcano.sh
     resources:
       - autoscalingpolicies/status
       - autoscalingpolicybindings/status
@@ -23,9 +23,9 @@ rules:
       - patch
       - update
   - apiGroups:
-      - workload.kthena.ai
+      - workload.serving.volcano.sh
     resources:
-      - modelinfers
+      - modelservings
     verbs:
       - get
       - list
@@ -33,9 +33,9 @@ rules:
       - update
       - watch
   - apiGroups:
-      - workload.kthena.ai
+      - workload.serving.volcano.sh
     resources:
-      - modelinfers/status
+      - modelservings/status
     verbs:
       - get
   - apiGroups:

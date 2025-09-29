@@ -40,18 +40,18 @@ When enabled, Kthena will automatically create:
 
 #### Infer Router TLS
 
-For external API access, configure the infer router TLS settings:
+For external API access, configure the kthena router TLS settings:
 
 ```yaml
 networking:
-  inferRouter:
+  kthenaRouter:
     enabled: true
     tls:
       enabled: true
       # The DNS name for your external domain
       dnsName: "your-domain.com"
       # Secret name to store the TLS certificate
-      secretName: "infer-router-tls"
+      secretName: "kthena-router-tls"
 ```
 
 #### Webhook Certificates
@@ -85,15 +85,15 @@ When cert-manager integration is enabled, the following resources are created:
 
 ### Issuers
 - `<subchart-name>-webhook-issuer` (per subchart: registry, workload, networking)
-- `<subchart-name>-router-issuer` (for infer router)
+- `<subchart-name>-router-issuer` (for kthena router)
 
 ### Certificates
 - `<subchart-name>-webhook-cert` (per subchart: registry, workload, networking)
-- `<subchart-name>-router-cert` (for infer router)
+- `<subchart-name>-router-cert` (for kthena router)
 
 ### Secrets
 - `<subchart-name>-webhook-certs` (per subchart: registry, workload, networking)
-- `<secretName>` (configurable for infer router)
+- `<secretName>` (configurable for kthena router)
 
 ## Troubleshooting
 

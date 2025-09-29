@@ -15,10 +15,7 @@ metadata:
       name: ds-r1-qwen-7b-pd
       uid: randomUID
 spec:
-  recoveryPolicy: InferGroupRecreate
   replicas: 1
-  rolloutStrategy:
-    type: InferGroupRollingUpdate
   schedulerName: volcano
   template:
     restartGracePeriodSeconds: 60
@@ -112,7 +109,6 @@ spec:
                   - --trust-remote-code
                   - --kv-events-config
                   - '{"enable_kv_cache_events":true,"publisher":"zmq","topic":"kv-events","endpoint":"tcp://*:5557"}'
-                  - --enforce-eager
                 env:
                   - name: ENDPOINT
                     value: https://obs.test.com
@@ -304,7 +300,6 @@ spec:
                   - --trust-remote-code
                   - --kv-events-config
                   - '{"enable_kv_cache_events":true,"publisher":"zmq","topic":"kv-events","endpoint":"tcp://*:5557"}'
-                  - --enforce-eager
                 env:
                   - name: ENDPOINT
                     value: https://obs.test.com
