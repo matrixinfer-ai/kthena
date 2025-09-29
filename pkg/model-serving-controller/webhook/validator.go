@@ -17,7 +17,6 @@ limitations under the License.
 package webhook
 
 import (
-	"crypto/tls"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -30,10 +29,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
-	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
 	workloadv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	"github.com/volcano-sh/kthena/pkg/model-serving-controller/utils"
 )
@@ -42,27 +39,10 @@ const timeout = 30 * time.Second
 
 // ModelServingValidator handles validation of ModelServing resources.
 type ModelServingValidator struct {
-	httpServer   *http.Server
-	kubeClient   kubernetes.Interface
-	kthenaClient clientset.Interface
 }
 
-// NewModelServingValidator creates a new ModelServingValidator.
-func NewModelServingValidator(kubeClient kubernetes.Interface, kthenaClient clientset.Interface, port int) *ModelServingValidator {
-	server := &http.Server{
-		Addr:         fmt.Sprintf(":%d", port),
-		ReadTimeout:  timeout,
-		WriteTimeout: timeout,
-		TLSConfig: &tls.Config{
-			MinVersion: tls.VersionTLS12,
-		},
-	}
-
-	return &ModelServingValidator{
-		httpServer:   server,
-		kubeClient:   kubeClient,
-		kthenaClient: kthenaClient,
-	}
+func NewModelServingValidator() *ModelServingValidator {
+	return &ModelServingValidator{}
 }
 
 // Handle handles admission requests for ModelServing resources

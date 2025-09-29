@@ -33,7 +33,6 @@ import (
 	"github.com/volcano-sh/kthena/pkg/controller"
 	"github.com/volcano-sh/kthena/pkg/model-booster-webhook/handlers"
 	"github.com/volcano-sh/kthena/pkg/model-serving-controller/webhook"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 )
@@ -89,11 +88,6 @@ func setupWebhook(ctx context.Context, wc webhookConfig) error {
 		klog.Fatalf("build client config: %v", err)
 		return err
 	}
-	kubeClient, err := kubernetes.NewForConfig(cfg)
-	if err != nil {
-		klog.Fatalf("failed to create k8s client: %v", err)
-		return err
-	}
 	kthenaClient, err := clientset.NewForConfig(cfg)
 	if err != nil {
 		klog.Fatalf("failed to create kthenaClient: %v", err)
@@ -102,7 +96,7 @@ func setupWebhook(ctx context.Context, wc webhookConfig) error {
 
 	mux := http.NewServeMux()
 
-	modelServingValidator := webhook.NewModelServingValidator(kubeClient, kthenaClient, wc.port)
+	modelServingValidator := webhook.NewModelServingValidator()
 	mux.HandleFunc("/validate-workload-ai-v1alpha1-modelServing", modelServingValidator.Handle)
 
 	modelValidator := handlers.NewModelValidator()
