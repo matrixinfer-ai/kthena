@@ -30,7 +30,7 @@ rectangle "reconcile" {
 }
 
 rectangle "infer" {
-	component "infer router" as infer_router
+	component "Kthena Router" as kthena_router
 	component "inference pods" as pods
 }
 
@@ -51,8 +51,8 @@ modelinfer_cr --> modelinfer_controller : inform
 modelserver_cr --> modelserver_controller : inform
 modelroute_cr --> modelroute_controller : inform
 
-modelserver_controller --> infer_router : update
-modelroute_controller --> infer_router : update
+modelserver_controller --> kthena_router : update
+modelroute_controller --> kthena_router : update
 modelinfer_controller --> pods : update
 ```
 
@@ -84,8 +84,8 @@ rectangle "Control Plane" as control_plane {
 	}
 	
 	rectangle "Network" as network {
-		component "KthenaRouter Webhook (main.go)" as inferrouter_webhook
-		rectangle "Infer Router (main.go)" {
+		component "KthenaRouter Webhook (main.go)" as kthenarouter_webhook
+		rectangle "Kthena Router (main.go)" {
 			component "Model Router" as modelrouter {
 				component "Auth" as auth
 				component "Rate Limiter" as rate_limiter
@@ -130,7 +130,7 @@ rectangle "Control Plane" as control_plane {
 			scheduler --> network_datastore_pods
 		}
 		' layout
-		inferrouter_webhook -[hidden]-> modelrouter
+		kthenarouter_webhook -[hidden]-> modelrouter
 	}
 
 

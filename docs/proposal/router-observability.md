@@ -51,7 +51,7 @@ The router exposes the following metrics to monitor request processing:
 #### Request Processing Metrics
 
 **HTTP Request Metrics**
-- `infer_router_requests_total{model="<model_name>",path="<path>",status_code="<code>",error_type="<error_type>"}` (Counter)
+- `kthena_router_requests_total{model="<model_name>",path="<path>",status_code="<code>",error_type="<error_type>"}` (Counter)
   - Total number of HTTP requests processed by the router
   - Labels: 
     - `model`: AI model name
@@ -59,7 +59,7 @@ The router exposes the following metrics to monitor request processing:
     - `status_code`: HTTP response status code (200, 400, 500, etc.)
     - `error_type`: Type of error (validation, timeout, internal, rate_limit, etc.)
 
-- `infer_router_request_duration_seconds{model="<model_name>",path="<path>",status_code="<code>"}` (Histogram)
+- `kthena_router_request_duration_seconds{model="<model_name>",path="<path>",status_code="<code>"}` (Histogram)
   - End-to-end request processing latency distribution for all requests
   - Labels:
     - `model`: AI model name
@@ -67,7 +67,7 @@ The router exposes the following metrics to monitor request processing:
     - `status_code`: HTTP response status code (200, 400, 500, etc.)
   - Buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60]
 
-- `infer_router_request_prefill_duration_seconds{model="<model_name>",path="<path>",status_code="<code>"}` (Histogram)
+- `kthena_router_request_prefill_duration_seconds{model="<model_name>",path="<path>",status_code="<code>"}` (Histogram)
   - Prefill phase processing latency distribution for PD-disaggregated requests
   - Labels:
     - `model`: AI model name
@@ -75,7 +75,7 @@ The router exposes the following metrics to monitor request processing:
     - `status_code`: HTTP response status code (200, 400, 500, etc.)
   - Buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60]
 
-- `infer_router_request_decode_duration_seconds{model="<model_name>",path="<path>",status_code="<code>"}` (Histogram)
+- `kthena_router_request_decode_duration_seconds{model="<model_name>",path="<path>",status_code="<code>"}` (Histogram)
   - Decode phase processing latency distribution for PD-disaggregated requests
   - Labels:
     - `model`: AI model name
@@ -83,19 +83,19 @@ The router exposes the following metrics to monitor request processing:
     - `status_code`: HTTP response status code (200, 400, 500, etc.)
   - Buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60]
 
-- `infer_router_active_downstream_requests{model="<model_name>"}` (Gauge)
+- `kthena_router_active_downstream_requests{model="<model_name>"}` (Gauge)
   - Current number of active downstream requests (from clients to router)
   - Labels:
     - `model`: AI model name
 
-- `infer_router_active_upstream_requests{model_route="<route_name>",model_server="<server_name>"}` (Gauge)
+- `kthena_router_active_upstream_requests{model_route="<route_name>",model_server="<server_name>"}` (Gauge)
   - Current number of active upstream requests (from router to backend pods)
   - Labels:
     - `model_route`: ModelRoute name handling the requests
     - `model_server`: ModelServer name processing the requests
 
 **AI-Specific Token Metrics**
-- `infer_router_tokens_total{model="<model_name>",path="<path>",token_type="input|output"}` (Counter)
+- `kthena_router_tokens_total{model="<model_name>",path="<path>",token_type="input|output"}` (Counter)
   - Total tokens processed/generated
   - Labels:
     - `model`: AI model name
@@ -103,7 +103,7 @@ The router exposes the following metrics to monitor request processing:
     - `token_type`: Token type ("input" for processed tokens, "output" for generated tokens)
 
 **Scheduler Plugin Metrics**
-- `infer_router_scheduler_plugin_duration_seconds{model="<model_name>",plugin="<plugin_name>",type="filter|score"}` (Histogram)
+- `kthena_router_scheduler_plugin_duration_seconds{model="<model_name>",plugin="<plugin_name>",type="filter|score"}` (Histogram)
   - Processing time per scheduler plugin
   - Labels:
     - `model`: AI model name
@@ -112,7 +112,7 @@ The router exposes the following metrics to monitor request processing:
   - Buckets: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5]
 
 **Rate Limiting Metrics**  
-- `infer_router_rate_limit_exceeded_total{model="<model_name>",limit_type="input_tokens|output_tokens|requests",path="<path>"}` (Counter)
+- `kthena_router_rate_limit_exceeded_total{model="<model_name>",limit_type="input_tokens|output_tokens|requests",path="<path>"}` (Counter)
   - Number of requests rejected due to rate limiting
   - Labels:
     - `model`: AI model name
@@ -120,13 +120,13 @@ The router exposes the following metrics to monitor request processing:
     - `path`: Request path (/v1/chat/completions, /v1/completions, etc.)
 
 **Fairness Queue Metrics**
-- `infer_router_fairness_queue_size{model="<model_name>",user_id="<user_id>"}` (Gauge)
+- `kthena_router_fairness_queue_size{model="<model_name>",user_id="<user_id>"}` (Gauge)
   - Current fairness queue size for pending requests
   - Labels:
     - `model`: AI model name
     - `user_id`: User identifier for the fairness scheduling
 
-- `infer_router_fairness_queue_duration_seconds{model="<model_name>",user_id="<user_id>"}` (Histogram)
+- `kthena_router_fairness_queue_duration_seconds{model="<model_name>",user_id="<user_id>"}` (Histogram)
   - Time requests spend in fairness queue before processing
   - Labels:
     - `model`: AI model name
