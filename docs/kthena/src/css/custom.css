@@ -30,6 +30,8 @@
 
     /* Improved custom variables for inline code styling in light mode */
     --ifm-code-color: #C41E3A; /* Deep red for text that stands out but is readable */
+    --ifm-code-padding-vertical: 0.1rem;
+    --ifm-code-padding-horizontal: 0.3rem;
 }
 
 /* For readability concerns, you should choose a lighter palette in dark mode. */
@@ -48,7 +50,6 @@
     /* Black/Dark Aray for dark mode backgrounds */
     --ifm-background-color: #121212; /* Very dark gray, almost black for main background */
     --ifm-background-surface-color: #1E1E1E; /* Slightly lighter dark gray for surfaces (e.g., cards, code) */
-    --ifm-code-background-color: #1E1E1E; /* Ensure code blocks also have a dark background */
 
     /* White/Light Gray for dark mode text */
     --ifm-color-content: #FFFFFF; /* Pure white for main text content */
@@ -92,6 +93,5 @@
 
 /* Improved inline code styling */
 code:not([class*="language-"]) {
-    padding: 0.1rem 0.3rem;
     color: var(--ifm-code-color);
 }
