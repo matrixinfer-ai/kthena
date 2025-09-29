@@ -21,7 +21,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	admissionv1 "k8s.io/api/admission/v1"
 	apivalidation "k8s.io/apimachinery/pkg/api/validation"
@@ -34,8 +33,6 @@ import (
 	workloadv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	"github.com/volcano-sh/kthena/pkg/model-serving-controller/utils"
 )
-
-const timeout = 30 * time.Second
 
 // ModelServingValidator handles validation of ModelServing resources.
 type ModelServingValidator struct {
