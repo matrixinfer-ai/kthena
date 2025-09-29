@@ -43,9 +43,9 @@ spec:
             properties:
               optimizerConfiguration:
                 description: |-
-                  It dynamically schedules replicas across different ModelBooster Infer groups based on overall computing power requirements - referred to as "optimize" behavior in the code.
+                  It dynamically schedules replicas across different Model Serving groups based on overall computing power requirements - referred to as "optimize" behavior in the code.
                   For example:
-                  When dealing with two types of ModelBooster Infer instances corresponding to heterogeneous hardware resources with different computing capabilities (e.g., H100/A100), the "optimize" behavior aims to:
+                  When dealing with two types of Model Serving instances corresponding to heterogeneous hardware resources with different computing capabilities (e.g., H100/A100), the "optimize" behavior aims to:
                   Dynamically adjust the deployment ratio of H100/A100 instances based on real-time computing power demands
                   Use integer programming and similar methods to precisely meet computing requirements
                   Maximize hardware utilization efficiency
@@ -58,8 +58,8 @@ spec:
                     minimum: 0
                     type: integer
                   params:
-                    description: Parameters of multiple ModelBooster Infer Groups
-                      to be optimized.
+                    description: Parameters of multiple Model Serving Groups to be
+                      optimized.
                     items:
                       properties:
                         cost:
