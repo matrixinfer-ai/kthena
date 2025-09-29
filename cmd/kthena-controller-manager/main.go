@@ -75,9 +75,11 @@ func main() {
 		cancel()
 	}()
 	if enableWebhook {
-		if err := setupWebhook(ctx, wc); err != nil {
-			os.Exit(1)
-		}
+		go func() {
+			if err := setupWebhook(ctx, wc); err != nil {
+				os.Exit(1)
+			}
+		}()
 	}
 	controller.SetupController(ctx, cc)
 }
@@ -133,7 +135,6 @@ func setupWebhook(ctx context.Context, wc webhookConfig) error {
 			klog.Fatalf("failed to start unified webhook server: %v", err)
 		}
 	}()
-
 	<-ctx.Done()
 	ctxTimeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
