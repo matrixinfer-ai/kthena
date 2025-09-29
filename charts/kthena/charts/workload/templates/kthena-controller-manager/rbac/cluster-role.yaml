@@ -12,7 +12,6 @@ rules:
       - watch
       - list
       - create
-      - delete
       - update
       - patch
       - get
@@ -56,6 +55,9 @@ rules:
     resources:
       - pods
     verbs:
+      - create
+      - delete
+      - deletecollection
       - get
       - list
       - watch
@@ -138,17 +140,6 @@ rules:
       - get
       - patch
       - update
-  - apiGroups:
-      - ""
-    resources:
-      - pods
-    verbs:
-      - create
-      - delete
-      - deletecollection
-      - get
-      - list
-      - watch
   - apiGroups:
       - ""
     resources:
