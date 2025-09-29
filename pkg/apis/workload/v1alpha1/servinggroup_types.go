@@ -22,6 +22,7 @@ import (
 )
 
 // GangPolicy defines the gang scheduling configuration.
+// +kubebuilder:validation:XValidation:rule="!has(oldSelf.minRoleReplicas) || has(self.minRoleReplicas)", message="minRoleReplicas is required once set"
 type GangPolicy struct {
 	// MinRoleReplicas defines the minimum number of replicas required for each role
 	// in gang scheduling. This map allows users to specify different
@@ -29,8 +30,7 @@ type GangPolicy struct {
 	// Key: role name
 	// Value: minimum number of replicas required for that role
 	// +optional
-	// +kubebuilder:validation:XValidation:rule="!has(oldSelf.minRoleReplicas) || has(self.minRoleReplicas)", message="minRoleReplicas cannot be removed once set"
-	// +kubebuilder:validation:XValidation:rule="!has(oldSelf.minRoleReplicas) || self.minRoleReplicas == oldSelf.minRoleReplicas", message="minRoleReplicas cannot be modified once set. You can only set it when it's not previously configured."
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf", message="minRoleReplicas is immutable"
 	MinRoleReplicas map[string]int32 `json:"minRoleReplicas,omitempty"`
 }
 
@@ -89,6 +89,7 @@ type Metadata struct {
 }
 
 // ServingGroup is the smallest unit to complete the inference task
+// +kubebuilder:validation:XValidation:rule="!has(oldSelf.gangPolicy) || has(self.gangPolicy)", message="gangPolicy is required once set"
 type ServingGroup struct {
 	// RestartGracePeriodSeconds defines the grace time for the controller to rebuild the ServingGroup when an error occurs
 	// Defaults to 0 (ServingGroup will be rebuilt immediately after an error)

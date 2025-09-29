@@ -131,13 +131,12 @@ spec:
                           Value: minimum number of replicas required for that role
                         type: object
                         x-kubernetes-validations:
-                        - message: minRoleReplicas cannot be removed once set
-                          rule: '!has(oldSelf.minRoleReplicas) || has(self.minRoleReplicas)'
-                        - message: minRoleReplicas cannot be modified once set. You
-                            can only set it when it's not previously configured.
-                          rule: '!has(oldSelf.minRoleReplicas) || self.minRoleReplicas
-                            == oldSelf.minRoleReplicas'
+                        - message: minRoleReplicas is immutable
+                          rule: self == oldSelf
                     type: object
+                    x-kubernetes-validations:
+                    - message: minRoleReplicas is required once set
+                      rule: '!has(oldSelf.minRoleReplicas) || has(self.minRoleReplicas)'
                   networkTopology:
                     description: "NetworkTopology defines the network topology affinity
                       scheduling policy for the roles of the group, it works only
@@ -16697,6 +16696,9 @@ spec:
                 required:
                 - roles
                 type: object
+                x-kubernetes-validations:
+                - message: gangPolicy is required once set
+                  rule: '!has(oldSelf.gangPolicy) || has(self.gangPolicy)'
               topologySpreadConstraints:
                 items:
                   description: TopologySpreadConstraint defines the topology spread
