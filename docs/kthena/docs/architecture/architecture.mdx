@@ -9,7 +9,7 @@ Kthena is a Kubernetes-native AI inference platform built on a **two-plane archi
 The platform comprises two primary planes:
 
 - **Control Plane**: Kthena’s model-aware brain. It coordinates models, routes, and servers; validates and stages changes; applies rollout/rollback logic with safety guardrails; and surfaces status/health for clear visibility—focused on model lifecycle and traffic safety rather than cluster mechanics.
-- **Data Plane**: Kthena’s runtime path. The Infer Router authenticates requests, enforces rate limits and fairness, and uses a pluggable, model-aware Scheduler (e.g., LoRA affinity, KV/GPU cache and latency plugins) to pick the best replica. Role-based **Prefill/Decode** replica groups enable disaggregation and independent scaling for lower latency, higher throughput, and better cost.
+- **Data Plane**: Kthena's runtime path. The Kthena Router authenticates requests, enforces rate limits and fairness, and uses a pluggable, model-aware Scheduler (e.g., LoRA affinity, KV/GPU cache and latency plugins) to pick the best replica. Role-based **Prefill/Decode** replica groups enable disaggregation and independent scaling for lower latency, higher throughput, and better cost.
 
 <LightboxImage src="/img/diagrams/architecture/architecture_overview.svg" alt="Architecture Overview"/>
 
@@ -19,12 +19,12 @@ The platform comprises two primary planes:
 
 Kthena extends Kubernetes with custom resources that provide declarative configuration for AI inference workloads:
 
-- **Model** – A high-level, opinionated API that captures model specifications and cascades creation/update/deletion of related resources (ModelRoute, ModelServer, ModelInfer, autoscaling artifacts) to deliver a one-stop model deployment experience.
+- **ModelBooster** – A high-level, opinionated API that captures model specifications and cascades creation/update/deletion of related resources (ModelRoute, ModelServer, ModelServing, autoscaling artifacts) to deliver a one-stop model deployment experience.
 - **ModelRoute** – Declares routing intent and traffic control: matches by `modelName`, `loraAdapters`, and HTTP attributes (path, headers); supports rule-based routing with weights, canary/A–B strategies, and optional token-based `rateLimit`s.
 - **ModelServer** – Defines service exposure and traffic policy for backend inference pods: specifies the model and inference framework/engine, discovers pods via `workloadSelector` (including role-aware groupings such as Prefill/Decode), and applies traffic policies (retries, timeouts, connection settings) for healthy endpoint publication.
-- **ModelInfer** – Manages inference workloads as `InferGroup`s with role-based replicas (e.g., Prefill/Decode), supporting configurable entry/worker Pod `template`s, `recoveryPolicy`, topology- and gang-aware scheduling, rolling upgrades, and a dedicated `scheduler`.
+- **ModelServing** – Manages inference workloads as `ServingGroup`s with role-based replicas (e.g., Prefill/Decode), supporting configurable entry/worker Pod `template`s, `recoveryPolicy`, topology- and gang-aware scheduling, rolling upgrades, and a dedicated `scheduler`.
 - **AutoScalingPolicy** – Specifies autoscaling rules: metric endpoints and triggers (CPU, memory, custom), target thresholds, and scaling behaviors (up/down rates, stabilization and panic windows) for automated replica management.
-- **AutoScalingPolicyBinding** – Attaches policies to target workloads (e.g., ModelInfer or Deployments), supporting two modes: **scalingConfiguration** for metric-driven scaling of a single target and **optimizerConfiguration** for cost-aware distribution across heterogeneous instance types and engines (e.g., H100/A100).
+- **AutoScalingPolicyBinding** – Attaches policies to target workloads (e.g., ModelServing or Deployments), supporting two modes: **scalingConfiguration** for metric-driven scaling of a single target and **optimizerConfiguration** for cost-aware distribution across heterogeneous instance types and engines (e.g., H100/A100).
 
 Platform operators manage these CRDs declaratively, and Control Plane controllers continuously reconcile them into runtime resources.
 
@@ -34,19 +34,19 @@ The Control Plane ensures that declarative configurations are realized into oper
 
 #### **Controllers**
 
-- **Model Controller** – Reconciles `Model` resources into downstream primitives (`ModelRoute`, `ModelServer`, `ModelInfer`, `AutoScalingPolicy`, `AutoScalingPolicyBinding`) and maintains overall model lifecycle and status. It propagates updates and orchestrates cascaded create/update/delete to keep derived resources consistent.
-- **ModelRoute Controller** – Projects routing intent into the Infer Gateway by continuously syncing matches, weights, and model/LoRA selectors from `ModelRoute` CRs. It validates and normalizes rule sets to produce the effective routing table used by the gateway.
-- **ModelServer Controller** – Tracks backend pods via `workloadSelector`, applies traffic policies (retries, timeouts, connection settings), and publishes healthy endpoints to the gateway. It manages service exposure and connectivity for model-serving backends.
-- **ModelInfer Controller** – Manages `ModelInfer` workloads including `InferGroup`s and role-based replicas (e.g., Prefill/Decode). It handles topology- and gang-aware placement, fault recovery, and rolling upgrades, and reconciles entry/worker Pod templates and services for each role.
+- **Model Booster Controller** – Reconciles `ModelBooster` resources into downstream primitives (`ModelRoute`, `ModelServer`, `ModelServing`, `AutoScalingPolicy`, `AutoScalingPolicyBinding`) and maintains overall model lifecycle and status. It propagates updates and orchestrates cascaded create/update/delete to keep derived resources consistent.
+- **ModelRoute Controller** – Projects routing intent into the Kthena Router by continuously syncing matches, weights, and model/LoRA selectors from `ModelRoute` CRs. It validates and normalizes rule sets to produce the effective routing table used by the router.
+- **ModelServer Controller** – Tracks backend pods via `workloadSelector`, applies traffic policies (retries, timeouts, connection settings), and publishes healthy endpoints to the router. It manages service exposure and connectivity for model-serving backends.
+- **Model Serving Controller** – Manages `ModelServing` workloads including `ServingGroup`s and role-based replicas (e.g., Prefill/Decode). It handles topology- and gang-aware placement, fault recovery, and rolling upgrades, and reconciles entry/worker Pod templates and services for each role.
 - **Autoscaler Controller** – Evaluates runtime metrics against `AutoScalingPolicy` targets and computes desired replica counts for bound workloads. It supports homogeneous scaling (stable/panic modes) and heterogeneous optimization via `AutoScalingPolicyBinding`, adjusting replicas and instance mix to meet SLOs and cost goals.
 
 ### 3. **Data Plane**
 
-The Data Plane executes inference workloads and handles request processing through the Gateway and Scheduler, using optimized, role-based pod architectures that support both homogeneous and heterogeneous scaling strategies.
+The Data Plane executes inference workloads and handles request processing through the Router and Scheduler, using optimized, role-based pod architectures that support both homogeneous and heterogeneous scaling strategies.
 
-#### **Infer Gateway**
+#### **Kthena Router**
 
-The Infer Gateway processes user requests through a comprehensive pipeline that ensures security, fairness, and optimal resource utilization:
+The Kthena Router processes user requests through a comprehensive pipeline that ensures security, fairness, and optimal resource utilization:
 
 ##### **Request Pipeline**
 
@@ -61,8 +61,8 @@ The request pipeline orchestrates the flow of user requests through the followin
 *   **Fairness Scheduling** – Implements queuing mechanisms and fair resource allocation
 *   **Scheduling** – Selects optimal pods using filter and score plugins for intelligent request routing.
     <details>
-        <summary><b>Scheduler (Gateway Component Details)</b></summary>
-        <p>The Infer Gateway includes a pluggable Scheduler that plays a crucial role in the "Scheduling" stage of the request pipeline. It employs <b>advanced scheduling plugins</b> to optimize request routing and resource utilization:</p>
+        <summary><b>Scheduler (Router Component Details)</b></summary>
+        <p>The Kthena Router includes a pluggable Scheduler that plays a crucial role in the "Scheduling" stage of the request pipeline. It employs <b>advanced scheduling plugins</b> to optimize request routing and resource utilization:</p>
         ###### Filter Plugins:
         <ul>
             <li><i>Least Requests</i> – Filters pods based on current request load</li>
@@ -75,7 +75,7 @@ The request pipeline orchestrates the flow of user requests through the followin
             <li><i>Prefix Cache</i> – Leverages shared prefix caching for improved performance</li>
             <li><i>GPU Cache</i> – Considers GPU memory cache status for optimal routing</li>
         </ul>
-        <p>It seamlessly integrates with the Infer Gateway’s Load Balancing and Fairness Scheduling components to ensure optimal request distribution.</p>
+        <p>It seamlessly integrates with the Kthena Router's Load Balancing and Fairness Scheduling components to ensure optimal request distribution.</p>
     </details>
 
 *   **Load Balancing** – Routes requests to optimal backend instances based on health and capacity

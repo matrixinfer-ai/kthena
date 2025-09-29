@@ -14,9 +14,9 @@ Notes:
 
 ## Installation
 
-- Runtime does not support separate installation.  it will be automatically deployed alongside the inference container as a sidecar when you are using `Model` to deploy llm.
-- When deploying via the Model CR (one-stop deployment), no additional configuration is needed; ModelInfer will automatically enable the runtime feature.
-- For standalone deployment using ModelInfer YAML, you can add the following configuration to start Runtime as sidecar container:
+- Runtime does not support separate installation.  it will be automatically deployed alongside the inference container as a sidecar when you are using `ModelBooster` to deploy llm.
+- When deploying via the ModelBooster CR (one-stop deployment), no additional configuration is needed; ModelServing will automatically enable the runtime feature.
+- For standalone deployment using ModelServing YAML, you can add the following configuration to start Runtime as sidecar container:
 
   ```
   - name: runtime
@@ -73,11 +73,11 @@ Startup arguments:
 - `-I, --pod` (required): current instance/Pod identifier, used for events and Redis keys
 - `-N, --model` (required): model name
 
-In the Model YAML, you can control Runtime startup values via `spec.backends.env`:
+In the ModelBooster YAML, you can control Runtime startup values via `spec.backends.env`:
 
 ```
-apiVersion: registry.volcano.sh/v1alpha1
-kind: Model
+apiVersion: workload.serving.volcano.sh/v1alpha1
+kind: ModelBooster
 metadata:
   annotations:
     api.kubernetes.io/name: example
@@ -135,12 +135,12 @@ Notes:
 
 ## Dynamic Lora configuration
 
-You can use Model YAML to configure LoRA adapters for automatic download and loading during the model startup. 
-If you only change loraAdapters in model YAML, Runtime will dynamically download and load/unload the adapters without restarting the Pod.
+You can use ModelBooster YAML to configure LoRA adapters for automatic download and loading during the model startup.
+If you only change loraAdapters in ModelBooster YAML, Runtime will dynamically download and load/unload the adapters without restarting the Pod.
 
 ```
-apiVersion: registry.volcano.sh/v1alpha1
-kind: Model
+apiVersion: workload.serving.volcano.sh/v1alpha1
+kind: ModelBooster
 metadata:
   annotations:
     api.kubernetes.io/name: example
@@ -176,7 +176,7 @@ spec:
 Notes:
 
 1. To enable dynamic LoRA configuration, ensure that the environment variable `VLLM_ALLOW_RUNTIME_LORA_UPDATING` is set to `True`.
-2. `loraAdapters.artifactURL` supports the same sources and formats as modelURI in the Model CR, including:
+2. `loraAdapters.artifactURL` supports the same sources and formats as modelURI in the ModelBooster CR, including:
    - Hugging Face: `<namespace>/<repo_name>`, e.g., `microsoft/phi-2`
    - S3: `s3://bucket/path`
    - OBS: `obs://bucket/path`

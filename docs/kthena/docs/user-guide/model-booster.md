@@ -18,9 +18,9 @@ name of the generated `ModelServer` will be `test-model-backend1` and `test-mode
 name of the generated `ModelRoute` will be `test-model`. If `AutoscalingPolicy` is defined in the model level, the name
 will be `test-model`, otherwise the name will be `test-model-backend1` and `test-model-backend2`.
 
-### How Model Controller works
+### How Model Booster Controller works
 
-Model Controller watches for changes to `ModelBooster` CR in the Kubernetes cluster. When a `ModelBooster` CR is created or updated,
+Model Booster Controller watches for changes to `ModelBooster` CR in the Kubernetes cluster. When a `ModelBooster` CR is created or updated,
 the controller performs the following steps:
 
 1. Convert the `ModelBooster` CR to `ModelServing` CR, `ModelServer` CR, `ModelRoute` CR. `AutoscalingPolicy` CR and
@@ -33,20 +33,20 @@ the controller performs the following steps:
       `Available`, the `Active` condition on the `ModelBooster` is set to `true`.
     - If any error occurs during the process, set the `Failed` condition to true and provide an error message.
 
-The `OwnerReference` is set to the `Model` CR for all the created resources, so that when the `Model` CR is deleted, all
+The `OwnerReference` is set to the `ModelBooster` CR for all the created resources, so that when the `ModelBooster` CR is deleted, all
 the related resources will be deleted as well.
 
-## Model Lifecycle
+## ModelBooster Lifecycle
 
-`Model` CR has several conditions that indicate the status of the model. These conditions are:
+`ModelBooster` CR has several conditions that indicate the status of the model. These conditions are:
 
 | ConditionType | Description                                                          |
 |---------------|----------------------------------------------------------------------|
-| `Initialized` | The Model CR has been validated and is waiting to be processed.      |
-| `Active`      | The Model is ready for inference.                                    |
-| `Failed`      | The Model failed to become active. See the message for more details. |
+| `Initialized` | The ModelBooster CR has been validated and is waiting to be processed.      |
+| `Active`      | The ModelBooster is ready for inference.                                    |
+| `Failed`      | The ModelBooster failed to become active. See the message for more details. |
 
-## Examples of Model CR
+## Examples of ModelBooster CR
 
 You can find examples of model CR [here](https://github.com/matrixinfer-ai/matrixinfer/tree/main/examples/model-booster)
 
