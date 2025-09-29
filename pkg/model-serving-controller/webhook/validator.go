@@ -87,7 +87,7 @@ func (v *ModelServingValidator) validateModelServing(modelServing *workloadv1alp
 	allErrs = append(allErrs, validateWorkerImages(modelServing)...)
 	allErrs = append(allErrs, validatorReplicas(modelServing)...)
 	allErrs = append(allErrs, validateRollingUpdateConfiguration(modelServing)...)
-	allErrs = append(allErrs, validateGangSchedule(modelServing)...)
+	allErrs = append(allErrs, validateGangPolicy(modelServing)...)
 	allErrs = append(allErrs, validateWorkerReplicas(modelServing)...)
 
 	if len(allErrs) > 0 {
@@ -213,16 +213,16 @@ func validatorReplicas(mi *workloadv1alpha1.ModelServing) field.ErrorList {
 	return allErrs
 }
 
-// validateGangSchedule validates the gang scheduling configuration
-func validateGangSchedule(mi *workloadv1alpha1.ModelServing) field.ErrorList {
+// validateGangPolicy validates the gang scheduling configuration
+func validateGangPolicy(mi *workloadv1alpha1.ModelServing) field.ErrorList {
 	var allErrs field.ErrorList
 
-	if mi.Spec.Template.GangSchedule == nil || mi.Spec.Template.GangSchedule.MinRoleReplicas == nil {
+	if mi.Spec.Template.GangPolicy == nil || mi.Spec.Template.GangPolicy.MinRoleReplicas == nil {
 		return allErrs
 	}
 
-	minRoleReplicas := mi.Spec.Template.GangSchedule.MinRoleReplicas
-	minRoleReplicasPath := field.NewPath("spec").Child("template").Child("gangSchedule").Child("minRoleReplicas")
+	minRoleReplicas := mi.Spec.Template.GangPolicy.MinRoleReplicas
+	minRoleReplicasPath := field.NewPath("spec").Child("template").Child("gangPolicy").Child("minRoleReplicas")
 
 	// Create a map of role names for quick lookup
 	roleNames := make(map[string]bool)

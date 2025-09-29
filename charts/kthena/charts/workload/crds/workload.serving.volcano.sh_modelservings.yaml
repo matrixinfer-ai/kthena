@@ -116,8 +116,8 @@ spec:
               template:
                 description: Template defines the template for ServingGroup
                 properties:
-                  gangSchedule:
-                    description: GangSchedule defines the GangSchedule config.
+                  gangPolicy:
+                    description: GangPolicy defines the gang scheduler config.
                     properties:
                       minRoleReplicas:
                         additionalProperties:
@@ -130,25 +130,31 @@ spec:
                           Key: role name
                           Value: minimum number of replicas required for that role
                         type: object
-                      networkTopology:
-                        description: NetworkTopology defines the NetworkTopology config,
-                          this field works in conjunction with network topology feature
-                          and hyperNode CRD.
-                        properties:
-                          highestTierAllowed:
-                            default: 1
-                            description: HighestTierAllowed specifies the highest
-                              tier that a job allowed to cross when scheduling.
-                            type: integer
-                          mode:
-                            default: hard
-                            description: Mode specifies the mode of the network topology
-                              constrain.
-                            enum:
-                            - hard
-                            - soft
-                            type: string
-                        type: object
+                        x-kubernetes-validations:
+                        - message: minRoleReplicas is immutable
+                          rule: self == oldSelf
+                    type: object
+                    x-kubernetes-validations:
+                    - message: minRoleReplicas is required once set
+                      rule: '!has(oldSelf.minRoleReplicas) || has(self.minRoleReplicas)'
+                  networkTopology:
+                    description: "NetworkTopology defines the network topology affinity
+                      scheduling policy for the roles of the group, it works only
+                      when the scheduler supports network topology feature.\t// +optional"
+                    properties:
+                      highestTierAllowed:
+                        default: 1
+                        description: HighestTierAllowed specifies the highest tier
+                          that a job allowed to cross when scheduling.
+                        type: integer
+                      mode:
+                        default: hard
+                        description: Mode specifies the mode of the network topology
+                          constrain.
+                        enum:
+                        - hard
+                        - soft
+                        type: string
                     type: object
                   restartGracePeriodSeconds:
                     default: 0
@@ -16690,6 +16696,9 @@ spec:
                 required:
                 - roles
                 type: object
+                x-kubernetes-validations:
+                - message: gangPolicy is required once set
+                  rule: '!has(oldSelf.gangPolicy) || has(self.gangPolicy)'
               topologySpreadConstraints:
                 items:
                   description: TopologySpreadConstraint defines the topology spread

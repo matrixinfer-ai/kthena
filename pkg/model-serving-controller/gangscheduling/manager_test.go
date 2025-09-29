@@ -77,7 +77,7 @@ func TestCalculateRequirements(t *testing.T) {
 							WorkerTemplate: createPodTemplate("decode-worker", "1", "2Gi"),
 						},
 					},
-					GangSchedule: &workloadv1alpha1.GangSchedule{},
+					GangPolicy: &workloadv1alpha1.GangPolicy{},
 				},
 			},
 		}
@@ -123,7 +123,7 @@ func TestCalculateRequirements(t *testing.T) {
 			"prefill": 1, // Only consider 1 prefill role instead of 2
 			"decode":  1, // Consider all decode roles (1)
 		}
-		mi.Spec.Template.GangSchedule.MinRoleReplicas = minRoleReplicas
+		mi.Spec.Template.GangPolicy.MinRoleReplicas = minRoleReplicas
 
 		minMember, minTaskMember, minResources := manager.calculateRequirements(mi)
 
@@ -154,7 +154,7 @@ func TestCalculateRequirements(t *testing.T) {
 	t.Run("nil MinRoleReplicas", func(t *testing.T) {
 		manager := NewManager(nil, nil)
 		mi := createBasicModelServing()
-		mi.Spec.Template.GangSchedule.MinRoleReplicas = nil
+		mi.Spec.Template.GangPolicy.MinRoleReplicas = nil
 
 		minMember, _, _ := manager.calculateRequirements(mi)
 
