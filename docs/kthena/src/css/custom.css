@@ -29,7 +29,7 @@
     --ifm-color-content-secondary: #5C5C5C; /* Slightly lighter gray for secondary content */
 
     /* Improved custom variables for inline code styling in light mode */
-    --custom-code-text-color: #C41E3A; /* Deep red for text that stands out but is readable */
+    --ifm-code-color: #C41E3A; /* Deep red for text that stands out but is readable */
 }
 
 /* For readability concerns, you should choose a lighter palette in dark mode. */
@@ -66,7 +66,7 @@
     --ifm-link-hover-color: var(--ifm-color-primary); /* Links turn red on hover */
 
     /* Improved custom variables for inline code styling in dark mode */
-    --custom-code-text-color: #FF9393; /* Light red text that's easy to read */
+    --ifm-code-color: #FF9393; /* Light red text that's easy to read */
 }
 
 /* Specific overrides for sidebar active link background to ensure it uses the dark hover overlay */
@@ -93,5 +93,5 @@
 /* Improved inline code styling */
 code:not([class*="language-"]) {
     padding: 0.1rem 0.3rem;
-    color: var(--custom-code-text-color);
+    color: var(--ifm-code-color);
 }
