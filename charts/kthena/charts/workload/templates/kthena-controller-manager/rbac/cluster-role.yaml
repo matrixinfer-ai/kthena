@@ -31,14 +31,7 @@ rules:
       - autoscalingpolicies/status
       - autoscalingpolicybindings/status
     verbs:
-      - get
-      - patch
-      - update
-  - apiGroups:
-      - workload.serving.volcano.sh
-    resources:
-      - modelservings
-    verbs:
+      - create
       - get
       - list
       - patch
@@ -47,9 +40,14 @@ rules:
   - apiGroups:
       - workload.serving.volcano.sh
     resources:
-      - modelservings/status
+      - modelservings
     verbs:
+      - create
       - get
+      - list
+      - patch
+      - update
+      - watch
   - apiGroups:
       - ""
     resources:
@@ -69,12 +67,6 @@ rules:
       - get
       - create
       - update
-  - apiGroups:
-      - registry.volcano.sh
-    resources:
-      - autoscalingpolicies
-    verbs:
-      - get
   - apiGroups:
       - ""
     resources:
@@ -100,38 +92,6 @@ rules:
       - get
       - patch
       - update
-  - apiGroups:
-      - workload.serving.volcano.sh
-    resources:
-      - autoscalingpolicies
-      - autoscalingpolicybindings
-    verbs:
-      - create
-      - delete
-      - get
-      - list
-      - patch
-      - update
-      - watch
-  - apiGroups:
-      - workload.serving.volcano.sh
-    resources:
-      - autoscalingpolicies/status
-      - autoscalingpolicybindings/status
-    verbs:
-      - get
-  - apiGroups:
-      - workload.serving.volcano.sh
-    resources:
-      - modelservings
-    verbs:
-      - create
-      - delete
-      - get
-      - list
-      - patch
-      - update
-      - watch
   - apiGroups:
       - workload.serving.volcano.sh
     resources:
