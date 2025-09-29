@@ -29,7 +29,6 @@
     --ifm-color-content-secondary: #5C5C5C; /* Slightly lighter gray for secondary content */
 
     /* Improved custom variables for inline code styling in light mode */
-    --custom-code-bg-color: #FEF7F7; /* Very light pink/red background */
     --custom-code-text-color: #C41E3A; /* Deep red for text that stands out but is readable */
 }
 
@@ -67,7 +66,6 @@
     --ifm-link-hover-color: var(--ifm-color-primary); /* Links turn red on hover */
 
     /* Improved custom variables for inline code styling in dark mode */
-    --custom-code-bg-color: #2A1F1F; /* Dark burgundy background - more sophisticated */
     --custom-code-text-color: #FF9393; /* Light red text that's easy to read */
 }
 
@@ -94,7 +92,6 @@
 
 /* Improved inline code styling */
 code:not([class*="language-"]) {
-    background-color: var(--custom-code-bg-color);
     padding: 0.1rem 0.3rem;
     color: var(--custom-code-text-color);
 }
