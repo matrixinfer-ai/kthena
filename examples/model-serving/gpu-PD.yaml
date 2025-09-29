@@ -1,0 +1,197 @@
+apiVersion: workload.serving.volcano.sh/v1alpha1
+kind: ModelServing
+metadata:
+  name: PD-sample
+  namespace: default
+spec:
+  schedulerName: volcano
+  replicas: 1  # ServingGroup replicas
+  template:
+    restartGracePeriodSeconds: 60
+    roles:
+      - name: prefill
+        replicas: 1       # role replicas, for example, 1P1D
+        entryTemplate:
+          spec:
+            volumes:
+              - name: vol-ckpt
+                hostPath:
+                  path: /mnt/paas/checkpoints/QwQ-32B/
+                  type: ''
+              - name: extended-shm
+                emptyDir:
+                  medium: Memory
+              - name: lmcache-prefiller-config
+                hostPath:
+                  path: /root/lmcache/lmcache-prefiller-config.yaml
+                  type: ''
+            containers:
+              - name: container-1
+                image: swr.cn-north-9.myhuaweicloud.com/cnai/lmcache/vllm-openai:v0.3.2
+                command:
+                  - /bin/sh
+                  - '-c'
+                args:
+                  - |
+                    /opt/venv/bin/vllm serve \
+                      --model="/vllm-workspace/QwQ-32B" \
+                      --port=8200 \
+                      --host=0.0.0.0 \
+                      --disable-log-requests \
+                      --enforce-eager \
+                      --max-model-len=2048 \
+                      --tensor-parallel-size 8\
+                      --kv-transfer-config '{"kv_connector":"LMCacheConnectorV1","kv_role":"kv_producer","kv_connector_extra_config": {"discard_partial_chunks": false, "lmcache_rpc_port": "producer1"}}'
+                env:
+                  - name: TRANSFORMERS_OFFLINE
+                    value: '1'
+                  - name: HF_DATASET_OFFLINE
+                    value: '1'
+                  - name: NCCL_IB_HCA
+                    value: ^=mlx5_bond_0
+                  - name: NCCL_IB_DISABLE
+                    value: '0'
+                  - name: NCCL_IB_GID_INDEX
+                    value: '3'
+                  - name: NCCL_SOCKET_IFNAME
+                    value: bond0
+                  - name: LMCACHE_USE_EXPERIMENTAL
+                    value: 'True'
+                  - name: VLLM_ENABLE_V1_MULTIPROCESSING
+                    value: '1'
+                  - name: VLLM_WORKER_MULTIPROC_METHOD
+                    value: spawn
+                  - name: UCX_TLS
+                    value: cuda_ipc,cuda_copy,tcp
+                  - name: LMCACHE_CONFIG_FILE
+                    value: /vllm-workspace/lmcache-prefiller-config.yaml
+                  - name: CUDA_VISIBLE_DEVICES
+                    value: '0,1,2,3,4,5,6,7'
+                resources:
+                  limits:
+                    nvidia.com/gpu: '8'
+                    # rdma/shared_roce_device: '1'
+                  requests:
+                    nvidia.com/gpu: '8'
+                    # rdma/shared_roce_device: '1'
+                volumeMounts:
+                  - name: vol-ckpt
+                    mountPath: /vllm-workspace/QwQ-32B
+                  - name: extended-shm
+                    mountPath: /dev/shm
+                  - name: lmcache-prefiller-config
+                    mountPath: /vllm-workspace/lmcache-prefiller-config.yaml
+                terminationMessagePath: /dev/termination-log
+                terminationMessagePolicy: File
+                imagePullPolicy: IfNotPresent
+                securityContext:
+                  privileged: true
+            restartPolicy: Always
+            terminationGracePeriodSeconds: 30
+            dnsPolicy: ClusterFirst
+            hostNetwork: true
+            securityContext: {}
+            imagePullSecrets:
+              - name: default-secret # this is a secret for pulling image from private registry
+            affinity:
+              nodeAffinity:
+                requiredDuringSchedulingIgnoredDuringExecution:
+                  nodeSelectorTerms:
+                    - matchExpressions:
+                        - key: kubernetes.io/hostname
+                          operator: In
+                          values:
+                            - 192.168.1.250 # specify the node to run the pod. You should change it to your own node.
+      - name: decode
+        replicas: 1  # role replicas, for example, 1P1D
+        entryTemplate:
+          spec:
+            volumes:
+              - name: vol-ckpt
+                hostPath:
+                  path: /mnt/paas/checkpoints/QwQ-32B/
+                  type: ''
+              - name: extended-shm
+                emptyDir:
+                  medium: Memory
+              - name: lmcache-decoder-config
+                hostPath:
+                  path: /root/lmcache/lmcache-decoder-config.yaml
+                  type: ''
+            containers:
+              - name: container-1
+                image: swr.cn-north-9.myhuaweicloud.com/cnai/lmcache/vllm-openai:v0.3.2
+                command:
+                  - /bin/sh
+                  - '-c'
+                args:
+                  - |
+                    /opt/venv/bin/vllm serve \
+                      --model="/vllm-workspace/QwQ-32B" \
+                      --port=8200 \
+                      --host=0.0.0.0 \
+                      --disable-log-requests \
+                      --enforce-eager \
+                      --max-model-len=2048 \
+                      --tensor-parallel-size 8\
+                      --kv-transfer-config '{"kv_connector":"LMCacheConnectorV1","kv_role":"kv_consumer","kv_connector_extra_config":{"discard_partial_chunks":false,"lmcache_rpc_port":"consumer1"}}'
+                env:
+                  - name: TRANSFORMERS_OFFLINE
+                    value: '1'
+                  - name: HF_DATASET_OFFLINE
+                    value: '1'
+                  - name: NCCL_IB_HCA
+                    value: ^=mlx5_bond_0
+                  - name: NCCL_IB_DISABLE
+                    value: '0'
+                  - name: NCCL_IB_GID_INDEX
+                    value: '3'
+                  - name: NCCL_SOCKET_IFNAME
+                    value: bond0
+                  - name: LMCACHE_USE_EXPERIMENTAL
+                    value: 'True'
+                  - name: VLLM_ENABLE_V1_MULTIPROCESSING
+                    value: '1'
+                  - name: VLLM_WORKER_MULTIPROC_METHOD
+                    value: spawn
+                  - name: UCX_TLS
+                    value: cuda_ipc,cuda_copy,tcp
+                  - name: LMCACHE_CONFIG_FILE
+                    value: /vllm-workspace/lmcache-decoder-config.yaml
+                  - name: CUDA_VISIBLE_DEVICES
+                    value: '0,1,2,3,4,5,6,7'
+                resources:
+                  limits:
+                    nvidia.com/gpu: '8'
+                    # rdma/shared_roce_device: '1'
+                  requests:
+                    nvidia.com/gpu: '8'
+                    # rdma/shared_roce_device: '1'
+                volumeMounts:
+                  - name: vol-ckpt
+                    mountPath: /vllm-workspace/QwQ-32B
+                  - name: extended-shm
+                    mountPath: /dev/shm
+                  - name: lmcache-decoder-config
+                    mountPath: /vllm-workspace/lmcache-decoder-config.yaml
+                terminationMessagePath: /dev/termination-log
+                terminationMessagePolicy: File
+                imagePullPolicy: IfNotPresent
+                securityContext:
+                  privileged: true
+            restartPolicy: Always
+            terminationGracePeriodSeconds: 30
+            dnsPolicy: ClusterFirst
+            hostNetwork: true
+            securityContext: {}
+            imagePullSecrets:
+              - name: default-secret
+            affinity:
+              nodeAffinity:
+                requiredDuringSchedulingIgnoredDuringExecution:
+                  nodeSelectorTerms:
+                    - matchExpressions:
+                        - key: kubernetes.io/hostname
+                          operator: In
+                          values:
+                            - 192.168.1.223 # specify the node to run the pod. You should change it to your own node.

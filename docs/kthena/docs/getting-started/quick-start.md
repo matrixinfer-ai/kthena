@@ -15,7 +15,7 @@ We'll install a model from Hugging Face and perform inference using a simple cur
 - Access to a Kubernetes cluster with `kubectl` configured
 - Pod in Kubernetes can access the internet
 
-## Step 1: Create a Model Resource
+## Step 1: Create a ModelBooster Resource
 
 Create the example model in your namespace (replace `<your-namespace>` with your actual namespace):
 
@@ -85,3 +85,23 @@ kubectl get svc networking-kthena-router -o jsonpath='{.spec.clusterIP}' -n <you
 
 This IP can only be used inside the cluster. If you want to chat from outside the cluster, you can use the `EXTERNAL-IP`
 of `networking-kthena-router` after you bind it.
+
+## Model Serving
+
+In addition to using Kthena with a single click via modelBooster, you can also flexibly configure your own LLM through modelServing.
+
+Model Serving Controller is a component of Kthena that provides a flexible and customizable way to deploy LLMs. It allows you to configure your own LLM through `ModelServing` CRD. ModelServing supports deploying large language models (LLMs) based on roles, with support for gang scheduling and network topology scheduling. It also provides fundamental features such as scaling and rolling updates.
+
+Herer is an [example](https://raw.githubusercontent.com/volcano-sh/kthena/refs/heads/main/examples/model-serving/gpu-PD.yaml) of Deploying the PD-Separated Qwen-32B Model on a GPU Using ModelServing.
+
+**Note:** Configurations involving secrets and node IPs require adjustment based on your specific environment when deployed.
+
+Then you can run the following command to see the result:
+
+```sh
+kubectl get po
+
+NAMESPACE            NAME                                          READY   STATUS    RESTARTS   AGE
+default              PD-sample-0-decode-0-0                        1/1     Running   0          2m
+default              PD-sample-0-prefill-0-0                       1/1     Running   0          2m
+```
