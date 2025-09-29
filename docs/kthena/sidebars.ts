@@ -91,20 +91,21 @@ const sidebars: SidebarsConfig = {
             },
           ],
         },
-        {
-          type: 'category',
-          label: 'Minfer CLI',
-          items: [
-            { type: 'doc', id: 'reference/cli/minfer', label: 'Minfer' },
-            { type: 'doc', id: 'reference/cli/minfer_create', label: 'Create' },
-            { type: 'doc', id: 'reference/cli/minfer_get', label: 'Get' },
-            {
-              type: 'doc',
-              id: 'reference/cli/minfer_describe',
-              label: 'Describe',
-            },
-          ],
-        },
+        // TODO: show CLI doc after CLI renaming
+        // {
+        //   type: 'category',
+        //   label: 'Minfer CLI',
+        //   items: [
+        //     { type: 'doc', id: 'reference/cli/minfer', label: 'Minfer' },
+        //     { type: 'doc', id: 'reference/cli/minfer_create', label: 'Create' },
+        //     { type: 'doc', id: 'reference/cli/minfer_get', label: 'Get' },
+        //     {
+        //       type: 'doc',
+        //       id: 'reference/cli/minfer_describe',
+        //       label: 'Describe',
+        //     },
+        //   ],
+        // },
       ],
     },
   ],

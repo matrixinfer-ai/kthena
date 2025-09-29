@@ -154,11 +154,11 @@ rectangle "Control Plane" as control_plane {
 		rectangle "Infer Controller (main.go)" as modelinfer_controller {
 			database "Work Queue" as work_queue
 			component "Worker" as worker {
-				component "Manage Replica, Pod Lifecycle, Rolling Update, InferGroup"
+				component "Manage Replica, Pod Lifecycle, Rolling Update, ServingGroup"
 			}
 			
 			database "In-Memory Datastore" as workload_datastore {
-				component "InferGroups"
+				component "ServingGroups"
 				component "Roles (Prefill/Decode)"
 				component "Pod Status"
 			}
