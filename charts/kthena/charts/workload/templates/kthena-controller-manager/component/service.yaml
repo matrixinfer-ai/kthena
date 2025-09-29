@@ -1,0 +1,18 @@
+{{- if .Values.controllerManager.webhook.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "kthena.name" . }}-webhook
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/component: webhook
+    {{- include "kthena.labels" . | nindent 4 }}
+spec:
+  ports:
+    - port: 443
+      targetPort: 8443
+      name: https
+  selector:
+    app.kubernetes.io/component: webhook
+    {{- include "kthena.selectorLabels" . | nindent 4 }}
+{{- end }}

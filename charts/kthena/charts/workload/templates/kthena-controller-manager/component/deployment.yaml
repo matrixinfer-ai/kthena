@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kthena-controller-manager
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/component: kthena-controller-manager
+    {{- include "kthena.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.controllerManager.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: kthena-controller-manager
+      {{- include "kthena.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: kthena-controller-manager
+        {{- include "kthena.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: kthena-controller-manager
+          image: "{{ .Values.controllerManager.image.repository }}:{{ .Values.controllerManager.image.tag }}"
+          args:
+            {{- toYaml .Values.controllerManager.image.args | nindent 12 }}
+          imagePullPolicy: {{ .Values.controllerManager.image.pullPolicy }}
+          resources:
+            {{- toYaml .Values.controllerManager.resource | nindent 12 }}
+          ports:
+            - containerPort: 8443
+          volumeMounts:
+            - name: webhook-certs
+              mountPath: /etc/webhook/certs
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8443
+              scheme: HTTPS
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8443
+              scheme: HTTPS
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: webhook-certs
+          secret:
+            secretName: {{ include "kthena.name" . }}-webhook-certs
+      serviceAccountName: {{ include "kthena.name" . }}-kthena-controller-manager

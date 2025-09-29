@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "kthena.name" . }}-kthena-router
+  name: kthena-router
   namespace: {{ .Release.Namespace }}
   labels:
     app.kubernetes.io/component: kthena-router
