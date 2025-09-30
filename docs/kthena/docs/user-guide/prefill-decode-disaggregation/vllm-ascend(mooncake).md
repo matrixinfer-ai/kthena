@@ -21,7 +21,7 @@ To address this optimization need, Kthena provides enhanced `ModelServing` CR ca
 disaggregated inference deployments, enabling flexible and efficient deployment patterns for LLM inference workloads on NPU-enabled clusters.
 
 For a detailed definition of the `ModelServing`, please refer to
-the [ModelServing Reference](../reference/crd/workload.serving.volcano.sh.md) pages.
+the [ModelServing Reference](../../reference/crd/workload.serving.volcano.sh.md) pages.
 
 ## Architecture
 
@@ -87,9 +87,9 @@ features like KV cache transfer and specialized NPU hardware configurations opti
 **Important Note:** When using the ModelBooster approach, ModelServer and ModelRoute are automatically created and
 managed - users do not need to manually deploy these resources. The configuration is optimized for NPU resource allocation.
 
-For a detailed comparison of the ModelBooster approach's advantages, automatically managed components, and when to use it, see the [ModelBooster Approach](model-booster.md#modelbooster-approach) section in the ModelBooster documentation.
+For a detailed comparison of the ModelBooster approach's advantages, automatically managed components, and when to use it, see the [ModelBooster Approach](../model-booster.md#modelbooster-approach) section in the ModelBooster documentation.
 
-Deploy the [ModelBooster configuration](../../../../examples/model-booster/prefill-decode-disaggregation.yaml) for prefill-decode disaggregated inference:
+Deploy the [ModelBooster configuration](../../../../../examples/model-booster/prefill-decode-disaggregation.yaml) for prefill-decode disaggregated inference:
 
 ```sh
 kubectl apply -f examples/model-booster/prefill-decode-disaggregation.yaml
@@ -142,7 +142,7 @@ deepseek-v2-lite-deepseek-v2-lite-0-prefill-0-0   2/2     Running    0          
 For environments that require more granular control over the NPU deployment configuration, you can use the ModelServing
 approach with fine-tuned NPU resource specifications and Ascend-specific optimizations.
 
-For a detailed comparison of the ModelServing approach's advantages, manually created components, and when to use it, see the [ModelServing Approach](model-booster.md#modelserving-approach) section in the ModelBooster documentation.
+For a detailed comparison of the ModelServing approach's advantages, manually created components, and when to use it, see the [ModelServing Approach](../model-booster.md#modelserving-approach) section in the ModelBooster documentation.
 
 **Important Note:** When using the ModelServing approach, you need to manually create the following CRD resources:
 
@@ -152,7 +152,7 @@ For a detailed comparison of the ModelServing approach's advantages, manually cr
 
 ##### 1. ModelServing Configuration
 
-First, create the ModelServing resource to manage prefill and decode workloads using the [ModelServing configuration](../../../../examples/model-serving/prefill-decode-disaggregation.yaml):
+First, create the ModelServing resource to manage prefill and decode workloads using the [ModelServing configuration](../../../../../examples/model-serving/prefill-decode-disaggregation.yaml):
 
 ```sh
 kubectl apply -f examples/model-serving/prefill-decode-disaggregation.yaml
@@ -168,7 +168,7 @@ This configuration includes:
 ##### 2. ModelServer Configuration
 
 Create the ModelServer resource to manage the networking layer for disaggregated inference, providing load balancing and
-traffic management between prefill and decode services using the [ModelServer configuration](../../../../examples/kthena-router/ModelServer-prefill-decode-disaggregation.yaml):
+traffic management between prefill and decode services using the [ModelServer configuration](../../../../../examples/kthena-router/ModelServer-prefill-decode-disaggregation.yaml):
 
 ```sh
 kubectl apply -f examples/infer-router/ModelServer-prefill-decode-disaggregation.yaml
@@ -182,7 +182,7 @@ This configuration includes:
 
 ##### 3. ModelRoute Configuration
 
-Create the ModelRoute resource to provide routing functionality, directing requests to the appropriate model server using the [ModelRoute configuration](../../../../examples/kthena-router/ModelRoute-prefill-decode-disaggregation.yaml):
+Create the ModelRoute resource to provide routing functionality, directing requests to the appropriate model server using the [ModelRoute configuration](../../../../../examples/kthena-router/ModelRoute-prefill-decode-disaggregation.yaml):
 
 ```sh
 kubectl apply -f examples/infer-router/ModelRoute-prefill-decode-disaggregation.yaml
