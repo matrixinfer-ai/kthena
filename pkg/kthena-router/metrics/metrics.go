@@ -51,7 +51,7 @@ const (
 	LimitTypeRequests     = "requests"
 )
 
-// Metrics holds all Prometheus metrics for the infer-router
+// Metrics holds all Prometheus metrics for the kthena-router
 type Metrics struct {
 	// Request counters
 	RequestsTotal prometheus.CounterVec
@@ -82,7 +82,7 @@ func NewMetrics() *Metrics {
 	return &Metrics{
 		RequestsTotal: *promauto.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: "infer_router_requests_total",
+				Name: "kthena_router_requests_total",
 				Help: "Total number of HTTP requests processed by the router",
 			},
 			[]string{LabelModel, LabelPath, LabelStatusCode, LabelErrorType},
@@ -90,7 +90,7 @@ func NewMetrics() *Metrics {
 
 		RequestDuration: *promauto.NewHistogramVec(
 			prometheus.HistogramOpts{
-				Name:    "infer_router_request_duration_seconds",
+				Name:    "kthena_router_request_duration_seconds",
 				Help:    "End-to-end request processing latency distribution for all requests",
 				Buckets: []float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60},
 			},
@@ -99,7 +99,7 @@ func NewMetrics() *Metrics {
 
 		RequestPrefillDuration: *promauto.NewHistogramVec(
 			prometheus.HistogramOpts{
-				Name:    "infer_router_request_prefill_duration_seconds",
+				Name:    "kthena_router_request_prefill_duration_seconds",
 				Help:    "Prefill phase processing latency distribution for PD-disaggregated requests",
 				Buckets: []float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60},
 			},
@@ -108,7 +108,7 @@ func NewMetrics() *Metrics {
 
 		RequestDecodeDuration: *promauto.NewHistogramVec(
 			prometheus.HistogramOpts{
-				Name:    "infer_router_request_decode_duration_seconds",
+				Name:    "kthena_router_request_decode_duration_seconds",
 				Help:    "Decode phase processing latency distribution for PD-disaggregated requests",
 				Buckets: []float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60},
 			},
@@ -117,7 +117,7 @@ func NewMetrics() *Metrics {
 
 		TokensTotal: *promauto.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: "infer_router_tokens_total",
+				Name: "kthena_router_tokens_total",
 				Help: "Total tokens processed/generated",
 			},
 			[]string{LabelModel, LabelPath, LabelTokenType},
@@ -125,7 +125,7 @@ func NewMetrics() *Metrics {
 
 		SchedulerPluginDuration: *promauto.NewHistogramVec(
 			prometheus.HistogramOpts{
-				Name:    "infer_router_scheduler_plugin_duration_seconds",
+				Name:    "kthena_router_scheduler_plugin_duration_seconds",
 				Help:    "Processing time per scheduler plugin",
 				Buckets: []float64{0.001, 0.005, 0.01, 0.05, 0.1, 0.5},
 			},
@@ -134,7 +134,7 @@ func NewMetrics() *Metrics {
 
 		RateLimitExceeded: *promauto.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: "infer_router_rate_limit_exceeded_total",
+				Name: "kthena_router_rate_limit_exceeded_total",
 				Help: "Number of requests rejected due to rate limiting",
 			},
 			[]string{LabelModel, LabelLimitType, LabelPath},
@@ -142,7 +142,7 @@ func NewMetrics() *Metrics {
 
 		ActiveDownstreamRequests: *promauto.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Name: "infer_router_active_downstream_requests",
+				Name: "kthena_router_active_downstream_requests",
 				Help: "Current number of active downstream requests (from clients to router)",
 			},
 			[]string{LabelModel},
@@ -150,7 +150,7 @@ func NewMetrics() *Metrics {
 
 		ActiveUpstreamRequests: *promauto.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Name: "infer_router_active_upstream_requests",
+				Name: "kthena_router_active_upstream_requests",
 				Help: "Current number of active upstream requests (from router to backend pods)",
 			},
 			[]string{LabelModelServer, LabelModelRoute},
@@ -158,7 +158,7 @@ func NewMetrics() *Metrics {
 
 		FairnessQueueSize: *promauto.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Name: "infer_router_fairness_queue_size",
+				Name: "kthena_router_fairness_queue_size",
 				Help: "Current fairness queue size for pending requests",
 			},
 			[]string{LabelModel, LabelUserID},
@@ -166,7 +166,7 @@ func NewMetrics() *Metrics {
 
 		FairnessQueueDuration: *promauto.NewHistogramVec(
 			prometheus.HistogramOpts{
-				Name:    "infer_router_fairness_queue_duration_seconds",
+				Name:    "kthena_router_fairness_queue_duration_seconds",
 				Help:    "Time requests spend in fairness queue before processing",
 				Buckets: []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5},
 			},

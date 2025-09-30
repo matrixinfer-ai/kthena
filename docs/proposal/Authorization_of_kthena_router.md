@@ -1,5 +1,5 @@
 ---
-title: Authentication of infer router
+title: Authentication of Kthena Router
 authors:
 - "@LiZhenCheng9527" # Authors' GitHub accounts here.
 reviewers:
@@ -19,7 +19,7 @@ title can help communicate what the KEP is and should be considered as part of
 any review.
 -->
 
-Proposal for authentication to the infer router. Includes JWT and API Key.
+Proposal for authentication to the Kthena Router. Includes JWT and API Key.
 
 ### Summary
 
@@ -30,7 +30,7 @@ documentation such as release notes or a development roadmap.
 A good summary is probably at least a paragraph in length.
 -->
 
-This document describes a proposal to introduce JWT (JSON Web Token) and API Key authentication mechanisms in Infer Router. The proposal aims to enhance the security of the Router by allowing users to configure different authentication methods for different model services, while maintaining the flexibility and scalability of the system.
+This document describes a proposal to introduce JWT (JSON Web Token) and API Key authentication mechanisms in Kthena Router. The proposal aims to enhance the security of the Router by allowing users to configure different authentication methods for different model services, while maintaining the flexibility and scalability of the system.
 
 ### Motivation
 
@@ -39,7 +39,7 @@ This section is for explicitly listing the motivation, goals, and non-goals of
 this KEP.  Describe why the change is important and the benefits to users.
 -->
 
-The current Infer Router lacks an authentication mechanism; any user with access to the router can invoke the model services, which poses the following problems:
+The current Kthena Router lacks an authentication mechanism; any user with access to the router can invoke the model services, which poses the following problems:
 
 - **Security risk**: Unauthorized users may misuse model services.
 - **Resource misuse**: Lack of access control may lead to overuse of resources.
@@ -60,8 +60,8 @@ List the specific goals of the KEP. What is it trying to achieve? How will we
 know that this has succeeded?
 -->
 
-1. Implement JWT authentication mechanism in Infer Router.
-2. Implement API Key authentication mechanism in Infer Router.
+1. Implement JWT authentication mechanism in Kthena Router.
+2. Implement API Key authentication mechanism in Kthena Router.
 3. Support integration with external identity providers(e.g. Keycloak).
 
 #### Non-Goals
@@ -132,12 +132,12 @@ proposal will be implemented, this is the place to discuss them.
 #### Process
 
 1. The client requests an authentication token from an identity provider(e.g. Keycloak).
-2. The client uses the authentication token to invoke the Infer Router.
-3. The Infer Router verifies the validity of the token.
+2. The client uses the authentication token to invoke the Kthena Router.
+3. The Kthena Router verifies the validity of the token.
 4. If the authentication passes, the request is forwarded to the appropriate model service.
 5. If authentication fails, a 401 Unauthorized Httpstatus Code is returned.
 
-The infer router determines whether or not to validate the token based on the mod being accessed.
+The Kthena Router determines whether or not to validate the token based on the mod being accessed.
 
 **Process of JWT:**
 
