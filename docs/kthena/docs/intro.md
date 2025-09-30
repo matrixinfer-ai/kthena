@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # Kthena
 
-Welcome to **Kthena**, a Kubernetes-native AI inference platform that provides scalable and efficient model serving capabilities.
+Welcome to **Kthena**, a Kubernetes-native AI serving platform that provides scalable and efficient model serving capabilities.
 
 Kthena enables you to deploy, manage, and scale AI models in Kubernetes environments with advanced features like intelligent routing, auto-scaling, and multi-model serving.
 
