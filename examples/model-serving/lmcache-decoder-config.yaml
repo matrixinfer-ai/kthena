@@ -1,0 +1,13 @@
+local_cpu: False
+max_local_cpu_ size: 0
+max_local disk size: 0
+remote_serde: NULL 
+
+# NIXL configuration for KV cache transfer
+
+enable_nixl: True
+nixl_role: "receiver"  # Prefiller acts as KV cache sender
+nixl_receiver_host: "localhost" # Host where decoder is running
+nixl_receiver _port:55555 # Port where decoder is listening
+nixl_buffer_size: 1073741824 # 1GB buffer for KV cache transfer
+nixl _buffer_device: "cuda" # Use_GPu memory for buffer

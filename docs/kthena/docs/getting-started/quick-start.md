@@ -9,13 +9,22 @@ import CodeBlock from '@theme/CodeBlock';
 Get up and running with Kthena in minutes! This guide will walk you through deploying your first AI model.
 We'll install a model from Hugging Face and perform inference using a simple curl command.
 
+We have two optional ways to quicky start using kthena to deploy LLM.
+
+1. ModelBooster
+2. ModelServing
+
 ## Prerequisites
 
 - Kthena installed on your Kubernetes cluster (see [Installation](./installation.md))
 - Access to a Kubernetes cluster with `kubectl` configured
 - Pod in Kubernetes can access the internet
 
-## Step 1: Create a ModelBooster Resource
+## ModelBooster
+
+Kthena ModelBooster is a Custom Resource Definitions(CRD) of Kthena that provides a simple way to deploy LLMs. It allows you to deploy LLMs with a single click.
+
+**Step 1: Create a ModelBooster Resource**
 
 Create the example model in your namespace (replace `<your-namespace>` with your actual namespace):
 
@@ -29,12 +38,12 @@ Content of the Model:
     {QuickStartYaml}
 </CodeBlock>
 
-## Step 2: Wait for Model to be Ready
+**Step 2: Wait for Model to be Ready**
 
 Wait model condition `Active` to become `true`. You can check the status using:
 
 ```bash
-kubectl get model demo -o jsonpath='{.status.conditions}'
+kubectl get modelBooster demo -o jsonpath='{.status.conditions}'
 ```
 
 And the status section should look like this when the model is ready:
@@ -58,7 +67,7 @@ And the status section should look like this when the model is ready:
 ]
 ```
 
-## Step 3: Perform Inference
+**Step 3: Perform Inference**
 
 You can now perform inference using the model. Here's an example of how to send a request:
 
@@ -86,7 +95,7 @@ kubectl get svc networking-kthena-router -o jsonpath='{.spec.clusterIP}' -n <you
 This IP can only be used inside the cluster. If you want to chat from outside the cluster, you can use the `EXTERNAL-IP`
 of `networking-kthena-router` after you bind it.
 
-## Model Serving
+## ModelServing
 
 In addition to using Kthena with a single click via modelBooster, you can also flexibly configure your own LLM through modelServing.
 
@@ -96,7 +105,56 @@ Herer is an [example](https://raw.githubusercontent.com/volcano-sh/kthena/refs/h
 
 **Note:** Configurations involving secrets and node IPs require adjustment based on your specific environment when deployed.
 
-Then you can run the following command to see the result:
+**Step 1: Create a ModelServing Resource:**
+
+```sh
+kubectl apply -f https://raw.githubusercontent.com/volcano-sh/kthena/refs/heads/main/examples/model-serving/gpu-PD.yaml
+```
+
+In this example, we used `LMCache` as the KV-Cache. All prefillers share the same configuration via `lmcache-perfiller-config.yaml`:
+
+```yaml
+# Disable CPu offloading since we're using NIXL for transfer
+local_cpu: False
+max_local_cpu_ size: 0
+max_local _disk size: 0
+remote_serde: NULL
+
+# NIXL configuration for KV cache transfer
+
+enable_nixl: True
+nixl_role: "sender" # Prefiller acts as KV cache sender
+nixl_receiver_host: "localhost" # Host where decoder is running
+nixl_receiver port:55555 # Port where decoder is listening
+nixl_buffer_size: 1073741824 # 1GB buffer for KV cache transfer
+nixl_buffer_device: "cuda" # Use GPu memory for buffer
+nixl enable_gc: True # Enable garbage collection
+```
+
+Also, all decoders share the same configuration via `lmcache-decoder-config.yaml`:
+
+```yaml
+local_cpu: False
+max_local_cpu_ size: 0
+max_local disk size: 0
+remote_serde: NULL 
+
+# NIXL configuration for KV cache transfer
+
+enable_nixl: True
+nixl_role: "receiver"  # Prefiller acts as KV cache sender
+nixl_receiver_host: "localhost" # Host where decoder is running
+nixl_receiver _port:55555 # Port where decoder is listening
+nixl_buffer_size: 1073741824 # 1GB buffer for KV cache transfer
+nixl _buffer_device: "cuda" # Use_GPu memory for buffer
+```
+
+When creating the perfiller pod, mount the `lmcache-perfill-config.yaml` file into it. Set the environment variable `LMCACHE_CONFIG_FILE` to point to it.
+The processing of the decoder pod is identical to that of the prefiller pod.
+
+**Step 2: Wait for ModelServing to be Ready**
+
+After all Pods awaiting deployment have started running, you can run the following command to see the result:
 
 ```sh
 kubectl get po
@@ -104,4 +162,41 @@ kubectl get po
 NAMESPACE            NAME                                          READY   STATUS    RESTARTS   AGE
 default              PD-sample-0-decode-0-0                        1/1     Running   0          2m
 default              PD-sample-0-prefill-0-0                       1/1     Running   0          2m
+
+------------------------------------------
+
+kubectl get modelserving sample -o jsonpath='{.status.conditions}' | jq '.' 
+
+[
+  {
+    "lastTransitionTime": "2025-09-29T08:11:16Z",
+    "message": "Some groups is progressing: [0]",
+    "reason": "GroupProgressing",
+    "status": "False",
+    "type": "Progressing"
+  },
+  {
+    "lastTransitionTime": "2025-09-29T08:11:21Z",
+    "message": "All Serving groups are ready",
+    "reason": "AllGroupsReady",
+    "status": "True",
+    "type": "Available"
+  }
+]
+```
+
+**Step 3: Perform Inference**
+
+Before you can perform inference, you need to create ModelRouter and ModelServer. You can refer to [modelRouter Configration](../user-guide/prefill-decode-disaggregation/vllm-ascend(mooncake).md#modelrouter-configuration) and [modelServer Configration](../user-guide/prefill-decode-disaggregation/vllm-ascend(mooncake).md#modelserver-configuration).
+
+Then you can use the following command to send a request:
+
+```bash
+export MODEL="vllm-workspace/QwQ-32B"
+
+curl http://$ROUTER_IP/v1/completions -H "Content-Type: application/json" -d "{
+        \"model\": \"$MODEL\",
+        \"prompt\": \"San Francisco is a\",
+        \"temperature\": 0
+}"
 ```

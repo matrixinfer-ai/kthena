@@ -89,19 +89,7 @@ spec:
             restartPolicy: Always
             terminationGracePeriodSeconds: 30
             dnsPolicy: ClusterFirst
-            hostNetwork: true
-            securityContext: {}
-            imagePullSecrets:
-              - name: default-secret # this is a secret for pulling image from private registry
-            affinity:
-              nodeAffinity:
-                requiredDuringSchedulingIgnoredDuringExecution:
-                  nodeSelectorTerms:
-                    - matchExpressions:
-                        - key: kubernetes.io/hostname
-                          operator: In
-                          values:
-                            - 192.168.1.250 # specify the node to run the pod. You should change it to your own node.
+            hostNetwork: false
       - name: decode
         replicas: 1  # role replicas, for example, 1P1D
         entryTemplate:
@@ -182,16 +170,5 @@ spec:
             restartPolicy: Always
             terminationGracePeriodSeconds: 30
             dnsPolicy: ClusterFirst
-            hostNetwork: true
-            securityContext: {}
-            imagePullSecrets:
-              - name: default-secret
-            affinity:
-              nodeAffinity:
-                requiredDuringSchedulingIgnoredDuringExecution:
-                  nodeSelectorTerms:
-                    - matchExpressions:
-                        - key: kubernetes.io/hostname
-                          operator: In
-                          values:
-                            - 192.168.1.223 # specify the node to run the pod. You should change it to your own node.
+            hostNetwork: false
+
