@@ -30,9 +30,9 @@ spec:
           config:
             served-model-name: "deepseek-ai/DeepSeekV2"
             tensor-parallel-size: 2
-            max-model-len: 2000
+            max-model-len: 8192
             gpu-memory-utilization: 0.8
-            max-num-batched-tokens: 2000
+            max-num-batched-tokens: 8192
             trust-remote-code: ""
             enforce-eager: ""
             kv-transfer-config: |
@@ -71,9 +71,9 @@ spec:
           config:
             served-model-name: "deepseek-ai/DeepSeekV2"
             tensor-parallel-size: 2
-            max-model-len: 2000
+            max-model-len: 8192
             gpu-memory-utilization: 0.8
-            max-num-batched-tokens: 2000
+            max-num-batched-tokens: 16384
             trust-remote-code: ""
             enforce-eager: ""
             kv-transfer-config: |
