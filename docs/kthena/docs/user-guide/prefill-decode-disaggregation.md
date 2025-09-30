@@ -23,6 +23,44 @@ disaggregated inference deployments, enabling flexible and efficient deployment 
 For a detailed definition of the `ModelServing`, please refer to
 the [ModelServing Reference](../reference/crd/workload.serving.volcano.sh.md) pages.
 
+## Architecture
+
+### Disaggregation Components
+
+The prefill-decode disaggregation architecture consists of several key components optimized for NPU deployments:
+
+#### Prefill Service
+
+- **Purpose:** Processes input tokens and generates initial key-value (KV) cache
+- **Resource Requirements:** High compute throughput, NPU acceleration (Huawei Ascend NPUs)
+- **Characteristics:** Batch-friendly, parallel processing optimized for NPU tensor operations
+- **Node Affinity:** NPU-enabled nodes with Huawei Ascend processors and high memory bandwidth
+- **NPU Optimization:** Leverages NPU's parallel processing capabilities for efficient token processing
+
+#### Decode Service
+
+- **Purpose:** Generates output tokens using KV cache from prefill phase
+- **Resource Requirements:** Low latency, memory-intensive, NPU-optimized sequential processing
+- **Characteristics:** Sequential processing, latency-sensitive, optimized for NPU memory architecture
+- **Node Affinity:** NPU-enabled nodes with large memory capacity and Ascend NPU resources
+- **NPU Optimization:** Utilizes NPU's memory hierarchy for efficient KV cache access and token generation
+
+#### Communication Layer
+
+- **Purpose:** Manages data transfer between prefill and decode services on NPU infrastructure
+- **Implementation:** High-speed inter-service communication via NPU-optimized shared storage or network (HCCL)
+- **NPU Optimization:** Leverages Huawei Collective Communication Library (HCCL) for efficient NPU-to-NPU communication
+- **Network Configuration:** Utilizes NPU-specific network interfaces and protocols for optimal data transfer
+- **Optimization:** Minimizes latency and maximizes throughput between NPU-enabled nodes
+
+### Data Flow
+
+1. **Input Processing:** Client requests are received by the prefill service
+2. **Prefill Phase:** Input tokens are processed in parallel, generating KV cache
+3. **Cache Transfer:** KV cache is transferred to decode service
+4. **Decode Phase:** Output tokens are generated sequentially
+5. **Response Delivery:** Generated text is returned to the client
+
 ## Preparation
 
 ### Prerequisites
@@ -48,6 +86,8 @@ features like KV cache transfer and specialized NPU hardware configurations opti
 
 **Important Note:** When using the ModelBooster approach, ModelServer and ModelRoute are automatically created and
 managed - users do not need to manually deploy these resources. The configuration is optimized for NPU resource allocation.
+
+For a detailed comparison of the ModelBooster approach's advantages, automatically managed components, and when to use it, see the [ModelBooster Approach](model-booster.md#modelbooster-approach) section in the ModelBooster documentation.
 
 Deploy the [ModelBooster configuration](../../../../examples/model-booster/prefill-decode-disaggregation.yaml) for prefill-decode disaggregated inference:
 
@@ -101,6 +141,8 @@ deepseek-v2-lite-deepseek-v2-lite-0-prefill-0-0   2/2     Running    0          
 
 For environments that require more granular control over the NPU deployment configuration, you can use the ModelServing
 approach with fine-tuned NPU resource specifications and Ascend-specific optimizations.
+
+For a detailed comparison of the ModelServing approach's advantages, manually created components, and when to use it, see the [ModelServing Approach](model-booster.md#modelserving-approach) section in the ModelBooster documentation.
 
 **Important Note:** When using the ModelServing approach, you need to manually create the following CRD resources:
 
@@ -177,110 +219,6 @@ NAME                             READY   STATUS    RESTARTS   AGE    IP         
 deepseek-v2-lite-0-decode-0-0    2/2     Running   0          105m   192.168.0.88    192.168.0.90   <none>           <none>
 deepseek-v2-lite-0-prefill-0-0   2/2     Running   0          105m   192.168.0.152   192.168.0.90   <none>           <none>
 ```
-
-## Architecture
-
-### Disaggregation Components
-
-The prefill-decode disaggregation architecture consists of several key components optimized for NPU deployments:
-
-#### Prefill Service
-
-- **Purpose:** Processes input tokens and generates initial key-value (KV) cache
-- **Resource Requirements:** High compute throughput, NPU acceleration (Huawei Ascend NPUs)
-- **Characteristics:** Batch-friendly, parallel processing optimized for NPU tensor operations
-- **Node Affinity:** NPU-enabled nodes with Huawei Ascend processors and high memory bandwidth
-- **NPU Optimization:** Leverages NPU's parallel processing capabilities for efficient token processing
-
-#### Decode Service
-
-- **Purpose:** Generates output tokens using KV cache from prefill phase
-- **Resource Requirements:** Low latency, memory-intensive, NPU-optimized sequential processing
-- **Characteristics:** Sequential processing, latency-sensitive, optimized for NPU memory architecture
-- **Node Affinity:** NPU-enabled nodes with large memory capacity and Ascend NPU resources
-- **NPU Optimization:** Utilizes NPU's memory hierarchy for efficient KV cache access and token generation
-
-#### Communication Layer
-
-- **Purpose:** Manages data transfer between prefill and decode services on NPU infrastructure
-- **Implementation:** High-speed inter-service communication via NPU-optimized shared storage or network (HCCL)
-- **NPU Optimization:** Leverages Huawei Collective Communication Library (HCCL) for efficient NPU-to-NPU communication
-- **Network Configuration:** Utilizes NPU-specific network interfaces and protocols for optimal data transfer
-- **Optimization:** Minimizes latency and maximizes throughput between NPU-enabled nodes
-
-### Data Flow
-
-1. **Input Processing:** Client requests are received by the prefill service
-2. **Prefill Phase:** Input tokens are processed in parallel, generating KV cache
-3. **Cache Transfer:** KV cache is transferred to decode service
-4. **Decode Phase:** Output tokens are generated sequentially
-5. **Response Delivery:** Generated text is returned to the client
-
-## Configuration
-
-Kthena provides two approaches for deploying prefill-decode disaggregated inference: the **ModelBooster approach** and
-the **ModelServing approach**. Both approaches are verified and production-ready for NPU deployments using Huawei Ascend hardware.
-
-### Deployment Approach Comparison
-
-| Deployment Method | Manually Created CRDs                 | Automatically Managed Components        | Use Case                                     |
-|-------------------|---------------------------------------|-----------------------------------------|----------------------------------------------|
-| **ModelBooster**  | ModelBooster                          | ModelServer, ModelRoute, Pod Management | Simplified deployment, automated management  |
-| **ModelServing**  | ModelServing, ModelServer, ModelRoute | Pod Management                          | Fine-grained control, complex configurations |
-
-
-### Configuration Summary
-
-#### ModelBooster Approach
-
-**Advantages:**
-
-- Simplified configuration with built-in disaggregation support optimized for NPUs
-- Automatic KV cache transfer configuration using NPU-optimized protocols
-- Integrated support for Huawei Ascend NPUs with automatic resource allocation
-- Streamlined deployment process with NPU-specific optimizations
-- Built-in HCCL (Huawei Collective Communication Library) configuration
-
-**Automatically Managed Components:**
-
-- ✅ ModelServer (automatically created and managed with NPU awareness)
-- ✅ ModelRoute (automatically created and managed)
-- ✅ Inter-service communication configuration (HCCL-optimized)
-- ✅ Load balancing and routing for NPU workloads
-- ✅ NPU resource scheduling and allocation
-
-**User Only Needs to Create:**
-
-- ModelBooster CRD with NPU resource specifications
-
-#### ModelServing Approach
-
-**Advantages:**
-
-- Fine-grained control over NPU container configuration
-- Support for init containers and complex volume mounts for NPU drivers
-- Detailed environment variable configuration for Ascend NPU settings
-- Flexible NPU resource allocation (`huawei.com/ascend-1980`)
-- Custom HCCL network interface configuration
-
-**Manually Created Components:**
-
-- ❌ ModelServing CRD with NPU resource specifications
-- ❌ ModelServer CRD with NPU-aware workload selection
-- ❌ ModelRoute CRD for NPU service routing
-- ❌ Manual inter-service communication configuration (HCCL settings)
-
-**NPU-Specific Networking Components:**
-
-- **ModelServer** - Manages inter-service communication and load balancing for NPU workloads
-- **ModelRoute** - Provides request routing and traffic distribution to NPU services
-- **Supported KV Connector Types** - nixl, mooncake (optimized for NPU communication)
-- **HCCL Integration** - Huawei Collective Communication Library for NPU-to-NPU communication
-
-#### Selection Guidance
-
-- **Recommended: Use ModelBooster Approach** - Suitable for most NPU deployment scenarios, simple deployment, high automation with NPU optimization
-- **Use ModelServing Approach** - Only when fine-grained NPU control or special Ascend-specific configurations are required
 
 ## Test
 
