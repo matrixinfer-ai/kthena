@@ -15,7 +15,7 @@ spec:
       maxReplicas: 1
       workers:
         - type: prefill
-          image: kthena/kthena-engine:vllm-ascend_v0.10.1rc1_mooncake_v0.3.5
+          image: ghcr.io/kthena/kthena-engine:vllm-ascend_v0.10.1rc1_mooncake_v0.3.5
           replicas: 1
           pods: 1
           resources:
@@ -56,7 +56,7 @@ spec:
                 }
               }
         - type: decode
-          image: kthena/kthena-engine:vllm-ascend_v0.10.1rc1_mooncake_v0.3.5
+          image: ghcr.io/kthena/kthena-engine:vllm-ascend_v0.10.1rc1_mooncake_v0.3.5
           replicas: 1
           pods: 1
           resources:
