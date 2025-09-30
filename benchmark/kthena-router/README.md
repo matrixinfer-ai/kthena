@@ -1,4 +1,4 @@
-# Benchmark for inference router
+# Benchmark for kthena-router
 
 
 This tool is based on [`sglang/bench_serving.py`](https://github.com/sgl-project/sglang/blob/main/python/sglang/bench_serving.py). We have packaged it as a Docker image and made it runnable as a Kubernetes Job for easy benchmarking in a cluster environment.
