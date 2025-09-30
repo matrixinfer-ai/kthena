@@ -26,8 +26,8 @@ const sidebars: SidebarsConfig = {
       label: 'Architecture',
       items: [
         'architecture/architecture',
-        'architecture/model-serving-controller',
         'architecture/model-booster-controller',
+        'architecture/model-serving-controller',
         'architecture/kthena-router',
         'architecture/autoscaler',
       ],
