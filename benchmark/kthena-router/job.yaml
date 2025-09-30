@@ -11,7 +11,7 @@ spec:
         imagePullPolicy: IfNotPresent
         args:
         - --host
-        - "kthena-infer-router.kthena-system"
+        - "kthena-router.kthena-system"
         - --backend
         - "vllm"
         - --port

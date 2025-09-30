@@ -48,11 +48,11 @@ the related resources will be deleted as well.
 
 ## Examples of ModelBooster CR
 
-You can find examples of model CR [here](https://github.com/matrixinfer-ai/matrixinfer/tree/main/examples/model-booster)
+You can find examples of model CR [here](/examples/model-booster)
 
 ## Advanced features
 
 ### Gang Scheduling
 
-`GangSchedule` is disabled by default, if you want to enable it,
+`GangPolicy` is disabled by default, if you want to enable it,
 see [here](multi-node-inference.md#gang-scheduling-and-network-topology)
