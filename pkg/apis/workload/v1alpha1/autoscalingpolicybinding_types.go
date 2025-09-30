@@ -27,9 +27,9 @@ type AutoscalingPolicyBindingSpec struct {
 	// PolicyRef references the autoscaling policy to be optimized scaling base on multiple targets.
 	PolicyRef corev1.LocalObjectReference `json:"policyRef"`
 
-	// It dynamically schedules replicas across different Model Serving instances based on overall computing power requirements - referred to as "optimize" behavior in the code.
+	// It dynamically adjusts replicas across different ModelServing objects based on overall computing power requirements - referred to as "optimize" behavior in the code.
 	// For example:
-	// When dealing with two types of Model Serving instances corresponding to heterogeneous hardware resources with different computing capabilities (e.g., H100/A100), the "optimize" behavior aims to:
+	// When dealing with two types of ModelServing objects corresponding to heterogeneous hardware resources with different computing capabilities (e.g., H100/A100), the "optimize" behavior aims to:
 	// Dynamically adjust the deployment ratio of H100/A100 instances based on real-time computing power demands
 	// Use integer programming and similar methods to precisely meet computing requirements
 	// Maximize hardware utilization efficiency
