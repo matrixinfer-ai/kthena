@@ -43,12 +43,22 @@ const sidebars: SidebarsConfig = {
       items: [
         'user-guide/model-booster',
         'user-guide/router-routing',
-        'user-guide/prefill-decode-disaggregation',
         'user-guide/multi-node-inference',
         'user-guide/config-router',
         'user-guide/autoscaler',
         'user-guide/rate-limit',
         'user-guide/runtime',
+        {
+          type: 'category',
+          label: 'Prefill Decode Disaggregation',
+          link: {
+            type: 'doc',
+            id: 'user-guide/prefill-decode-disaggregation/prefill-decode-disaggregation'
+          },
+          items: [
+            'user-guide/prefill-decode-disaggregation/vllm-ascend-mooncake',
+          ],
+        },
       ],
     },
     {

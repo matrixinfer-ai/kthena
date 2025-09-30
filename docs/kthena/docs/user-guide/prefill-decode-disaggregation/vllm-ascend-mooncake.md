@@ -5,23 +5,7 @@ examples and configurations using Huawei Ascend Neural Processing Units.
 
 ## Overview
 
-With the rapid evolution of Large Language Models (LLMs), the computational demands for inference have grown
-significantly. Traditional inference approaches process both prefill and decode phases on the same hardware resources,
-which can lead to inefficient resource utilization and suboptimal performance, particularly on specialized hardware like NPUs.
 
-Prefill-decode disaggregation is an innovative optimization strategy that separates the prefill phase (processing input
-tokens) from the decode phase (generating output tokens) across different computational resources. This approach allows
-for specialized NPU hardware allocation and improved resource efficiency, maximizing the utilization of Neural Processing Units.
-
-The prefill phase is compute-intensive and benefits from high-throughput parallel processing on NPU accelerators, while the decode phase is
-memory-intensive and requires low-latency sequential processing optimized for NPU memory architectures. By disaggregating these phases, Kthena enables optimal
-NPU resource allocation for each phase's specific requirements.
-
-To address this optimization need, Kthena provides enhanced `ModelServing` CR capabilities to describe prefill-decode
-disaggregated inference deployments, enabling flexible and efficient deployment patterns for LLM inference workloads on NPU-enabled clusters.
-
-For a detailed definition of the `ModelServing`, please refer to
-the [ModelServing Reference](../reference/crd/workload.serving.volcano.sh.md) pages.
 
 ## Architecture
 
