@@ -1,4 +1,4 @@
-# Prefill-Decode Disaggregation
+# Prefill-Decode Disaggregation Deployment on NPU
 
 This page describes the prefill-decode disaggregation capabilities in Kthena, based on verified NPU deployment
 examples and configurations using Huawei Ascend Neural Processing Units.
@@ -65,7 +65,7 @@ The prefill-decode disaggregation architecture consists of several key component
 
 ### Prerequisites
 
-- Kubernetes cluster with Kthena installed and [volcano](https://volcano.sh/en/docs/installation/) installed
+- Kubernetes cluster with Kthena installed
 - **NPU Hardware**: Huawei Ascend NPU-enabled nodes (Ascend 910 or compatible NPUs)
 - **NPU Drivers**: Proper Ascend NPU drivers and runtime installed on cluster nodes
 - **NPU Device Plugin**: Kubernetes device plugin for Huawei Ascend NPUs configured
@@ -168,7 +168,7 @@ This configuration includes:
 ##### 2. ModelServer Configuration
 
 Create the ModelServer resource to manage the networking layer for disaggregated inference, providing load balancing and
-traffic management between prefill and decode services using the [ModelServer configuration](../../../../examples/infer-router/ModelServer-prefill-decode-disaggregation.yaml):
+traffic management between prefill and decode services using the [ModelServer configuration](../../../../examples/kthena-router/ModelServer-prefill-decode-disaggregation.yaml):
 
 ```sh
 kubectl apply -f examples/infer-router/ModelServer-prefill-decode-disaggregation.yaml
@@ -182,7 +182,7 @@ This configuration includes:
 
 ##### 3. ModelRoute Configuration
 
-Create the ModelRoute resource to provide routing functionality, directing requests to the appropriate model server using the [ModelRoute configuration](../../../../examples/infer-router/ModelRoute-prefill-decode-disaggregation.yaml):
+Create the ModelRoute resource to provide routing functionality, directing requests to the appropriate model server using the [ModelRoute configuration](../../../../examples/kthena-router/ModelRoute-prefill-decode-disaggregation.yaml):
 
 ```sh
 kubectl apply -f examples/infer-router/ModelRoute-prefill-decode-disaggregation.yaml
