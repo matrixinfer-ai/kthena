@@ -27,15 +27,10 @@ const sidebars: SidebarsConfig = {
       items: [
         'architecture/architecture',
         'architecture/model-serving-controller',
+        'architecture/model-booster-controller',
         'architecture/kthena-router',
         'architecture/autoscaler',
-        'architecture/model-booster-controller',
       ],
-    },
-    {
-      type: 'category',
-      label: 'General',
-      items: ['general/prometheus', 'general/cert-manager', 'general/faq'],
     },
     {
       type: 'category',
@@ -50,6 +45,11 @@ const sidebars: SidebarsConfig = {
         'user-guide/rate-limit',
         'user-guide/runtime',
       ],
+    },
+    {
+      type: 'category',
+      label: 'General',
+      items: ['general/prometheus', 'general/cert-manager', 'general/faq'],
     },
     {
       type: 'category',
