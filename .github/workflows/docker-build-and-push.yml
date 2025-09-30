@@ -1,0 +1,108 @@
+name: Build and Push Docker Images
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "docker/**"
+      - "python/**"
+  push:
+    branches:
+      - main
+    tags:
+      - "v*.*.*"
+    paths:
+      - '**.go'
+      - "pkg/**"
+      - "cmd/**"
+      - "go.mod"
+      - "go.sum"
+      - 'python/**'
+
+jobs:
+  build-go:
+    if: github.repository == 'volcano-sh/kthena' && (github.event_name != 'pull_request' || contains(github.event.pull_request.changed_files, 'docker/') || contains(github.event.pull_request.changed_files, '**.go') || contains(github.event.pull_request.changed_files, 'pkg/') || contains(github.event.pull_request.changed_files, 'cmd/') || contains(github.event.pull_request.changed_files, 'go.mod') || contains(github.event.pull_request.changed_files, 'go.sum'))
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - kthena-router
+          - kthena-controller-manager
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Extract Docker image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.service }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Log in to Github Container Registry
+        uses: docker/login-action@v3
+        if: github.event_name != 'pull_request'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./docker/Dockerfile.${{ matrix.service }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          provenance: true
+          sbom: true
+
+  build-python:
+    if: github.repository == 'volcano-sh/kthena' && (github.event_name != 'pull_request' || contains(github.event.pull_request.changed_files, 'docker/Dockerfile.downloader') || contains(github.event.pull_request.changed_files, 'docker/Dockerfile.runtime') || contains(github.event.pull_request.changed_files, 'python/'))
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [ downloader, runtime ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Extract Docker image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{matrix.service}}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Log in to Github Container Registry
+        uses: docker/login-action@v3
+        if: github.event_name != 'pull_request'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./docker/Dockerfile.${{ matrix.service }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          provenance: true
+          sbom: true

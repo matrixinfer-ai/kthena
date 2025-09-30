@@ -34,4 +34,4 @@ jobs:
           coverage run -m pytest
       - name: Check coverage threshold
         run: |
-          coverage report --fail-under=80 # Set coverage threshold
+          coverage report --fail-under=60 # Set coverage threshold

@@ -14,15 +14,6 @@ A universal LLM downloader tool that supports retrieving model files from multip
 - Flexible configuration options (environment variables or JSON)
 - Detailed logging
 
-## Installation
-
-Build the Docker image:
-
-```bash
-cd python
-docker build -t kthena-downloader:latest -f Dockerfile --target downloader .
-```
-
 ## Usage
 
 ### Docker Command Options
