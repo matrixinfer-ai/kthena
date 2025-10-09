@@ -36,8 +36,8 @@ You can describe templates and other kthena resources.
 
 Examples:
   kthena describe template deepseek-r1-distill-llama-8b
-  kthena describe model my-model
-  kthena describe modelinfer my-inference
+  kthena describe model-booster my-model
+  kthena describe model-serving my-serving
   kthena describe autoscaling-policy my-policy`,
 }
 
@@ -53,27 +53,27 @@ and the full template content.`,
 	RunE: runDescribeTemplate,
 }
 
-// describeModelCmd represents the describe model command
-var describeModelCmd = &cobra.Command{
-	Use:   "model [NAME]",
-	Short: "Show detailed information about a model",
-	Long: `Show detailed information about a specific Model resource in the cluster.
+// describeModelBoosterCmd represents the describe model-booster command
+var describeModelBoosterCmd = &cobra.Command{
+	Use:   "model-booster [NAME]",
+	Short: "Show detailed information about a model booster",
+	Long: `Show detailed information about a specific ModelBooster resource in the cluster.
 
-This will display the model configuration, status, and resource details.`,
+This will display the model booster configuration, status, and resource details.`,
 	Args: cobra.ExactArgs(1),
-	RunE: runDescribeModel,
+	RunE: runDescribeModelBooster,
 }
 
-// describeModelInferCmd represents the describe modelinfer command
-var describeModelInferCmd = &cobra.Command{
-	Use:     "modelinfer [NAME]",
-	Aliases: []string{"mi"},
-	Short:   "Show detailed information about a model inference workload",
-	Long: `Show detailed information about a specific ModelInfer resource in the cluster.
+// describeModelServingCmd represents the describe model-serving command
+var describeModelServingCmd = &cobra.Command{
+	Use:     "model-serving [NAME]",
+	Aliases: []string{"ms"},
+	Short:   "Show detailed information about a model serving workload",
+	Long: `Show detailed information about a specific ModelServing resource in the cluster.
 
-This will display the modelinfer configuration, status, and resource details.`,
+This will display the model serving configuration, status, and resource details.`,
 	Args: cobra.ExactArgs(1),
-	RunE: runDescribeModelInfer,
+	RunE: runDescribeModelServing,
 }
 
 // describeAutoscalingPolicyCmd represents the describe autoscaling-policy command
@@ -91,8 +91,8 @@ This will display the autoscaling policy configuration and rules.`,
 func init() {
 	rootCmd.AddCommand(describeCmd)
 	describeCmd.AddCommand(describeTemplateCmd)
-	describeCmd.AddCommand(describeModelCmd)
-	describeCmd.AddCommand(describeModelInferCmd)
+	describeCmd.AddCommand(describeModelBoosterCmd)
+	describeCmd.AddCommand(describeModelServingCmd)
 	describeCmd.AddCommand(describeAutoscalingPolicyCmd)
 
 	// Add namespace flags
@@ -120,7 +120,7 @@ func runDescribeTemplate(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func runDescribeModel(cmd *cobra.Command, args []string) error {
+func runDescribeModelBooster(cmd *cobra.Command, args []string) error {
 	modelName := args[0]
 
 	client, err := getKthenaClient()
@@ -158,8 +158,8 @@ func runDescribeModel(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func runDescribeModelInfer(cmd *cobra.Command, args []string) error {
-	modelInferName := args[0]
+func runDescribeModelServing(cmd *cobra.Command, args []string) error {
+	modelServingName := args[0]
 
 	client, err := getKthenaClient()
 	if err != nil {
@@ -172,12 +172,12 @@ func runDescribeModelInfer(cmd *cobra.Command, args []string) error {
 	}
 	ctx := context.Background()
 
-	modelServing, err := client.WorkloadV1alpha1().ModelServings(namespace).Get(ctx, modelInferName, metav1.GetOptions{})
+	modelServing, err := client.WorkloadV1alpha1().ModelServings(namespace).Get(ctx, modelServingName, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to get ModelInfer '%s': %v", modelInferName, err)
+		return fmt.Errorf("failed to get ModelServing '%s': %v", modelServingName, err)
 	}
 
-	fmt.Printf("ModelInfer: %s\n", modelServing.Name)
+	fmt.Printf("ModelServing: %s\n", modelServing.Name)
 	fmt.Println("================")
 	fmt.Printf("Namespace: %s\n", modelServing.Namespace)
 	fmt.Printf("Created: %s\n", modelServing.CreationTimestamp.Time.Format(time.RFC3339))
@@ -186,7 +186,7 @@ func runDescribeModelInfer(cmd *cobra.Command, args []string) error {
 	// Output the full resource as YAML
 	data, err := yaml.Marshal(modelServing)
 	if err != nil {
-		return fmt.Errorf("failed to marshal ModelInfer to YAML: %v", err)
+		return fmt.Errorf("failed to marshal ModelServing to YAML: %v", err)
 	}
 
 	fmt.Println("Resource Details:")

@@ -43,15 +43,15 @@ var getCmd = &cobra.Command{
 	Short: "Display one or many resources",
 	Long: `Display one or many resources.
 
-You can get templates, models, modelinfers, and autoscaling policies.
+You can get templates, models, model-servings, and autoscaling policies.
 
 Examples:
   kthena get templates
   kthena get template deepseek-r1-distill-llama-8b
   kthena get template deepseek-r1-distill-llama-8b -o yaml
-  kthena get models
-  kthena get models --all-namespaces
-  kthena get modelinfers -n production`,
+  kthena get model-boosters
+  kthena get model-boosters --all-namespaces
+  kthena get model-servings -n production`,
 }
 
 // getTemplatesCmd represents the get templates command
@@ -76,7 +76,7 @@ Use -o yaml flag to output the template content in YAML format.`,
 	RunE: runGetTemplate,
 }
 
-// getModelsCmd represents the get models command
+// getModelBoostersCmd represents the get model-boosters command
 var getModelsCmd = &cobra.Command{
 	Use:     "models [NAME]",
 	Aliases: []string{"model"},
@@ -88,13 +88,13 @@ If NAME is provided, only models containing the specified name will be displayed
 	RunE: runGetModels,
 }
 
-// getModelInfersCmd represents the get modelinfers command
-var getModelInfersCmd = &cobra.Command{
-	Use:     "modelinfers",
-	Aliases: []string{"mi", "modelinfer"},
-	Short:   "List model inference workloads",
-	Long:    `List ModelInfer resources in the cluster.`,
-	RunE:    runGetModelInfers,
+// getModelServingsCmd represents the get model-servings command
+var getModelServingsCmd = &cobra.Command{
+	Use:     "model-servings",
+	Aliases: []string{"ms", "model-serving"},
+	Short:   "List model serving workloads",
+	Long:    `List ModelServing resources in the cluster.`,
+	RunE:    runGetModelServings,
 }
 
 // getAutoscalingPoliciesCmd represents the get autoscaling-policies command
@@ -120,7 +120,7 @@ func init() {
 	getCmd.AddCommand(getTemplatesCmd)
 	getCmd.AddCommand(getTemplateCmd)
 	getCmd.AddCommand(getModelsCmd)
-	getCmd.AddCommand(getModelInfersCmd)
+	getCmd.AddCommand(getModelServingsCmd)
 	getCmd.AddCommand(getAutoscalingPoliciesCmd)
 	getCmd.AddCommand(getAutoscalingPolicyBindingsCmd)
 
@@ -305,7 +305,7 @@ func runGetModels(cmd *cobra.Command, args []string) error {
 	return w.Flush()
 }
 
-func runGetModelInfers(cmd *cobra.Command, args []string) error {
+func runGetModelServings(cmd *cobra.Command, args []string) error {
 	client, err := getKthenaClient()
 	if err != nil {
 		return err
@@ -316,14 +316,14 @@ func runGetModelInfers(cmd *cobra.Command, args []string) error {
 
 	modelServingList, err := client.WorkloadV1alpha1().ModelServings(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to list ModelInfers: %v", err)
+		return fmt.Errorf("failed to list ModelServings: %v", err)
 	}
 
 	if len(modelServingList.Items) == 0 {
 		if getAllNamespaces {
-			fmt.Println("No ModelInfers found across all namespaces.")
+			fmt.Println("No ModelServings found across all namespaces.")
 		} else {
-			fmt.Printf("No ModelInfers found in namespace %s.\n", namespace)
+			fmt.Printf("No ModelServings found in namespace %s.\n", namespace)
 		}
 		return nil
 	}

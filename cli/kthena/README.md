@@ -116,15 +116,15 @@ kthena describe template deepseek-r1-distill-llama-8b
 
 List models:
 ```bash
-kthena get models
-kthena get models --all-namespaces
-kthena get models -n production
+kthena get model-boosters
+kthena get model-boosters --all-namespaces
+kthena get model-boosters -n production
 ```
 
-List model inference workloads:
+List model serving workloads:
 ```bash
-kthena get modelServingList
-kthena get modelServingList --all-namespaces
+kthena get model-servings
+kthena get model-servings --all-namespaces
 ```
 
 List autoscaling policies:

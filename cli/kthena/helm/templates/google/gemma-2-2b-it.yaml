@@ -1,6 +1,6 @@
 # Description: Template for Gemma 2 2B IT model deployment with vLLM backend
-apiVersion: registry.matrixinfer.ai/v1alpha1
-kind: Model
+apiVersion: workload.serving.volcano.sh/v1alpha1
+kind: ModelBooster
 metadata:
   annotations:
     api.kubernetes.io/name: {{ .Values.annotationName | default "example" | quote }}
