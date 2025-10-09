@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/volcano-sh/kthena/cli/kthena/cmd"
 
@@ -37,6 +38,11 @@ func main() {
 	// Target: docs/kthena/docs/reference/cli
 	outputDir := "docs/kthena/docs/reference/cli"
 
+	// Clear existing documentation files to avoid outdated docs
+	if err := clearDirectory(outputDir); err != nil {
+		log.Fatalf("Error clearing output directory: %v", err)
+	}
+
 	if err := os.MkdirAll(outputDir, 0o755); err != nil {
 		log.Fatalf("Error creating doc output directory: %v", err)
 	}
@@ -46,4 +52,32 @@ func main() {
 		log.Fatalf("Error generating Markdown documentation: %v", err)
 	}
 	fmt.Printf("Markdown documentation generated in %s\n", outputDir)
+}
+
+// clearDirectory removes all .md files in the specified directory
+func clearDirectory(dir string) error {
+	// Check if directory exists
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		// Directory doesn't exist, nothing to clear
+		return nil
+	}
+
+	// Read all files in the directory
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		return fmt.Errorf("error reading directory %s: %w", dir, err)
+	}
+
+	// Remove all .md files
+	for _, file := range files {
+		if !file.IsDir() && filepath.Ext(file.Name()) == ".md" {
+			filePath := filepath.Join(dir, file.Name())
+			if err := os.Remove(filePath); err != nil {
+				return fmt.Errorf("error removing file %s: %w", filePath, err)
+			}
+			fmt.Printf("Removed outdated doc: %s\n", filePath)
+		}
+	}
+
+	return nil
 }

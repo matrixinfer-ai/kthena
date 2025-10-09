@@ -51,6 +51,7 @@ gen-crd: controller-gen
 
 .PHONY: gen-docs
 gen-docs: crd-ref-docs ## Generate CRD and CLI reference documentation
+    # Generate CRD ref docs
 	mkdir -p docs/kthena/docs/api
 	$(CRD_REF_DOCS) \
 		--source-path=./pkg/apis \
