@@ -80,7 +80,7 @@ The `kthena` CLI follows kubectl-style verb-noun grammar and provides an easy wa
 
 ```bash
 # From the project root directory
-go build -o bin/kthena cli/minfer/main.go
+go build -o bin/kthena cli/kthena/main.go
 ```
 
 ### Add to PATH (Optional)

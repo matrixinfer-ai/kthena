@@ -21,7 +21,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/volcano-sh/kthena/cli/minfer/cmd"
+	"github.com/volcano-sh/kthena/cli/kthena/cmd"
 
 	"github.com/spf13/cobra/doc"
 )

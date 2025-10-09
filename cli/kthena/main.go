@@ -22,7 +22,7 @@ package main
 import (
 	"embed"
 
-	"github.com/volcano-sh/kthena/cli/minfer/cmd"
+	"github.com/volcano-sh/kthena/cli/kthena/cmd"
 )
 
 //go:embed helm/templates/**/*.yaml

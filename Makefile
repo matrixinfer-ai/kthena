@@ -61,7 +61,7 @@ gen-docs: crd-ref-docs ## Generate CRD and CLI reference documentation
 		--renderer=markdown \
 		--output-mode=group
 	# Generate Kthena CLI docs using a standalone doc-gen program
-	go run ./cli/minfer/internal/tools/docgen/main.go
+	go run ./cli/kthena/internal/tools/docgen/main.go
 
 .PHONY: generate
 generate: controller-gen gen-crd gen-docs gen-copyright ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
@@ -116,7 +116,7 @@ lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 build: generate fmt vet
 	go build -o bin/kthena-router cmd/kthena-router/main.go
 	go build -o bin/kthena-controller-manager cmd/kthena-controller-manager/main.go
-	go build -o bin/kthena cli/minfer/main.go
+	go build -o bin/kthena cli/kthena/main.go
 
 IMG_CONTROLLER ?= ${HUB}/kthena-controller-manager:${TAG}
 IMG_ROUTER ?= ${HUB}/kthena-router:${TAG}
