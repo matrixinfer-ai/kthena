@@ -44,7 +44,12 @@ Gang scheduling ensures atomic scheduling of distributed inference groups like x
 
 ## Architecture
 
-Kthena implements a Kubernetes-native architecture with separate control plane and data plane components, each can be deployed and used alone. The platform manages LLM inference workloads through CRD and provides intelligent request routing through a dedicated router.
+Kthena implements a Kubernetes-native architecture with separate control plane and data plane components, each can be deployed and used alone. The platform manages LLM inference workloads through CRD and provides intelligent request routing through a dedicated router. It contains the following key components:
+
+- **Kthena-controller-manager**: 
+  The control plane component governing the LLM inference lifecycle. It continuously reconciles Kthena CRDs to deploy, scale, and upgrade inference replicas across the cluster while exposing advanced scheduling policies that integrate directly with the [Volcano scheduler](https://github.com/volcano-sh/volcano/).   
+- **Kthena-router**:
+  The data plane entry point for inference traffic. It classifies each request by model name, custom headers, or URI patterns, then applies load-balancing policies and traffic controls to dispatch request to the right inference instance. Native support for prefill–decode disaggregation routing while keeps high throughput and low latency.
 
 For more details, please refer to [Kthena Architecture](docs/kthena/docs/architecture/architecture.mdx)
 
