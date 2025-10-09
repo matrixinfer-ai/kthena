@@ -1,4 +1,4 @@
-name: kthena CI Workflow
+name: Go Check
 
 on:
   pull_request:
