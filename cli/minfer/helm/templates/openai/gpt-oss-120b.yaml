@@ -13,7 +13,7 @@ spec:
   owner: {{ .Values.owner | default "example" | quote }}
   autoscalingPolicy:
     metrics:
-      - metricName: {{ .Values.metricName | default "matrixinfer:num_requests_waiting" | quote }}
+      - metricName: {{ .Values.metricName | default "kthena:num_requests_waiting" | quote }}
         targetValue: {{ .Values.targetValue | default 10 }}
   backends:
     - name: {{ .Values.backendName | default "gpt-oss-120b-vllm" | quote }}
