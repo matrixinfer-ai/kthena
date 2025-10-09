@@ -1,16 +1,16 @@
-## minfer get templates
+## kthena get templates
 
 List available manifest templates
 
 ### Synopsis
 
-List all available manifest templates that can be used with minfer commands.
+List all available manifest templates that can be used with kthena commands.
 
 Templates are predefined combinations of kthena resources that can be
 customized with your specific values.
 
 ```
-minfer get templates [flags]
+kthena get templates [flags]
 ```
 
 ### Options
@@ -29,5 +29,5 @@ minfer get templates [flags]
 
 ### SEE ALSO
 
-* [minfer get](minfer_get.md)	 - Display one or many resources
+* [kthena get](kthena_get.md)	 - Display one or many resources
 

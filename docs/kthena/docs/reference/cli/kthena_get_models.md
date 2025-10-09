@@ -1,4 +1,4 @@
-## minfer get models
+## kthena get models
 
 List registered models
 
@@ -9,7 +9,7 @@ List Model resources in the cluster.
 If NAME is provided, only models containing the specified name will be displayed.
 
 ```
-minfer get models [NAME] [flags]
+kthena get models [NAME] [flags]
 ```
 
 ### Options
@@ -28,5 +28,5 @@ minfer get models [NAME] [flags]
 
 ### SEE ALSO
 
-* [minfer get](minfer_get.md)	 - Display one or many resources
+* [kthena get](kthena_get.md)	 - Display one or many resources
 

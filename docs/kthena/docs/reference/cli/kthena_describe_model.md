@@ -1,4 +1,4 @@
-## minfer describe model
+## kthena describe model
 
 Show detailed information about a model
 
@@ -9,7 +9,7 @@ Show detailed information about a specific Model resource in the cluster.
 This will display the model configuration, status, and resource details.
 
 ```
-minfer describe model [NAME] [flags]
+kthena describe model [NAME] [flags]
 ```
 
 ### Options
@@ -26,5 +26,5 @@ minfer describe model [NAME] [flags]
 
 ### SEE ALSO
 
-* [minfer describe](minfer_describe.md)	 - Show detailed information about a specific resource
+* [kthena describe](kthena_describe.md)	 - Show detailed information about a specific resource
 

@@ -1,4 +1,4 @@
-## minfer describe modelinfer
+## kthena describe modelinfer
 
 Show detailed information about a model inference workload
 
@@ -9,7 +9,7 @@ Show detailed information about a specific ModelInfer resource in the cluster.
 This will display the modelinfer configuration, status, and resource details.
 
 ```
-minfer describe modelinfer [NAME] [flags]
+kthena describe modelinfer [NAME] [flags]
 ```
 
 ### Options
@@ -26,5 +26,5 @@ minfer describe modelinfer [NAME] [flags]
 
 ### SEE ALSO
 
-* [minfer describe](minfer_describe.md)	 - Show detailed information about a specific resource
+* [kthena describe](kthena_describe.md)	 - Show detailed information about a specific resource
 

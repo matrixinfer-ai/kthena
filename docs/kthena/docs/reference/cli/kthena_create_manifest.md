@@ -1,4 +1,4 @@
-## minfer create manifest
+## kthena create manifest
 
 Create resources from a manifest template
 
@@ -14,12 +14,12 @@ customized with your specific values. This command will:
 4. Apply the resources to Kubernetes (unless --dry-run is specified)
 
 Examples:
-  minfer create manifest --template basic-inference --name my-model --image my-registry/model:v1.0
-  minfer create manifest --template basic-inference --values-file values.yaml
-  minfer create manifest --template basic-inference --name my-model --dry-run
+  kthena create manifest --template basic-inference --name my-model --image my-registry/model:v1.0
+  kthena create manifest --template basic-inference --values-file values.yaml
+  kthena create manifest --template basic-inference --name my-model --dry-run
 
 ```
-minfer create manifest [flags]
+kthena create manifest [flags]
 ```
 
 ### Options
@@ -36,5 +36,5 @@ minfer create manifest [flags]
 
 ### SEE ALSO
 
-* [minfer create](minfer_create.md)	 - Create kthena resources
+* [kthena create](kthena_create.md)	 - Create kthena resources
 
