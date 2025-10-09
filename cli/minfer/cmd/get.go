@@ -46,19 +46,19 @@ var getCmd = &cobra.Command{
 You can get templates, models, modelinfers, and autoscaling policies.
 
 Examples:
-  minfer get templates
-  minfer get template deepseek-r1-distill-llama-8b
-  minfer get template deepseek-r1-distill-llama-8b -o yaml
-  minfer get models
-  minfer get models --all-namespaces
-  minfer get modelinfers -n production`,
+  kthena get templates
+  kthena get template deepseek-r1-distill-llama-8b
+  kthena get template deepseek-r1-distill-llama-8b -o yaml
+  kthena get models
+  kthena get models --all-namespaces
+  kthena get modelinfers -n production`,
 }
 
 // getTemplatesCmd represents the get templates command
 var getTemplatesCmd = &cobra.Command{
 	Use:   "templates",
 	Short: "List available manifest templates",
-	Long: `List all available manifest templates that can be used with minfer commands.
+	Long: `List all available manifest templates that can be used with kthena commands.
 
 Templates are predefined combinations of kthena resources that can be
 customized with your specific values.`,

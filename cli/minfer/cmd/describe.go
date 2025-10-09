@@ -35,10 +35,10 @@ var describeCmd = &cobra.Command{
 You can describe templates and other kthena resources.
 
 Examples:
-  minfer describe template deepseek-r1-distill-llama-8b
-  minfer describe model my-model
-  minfer describe modelinfer my-inference
-  minfer describe autoscaling-policy my-policy`,
+  kthena describe template deepseek-r1-distill-llama-8b
+  kthena describe model my-model
+  kthena describe modelinfer my-inference
+  kthena describe autoscaling-policy my-policy`,
 }
 
 // describeTemplateCmd represents the describe template command

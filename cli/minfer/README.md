@@ -1,6 +1,6 @@
-# minfer - kthena CLI
+# kthena - kthena CLI
 
-`minfer` is a command-line interface tool for managing kthena AI inference workloads in Kubernetes clusters.
+`kthena` is a command-line interface tool for managing kthena AI inference workloads in Kubernetes clusters.
 
 ## Architecture Diagrams
 
@@ -10,7 +10,7 @@
 
 actor "User" as user
 
-package "minfer CLI" {
+package "kthena CLI" {
   
   package "Verb Layer" as verbLayer{
     usecase "Get" as GetVerb
@@ -70,7 +70,7 @@ ResourceLayer -[hidden]-> FlagLayer
 
 ## Overview
 
-The `minfer` CLI follows kubectl-style verb-noun grammar and provides an easy way to:
+The `kthena` CLI follows kubectl-style verb-noun grammar and provides an easy way to:
 - Get and view templates and Kthena resources in your cluster
 - Describe detailed information about specific templates and resources
 - Create Kthena resources from predefined manifest templates
@@ -80,7 +80,7 @@ The `minfer` CLI follows kubectl-style verb-noun grammar and provides an easy wa
 
 ```bash
 # From the project root directory
-go build -o bin/minfer cli/minfer/main.go
+go build -o bin/kthena cli/minfer/main.go
 ```
 
 ### Add to PATH (Optional)
@@ -92,62 +92,62 @@ export PATH=$PATH:$(pwd)/bin
 
 ## Usage
 
-The `minfer` CLI follows kubectl-style verb-noun grammar for consistency and ease of use.
+The `kthena` CLI follows kubectl-style verb-noun grammar for consistency and ease of use.
 
 ### Template Operations
 
 List all available templates:
 ```bash
-minfer get templates
+kthena get templates
 ```
 
 Get a specific template content:
 ```bash
-minfer get template deepseek-r1-distill-llama-8b
-minfer get template deepseek-r1-distill-llama-8b -o yaml
+kthena get template deepseek-r1-distill-llama-8b
+kthena get template deepseek-r1-distill-llama-8b -o yaml
 ```
 
 Describe a template with detailed information:
 ```bash
-minfer describe template deepseek-r1-distill-llama-8b
+kthena describe template deepseek-r1-distill-llama-8b
 ```
 
 ### Resource Operations
 
 List models:
 ```bash
-minfer get models
-minfer get models --all-namespaces
-minfer get models -n production
+kthena get models
+kthena get models --all-namespaces
+kthena get models -n production
 ```
 
 List model inference workloads:
 ```bash
-minfer get modelServingList
-minfer get modelServingList --all-namespaces
+kthena get modelServingList
+kthena get modelServingList --all-namespaces
 ```
 
 List autoscaling policies:
 ```bash
-minfer get autoscaling-policies
-minfer get autoscaling-policies -n production
+kthena get autoscaling-policies
+kthena get autoscaling-policies -n production
 ```
 
 ### Creating Resources
 
 Create resources from templates:
 ```bash
-minfer create manifest --template deepseek-r1-distill-llama-8b --name my-model
-minfer create manifest --template deepseek-r1-distill-llama-8b --values-file values.yaml
-minfer create manifest --template deepseek-r1-distill-llama-8b --name my-model --dry-run
+kthena create manifest --template deepseek-r1-distill-llama-8b --name my-model
+kthena create manifest --template deepseek-r1-distill-llama-8b --values-file values.yaml
+kthena create manifest --template deepseek-r1-distill-llama-8b --name my-model --dry-run
 ```
 
 For more detailed usage information, run:
 ```bash
-minfer --help
-minfer get --help
-minfer describe --help
-minfer create --help
+kthena --help
+kthena get --help
+kthena describe --help
+kthena create --help
 ```
 
 ## Configuration
@@ -164,7 +164,7 @@ To add new manifest templates:
 1. Create a new `.yaml` file in the `templates/` directory
 2. Use Go template syntax with variables: `{{.variable_name}}`
 3. Add a description comment at the top: `# Description: Your template description`
-4. Test with `minfer describe template your-template`
+4. Test with `kthena describe template your-template`
 
 Example template structure:
 ```yaml
@@ -182,7 +182,7 @@ spec:
 
 ## About Cobra
 
-Minfer CLI is built with [Cobra](https://github.com/spf13/cobra).
+Kthena CLI is built with [Cobra](https://github.com/spf13/cobra).
 The building blocks of cobra are depicted as below.
 
 ```plantuml

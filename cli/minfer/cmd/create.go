@@ -66,9 +66,9 @@ customized with your specific values. This command will:
 4. Apply the resources to Kubernetes (unless --dry-run is specified)
 
 Examples:
-  minfer create manifest --template basic-inference --name my-model --image my-registry/model:v1.0
-  minfer create manifest --template basic-inference --values-file values.yaml
-  minfer create manifest --template basic-inference --name my-model --dry-run`,
+  kthena create manifest --template basic-inference --name my-model --image my-registry/model:v1.0
+  kthena create manifest --template basic-inference --values-file values.yaml
+  kthena create manifest --template basic-inference --name my-model --dry-run`,
 	RunE: runCreateManifest,
 }
 
@@ -179,7 +179,7 @@ func renderTemplate(templateName string, values map[string]interface{}) (string,
 	// Create a Helm chart structure
 	helmChart := &chart.Chart{
 		Metadata: &chart.Metadata{
-			Name:    "minfer-template",
+			Name:    "kthena-template",
 			Version: "1.0.0",
 		},
 		Templates: []*chart.File{
@@ -202,7 +202,7 @@ func renderTemplate(templateName string, values map[string]interface{}) (string,
 	}
 
 	// Get rendered content for our template
-	templateKey := "minfer-template/templates/" + templateName
+	templateKey := "kthena-template/templates/" + templateName
 	renderedContent, exists := rendered[templateKey]
 	if !exists {
 		return "", fmt.Errorf("template '%s' was not rendered", templateName)

@@ -24,9 +24,9 @@ import (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "minfer",
+	Use:   "kthena",
 	Short: "Kthena CLI for managing AI inference workloads",
-	Long: `minfer is a CLI tool for managing Kthena AI inference workloads.
+	Long: `kthena is a CLI tool for managing Kthena AI inference workloads.
 
 It allows you to:
 - Create manifests from predefined templates with custom values
@@ -34,12 +34,12 @@ It allows you to:
 - Manage inference workloads, models, and autoscaling policies
 
 Examples:
-  minfer get templates
-  minfer describe template deepseek-r1-distill-llama-8b
-  minfer get template deepseek-r1-distill-llama-8b -o yaml
-  minfer create manifest --name my-model --template deepseek-r1-distill-llama-8b
-  minfer get models
-  minfer get modelinfers --all-namespaces`,
+  kthena get templates
+  kthena describe template deepseek-r1-distill-llama-8b
+  kthena get template deepseek-r1-distill-llama-8b -o yaml
+  kthena create manifest --name my-model --template deepseek-r1-distill-llama-8b
+  kthena get models
+  kthena get modelinfers --all-namespaces`,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -61,7 +61,7 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.minfer.yaml)")
+	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.kthena.yaml)")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
