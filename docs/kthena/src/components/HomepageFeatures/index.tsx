@@ -1,4 +1,4 @@
-import type {ReactNode} from 'react';
+import type { ReactNode } from 'react';
 import clsx from 'clsx';
 import Heading from '@theme/Heading';
 import styles from './styles.module.css';
@@ -12,27 +12,28 @@ type FeatureItem = {
 const FeatureList: FeatureItem[] = [
   {
     title: 'Kubernetes Native',
-    Svg: require('@site/static/img/undraw_docusaurus_mountain.svg').default,
+    Svg: require('@site/static/img/homepage/kthena-feature-1.svg').default,
     description: (
       <>
-        Kthena is designed from the ground up to be Kubernetes-native,
-        providing seamless integration with your existing K8s infrastructure.
+        Kthena is designed from the ground up to be Kubernetes-native, providing
+        seamless integration with your existing K8s infrastructure.
       </>
     ),
   },
   {
     title: 'Intelligent Scaling',
-    Svg: require('@site/static/img/undraw_docusaurus_tree.svg').default,
+    Svg: require('@site/static/img/homepage/kthena-feature-2.svg').default,
     description: (
       <>
         Focus on your AI models while Kthena handles intelligent auto-scaling
-        and routing. Deploy models with confidence knowing they&apos;ll scale efficiently.
+        and routing. Deploy models with confidence knowing they&apos;ll scale
+        efficiently.
       </>
     ),
   },
   {
     title: 'Multi-Model Serving',
-    Svg: require('@site/static/img/undraw_docusaurus_react.svg').default,
+    Svg: require('@site/static/img/homepage/kthena-feature-3.svg').default,
     description: (
       <>
         Serve multiple AI models simultaneously with advanced model management
@@ -42,7 +43,7 @@ const FeatureList: FeatureItem[] = [
   },
 ];
 
-function Feature({title, Svg, description}: FeatureItem) {
+function Feature({ title, Svg, description }: FeatureItem) {
   return (
     <div className={clsx('col col--4')}>
       <div className="text--center">
