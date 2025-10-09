@@ -1,8 +1,6 @@
 # Image URL to use all building/pushing image targets
 HUB ?= ghcr.io/volcano-sh
 TAG ?= latest
-# ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.31.0
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
 
 
@@ -73,34 +71,9 @@ generate: controller-gen gen-crd gen-docs gen-copyright ## Generate code contain
 gen-check: generate
 	git diff --exit-code
 
-.PHONY: fmt
-fmt: ## Run go fmt against code.
-	go fmt ./...
-
-.PHONY: vet
-vet: ## Run go vet against code.
-	go vet ./...
-
 .PHONY: test
-test: generate fmt vet envtest ## Run tests. Exclude e2e, client-go.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e | grep -v /client-go) -coverprofile cover.out
-
-# TODO(user): To use a different vendor for e2e tests, modify the setup under 'tests/e2e'.
-# The default setup assumes Kind is pre-installed and builds/loads the Manager Docker image locally.
-# Prometheus and CertManager are installed by default; skip with:
-# - PROMETHEUS_INSTALL_SKIP=true
-# - CERT_MANAGER_INSTALL_SKIP=true
-.PHONY: test-e2e
-test-e2e: generate fmt vet ## Run the e2e tests. Expected an isolated environment using Kind.
-	@command -v kind >/dev/null 2>&1 || { \
-		echo "Kind is not installed. Please install Kind manually."; \
-		exit 1; \
-	}
-	@kind get clusters | grep -q 'kind' || { \
-		echo "No Kind cluster is running. Please start a Kind cluster before running the e2e tests."; \
-		exit 1; \
-	}
-	go test ./test/e2e/ -v -ginkgo.v
+test: generate ## Run tests. Exclude e2e, client-go.
+	go test $$(go list ./... | grep -v /e2e | grep -v /client-go) -coverprofile cover.out
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter
@@ -155,11 +128,6 @@ docker-buildx: ## Build and push docker image for cross-platform support
 		-f docker/Dockerfile.kthena-controller-manager \
 		--push .
 
-##@ Deployment
-
-ifndef ignore-not-found
-  ignore-not-found = false
-endif
 
 ##@ Dependencies
 
@@ -169,29 +137,16 @@ $(LOCALBIN):
 	mkdir -p $(LOCALBIN)
 
 ## Tool Binaries
-KUBECTL ?= kubectl
-KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
-ENVTEST ?= $(LOCALBIN)/setup-envtest
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
 CRD_REF_DOCS ?= $(LOCALBIN)/crd-ref-docs
 
 ## Tool Versions
-KUSTOMIZE_VERSION ?= v5.5.0
 CONTROLLER_TOOLS_VERSION ?= v0.17.2
-ENVTEST_VERSION ?= release-0.19
 GOLANGCI_LINT_VERSION ?= v1.64.8
 CRD_REF_DOCS_VERSION ?= v0.2.0
 
-.PHONY: kustomize
-kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
-$(KUSTOMIZE): $(LOCALBIN)
-	$(call go-install-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v5,$(KUSTOMIZE_VERSION))
 
-.PHONY: envtest
-envtest: $(ENVTEST) ## Download setup-envtest locally if necessary.
-$(ENVTEST): $(LOCALBIN)
-	$(call go-install-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest,$(ENVTEST_VERSION))
 
 .PHONY: golangci-lint
 golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
