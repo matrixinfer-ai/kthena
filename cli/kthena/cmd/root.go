@@ -35,9 +35,9 @@ It allows you to:
 
 Examples:
   kthena get templates
-  kthena describe template deepseek-r1-distill-llama-8b
-  kthena get template deepseek-r1-distill-llama-8b -o yaml
-  kthena create manifest --name my-model --template deepseek-r1-distill-llama-8b
+  kthena describe template DeepSeek-R1-Distill-Qwen-32B
+  kthena get template DeepSeek-R1-Distill-Qwen-32B -o yaml
+  kthena create manifest --name my-model --template DeepSeek-R1-Distill-Qwen-32B
   kthena get model-boosters
   kthena get model-servings --all-namespaces`,
 }

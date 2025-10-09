@@ -109,7 +109,7 @@ kthena get template deepseek-r1-distill-llama-8b -o yaml
 
 Describe a template with detailed information:
 ```bash
-kthena describe template deepseek-r1-distill-llama-8b
+kthena describe template DeepSeek-R1-Distill-Qwen-32B
 ```
 
 ### Resource Operations

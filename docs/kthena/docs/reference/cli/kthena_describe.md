@@ -9,7 +9,7 @@ Show detailed information about a specific resource.
 You can describe templates and other kthena resources.
 
 Examples:
-  kthena describe template deepseek-r1-distill-llama-8b
+  kthena describe template DeepSeek-R1-Distill-Qwen-32B
   kthena describe model-booster my-model
   kthena describe model-serving my-serving
   kthena describe autoscaling-policy my-policy
