@@ -8,7 +8,7 @@ import rehypeKatex from 'rehype-katex';
 
 const config: Config = {
   title: 'Kthena',
-  tagline: 'Kubernetes-native AI inference platform for scalable model serving',
+  tagline: 'Kubernetes-native AI serving platform for scalable model serving',
   favicon: 'img/volcano-logo.png',
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
@@ -17,7 +17,7 @@ const config: Config = {
   },
 
   // Set the production url of your site here
-  url: 'https://your-docusaurus-site.example.com',
+  url: 'https://volcano-sh.github.io',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: '/kthena',
@@ -28,7 +28,8 @@ const config: Config = {
   projectName: 'kthena', // Usually your repo name.
 
   onBrokenLinks: 'throw',
-  onBrokenMarkdownLinks: 'warn',
+  onBrokenAnchors: 'warn',
+  trailingSlash: false,
 
   // Even if you don't use internationalization, you can use this field to set
   // useful metadata like html lang. For example, if your site is Chinese, you
@@ -36,6 +37,14 @@ const config: Config = {
   i18n: {
     defaultLocale: 'en',
     locales: ['en'],
+  },
+
+  markdown: {
+    format: 'mdx',
+    mermaid: true,
+    hooks: {
+      onBrokenMarkdownLinks: 'warn',
+    },
   },
 
   stylesheets: [
@@ -48,9 +57,7 @@ const config: Config = {
     },
   ],
 
-  plugins: [
-    './plugins/webpack-raw-loader',
-  ],
+  plugins: ['./plugins/webpack-raw-loader'],
 
   presets: [
     [
@@ -127,16 +134,16 @@ const config: Config = {
           title: 'Community',
           items: [
             {
-              label: 'Stack Overflow',
-              href: 'https://stackoverflow.com/questions/tagged/docusaurus',
+              label: 'Issues',
+              href: 'https://github.com/volcano-sh/kthena/issues',
             },
             {
-              label: 'Discord',
-              href: 'https://discordapp.com/invite/docusaurus',
+              label: 'Discussions',
+              href: 'https://github.com/volcano-sh/kthena/discussions',
             },
             {
-              label: 'X',
-              href: 'https://x.com/docusaurus',
+              label: 'Volcano',
+              href: 'https://volcano.sh',
             },
           ],
         },
@@ -154,7 +161,7 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} My Project, Inc. Built with Docusaurus.`,
+      copyright: `Copyright © ${new Date().getFullYear()} Volcano Community. Built with Docusaurus.`,
     },
     prism: {
       theme: prismThemes.github,

@@ -33,7 +33,7 @@ The proposed architecture introduces a comprehensive, pluggable design that can 
 
 ### 2.1. Existing Implementation
 
-The current routing logic in `pkg/infer-router/router/router.go` implements PD disaggregation as follows:
+The current routing logic in `pkg/kthena-router/router/router.go` implements PD disaggregation as follows:
 
 ```go
 // Current simplified flow in proxyModelEndpoint()
@@ -66,10 +66,10 @@ The current routing logic in `pkg/infer-router/router/router.go` implements PD d
 
 ### 3.2. KVConnector Interface Design
 
-The `KVConnector` interface in `pkg/infer-router/connectors/interface.go` is the core of the pluggable design. It defines a single method, `Proxy`, that encapsulates the entire prefill-decode logic for a given connector.
+The `KVConnector` interface in `pkg/kthena-router/connectors/interface.go` is the core of the pluggable design. It defines a single method, `Proxy`, that encapsulates the entire prefill-decode logic for a given connector.
 
 ```go
-// from: pkg/infer-router/connectors/interface.go
+// from: pkg/kthena-router/connectors/interface.go
 package connectors
 
 import (
@@ -111,7 +111,7 @@ This implementation actively manages the KV cache transfer between the two steps
 The `Router` integrates with the KV connector system via a `connectorFactory`. When a request requires PD disaggregated routing, the router determines the correct connector type from the `ModelServer` CRD, retrieves the connector from the factory, and calls its `Proxy` method.
 
 ```go
-// from: pkg/infer-router/router/router.go
+// from: pkg/kthena-router/router/router.go
 
 // proxyToPDDisaggregated handles PD disaggregated routing using KV connectors
 func (r *Router) proxyToPDDisaggregated(

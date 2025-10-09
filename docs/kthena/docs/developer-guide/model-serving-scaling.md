@@ -16,10 +16,10 @@ Because `ServingGroups` are ordered in modelServing similar to statefulSet. Ther
 
 ### ServingGroup Scaling Process
 
-In the following we’ll show how scaling processes for a `ServingGroup` with four replicas. Three Replica status are simulated here:
+In the following we'll show how scaling processes for a `ServingGroup` with four replicas. Three Replica status are simulated here:
 
 - ✅ Replica has been processed and completed.
-- ❎ Replica hasn’t been processed.
+- ❎ Replica hasn't been processed.
 - ⏳ Replica is in scaling
 - (empty) Replica does not exist
 
@@ -41,7 +41,7 @@ In the following we’ll show how scaling processes for a `ServingGroup` with fo
 
 ## Role Scaling
 
-With the rapid development of LLM inference technology, PD-disaggregates inference has gradually become a common architectural pattern. In this architecture, the `P instances` handle the model’s Prefill stage, while the `D instances` handle the model’s Decode stage.
+With the rapid development of LLM inference technology, PD-disaggregates inference has gradually become a common architectural pattern. In this architecture, the `P instances` handle the model's Prefill stage, while the `D instances` handle the model's Decode stage.
 
 PD-separated deployment can reduce system latency in LLM inference scenarios. However, in practical applications, the number of `P instances` and `D instances` may fluctuate due to business changes. To cope with such load fluctuations, it is especially important to dynamically adjust the number of P and D instances.
 

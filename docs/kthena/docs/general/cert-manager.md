@@ -8,7 +8,7 @@ Kthena supports integration with [cert-manager](https://cert-manager.io/) to aut
 
 The integration covers:
 - **Admission Webhooks**: TLS certificates for registry, workload, and networking webhook servers
-- **Infer Router**: TLS certificates for external API access
+- **Kthena Router**: TLS certificates for external API access
 - **Internal Communication**: Service-to-service encrypted communication
 
 ## Prerequisites
@@ -38,7 +38,7 @@ When enabled, Kthena will automatically create:
 
 ### Component-Specific Configuration
 
-#### Infer Router TLS
+#### Kthena Router TLS
 
 For external API access, configure the kthena router TLS settings:
 

@@ -114,7 +114,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `policyRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#localobjectreference-v1-core)_ | PolicyRef references the autoscaling policy to be optimized scaling base on multiple targets. |  |  |
-| `optimizerConfiguration` _[OptimizerConfiguration](#optimizerconfiguration)_ | It dynamically schedules replicas across different ModelBooster Infer groups based on overall computing power requirements - referred to as "optimize" behavior in the code.<br />For example:<br />When dealing with two types of ModelBooster Infer instances corresponding to heterogeneous hardware resources with different computing capabilities (e.g., H100/A100), the "optimize" behavior aims to:<br />Dynamically adjust the deployment ratio of H100/A100 instances based on real-time computing power demands<br />Use integer programming and similar methods to precisely meet computing requirements<br />Maximize hardware utilization efficiency |  |  |
+| `optimizerConfiguration` _[OptimizerConfiguration](#optimizerconfiguration)_ | It dynamically adjusts replicas across different ModelServing objects based on overall computing power requirements - referred to as "optimize" behavior in the code.<br />For example:<br />When dealing with two types of ModelServing objects corresponding to heterogeneous hardware resources with different computing capabilities (e.g., H100/A100), the "optimize" behavior aims to:<br />Dynamically adjust the deployment ratio of H100/A100 instances based on real-time computing power demands<br />Use integer programming and similar methods to precisely meet computing requirements<br />Maximize hardware utilization efficiency |  |  |
 | `scalingConfiguration` _[ScalingConfiguration](#scalingconfiguration)_ | Adjust the number of related instances based on specified monitoring metrics and their target values. |  |  |
 
 
@@ -260,11 +260,11 @@ _Appears in:_
 
 
 
-#### GangSchedule
+#### GangPolicy
 
 
 
-GangSchedule defines the gang scheduling configuration.
+GangPolicy defines the gang scheduling configuration.
 
 
 
@@ -273,7 +273,6 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `networkTopology` _[NetworkTopologySpec](#networktopologyspec)_ | NetworkTopology defines the NetworkTopology config, this field works in conjunction with network topology feature and hyperNode CRD. |  |  |
 | `minRoleReplicas` _object (keys:string, values:integer)_ | MinRoleReplicas defines the minimum number of replicas required for each role<br />in gang scheduling. This map allows users to specify different<br />minimum replica requirements for different roles.<br />Key: role name<br />Value: minimum number of replicas required for that role |  |  |
 
 
@@ -620,7 +619,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `params` _[OptimizerParam](#optimizerparam) array_ | Parameters of multiple ModelBooster Infer Groups to be optimized. |  | MinItems: 1 <br /> |
+| `params` _[OptimizerParam](#optimizerparam) array_ | Parameters of multiple Model Serving Groups to be optimized. |  | MinItems: 1 <br /> |
 | `costExpansionRatePercent` _integer_ | CostExpansionRatePercent is the percentage rate at which the cost expands. | 200 | Minimum: 0 <br /> |
 
 
@@ -800,7 +799,8 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `restartGracePeriodSeconds` _integer_ | RestartGracePeriodSeconds defines the grace time for the controller to rebuild the ServingGroup when an error occurs<br />Defaults to 0 (ServingGroup will be rebuilt immediately after an error) | 0 |  |
-| `gangSchedule` _[GangSchedule](#gangschedule)_ | GangSchedule defines the GangSchedule config. |  |  |
+| `gangPolicy` _[GangPolicy](#gangpolicy)_ | GangPolicy defines the gang scheduler config. |  |  |
+| `networkTopology` _[NetworkTopologySpec](#networktopologyspec)_ | NetworkTopology defines the network topology affinity scheduling policy for the roles of the group, it works only when the scheduler supports network topology feature.	// +optional |  |  |
 | `roles` _[Role](#role) array_ |  |  | MaxItems: 4 <br />MinItems: 1 <br /> |
 
 

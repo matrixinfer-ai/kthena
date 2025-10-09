@@ -3,6 +3,7 @@ import Lightbox from 'yet-another-react-lightbox';
 import Zoom from 'yet-another-react-lightbox/plugins/zoom';
 import 'yet-another-react-lightbox/styles.css';
 import useBaseUrl from '@docusaurus/useBaseUrl';
+import { useColorMode } from '@docusaurus/theme-common';
 
 interface LightboxImageProps {
   src: string;
@@ -19,6 +20,9 @@ const LightboxImage: React.FC<LightboxImageProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
   const imageSrc = useBaseUrl(src);
+  const { colorMode } = useColorMode();
+  const backdropColor =
+    colorMode === 'dark' ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.8)';
 
   return (
     <>
@@ -43,7 +47,7 @@ const LightboxImage: React.FC<LightboxImageProps> = ({
         styles={{
           container: {
             // Example: semi-transparent black
-            '--yarl__color_backdrop': 'rgba(0,0,0,0.8)',
+            '--yarl__color_backdrop': backdropColor,
           },
         }}
       />

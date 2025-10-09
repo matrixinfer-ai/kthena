@@ -51,16 +51,15 @@ func NewManager(kubeClient kubernetes.Interface, volcanoClient volcanoclient.Int
 
 // ManagePodGroups manages PodGroups for a ModelServing instance
 func (m *Manager) ManagePodGroups(ctx context.Context, mi *workloadv1alpha1.ModelServing) error {
-	if !m.isGangSchedulingEnabled(mi) {
-		// Gang scheduling is disabled, clean up any existing PodGroups
-		return m.cleanupPodGroups(ctx, mi)
+	if m.isSchedulingEnabled(mi) {
+		return m.managePodGroups(ctx, mi)
 	}
-	return m.managePodGroups(ctx, mi)
+	return nil
 }
 
-// isGangSchedulingEnabled checks if gang scheduling is enabled for the ModelServing
-func (m *Manager) isGangSchedulingEnabled(mi *workloadv1alpha1.ModelServing) bool {
-	return mi.Spec.Template.GangSchedule != nil
+// isSchedulingEnabled checks if gang scheduling or networkTopology scheduling is enabled for the ModelServing
+func (m *Manager) isSchedulingEnabled(mi *workloadv1alpha1.ModelServing) bool {
+	return mi.Spec.Template.GangPolicy != nil || mi.Spec.Template.NetworkTopology != nil
 }
 
 // managePodGroups manages PodGroups for group-level gang scheduling
@@ -118,7 +117,7 @@ func (m *Manager) createPodGroup(ctx context.Context, mi *workloadv1alpha1.Model
 			MinMember:       int32(minMember),
 			MinTaskMember:   minTaskMember,
 			MinResources:    &minResources,
-			NetworkTopology: mi.Spec.Template.GangSchedule.NetworkTopology,
+			NetworkTopology: mi.Spec.Template.NetworkTopology,
 		},
 	}
 
@@ -155,8 +154,8 @@ func (m *Manager) calculateRequirements(mi *workloadv1alpha1.ModelServing) (int,
 		roleReplicas := int(*role.Replicas)
 		minRoleReplicas := roleReplicas // Default to all replicas
 
-		if mi.Spec.Template.GangSchedule.MinRoleReplicas != nil {
-			if minReplicas, exists := mi.Spec.Template.GangSchedule.MinRoleReplicas[role.Name]; exists {
+		if mi.Spec.Template.GangPolicy.MinRoleReplicas != nil {
+			if minReplicas, exists := mi.Spec.Template.GangPolicy.MinRoleReplicas[role.Name]; exists {
 				minRoleReplicas = int(minReplicas)
 			}
 		}
@@ -257,8 +256,8 @@ func (m *Manager) updatePodGroupIfNeeded(ctx context.Context, existing *scheduli
 		needsUpdate = true
 	}
 
-	if !equalVolcanoNetworkTopology(updated.Spec.NetworkTopology, mi.Spec.Template.GangSchedule.NetworkTopology) {
-		updated.Spec.NetworkTopology = mi.Spec.Template.GangSchedule.NetworkTopology
+	if !equalVolcanoNetworkTopology(updated.Spec.NetworkTopology, mi.Spec.Template.NetworkTopology) {
+		updated.Spec.NetworkTopology = mi.Spec.Template.NetworkTopology
 		needsUpdate = true
 	}
 
@@ -299,7 +298,7 @@ func (m *Manager) cleanupExcessPodGroups(ctx context.Context, mi *workloadv1alph
 }
 
 // cleanupPodGroups cleans up all PodGroups for a ModelServing
-func (m *Manager) cleanupPodGroups(ctx context.Context, mi *workloadv1alpha1.ModelServing) error {
+func (m *Manager) CleanupPodGroups(ctx context.Context, mi *workloadv1alpha1.ModelServing) error {
 	existingPodGroups, err := m.getExistingPodGroups(ctx, mi)
 	if err != nil {
 		return fmt.Errorf("failed to get existing PodGroups for cleanup: %v", err)
@@ -318,7 +317,7 @@ func (m *Manager) cleanupPodGroups(ctx context.Context, mi *workloadv1alpha1.Mod
 
 // AnnotatePodWithPodGroup annotates a pod with the appropriate PodGroup information
 func (m *Manager) AnnotatePodWithPodGroup(pod *corev1.Pod, mi *workloadv1alpha1.ModelServing, minMember int, groupName, taskName string) {
-	if !m.isGangSchedulingEnabled(mi) {
+	if !m.isSchedulingEnabled(mi) {
 		return
 	}
 

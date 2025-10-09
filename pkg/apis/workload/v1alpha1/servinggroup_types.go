@@ -21,18 +21,16 @@ import (
 	volcanoV1Beta1 "volcano.sh/apis/pkg/apis/scheduling/v1beta1"
 )
 
-// GangSchedule defines the gang scheduling configuration.
-type GangSchedule struct {
-	// NetworkTopology defines the NetworkTopology config, this field works in conjunction with network topology feature and hyperNode CRD.
-	// +optional
-	NetworkTopology *volcanoV1Beta1.NetworkTopologySpec `json:"networkTopology,omitempty" protobuf:"bytes,5,opt,name=networkTopology"`
-
+// GangPolicy defines the gang scheduling configuration.
+// +kubebuilder:validation:XValidation:rule="!has(oldSelf.minRoleReplicas) || has(self.minRoleReplicas)", message="minRoleReplicas is required once set"
+type GangPolicy struct {
 	// MinRoleReplicas defines the minimum number of replicas required for each role
 	// in gang scheduling. This map allows users to specify different
 	// minimum replica requirements for different roles.
 	// Key: role name
 	// Value: minimum number of replicas required for that role
 	// +optional
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf", message="minRoleReplicas is immutable"
 	MinRoleReplicas map[string]int32 `json:"minRoleReplicas,omitempty"`
 }
 
@@ -91,6 +89,7 @@ type Metadata struct {
 }
 
 // ServingGroup is the smallest unit to complete the inference task
+// +kubebuilder:validation:XValidation:rule="!has(oldSelf.gangPolicy) || has(self.gangPolicy)", message="gangPolicy is required once set"
 type ServingGroup struct {
 	// RestartGracePeriodSeconds defines the grace time for the controller to rebuild the ServingGroup when an error occurs
 	// Defaults to 0 (ServingGroup will be rebuilt immediately after an error)
@@ -98,9 +97,13 @@ type ServingGroup struct {
 	// +kubebuilder:default=0
 	RestartGracePeriodSeconds *int64 `json:"restartGracePeriodSeconds,omitempty"`
 
-	// GangSchedule defines the GangSchedule config.
+	// GangPolicy defines the gang scheduler config.
 	// +optional
-	GangSchedule *GangSchedule `json:"gangSchedule,omitempty"`
+	GangPolicy *GangPolicy `json:"gangPolicy,omitempty"`
+
+	// NetworkTopology defines the network topology affinity scheduling policy for the roles of the group, it works only when the scheduler supports network topology feature.	// +optional
+	NetworkTopology *volcanoV1Beta1.NetworkTopologySpec `json:"networkTopology,omitempty"`
+
 	// +kubebuilder:validation:MaxItems=4
 	// +kubebuilder:validation:MinItems=1
 	// +kubebuilder:validation:XValidation:rule="self.all(x, self.exists_one(y, y.name == x.name))", message="roles name must be unique"

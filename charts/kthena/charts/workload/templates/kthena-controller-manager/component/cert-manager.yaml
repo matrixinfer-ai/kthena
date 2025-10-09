@@ -1,0 +1,23 @@
+{{- if and .Values.controllerManager.webhook.enabled  .Values.global.certManager.enabled }}
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ include "kthena.name" . }}-webhook-issuer
+  namespace: {{ .Release.Namespace }}
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "kthena.name" . }}-webhook-cert
+  namespace: {{ .Release.Namespace }}
+spec:
+  dnsNames:
+    - {{ include "kthena.name" . }}-webhook.{{ .Release.Namespace }}.svc
+    - {{ include "kthena.name" . }}-webhook.{{ .Release.Namespace }}.svc.cluster.local
+  issuerRef:
+    kind: Issuer
+    name: {{ include "kthena.name" . }}-webhook-issuer
+  secretName: {{ include "kthena.name" . }}-webhook-certs
+{{- end }}

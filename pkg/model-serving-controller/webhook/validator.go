@@ -17,13 +17,10 @@ limitations under the License.
 package webhook
 
 import (
-	"context"
-	"crypto/tls"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	admissionv1 "k8s.io/api/admission/v1"
 	apivalidation "k8s.io/apimachinery/pkg/api/validation"
@@ -31,63 +28,18 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
-	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
 	workloadv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	"github.com/volcano-sh/kthena/pkg/model-serving-controller/utils"
 )
 
-const timeout = 30 * time.Second
-
 // ModelServingValidator handles validation of ModelServing resources.
 type ModelServingValidator struct {
-	httpServer         *http.Server
-	kubeClient         kubernetes.Interface
-	modelServingClient clientset.Interface
 }
 
-// NewModelServingValidator creates a new ModelServingValidator.
-func NewModelServingValidator(kubeClient kubernetes.Interface, modelServingClient clientset.Interface, port int) *ModelServingValidator {
-	server := &http.Server{
-		Addr:         fmt.Sprintf(":%d", port),
-		ReadTimeout:  timeout,
-		WriteTimeout: timeout,
-		TLSConfig: &tls.Config{
-			MinVersion: tls.VersionTLS12,
-		},
-	}
-
-	return &ModelServingValidator{
-		httpServer:         server,
-		kubeClient:         kubeClient,
-		modelServingClient: modelServingClient,
-	}
-}
-
-func (v *ModelServingValidator) Run(tlsCertFile, tlsPrivateKey string, stopCh <-chan struct{}) {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/validate-workload-ai-v1alpha1-modelServing", v.Handle)
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		if _, err := w.Write([]byte("ok")); err != nil {
-			klog.Errorf("failed to write health check response: %v", err)
-		}
-	})
-	v.httpServer.Handler = mux
-
-	// Start server
-	klog.Infof("Starting webhook server on %s", v.httpServer.Addr)
-	go func() {
-		if err := v.httpServer.ListenAndServeTLS(tlsCertFile, tlsPrivateKey); err != nil && err != http.ErrServerClosed {
-			klog.Fatalf("failed to listen and serve validator: %v", err)
-		}
-	}()
-
-	// shutdown gracefully shuts down the server
-	<-stopCh
-	v.shutdown()
+func NewModelServingValidator() *ModelServingValidator {
+	return &ModelServingValidator{}
 }
 
 // Handle handles admission requests for ModelServing resources
@@ -135,7 +87,7 @@ func (v *ModelServingValidator) validateModelServing(modelServing *workloadv1alp
 	allErrs = append(allErrs, validateWorkerImages(modelServing)...)
 	allErrs = append(allErrs, validatorReplicas(modelServing)...)
 	allErrs = append(allErrs, validateRollingUpdateConfiguration(modelServing)...)
-	allErrs = append(allErrs, validateGangSchedule(modelServing)...)
+	allErrs = append(allErrs, validateGangPolicy(modelServing)...)
 	allErrs = append(allErrs, validateWorkerReplicas(modelServing)...)
 
 	if len(allErrs) > 0 {
@@ -261,16 +213,16 @@ func validatorReplicas(mi *workloadv1alpha1.ModelServing) field.ErrorList {
 	return allErrs
 }
 
-// validateGangSchedule validates the gang scheduling configuration
-func validateGangSchedule(mi *workloadv1alpha1.ModelServing) field.ErrorList {
+// validateGangPolicy validates the gang scheduling configuration
+func validateGangPolicy(mi *workloadv1alpha1.ModelServing) field.ErrorList {
 	var allErrs field.ErrorList
 
-	if mi.Spec.Template.GangSchedule == nil || mi.Spec.Template.GangSchedule.MinRoleReplicas == nil {
+	if mi.Spec.Template.GangPolicy == nil || mi.Spec.Template.GangPolicy.MinRoleReplicas == nil {
 		return allErrs
 	}
 
-	minRoleReplicas := mi.Spec.Template.GangSchedule.MinRoleReplicas
-	minRoleReplicasPath := field.NewPath("spec").Child("template").Child("gangSchedule").Child("minRoleReplicas")
+	minRoleReplicas := mi.Spec.Template.GangPolicy.MinRoleReplicas
+	minRoleReplicasPath := field.NewPath("spec").Child("template").Child("gangPolicy").Child("minRoleReplicas")
 
 	// Create a map of role names for quick lookup
 	roleNames := make(map[string]bool)
@@ -404,16 +356,6 @@ func validateWorkerImages(mi *workloadv1alpha1.ModelServing) field.ErrorList {
 		}
 	}
 	return allErrs
-}
-
-func (v *ModelServingValidator) shutdown() {
-	klog.Info("shutting down webhook server")
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	if err := v.httpServer.Shutdown(ctx); err != nil {
-		klog.Errorf("failed to shutdown server: %v", err)
-	}
 }
 
 // validateImageField checks if a container image string is a valid Docker reference.

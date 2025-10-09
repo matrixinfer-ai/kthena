@@ -24,22 +24,25 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'Architecture',
+      link: {
+        type: 'doc',
+        id: 'architecture/architecture',
+      },
       items: [
-        'architecture/architecture',
+        'architecture/model-booster-controller',
         'architecture/model-serving-controller',
         'architecture/kthena-router',
         'architecture/autoscaler',
-        'architecture/model-booster-controller',
       ],
     },
     {
       type: 'category',
-      label: 'General',
-      items: ['general/prometheus', 'general/cert-manager', 'general/faq'],
-    },
-    {
-      type: 'category',
       label: 'User Guide',
+      link: {
+        type: 'generated-index',
+        title: 'User Guide Overview',
+        description: 'A comprehensive overview of all the user guides.',
+      },
       items: [
         'user-guide/model-booster',
         'user-guide/router-routing',
@@ -50,6 +53,11 @@ const sidebars: SidebarsConfig = {
         'user-guide/rate-limit',
         'user-guide/runtime',
       ],
+    },
+    {
+      type: 'category',
+      label: 'General',
+      items: ['general/prometheus', 'general/cert-manager', 'general/faq'],
     },
     {
       type: 'category',
@@ -91,20 +99,21 @@ const sidebars: SidebarsConfig = {
             },
           ],
         },
-        {
-          type: 'category',
-          label: 'Minfer CLI',
-          items: [
-            { type: 'doc', id: 'reference/cli/minfer', label: 'Minfer' },
-            { type: 'doc', id: 'reference/cli/minfer_create', label: 'Create' },
-            { type: 'doc', id: 'reference/cli/minfer_get', label: 'Get' },
-            {
-              type: 'doc',
-              id: 'reference/cli/minfer_describe',
-              label: 'Describe',
-            },
-          ],
-        },
+        // TODO: show CLI doc after CLI renaming
+        // {
+        //   type: 'category',
+        //   label: 'Minfer CLI',
+        //   items: [
+        //     { type: 'doc', id: 'reference/cli/minfer', label: 'Minfer' },
+        //     { type: 'doc', id: 'reference/cli/minfer_create', label: 'Create' },
+        //     { type: 'doc', id: 'reference/cli/minfer_get', label: 'Get' },
+        //     {
+        //       type: 'doc',
+        //       id: 'reference/cli/minfer_describe',
+        //       label: 'Describe',
+        //     },
+        //   ],
+        // },
       ],
     },
   ],

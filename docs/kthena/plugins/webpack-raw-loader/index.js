@@ -1,4 +1,4 @@
-module.exports = function (context, options) {
+export default function (context, options) {
   return {
     name: 'webpack-raw-loader',
     configureWebpack(config, isServer, utils) {
@@ -14,5 +14,4 @@ module.exports = function (context, options) {
       };
     },
   };
-};
-
+}

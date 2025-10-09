@@ -90,8 +90,8 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &applyconfigurationworkloadv1alpha1.AutoscalingPolicySpecApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("AutoscalingPolicyStablePolicy"):
 		return &applyconfigurationworkloadv1alpha1.AutoscalingPolicyStablePolicyApplyConfiguration{}
-	case workloadv1alpha1.SchemeGroupVersion.WithKind("GangSchedule"):
-		return &applyconfigurationworkloadv1alpha1.GangScheduleApplyConfiguration{}
+	case workloadv1alpha1.SchemeGroupVersion.WithKind("GangPolicy"):
+		return &applyconfigurationworkloadv1alpha1.GangPolicyApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("LoraAdapter"):
 		return &applyconfigurationworkloadv1alpha1.LoraAdapterApplyConfiguration{}
 	case workloadv1alpha1.SchemeGroupVersion.WithKind("Metadata"):
