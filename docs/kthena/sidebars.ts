@@ -24,22 +24,25 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'Architecture',
+      link: {
+        type: 'doc',
+        id: 'architecture/architecture',
+      },
       items: [
-        'architecture/architecture',
+        'architecture/model-booster-controller',
         'architecture/model-serving-controller',
         'architecture/kthena-router',
         'architecture/autoscaler',
-        'architecture/model-booster-controller',
       ],
     },
     {
       type: 'category',
-      label: 'General',
-      items: ['general/prometheus', 'general/cert-manager', 'general/faq'],
-    },
-    {
-      type: 'category',
       label: 'User Guide',
+      link: {
+        type: 'generated-index',
+        title: 'User Guide Overview',
+        description: 'A comprehensive overview of all the user guides.',
+      },
       items: [
         'user-guide/model-booster',
         'user-guide/router-routing',
@@ -60,6 +63,11 @@ const sidebars: SidebarsConfig = {
           ],
         },
       ],
+    },
+    {
+      type: 'category',
+      label: 'General',
+      items: ['general/prometheus', 'general/cert-manager', 'general/faq'],
     },
     {
       type: 'category',
