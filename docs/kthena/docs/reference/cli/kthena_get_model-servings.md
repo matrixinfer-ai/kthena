@@ -1,19 +1,19 @@
-## kthena get modelinfers
+## kthena get model-servings
 
-List model inference workloads
+List model serving workloads
 
 ### Synopsis
 
-List ModelInfer resources in the cluster.
+List ModelServing resources in the cluster.
 
 ```
-kthena get modelinfers [flags]
+kthena get model-servings [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for modelinfers
+  -h, --help   help for model-servings
 ```
 
 ### Options inherited from parent commands

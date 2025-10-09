@@ -16,8 +16,8 @@ Examples:
   kthena describe template deepseek-r1-distill-llama-8b
   kthena get template deepseek-r1-distill-llama-8b -o yaml
   kthena create manifest --name my-model --template deepseek-r1-distill-llama-8b
-  kthena get models
-  kthena get modelinfers --all-namespaces
+  kthena get model-boosters
+  kthena get model-servings --all-namespaces
 
 ### Options
 
