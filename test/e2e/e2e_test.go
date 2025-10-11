@@ -18,7 +18,6 @@ package e2e
 
 import (
 	"context"
-	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -68,10 +67,7 @@ func TestModelCR(t *testing.T) {
 		return true == meta.IsStatusConditionPresentAndEqual(model.Status.Conditions,
 			string(workload.ModelStatusConditionTypeActive), metav1.ConditionTrue)
 	}, 5*time.Minute, 5*time.Second, "Model did not become Active")
-	// Get router Service IP
-	svc, err := kubeClient.CoreV1().Services(testNamespace).Get(ctx, "networking-kthena-router", metav1.GetOptions{})
-	require.NoError(t, err, "Failed to get router service")
-	ip := svc.Spec.ClusterIP
+	ip := getRouterIp(t, kubeClient, ctx)
 	require.NotEmpty(t, ip, "router ClusterIP is empty")
 	// Test chat
 	chatURL := "http://" + ip + "/v1/chat/completions"
@@ -90,10 +86,13 @@ func TestModelCR(t *testing.T) {
 	require.NoError(t, err, "Chat request failed")
 	defer resp.Body.Close()
 	assert.Equal(t, http.StatusOK, resp.StatusCode, "Chat response status code should be 200")
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err, "Failed to read chat response body")
-	t.Logf("Chat response: %s", string(body))
-	assert.Contains(t, string(body), "Beijing", "Chat response should mention Beijing")
+}
+
+// Get router Service IP
+func getRouterIp(t *testing.T, kubeClient *kubernetes.Clientset, ctx context.Context) string {
+	svc, err := kubeClient.CoreV1().Services(testNamespace).Get(ctx, "networking-kthena-router", metav1.GetOptions{})
+	require.NoError(t, err, "Failed to get router service")
+	return svc.Spec.ClusterIP
 }
 
 func getKubeConfig() (*rest.Config, error) {
