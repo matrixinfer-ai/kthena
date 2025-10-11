@@ -70,6 +70,10 @@ func TestModelCR(t *testing.T) {
 	ip := getRouterIp(t, kubeClient, ctx)
 	require.NotEmpty(t, ip, "router ClusterIP is empty")
 	// Test chat
+	chat(t, ip)
+}
+
+func chat(t *testing.T, ip string) {
 	chatURL := "http://" + ip + "/v1/chat/completions"
 	payload := `{
 		"model": "test-model",
@@ -146,8 +150,8 @@ func createTestModel() *workload.ModelBooster {
 									corev1.ResourceMemory: resource.MustParse("4Gi"),
 								},
 								Limits: corev1.ResourceList{
-									corev1.ResourceCPU:    resource.MustParse("2"),
-									corev1.ResourceMemory: resource.MustParse("8Gi"),
+									corev1.ResourceCPU:    resource.MustParse("4"),
+									corev1.ResourceMemory: resource.MustParse("16Gi"),
 								},
 							},
 						},
