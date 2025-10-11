@@ -77,15 +77,15 @@ Use -o yaml flag to output the template content in YAML format.`,
 }
 
 // getModelBoostersCmd represents the get model-boosters command
-var getModelsCmd = &cobra.Command{
-	Use:     "models [NAME]",
-	Aliases: []string{"model"},
+var getModelBoostersCmd = &cobra.Command{
+	Use:     "model-boosters [NAME]",
+	Aliases: []string{"model-booster"},
 	Short:   "List registered models",
 	Long: `List Model resources in the cluster. 
 
 If NAME is provided, only models containing the specified name will be displayed.`,
 	Args: cobra.MaximumNArgs(1),
-	RunE: runGetModels,
+	RunE: runGetModelBoosters,
 }
 
 // getModelServingsCmd represents the get model-servings command
@@ -119,7 +119,7 @@ func init() {
 	rootCmd.AddCommand(getCmd)
 	getCmd.AddCommand(getTemplatesCmd)
 	getCmd.AddCommand(getTemplateCmd)
-	getCmd.AddCommand(getModelsCmd)
+	getCmd.AddCommand(getModelBoostersCmd)
 	getCmd.AddCommand(getModelServingsCmd)
 	getCmd.AddCommand(getAutoscalingPoliciesCmd)
 	getCmd.AddCommand(getAutoscalingPolicyBindingsCmd)
@@ -241,7 +241,7 @@ func resolveGetNamespace() string {
 	return "default"
 }
 
-func runGetModels(cmd *cobra.Command, args []string) error {
+func runGetModelBoosters(cmd *cobra.Command, args []string) error {
 	client, err := getKthenaClient()
 	if err != nil {
 		return err
