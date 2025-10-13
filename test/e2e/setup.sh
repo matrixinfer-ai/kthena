@@ -17,7 +17,8 @@
 set -e
 
 HUB=${HUB:-ghcr.io/volcano-sh}
-TAG=${TAG:-latest}
+# Tag for e2e test
+TAG=${TAG:-1.0.0}
 CLUSTER_NAME=${CLUSTER_NAME:-kthena-e2e}
 
 # Create Kind cluster
@@ -54,7 +55,12 @@ go install github.com/cert-manager/cmctl/v2@latest && $(go env GOPATH)/bin/cmctl
 echo "Start to install Volcano"
 kubectl apply -f https://raw.githubusercontent.com/volcano-sh/volcano/master/installer/volcano-development.yaml
 # Install by helm
-helm install kthena ./charts/kthena --namespace dev --create-namespace
+helm install kthena ./charts/kthena --namespace dev --create-namespace \
+  --set networking.kthenaRouter.image.tag=${TAG} \
+  --set networking.webhook.image.tag=${TAG} \
+  --set workload.controllerManager.image.tag=${TAG} \
+  --set workload.controllerManager.downloaderImage.tag=${TAG} \
+  --set workload.controllerManager.runtimeImage.tag=${TAG}
 
 # Wait for pods to be ready
 echo "Waiting for pods to be ready..."
