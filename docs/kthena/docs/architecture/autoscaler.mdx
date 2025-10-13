@@ -9,7 +9,7 @@ Facing real-time changing inference requests, the required hardware resources al
 Kthena Autoscaler periodically collects runtime metrics from the Pods of managed serving instances. Based on one or more monitoring metrics specified by the user and their corresponding target values, it estimates the required number of serving instances. Finally, it performs scaling operations according to the configured scaling policies.
 
 <div style={{ textAlign: 'center' }}>
-  <LightboxImage src="/img/architecture-autoscaler.svg" alt="architecture-autoscaler"></LightboxImage>
+  <LightboxImage src="../assets/diagrams/architecture-autoscaler.svg" alt="architecture-autoscaler"></LightboxImage>
 </div>
 
 Kthena Autoscaler provides two granularities of scaling methods: **Homogeneous Instances Autoscale** and **Heterogeneous Instances Autoscale**.
@@ -22,7 +22,7 @@ Kthena Autoscaler provides two granularities of scaling methods: **Homogeneous I
 
 For the same model, serving instances can be deployed in multiple different ways: such as heterogeneous resource types (GPU/NPU), types of inference engines (vLLM / Sglang), or even different runtime parameters (e.g., TP/DP configuration parameters). While these differently deployed serving instances can all provide normal inference services and expose consistent business functionality externally, they differ in required hardware resources and provided business capabilities.The figure below shows a sample of the running effect.
 
-<LightboxImage src="/img/architecture-autoscaler-optimize-example.svg" alt="architecture-autoscaler-optimize-example"></LightboxImage>
+<LightboxImage src="../assets/diagrams/architecture-autoscaler-optimize-example.svg" alt="architecture-autoscaler-optimize-example"></LightboxImage>
 
 The functionality of `Heterogeneous Instances Autoscale` can be divided into two parts: predicting instance count and scheduling instances.
 

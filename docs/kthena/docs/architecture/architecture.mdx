@@ -11,7 +11,7 @@ The platform comprises two primary planes:
 - **Control Plane**: Kthena's model-aware brain. It coordinates models, routes, and servers; validates and stages changes; applies rollout/rollback logic with safety guardrails; and surfaces status/health for clear visibility—focused on model lifecycle and traffic safety rather than cluster mechanics.
 - **Data Plane**: Kthena's runtime path. The Kthena Router authenticates requests, enforces rate limits and fairness, and uses a pluggable, model-aware Scheduler (e.g., LoRA affinity, KV/GPU cache and latency plugins) to pick the best replica. Role-based **Prefill/Decode** replica groups enable disaggregation and independent scaling for lower latency, higher throughput, and better cost.
 
-<LightboxImage src="/img/diagrams/architecture/architecture_overview.svg" alt="Architecture Overview"/>
+<LightboxImage src="../assets/diagrams/diagrams/architecture/architecture_overview.svg" alt="Architecture Overview"/>
 
 ## Core Components
 
@@ -49,7 +49,7 @@ The Kthena Router processes user requests through a comprehensive pipeline that 
 ##### **Request Pipeline**
 
 <div style={{ textAlign: 'center' }}>
-    <LightboxImage src="/img/diagrams/architecture/request_pipeline.svg" alt="Request Processing Pipeline" />
+    <LightboxImage src="../assets/diagrams/diagrams/architecture/request_pipeline.svg" alt="Request Processing Pipeline" />
 </div>
 
 The request pipeline orchestrates the flow of user requests through the following stages:
