@@ -1,4 +1,6 @@
 import LightboxImage from '@site/src/components/LightboxImage';
+import kthenaRouterArch from '../assets/diagrams/kthena-router-arch.svg';
+import kthenaRouterComponents from '../assets/diagrams/kthena-router-components.svg';
 
 # Kthena Router
 
@@ -8,7 +10,7 @@ Our goal is to deliver a lightweight, user-friendly, and extensible LLM inferenc
 
 ## Overview
 
-<LightboxImage src="../assets/diagrams/kthena-router-arch.svg" alt="arch"></LightboxImage>
+<LightboxImage src={kthenaRouterArch} alt="arch"></LightboxImage>
 
 Kthena Router is deployed as a standalone binary that can seamlessly integrate with existing router infrastructure or serve as a direct traffic entry point for handling AI workloads independently.
 
@@ -18,7 +20,7 @@ For privately deployed models in particular, the router supports mainstream infe
 
 ## Core Components
 
-<LightboxImage src="../assets/diagrams/kthena-router-components.svg" alt="arch"></LightboxImage>
+<LightboxImage src={kthenaRouterComponents} alt="arch"></LightboxImage>
 
 **Router**: The core execution framework responsible for request reception, processing, and forwarding.
 

@@ -1,4 +1,5 @@
 import LightboxImage from '@site/src/components/LightboxImage';
+import modelServing from '../assets/diagrams/model-serving.svg';
 
 # Model Serving Controller
 
@@ -11,7 +12,7 @@ Prefilling Decoding Disaggregation and parallel serving services like Pipeline P
 
 ## Model Serving Architecture
 
-<LightboxImage src="../assets/diagrams/model-serving.svg" alt="modelServing.svg"/>
+<LightboxImage src={modelServing} alt="modelServing.svg"/>
 
 The Custom Resource Definition (CRD) of `ModelServing` is primarily divided into three layers, namely:
 

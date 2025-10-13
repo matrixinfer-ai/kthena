@@ -1,4 +1,4 @@
-# vLLM Ascend(Mooncake)
+# vLLM Ascend (Mooncake)
 
 This page describes the prefill-decode disaggregation capabilities in Kthena, based on verified NPU deployment
 examples and configurations using Huawei Ascend Neural Processing Units.
