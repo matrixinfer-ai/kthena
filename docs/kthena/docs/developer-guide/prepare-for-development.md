@@ -11,7 +11,7 @@ need to set up before being able to build and run the code.
   - [Setting up Go](#setting-up-go)
   - [Setting up Docker](#setting-up-docker)
   - [Setting up Kubernetes](#setting-up-kubernetes)
-    - [Setting up a personal access token](#setting-up-a-personal-access-token)
+  - [Setting up a personal access token](#setting-up-a-personal-access-token)
 
 ## Setting up Go
 
@@ -43,7 +43,7 @@ If you aren't sure which Kubernetes platform is right for you, see [Picking the 
 
 - [Installing Kubernetes with kind](https://kind.sigs.k8s.io/)
 
-### Setting up a personal access token
+## Setting up a personal access token
 
 This is only necessary for core contributors in order to push changes to the main repos.
 You can make pull requests without two-factor authentication
