@@ -112,6 +112,9 @@ const config: Config = {
         },
         { to: '/blog', label: 'Blog', position: 'left' },
         {
+          type: 'docsVersionDropdown'
+        },
+        {
           href: 'https://github.com/volcano-sh/kthena',
           label: 'GitHub',
           position: 'right',
