@@ -19,13 +19,13 @@ Before diving into the rate-limiting configurations, let's set up the environmen
 ### Prerequisites
 
 - A running Kubernetes cluster with Kthena installed.
-- For global rate limiting, a running Redis instance is required. You can deploy one using the [redis-standalone.yaml](../../../../examples/redis/redis-standalone.yaml) example.
+- For global rate limiting, a running Redis instance is required. You can deploy one using the [redis-standalone.yaml](../assets/examples/redis/redis-standalone.yaml) example.
 - Basic understanding of router CRDs (ModelServer and ModelRoute).
 
 ### Getting Started
 
-1.  Deploy a mock LLM inference engine, such as [LLM-Mock-ds1.5b.yaml](../../../../examples/kthena-router/LLM-Mock-ds1.5b.yaml), if you don't have a real GPU/NPU environment.
-2.  Deploy the corresponding ModelServer, [ModelServer-ds1.5b.yaml](../../../../examples/kthena-router/ModelServer-ds1.5b.yaml).
+1.  Deploy a mock LLM inference engine, such as [LLM-Mock-ds1.5b.yaml](../assets/examples/kthena-router/LLM-Mock-ds1.5b.yaml), if you don't have a real GPU/NPU environment.
+2.  Deploy the corresponding ModelServer, [ModelServer-ds1.5b.yaml](../assets/examples/kthena-router/ModelServer-ds1.5b.yaml).
 3.  All rate-limiting examples in this guide use this mock service.
 
 ## Rate Limiting Scenarios
@@ -128,7 +128,7 @@ spec:
 4.  If the global limit is not exceeded, the request is forwarded.
 5.  If the limit is exceeded, the router returns an `HTTP 429` error. All other router pods will now also enforce this limit until the time window resets.
 
-**NOTE**: Before applying this configuration, ensure you have a Redis service running and accessible at the specified address (`redis-server.kthena-system.svc.cluster.local:6379`). You can use the provided [redis-standalone.yaml](../../../../examples/redis/redis-standalone.yaml) to deploy one. And make sure you have deployed multiple router pods.
+**NOTE**: Before applying this configuration, ensure you have a Redis service running and accessible at the specified address (`redis-server.kthena-system.svc.cluster.local:6379`). You can use the provided [redis-standalone.yaml](../assets/examples/redis/redis-standalone.yaml) to deploy one. And make sure you have deployed multiple router pods.
 
 **Try it out**:
 The test process is similar to local rate limiting. Even if your requests are handled by different router pods, the global limit will be consistently enforced.
