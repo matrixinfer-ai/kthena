@@ -42,6 +42,8 @@ make docker-build-all HUB=${HUB} TAG=${TAG}
 echo "Loading Docker images into Kind cluster"
 kind load docker-image ${HUB}/kthena-router:${TAG} --name "${CLUSTER_NAME}"
 kind load docker-image ${HUB}/kthena-controller-manager:${TAG} --name "${CLUSTER_NAME}"
+kind load docker-image ${HUB}/downloader:${TAG} --name "${CLUSTER_NAME}"
+kind load docker-image ${HUB}/runtime:${TAG} --name "${CLUSTER_NAME}"
 
 # Install cert-manager
 echo "Start to install cert-manager"

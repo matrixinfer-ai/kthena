@@ -113,6 +113,8 @@ build: generate fmt vet
 
 IMG_CONTROLLER ?= ${HUB}/kthena-controller-manager:${TAG}
 IMG_ROUTER ?= ${HUB}/kthena-router:${TAG}
+IMG_DOWNLOADER ?= ${HUB}/downloader:${TAG}
+IMG_RUNTIME ?= ${HUB}/runtime:${TAG}
 
 .PHONY: docker-build-router
 docker-build-router: generate
@@ -122,8 +124,16 @@ docker-build-router: generate
 docker-build-controller: generate
 	$(CONTAINER_TOOL) build -t ${IMG_CONTROLLER} -f docker/Dockerfile.kthena-controller-manager .
 
+.PHONY: docker-build-downloader
+docker-build-downloader: generate
+	$(CONTAINER_TOOL) build -t ${IMG_DOWNLOADER} --target downloader -f python/Dockerfile python
+
+.PHONY: docker-build-runtime
+docker-build-runtime: generate
+	$(CONTAINER_TOOL) build -t ${IMG_RUNTIME} --target runtime -f python/Dockerfile python
+
 .PHONY: docker-build-all
-docker-build-all: docker-build-router docker-build-controller ## Build all images.
+docker-build-all: docker-build-router docker-build-controller docker-build-downloader docker-build-runtime## Build all images.
 	@echo "All images built."
 
 .PHONY: docker-push
