@@ -33,22 +33,18 @@ const LightboxImage: React.FC<LightboxImageProps> = ({
     } else if (typeof src === 'function') {
       // SVG imported as React component - convert to data URL
       const svgContainer = document.createElement('div');
-      svgContainer.style.position = 'absolute';
-      svgContainer.style.left = '-9999px';
       document.body.appendChild(svgContainer);
-
       const root = require('react-dom/client').createRoot(svgContainer);
       root.render(React.createElement(src, {}));
 
       setTimeout(() => {
         const svgElement = svgContainer.querySelector('svg');
         if (svgElement) {
-          const serializer = new XMLSerializer();
-          const svgString = serializer.serializeToString(svgElement);
-          const encoder = new TextEncoder();
-          const uint8Array = encoder.encode(svgString);
-          const binaryString = String.fromCharCode(...uint8Array);
-          const dataUrl = `data:image/svg+xml;base64,${btoa(binaryString)}`;
+          const svgString = new XMLSerializer().serializeToString(svgElement);
+          const base64 = btoa(
+            String.fromCharCode(...new TextEncoder().encode(svgString)),
+          );
+          const dataUrl = `data:image/svg+xml;base64,${base64}`;
           setImageSrc(dataUrl);
         }
         root.unmount();
@@ -59,29 +55,20 @@ const LightboxImage: React.FC<LightboxImageProps> = ({
     }
   }, [src]);
 
-  // For React component SVGs, render the component directly
-  const isSvgComponent = typeof src === 'function';
+  const commonStyle = { cursor: 'pointer', maxWidth: '100%', height: 'auto' };
 
   return (
     <>
-      {isSvgComponent ? (
+      {typeof src === 'function' ? (
         <div
           onClick={() => setOpen(true)}
-          style={{
-            cursor: 'pointer',
-            display: 'block',
-            maxWidth: '100%',
-          }}
+          style={{ ...commonStyle, display: 'block' }}
           className={className}
           title={title}
         >
           {React.createElement(
             src as React.ComponentType<React.SVGProps<SVGSVGElement>>,
-            {
-              role: 'img',
-              'aria-label': alt,
-              style: { maxWidth: '100%', height: 'auto' },
-            },
+            { role: 'img', 'aria-label': alt, style: commonStyle },
           )}
         </div>
       ) : (
@@ -91,7 +78,7 @@ const LightboxImage: React.FC<LightboxImageProps> = ({
           title={title}
           className={className}
           onClick={() => setOpen(true)}
-          style={{ cursor: 'pointer', maxWidth: '100%', height: 'auto' }}
+          style={commonStyle}
         />
       )}
       <Lightbox
