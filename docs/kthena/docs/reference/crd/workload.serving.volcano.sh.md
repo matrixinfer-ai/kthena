@@ -354,6 +354,7 @@ _Appears in:_
 | `workers` _[ModelWorker](#modelworker) array_ | Workers is the list of workers associated with this backend. |  | MaxItems: 1000 <br />MinItems: 1 <br /> |
 | `loraAdapters` _[LoraAdapter](#loraadapter) array_ | LoraAdapter is a list of LoRA adapters. |  |  |
 | `autoscalingPolicy` _[AutoscalingPolicySpec](#autoscalingpolicyspec)_ | AutoscalingPolicyRef references the autoscaling policy for this backend. |  |  |
+| `schedulerName` _string_ | SchedulerName defines the name of the scheduler used by ModelServing for this backend. |  |  |
 
 
 #### ModelBackendStatus

@@ -199,6 +199,7 @@ func buildVllmDisaggregatedModelServing(model *workload.ModelBooster, idx int) (
 		"ENGINE_DECODE_IMAGE":                workersMap[workload.ModelWorkerTypeDecode].Image,
 		"ENGINE_PREFILL_RESOURCES":           workersMap[workload.ModelWorkerTypePrefill].Resources,
 		"ENGINE_PREFILL_IMAGE":               workersMap[workload.ModelWorkerTypePrefill].Image,
+		"SCHEDULER_NAME":                     backend.SchedulerName,
 	}
 	return loadModelServingTemplate(VllmDisaggregatedTemplatePath, &data)
 }
@@ -303,6 +304,7 @@ func buildVllmModelServing(model *workload.ModelBooster, idx int) (*workload.Mod
 		"ENGINE_SERVER_IMAGE":                workersMap[workload.ModelWorkerTypeServer].Image,
 		"ENGINE_SERVER_COMMAND":              commands,
 		"WORKER_REPLICAS":                    workersMap[workload.ModelWorkerTypeServer].Pods - 1,
+		"SCHEDULER_NAME":                     backend.SchedulerName,
 	}
 	return loadModelServingTemplate(VllmTemplatePath, &data)
 }

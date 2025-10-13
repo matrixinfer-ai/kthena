@@ -124,6 +124,9 @@ type ModelBackend struct {
 	// AutoscalingPolicyRef references the autoscaling policy for this backend.
 	// +optional
 	AutoscalingPolicy *AutoscalingPolicySpec `json:"autoscalingPolicy,omitempty"`
+	// SchedulerName defines the name of the scheduler used by ModelServing for this backend.
+	// +optional
+	SchedulerName string `json:"schedulerName,omitempty"`
 }
 
 // LoraAdapter defines a LoRA (Low-Rank Adaptation) adapter configuration.
