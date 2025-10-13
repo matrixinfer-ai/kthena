@@ -45,7 +45,10 @@ const LightboxImage: React.FC<LightboxImageProps> = ({
         if (svgElement) {
           const serializer = new XMLSerializer();
           const svgString = serializer.serializeToString(svgElement);
-          const dataUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgString)))}`;
+          const encoder = new TextEncoder();
+          const uint8Array = encoder.encode(svgString);
+          const binaryString = String.fromCharCode(...uint8Array);
+          const dataUrl = `data:image/svg+xml;base64,${btoa(binaryString)}`;
           setImageSrc(dataUrl);
         }
         root.unmount();
