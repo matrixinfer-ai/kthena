@@ -10,7 +10,7 @@ As an optional component of the Kthena project, the Model Booster Controller pri
 
 The Model Booster Controller provides one-stop deployment capabilities, enabling users to only need to be aware of `ModelBooster` information while ignoring the complex interaction specifications between various components within ModelServing, such as the use of some built-in labels and the binding relationships between CRDs. The following diagram illustrates the interaction principle of the Model Booster Controller:
 
-<LightboxImage src="../assets/diagrams/diagrams/architecture/model-booster-controller-architecture.svg" alt="Architecture Overview"></LightboxImage>
+<LightboxImage src="../assets/diagrams/architecture/model-booster-controller-architecture.svg" alt="Architecture Overview"></LightboxImage>
 
 The Model Booster Controller subscribes to the creation/modification/deletion events of the `ModelBooster` CR and synchronizes them to the CRs of `ModelServer`, `ModelRoute`, `ModelServing`, `AutoscalingPolicy`, and `AutoscalingPolicyBinding` that have the same semantic content as the corresponding events. All these CRs will carry the label `registry.volcano.sh/managed-by=registry.volcano.sh`.
 
