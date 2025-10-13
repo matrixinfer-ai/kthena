@@ -26,6 +26,22 @@ const LightboxImage: React.FC<LightboxImageProps> = ({
   const backdropColor =
     colorMode === 'dark' ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.8)';
 
+  // Prevent layout shift when lightbox opens by compensating for scrollbar
+  React.useEffect(() => {
+    if (open) {
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.paddingRight = '';
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.paddingRight = '';
+      document.body.style.overflow = '';
+    };
+  }, [open]);
+
   // Handle different src types
   React.useEffect(() => {
     if (typeof src === 'string') {
@@ -95,6 +111,12 @@ const LightboxImage: React.FC<LightboxImageProps> = ({
           container: {
             '--yarl__color_backdrop': backdropColor,
           },
+        }}
+        carousel={{
+          padding: '0px',
+        }}
+        controller={{
+          closeOnBackdropClick: true,
         }}
       />
     </>
