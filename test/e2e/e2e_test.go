@@ -17,14 +17,14 @@ limitations under the License.
 package e2e
 
 import (
+	"bytes"
 	"context"
-	"net/http"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
 	workload "github.com/volcano-sh/kthena/pkg/apis/workload/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -32,10 +32,10 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-
-	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
+	"k8s.io/client-go/tools/remotecommand"
 )
 
 const (
@@ -67,36 +67,99 @@ func TestModelCR(t *testing.T) {
 		return true == meta.IsStatusConditionPresentAndEqual(model.Status.Conditions,
 			string(workload.ModelStatusConditionTypeActive), metav1.ConditionTrue)
 	}, 5*time.Minute, 5*time.Second, "Model did not become Active")
-	ip := getRouterIp(t, kubeClient, ctx)
-	require.NotEmpty(t, ip, "router ClusterIP is empty")
-	// Test chat
-	chat(t, ip)
+	// Test chat in cluster
+	executeChatInCluster(t, kubeClient, ctx, config)
 }
 
-func chat(t *testing.T, ip string) {
-	chatURL := "http://" + ip + "/v1/chat/completions"
-	payload := `{
-		"model": "test-model",
-		"messages": [
-			{"role": "user", "content": "Where is the capital of China?"}
-		],
-		"stream": false
-	}`
-	client := &http.Client{Timeout: 60 * time.Second}
-	req, err := http.NewRequest("POST", chatURL, strings.NewReader(payload))
-	require.NoError(t, err, "Failed to create chat request")
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := client.Do(req)
-	require.NoError(t, err, "Chat request failed")
-	defer resp.Body.Close()
-	assert.Equal(t, http.StatusOK, resp.StatusCode, "Chat response status code should be 200")
+func executeChatInCluster(t *testing.T, kubeClient *kubernetes.Clientset, ctx context.Context, config *rest.Config) {
+	// start a nginx pod and then exec curl command in the pod
+	podName, err := runNginxPod(t, kubeClient, ctx)
+	require.NoError(t, err, "Failed to run nginx pod")
+	var stdout, stderr bytes.Buffer
+	req := kubeClient.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(podName).
+		Namespace(testNamespace).
+		SubResource("exec")
+	command := []string{
+		"curl",
+		"-s",
+		"-X", "POST",
+		"-H", "Content-Type: application/json",
+		"-d", `{"model": "test-model", "messages": [{"role": "user", "content": "Where is the capital of China?"}], "stream": false}`,
+		"http://networking-kthena-router/v1/chat/completions",
+	}
+	option := &corev1.PodExecOptions{
+		Command: command,
+		Stdin:   false,
+		Stdout:  true,
+		Stderr:  true,
+		TTY:     false,
+	}
+	req.VersionedParams(
+		option,
+		scheme.ParameterCodec,
+	)
+	exec, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
+	require.NoError(t, err, "Failed to create executor")
+	err = exec.Stream(remotecommand.StreamOptions{
+		Stdout: &stdout,
+		Stderr: &stderr,
+	})
+	require.NoError(t, err, "Failed to execute command in pod")
+	// Log stderr for debugging
+	if stderr.String() != "" {
+		t.Logf("Command stderr: %s", stderr.String())
+	}
+	// Check if response contains expected result
+	responseStr := stdout.String()
+	t.Logf("Chat response: %s", responseStr)
+	// Verify response is successful
+	assert.NotEmpty(t, responseStr, "Chat response is empty")
+	assert.NotContains(t, responseStr, "error", "Chat response contains error")
 }
 
-// Get router Service IP
-func getRouterIp(t *testing.T, kubeClient *kubernetes.Clientset, ctx context.Context) string {
-	svc, err := kubeClient.CoreV1().Services(testNamespace).Get(ctx, "networking-kthena-router", metav1.GetOptions{})
-	require.NoError(t, err, "Failed to get router service")
-	return svc.Spec.ClusterIP
+func runNginxPod(t *testing.T, kubeClient *kubernetes.Clientset, ctx context.Context) (string, error) {
+	podName := "test-nginx-pod"
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      podName,
+			Namespace: testNamespace,
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:    "nginx",
+					Image:   "nginx:alpine",
+					Command: []string{"sleep", "3600"},
+					Resources: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("100m"),
+							corev1.ResourceMemory: resource.MustParse("100Mi"),
+						},
+					},
+				},
+			},
+			RestartPolicy: corev1.RestartPolicyNever,
+		},
+	}
+	_, err := kubeClient.CoreV1().Pods(testNamespace).Create(ctx, pod, metav1.CreateOptions{})
+	require.NoError(t, err, "Failed to create nginx pod")
+	t.Logf("Created nginx pod: %s/%s", testNamespace, podName)
+	require.Eventually(t, func() bool {
+		pod, err := kubeClient.CoreV1().Pods(testNamespace).Get(ctx, podName, metav1.GetOptions{})
+		if err != nil {
+			t.Logf("Get pod error: %v", err)
+			return false
+		}
+		for _, condition := range pod.Status.Conditions {
+			if condition.Type == corev1.PodReady && condition.Status == corev1.ConditionTrue {
+				return true
+			}
+		}
+		return false
+	}, 2*time.Minute, 5*time.Second, "Pod did not become ready")
+	return podName, err
 }
 
 func getKubeConfig() (*rest.Config, error) {
