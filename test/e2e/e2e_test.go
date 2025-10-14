@@ -140,7 +140,7 @@ func createTestModel() *workload.ModelBooster {
 					Workers: []workload.ModelWorker{
 						{
 							Type:     workload.ModelWorkerTypeServer,
-							Image:    "public.ecr.aws/q9t5s3a7/vllm-cpu-release-repo:latest",
+							Image:    "ghcr.io/huntersman/vllm-cpu-env:latest", // Use CPU image for testing
 							Replicas: 1,
 							Pods:     1,
 							Config:   *config,
