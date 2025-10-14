@@ -1,10 +1,10 @@
-# E2E Tests for MatrixInfer
+# E2E Tests for Kthena
 
-This directory contains end-to-end (E2E) tests for the MatrixInfer project using Kind (Kubernetes in Docker).
+This directory contains end-to-end (E2E) tests for the Kthena project using Kind (Kubernetes in Docker).
 
 ## Overview
 
-The E2E tests will use helm to install matrixinfer into the Kind cluster and verify the core functionality.
+The E2E tests will use helm to install kthena into the Kind cluster and verify the core functionality.
 
 ## Prerequisites
 
@@ -29,6 +29,6 @@ make test-e2e-cleanup
 
 The tests create a Kind cluster with the following characteristics:
 
-- **Cluster Name**: `matrixinfer-e2e` (can be overridden with `CLUSTER_NAME` env var)
+- **Cluster Name**: `kthena-e2e` (can be overridden with `CLUSTER_NAME` env var)
 - **Kubernetes Version**: v1.31.0
 - **Test Namespace**: `dev`

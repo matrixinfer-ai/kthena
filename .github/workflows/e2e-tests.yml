@@ -7,8 +7,9 @@ on:
       - main
     paths-ignore:
       - "docs/**"
-      - "README.md"
       - "LICENSE"
+      - "OWNERS"
+      - "*.md"
 
 jobs:
   e2e-tests:
@@ -33,18 +34,18 @@ jobs:
       - name: Run E2E Tests
         run: make test-e2e
         env:
-          CLUSTER_NAME: matrixinfer-e2e-ci # Create a cluster named matrixinfer-e2e-ci, then run tests in it
+          CLUSTER_NAME: kthena-e2e-ci # Create a cluster named kthena-e2e-ci, then run tests in it
       - name: Cleanup E2E Environment
         if: always()
         run: make test-e2e-cleanup
         env:
-          CLUSTER_NAME: matrixinfer-e2e-ci
+          CLUSTER_NAME: kthena-e2e-ci
       - name: Collect logs on failure
         if: failure()
         run: |
           echo "=== Kind cluster logs ==="
-          if kind get clusters | grep -q matrixinfer-e2e-ci; then
-            kind export logs --name matrixinfer-e2e-ci /tmp/kind-logs || true
+          if kind get clusters | grep -q kthena-e2e-ci; then
+            kind export logs --name kthena-e2e-ci /tmp/kind-logs || true
             echo "Logs exported to /tmp/kind-logs"
             ls -la /tmp/kind-logs/ || true
           fi
