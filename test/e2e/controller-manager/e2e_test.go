@@ -104,7 +104,7 @@ func executeChatInCluster(t *testing.T, kubeClient *kubernetes.Clientset, ctx co
 	)
 	exec, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
 	require.NoError(t, err, "Failed to create executor")
-	err = exec.Stream(remotecommand.StreamOptions{
+	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdout: &stdout,
 		Stderr: &stderr,
 	})
