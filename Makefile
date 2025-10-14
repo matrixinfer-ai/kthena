@@ -75,10 +75,6 @@ gen-check: generate
 test: generate ## Run tests. Exclude e2e, client-go.
 	go test $$(go list ./... | grep -v /e2e | grep -v /client-go) -coverprofile cover.out
 
-# The default setup assumes Kind is pre-installed and builds/loads the Manager Docker image locally.
-# Prometheus and CertManager are installed by default; skip with:
-# - PROMETHEUS_INSTALL_SKIP=true
-# - CERT_MANAGER_INSTALL_SKIP=true
 .PHONY: test-e2e
 test-e2e: ## Run the e2e tests. Expected an isolated environment using Kind.
 	@command -v kind >/dev/null 2>&1 || { \
@@ -88,7 +84,7 @@ test-e2e: ## Run the e2e tests. Expected an isolated environment using Kind.
 	@echo "Setting up Kind cluster for E2E tests..."
 	@./test/e2e/setup.sh
 	@echo "Running E2E tests..."
-	@KUBECONFIG=/tmp/kubeconfig-e2e go test ./test/e2e/ -v -timeout=10m
+	@KUBECONFIG=/tmp/kubeconfig-e2e go test $$(go list ./... | grep /test/e2e) -v -timeout=10m
 	@echo "E2E tests completed"
 
 .PHONY: test-e2e-cleanup
