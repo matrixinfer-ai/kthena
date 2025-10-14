@@ -25,7 +25,7 @@ In practice, inference models may still run within a single Pod (as in tradition
 - **ServingGroups:** An `ServingGroup` is a collection of Roles, each fulfilling a specific function within the inference process, such as `Prefill` or `Decode`.
 - **Roles:** Each Role within a `ServingGroup` consists of a group of Pods, which are the actual workloads responsible for executing inference tasks.
 
-For the definition of `ModelServing`, please refer to the [modelServing crd reference](../../docs/reference/crd/workload.serving.volcano.sh.md).
+For the definition of `ModelServing`, please refer to the [modelServing crd reference](https://raw.githubusercontent.com/volcano-sh/kthena/refs/heads/main/docs/kthena/docs/reference/crd/workload.serving.volcano.sh.md).
 
 After inference workloads are managed as groups, this approach aligns well with Volcano's gang scheduling and network topology-aware scheduling. However, basic capabilities required for traditional cloud-native workload management—such as rolling updates and scaling—still need to be handled additionally.
 
