@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package e2e
+package controller_manager
 
 import (
 	"bytes"
@@ -42,6 +42,7 @@ const (
 	testNamespace = "dev"
 )
 
+// TestModelCR creates a ModelBooster CR, waits for it to become active, and tests chat functionality.
 func TestModelCR(t *testing.T) {
 	ctx := context.Background()
 	// Initialize Kubernetes clients
