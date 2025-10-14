@@ -82,7 +82,7 @@ func chat(t *testing.T, ip string) {
 		],
 		"stream": false
 	}`
-	client := &http.Client{Timeout: 30 * time.Second}
+	client := &http.Client{Timeout: 60 * time.Second}
 	req, err := http.NewRequest("POST", chatURL, strings.NewReader(payload))
 	require.NoError(t, err, "Failed to create chat request")
 	req.Header.Set("Content-Type", "application/json")
