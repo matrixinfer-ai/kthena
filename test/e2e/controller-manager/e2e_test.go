@@ -70,6 +70,7 @@ func TestModelCR(t *testing.T) {
 	}, 5*time.Minute, 5*time.Second, "Model did not become Active")
 	// Test chat in cluster
 	executeChatInCluster(t, kubeClient, ctx, config)
+	// todo: test update modelBooster, delete modelBooster
 }
 
 func executeChatInCluster(t *testing.T, kubeClient *kubernetes.Clientset, ctx context.Context, config *rest.Config) {
