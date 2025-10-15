@@ -10,7 +10,7 @@ Our goal is to deliver a lightweight, user-friendly, and extensible LLM inferenc
 
 <LightboxImage src="/img/kthena-router-arch.svg" alt="arch"></LightboxImage>
 
-Kthena Router is deployed as a standalone binary that can seamlessly integrate with existing router infrastructure or serve as a direct traffic entry point for handling AI workloads independently.
+Kthena Router is deployed as a standalone binary that can seamlessly integrate with existing gateway infrastructure or serve as a direct traffic entry point for handling AI workloads independently.
 
 For backend model access, the router supports both external public AI service providers (such as OpenAI, Google Gemini) and privately deployed models within the cluster.
 
@@ -51,7 +51,7 @@ Initial scheduling plugins include:
 
 **Standalone Binary**: Deployed as an independent binary (not as a plugin for existing proxies like Envoy), ensuring lightweight operation, minimal dependencies, user-friendly experience, and simple deployment.
 
-**Seamless Integration**: Seamlessly compatible with existing API Router infrastructure, whether based on Nginx, Envoy, or other proxies, maximizing reuse of existing API router capabilities such as authentication and authorization.
+**Seamless Integration**: Seamlessly compatible with existing API Gateway infrastructure, whether based on Nginx, Envoy, or other proxies, maximizing reuse of existing API Gateway capabilities such as authentication and authorization.
 
 **Model-Aware Routing**: Leverages metrics obtained from inference engines to enable better AI traffic scheduling and improved inference performance.
 
