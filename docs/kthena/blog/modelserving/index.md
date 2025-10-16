@@ -1,11 +1,11 @@
 ---
 slug: modelserving-blog-post
-title: An Analysis of the kthena's ModelServing
+title: A Deep Dive of the Kthena's ModelServing
 authors: [LiZhenCheng9527]
 tags: []
 ---
 
-# An Analysis of the kthena's ModelServing
+# A Deep Dive of the Kthena's ModelServing
 
 ## Introduction
 
@@ -14,6 +14,8 @@ As large models continue to grow exponentially in parameter size, the resource l
 In practice, inference models may still run within a single Pod (as in traditional single-node scenarios), across a group of identical Pods (for larger models), or among Pods with specialized roles (as in PD-disaggregation deployments). This flexible deployment not only improves resource utilization but also enables more efficient large model inference.
 
 `ModelServing` is a specialized component of `Kthena` designed to manage and orchestrate the lifecycle of inference model workloads. It can conveniently represent and manage multiple deployment models, such as `PD-disaggregation`, `tensor parallelism`, `pipeline parallelism`, and single-GPU model deployment, because its three-tier architecture.
+
+<!-- truncate -->
 
 ## Three-tier Architecture
 
