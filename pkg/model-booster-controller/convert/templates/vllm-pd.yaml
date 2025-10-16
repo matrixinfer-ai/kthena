@@ -2,10 +2,14 @@ apiVersion: workload.serving.volcano.sh/v1alpha1
 kind: ModelServing
 metadata: ${MODEL_SERVING_TEMPLATE_METADATA}
 spec:
-  schedulerName: volcano
+  schedulerName: ${SCHEDULER_NAME}
   replicas: ${BACKEND_REPLICAS}
   template:
     restartGracePeriodSeconds: 60
+    gangPolicy:
+      minRoleReplicas:
+        prefill: ${PREFILL_REPLICAS}
+        decode: ${DECODE_REPLICAS}
     roles:
       - name: prefill
         replicas: ${PREFILL_REPLICAS}

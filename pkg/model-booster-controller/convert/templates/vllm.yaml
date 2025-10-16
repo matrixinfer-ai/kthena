@@ -2,6 +2,7 @@ apiVersion: workload.serving.volcano.sh/v1alpha1
 kind: ModelServing
 metadata: ${MODEL_SERVING_TEMPLATE_METADATA}
 spec:
+  schedulerName: ${SCHEDULER_NAME}
   topologySpreadConstraints:
     - maxSkew: 1
       topologyKey: kubernetes.io/hostname
@@ -12,6 +13,9 @@ spec:
   replicas: ${BACKEND_REPLICAS}
   template:
     restartGracePeriodSeconds: 60
+    gangPolicy:
+      minRoleReplicas:
+        leader: ${SERVER_REPLICAS}
     roles:
       - name: leader
         replicas: ${SERVER_REPLICAS}
