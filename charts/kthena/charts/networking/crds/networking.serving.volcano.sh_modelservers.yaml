@@ -53,7 +53,7 @@ spec:
                     default: http
                     description: |-
                       Type specifies the connector type.
-                      If you donot know which type to use, please use "http" as default.
+                      If you do not know which type to use, please use "http" as default.
                     enum:
                     - http
                     - lmcache

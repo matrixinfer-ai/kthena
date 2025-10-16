@@ -36,7 +36,7 @@ import (
 type ModelRouteController struct {
 	modelRouteLister listerv1alpha1.ModelRouteLister
 	modelRouteSynced cache.InformerSynced
-	registation      cache.ResourceEventHandlerRegistration
+	registration     cache.ResourceEventHandlerRegistration
 
 	workqueue   workqueue.TypedRateLimitingInterface[any]
 	initialSync *atomic.Bool
@@ -57,7 +57,7 @@ func NewModelRouteController(
 		store:            store,
 	}
 
-	controller.registation, _ = modelRouteInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	controller.registration, _ = modelRouteInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.enqueueModelRoute,
 		UpdateFunc: func(old, new interface{}) {
 			controller.enqueueModelRoute(new)
@@ -72,7 +72,7 @@ func (c *ModelRouteController) Run(stopCh <-chan struct{}) error {
 	defer utilruntime.HandleCrash()
 	defer c.workqueue.ShutDown()
 
-	if ok := cache.WaitForCacheSync(stopCh, c.registation.HasSynced); !ok {
+	if ok := cache.WaitForCacheSync(stopCh, c.registration.HasSynced); !ok {
 		return fmt.Errorf("failed to wait for caches to sync")
 	}
 	// add initialSync signal

@@ -202,7 +202,7 @@ type PodInfo struct {
 
 	mutex sync.RWMutex // Protects concurrent access to Models and modelServer fields
 	// Protected fields - use accessor methods for thread-safe access
-	models      sets.Set[string]               // running models. Including base model and lora adapaters.
+	models      sets.Set[string]               // running models. Including base model and lora adapters.
 	modelServer sets.Set[types.NamespacedName] // The modelservers this pod belongs to
 }
 
@@ -342,7 +342,7 @@ func (s *store) AddOrUpdateModelServer(ms *aiv1alpha1.ModelServer, pods sets.Set
 	}
 
 	if len(pods) != 0 {
-		// donot operate s.pods here, which are done within pod handler
+		// do not operate s.pods here, which are done within pod handler
 		modelServerObj.pods = pods
 	}
 	s.modelServer.Store(name, modelServerObj)

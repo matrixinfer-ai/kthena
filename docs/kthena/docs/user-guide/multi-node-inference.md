@@ -8,7 +8,7 @@ With the development of LLM, the scale of model parameters has grown exponential
 
 The industry has proposed various innovative optimization strategies, such as PD-disaggregation and hybrid deployment of large and small models. These strategies have significantly changed the execution pattern of inference tasks, making inference instances no longer limited to the level of a single pod, but rather evolving into scenarios where multiple pods collaboratively complete a single inference prediction.
 
-To address this issue, kthena provides a new `ModelServing` CR to describe specific inference depolyment, enabling flexible and diverse deployment methods for inference task pods.
+To address this issue, kthena provides a new `ModelServing` CR to describe specific inference deployment, enabling flexible and diverse deployment methods for inference task pods.
 
 For a detailed definition of the `ModelServing`, please refer to the [ModelServing Reference](../reference/crd/workload.serving.volcano.sh.md) pages.
 
@@ -20,7 +20,7 @@ For a detailed definition of the `ModelServing`, please refer to the [ModelServi
 - Access to the Kthena examples repository
 - Basic understanding of ModelServing CRD
 
-### Geting Started
+### Getting Started
 
 Deploy [llama LLM inference engine](../assets/examples/model-serving/multi-node.yaml). Set the tensor parallel size is 8 and the pipeline parallel size is 2.
 

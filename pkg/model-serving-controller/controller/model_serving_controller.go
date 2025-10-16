@@ -446,7 +446,7 @@ func (c *ModelServingController) Run(ctx context.Context, workers int) {
 }
 
 // sync all pods before starting the worker
-// we donot need to sync ModelServing here, because the ModelServing controller will sync all ModelServings after the initial sync.
+// we do not need to sync ModelServing here, because the ModelServing controller will sync all ModelServings after the initial sync.
 // Related ServingGroups will be created when syncing pods.
 func (c *ModelServingController) syncAll() {
 	pods, _ := c.podsLister.List(labels.Everything())

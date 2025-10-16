@@ -78,7 +78,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `type` _[KVConnectorType](#kvconnectortype)_ | Type specifies the connector type.<br />If you donot know which type to use, please use "http" as default. | http | Enum: [http lmcache nixl mooncake] <br /> |
+| `type` _[KVConnectorType](#kvconnectortype)_ | Type specifies the connector type.<br />If you do not know which type to use, please use "http" as default. | http | Enum: [http lmcache nixl mooncake] <br /> |
 
 
 #### KVConnectorType

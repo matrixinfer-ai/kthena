@@ -113,7 +113,7 @@ const (
 // KVConnectorSpec defines KV connector configuration for PD disaggregated routing
 type KVConnectorSpec struct {
 	// Type specifies the connector type.
-	// If you donot know which type to use, please use "http" as default.
+	// If you do not know which type to use, please use "http" as default.
 	// +kubebuilder:validation:Enum=http;lmcache;nixl;mooncake
 	// +kubebuilder:default="http"
 	Type KVConnectorType `json:"type,omitempty"`
