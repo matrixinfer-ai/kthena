@@ -14,6 +14,18 @@ spec:
         replicas: 1
         entryTemplate:
           spec:
+            initContainers:
+              - name: downloader
+                imagePullPolicy: Always
+                image: ghcr.io/kthena/downloader:latest
+                args:
+                  - --source
+                  - Qwen/Qwen3-8B
+                  - --output-dir
+                  - /models/Qwen3-8B/
+                volumeMounts:
+                  - name: models
+                    mountPath: /models
             containers:
               - name: prefill
                 image: kvcache-container-image-hb2-cn-beijing.cr.volces.com/aibrix/vllm-openai:v0.10.0-cu128-nixl-v0.4.1-lmcache-0.3.2
@@ -53,11 +65,11 @@ spec:
                   - name: UCX_TLS
                     value: ^gga
                 volumeMounts:
-                  - name: model-vol
+                  - name: models
                     mountPath: /models
                     readOnly: true
-                  - mountPath: /dev/shm
-                    name: shared-mem
+                  - name: shared-mem
+                    mountPath: /dev/shm
                 resources:
                   limits:
                     nvidia.com/gpu: 1
@@ -81,12 +93,11 @@ spec:
                     path: /health
                     port: 8000
             volumes:
-              - name: model-vol
-                hostPath:
-                  path: /data01/models
-                  type: Directory
+              - name: models
+                emptyDir: {}
               - name: shared-mem
                 emptyDir:
+                  sizeLimit: 256Mi
                   medium: Memory
         workerReplicas: 0
         workerTemplate:
@@ -96,6 +107,18 @@ spec:
         replicas: 1
         entryTemplate:
           spec:
+            initContainers:
+              - name: downloader
+                imagePullPolicy: Always
+                image: ghcr.io/kthena/downloader:latest
+                args:
+                  - --source
+                  - Qwen/Qwen3-8B
+                  - --output-dir
+                  - /models/Qwen3-8B/
+                volumeMounts:
+                  - name: models
+                    mountPath: /models
             containers:
               - name: decode
                 image: kvcache-container-image-hb2-cn-beijing.cr.volces.com/aibrix/vllm-openai:v0.10.0-cu128-nixl-v0.4.1-lmcache-0.3.2
@@ -135,11 +158,11 @@ spec:
                   - name: UCX_TLS
                     value: ^gga
                 volumeMounts:
-                  - name: model-vol
+                  - name: models
                     mountPath: /models
                     readOnly: true
-                  - mountPath: /dev/shm
-                    name: shared-mem
+                  - name: shared-mem
+                    mountPath: /dev/shm
                 resources:
                   limits:
                     nvidia.com/gpu: 1
@@ -163,12 +186,11 @@ spec:
                     path: /health
                     port: 8000
             volumes:
-              - name: model-vol
-                hostPath:
-                  path: /data01/models
-                  type: Directory
+              - name: models
+                emptyDir: {}
               - name: shared-mem
                 emptyDir:
+                  sizeLimit: 256Mi
                   medium: Memory
         workerReplicas: 0
         workerTemplate:
