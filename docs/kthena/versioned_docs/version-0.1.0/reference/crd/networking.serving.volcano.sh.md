@@ -76,9 +76,9 @@ KVConnectorSpec defines KV connector configuration for PD disaggregated routing
 _Appears in:_
 - [ModelServerSpec](#modelserverspec)
 
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `type` _[KVConnectorType](#kvconnectortype)_ | Type specifies the connector type.<br />If you donot know which type to use, please use "http" as default. | http | Enum: [http lmcache nixl mooncake] <br /> |
+| Field | Description                                                                                                 | Default | Validation |
+| --- |-------------------------------------------------------------------------------------------------------------| --- | --- |
+| `type` _[KVConnectorType](#kvconnectortype)_ | Type specifies the connector type.<br />If you do not know which type to use, please use "http" as default. | http | Enum: [http lmcache nixl mooncake] <br /> |
 
 
 #### KVConnectorType
