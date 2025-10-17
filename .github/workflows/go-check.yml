@@ -1,0 +1,57 @@
+name: Go Check
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - '**.svg'
+      - '**.png'
+      - 'docs/**'
+      - '.github/**'
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'docs/**'
+      - '.github/**'
+
+jobs:
+
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: install sponge
+        shell: bash
+        run: sudo apt-get update && sudo apt-get install -y moreutils
+      - name: generate copyright
+        shell: bash
+        run: |
+          make gen-copyright
+      - name: check diff
+        shell: bash
+        run: |
+          git diff --exit-code
+      - name: install helm
+        shell: bash
+        run: |
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      - name: helm lint
+        shell: bash
+        run: |
+          helm lint charts/kthena
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+      - name: golangci-lint
+        shell: bash
+        run: |
+          make lint
+      - name: Build Kthena
+        shell: bash
+        run: |
+          make gen-check

@@ -104,5 +104,5 @@ Kthena leverages **Volcano** (a high-performance batch system for Kubernetes) to
 
 If you need gang scheduling capabilities, you can install Volcano by following the official installation guide of [Volcano](https://volcano.sh/en/docs/installation/).
 
-# Minfer CLI
-Kthena provides a CLI tool called `minfer` to manage your Kthena deployments. You can download CLI from the [GitHub release page](https://github.com/volcano-sh/kthena/releases/). Please refer to the [CLI documentation](../reference/cli/minfer.md) for more information.
+# Kthena CLI
+Kthena provides a CLI tool called `kthena` to manage your Kthena deployments. You can download CLI from the [GitHub release page](https://github.com/volcano-sh/kthena/releases/). Please refer to the [CLI documentation](../reference/cli/kthena.md) for more information.
