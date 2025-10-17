@@ -4,7 +4,7 @@
 
 ConfigMap is a Kubernetes API object used to store configuration data. Kthena Router uses ConfigMap to configure scheduler plugins and authentication settings, allowing users to customize router behavior without recompiling the code.
 
-**NOTICE:** The ConfigMap must be prepared before launching the router pod, otherwise it will not take effect. Beacuse we do not support hot reload.
+**NOTICE:** The ConfigMap must be prepared before launching the router pod, otherwise it will not take effect. Because we do not support hot reload.
 
 ## Configuration options
 
