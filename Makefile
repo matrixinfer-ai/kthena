@@ -76,6 +76,22 @@ gen-check: generate
 test: generate ## Run tests. Exclude e2e, client-go.
 	go test $$(go list ./... | grep -v /e2e | grep -v /client-go) -coverprofile cover.out
 
+.PHONY: test-e2e
+test-e2e: ## Run the e2e tests. Expected an isolated environment using Kind.
+	@command -v kind >/dev/null 2>&1 || { \
+		echo "Kind is not installed. Please install Kind manually."; \
+		exit 1; \
+	}
+	@echo "Setting up Kind cluster for E2E tests..."
+	@./test/e2e/setup.sh
+	@echo "Running E2E tests..."
+	@KUBECONFIG=/tmp/kubeconfig-e2e go test $$(go list ./... | grep /test/e2e) -v -timeout=10m
+	@echo "E2E tests completed"
+
+.PHONY: test-e2e-cleanup
+test-e2e-cleanup: ## Clean up the Kind cluster used for E2E tests.
+	@./test/e2e/cleanup.sh
+
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter
 	$(GOLANGCI_LINT) run
@@ -102,6 +118,8 @@ build: generate fmt vet
 
 IMG_CONTROLLER ?= ${HUB}/kthena-controller-manager:${TAG}
 IMG_ROUTER ?= ${HUB}/kthena-router:${TAG}
+IMG_DOWNLOADER ?= ${HUB}/downloader:${TAG}
+IMG_RUNTIME ?= ${HUB}/runtime:${TAG}
 
 .PHONY: docker-build-router
 docker-build-router: generate
@@ -110,6 +128,18 @@ docker-build-router: generate
 .PHONY: docker-build-controller
 docker-build-controller: generate
 	$(CONTAINER_TOOL) build -t ${IMG_CONTROLLER} -f docker/Dockerfile.kthena-controller-manager .
+
+.PHONY: docker-build-downloader
+docker-build-downloader: generate
+	$(CONTAINER_TOOL) build -t ${IMG_DOWNLOADER} --target downloader -f python/Dockerfile python
+
+.PHONY: docker-build-runtime
+docker-build-runtime: generate
+	$(CONTAINER_TOOL) build -t ${IMG_RUNTIME} --target runtime -f python/Dockerfile python
+
+.PHONY: docker-build-all
+docker-build-all: docker-build-router docker-build-controller docker-build-downloader docker-build-runtime## Build all images.
+	@echo "All images built."
 
 .PHONY: docker-push
 docker-push: docker-build-router docker-build-controller ## Push all images to the registry.
