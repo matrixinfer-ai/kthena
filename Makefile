@@ -207,6 +207,27 @@ gen-copyright:
 	@echo "Adding copyright headers..."
 	@hack/update-copyright.sh
 
+mod-download-go:
+	@-GOFLAGS="-mod=readonly" find -name go.mod -execdir go mod download \;
+# go mod tidy is needed with Golang 1.16+ as go mod download affects go.sum
+# https://github.com/golang/go/issues/43994
+# exclude docs folder
+	@find . -path ./docs -prune -o -name go.mod -execdir go mod tidy \;
+
+.PHONY: mirror-licenses
+mirror-licenses: mod-download-go; \
+	go install istio.io/tools/cmd/license-lint@v0.0.0-20240221165422-57f6bfb4cd73;  \
+	rm -fr licenses; \
+	license-lint --mirror
+
+.PHONY: lint-licenses
+lint-licenses:
+	@if test -d licenses; then license-lint --config config/licenses-lint.yaml; fi
+
+.PHONY: licenses-check
+licenses-check: mirror-licenses; \
+    hack/licenses-check.sh
+
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary
 # $2 - package url which can be installed
