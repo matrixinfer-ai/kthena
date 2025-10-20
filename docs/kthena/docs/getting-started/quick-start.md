@@ -9,7 +9,7 @@ import CodeBlock from '@theme/CodeBlock';
 Get up and running with Kthena in minutes! This guide will walk you through deploying your first AI model.
 We'll install a model from Hugging Face and perform inference using a simple curl command.
 
-We have two optional ways to quicky start using kthena to deploy LLM.
+We have two optional ways to quickly start using kthena to deploy LLM.
 
 1. ModelBooster
 2. ModelServing
@@ -101,9 +101,9 @@ In addition to using Kthena with a single click via modelBooster, you can also f
 
 Model Serving Controller is a component of Kthena that provides a flexible and customizable way to deploy LLMs. It allows you to configure your own LLM through `ModelServing` CRD. ModelServing supports deploying large language models (LLMs) based on roles, with support for gang scheduling and network topology scheduling. It also provides fundamental features such as scaling and rolling updates.
 
-Herer is an [example](https://raw.githubusercontent.com/volcano-sh/kthena/refs/heads/main/examples/model-serving/gpu-PD.yaml) of Deploying the PD-Separated Qwen-8B Model on a GPU Using `ModelServing`.
+Herer is an [example](https://raw.githubusercontent.com/volcano-sh/kthena/refs/heads/main/examples/model-serving/gpu-PD.yaml) of deploying the PD-disaggregation Qwen-8B Model on GPU Using `ModelServing`.
 
-**Step 1: Create a ModelServing Resource:**
+**Step 1: Create a ModelServing Resource Object:**
 
 ```sh
 kubectl apply -f https://raw.githubusercontent.com/volcano-sh/kthena/refs/heads/main/examples/model-serving/gpu-pd-disaggregation.yaml
@@ -144,7 +144,7 @@ kubectl get modelserving sample -o jsonpath='{.status.conditions}' | jq '.'
 
 **Step 3: Perform Inference**
 
-Before you can perform inference, you need to create ModelRouter and ModelServer. You can refer to [modelRouter Configration](../user-guide/prefill-decode-disaggregation/vllm-ascend(mooncake).md#modelrouter-configuration) and [modelServer Configration](../user-guide/prefill-decode-disaggregation/vllm-ascend(mooncake).md#modelserver-configuration).
+Before you can perform inference, you need to create `ModelRoute` and `ModelServer`. You can refer to [modelRouter Configuration](../user-guide/prefill-decode-disaggregation/vllm-ascend(mooncake).md#modelrouter-configuration) and [modelServer Configuration](../user-guide/prefill-decode-disaggregation/vllm-ascend(mooncake).md#modelserver-configuration).
 
 Then you can use the following command to send a request:
 

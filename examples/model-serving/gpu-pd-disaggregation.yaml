@@ -16,7 +16,7 @@ spec:
           spec:
             initContainers:
               - name: downloader
-                imagePullPolicy: Always
+                imagePullPolicy: IfNotPresent
                 image: ghcr.io/kthena/downloader:latest
                 args:
                   - --source
@@ -73,7 +73,6 @@ spec:
                 resources:
                   limits:
                     nvidia.com/gpu: 1
-                    vke.volcengine.com/rdma: "1"
                 securityContext:
                   capabilities:
                     add:
@@ -100,16 +99,13 @@ spec:
                   sizeLimit: 256Mi
                   medium: Memory
         workerReplicas: 0
-        workerTemplate:
-          spec:
-            containers: []
       - name: decode
         replicas: 1
         entryTemplate:
           spec:
             initContainers:
               - name: downloader
-                imagePullPolicy: Always
+                imagePullPolicy: IfNotPresent
                 image: ghcr.io/kthena/downloader:latest
                 args:
                   - --source
@@ -166,7 +162,6 @@ spec:
                 resources:
                   limits:
                     nvidia.com/gpu: 1
-                    vke.volcengine.com/rdma: "1"
                 securityContext:
                   capabilities:
                     add:
@@ -193,6 +188,3 @@ spec:
                   sizeLimit: 256Mi
                   medium: Memory
         workerReplicas: 0
-        workerTemplate:
-          spec:
-            containers: []
