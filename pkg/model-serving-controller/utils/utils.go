@@ -99,6 +99,7 @@ func GenerateEntryPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelServ
 	entryPod.ObjectMeta.Labels[workloadv1alpha1.EntryLabelKey] = Entry
 	addPodLabelAndAnnotation(entryPod, role.EntryTemplate.Metadata)
 	entryPod.Spec = role.EntryTemplate.Spec
+	entryPod.Spec.SchedulerName = mi.Spec.SchedulerName
 	// Build environment variables into each container of all pod
 	envVars := createCommonEnvVars(role, entryPod, 0)
 	addPodEnvVars(entryPod, envVars...)
@@ -110,6 +111,7 @@ func GenerateWorkerPod(role workloadv1alpha1.Role, mi *workloadv1alpha1.ModelSer
 	workerPod := createBasePod(role, mi, workerPodName, groupName, revision, roleIndex)
 	addPodLabelAndAnnotation(workerPod, role.WorkerTemplate.Metadata)
 	workerPod.Spec = role.WorkerTemplate.Spec
+	entryPod.Spec.SchedulerName = mi.Spec.SchedulerName
 	// Build environment variables into each container of all pod
 	envVars := createCommonEnvVars(role, entryPod, podIndex)
 	addPodEnvVars(workerPod, envVars...)

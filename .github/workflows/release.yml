@@ -3,7 +3,7 @@ on:
   push:
     tags:
       - "v*.*.*"
-
+      - "v*.*.*-*" # support pre-release tag. For example, v1.2.3-alpha, v1.2.3-beta, v1.2.3-rc1
 jobs:
   release:
     permissions:
@@ -43,8 +43,20 @@ jobs:
       - name: Helm package
         run: |
           helm package ./charts/kthena
+      - name: Check if prerelease
+        id: is_prerelease
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if [[ "$VERSION" == *-* ]]; then
+            echo "prerelease=true" >> $GITHUB_OUTPUT
+            echo "This is a prerelease version: $VERSION"
+          else
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+            echo "This is a stable release version: $VERSION"
+          fi
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
           files: ${{ github.workspace }}/*.tgz
+          prerelease: ${{ steps.is_prerelease.outputs.prerelease }}

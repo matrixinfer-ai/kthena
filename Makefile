@@ -51,6 +51,7 @@ gen-crd: controller-gen
 
 .PHONY: gen-docs
 gen-docs: crd-ref-docs ## Generate CRD and CLI reference documentation
+    # Generate CRD ref docs
 	mkdir -p docs/kthena/docs/api
 	$(CRD_REF_DOCS) \
 		--source-path=./pkg/apis \
@@ -58,8 +59,8 @@ gen-docs: crd-ref-docs ## Generate CRD and CLI reference documentation
 		--output-path=docs/kthena/docs/reference/crd \
 		--renderer=markdown \
 		--output-mode=group
-	# Generate Minfer CLI docs using a standalone doc-gen program
-	go run ./cli/minfer/internal/tools/docgen/main.go
+	# Generate Kthena CLI docs using a standalone doc-gen program
+	go run ./cli/kthena/internal/tools/docgen/main.go
 
 .PHONY: generate
 generate: controller-gen gen-crd gen-docs gen-copyright ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
@@ -75,6 +76,22 @@ gen-check: generate
 test: generate ## Run tests. Exclude e2e, client-go.
 	go test $$(go list ./... | grep -v /e2e | grep -v /client-go) -coverprofile cover.out
 
+.PHONY: test-e2e
+test-e2e: ## Run the e2e tests. Expected an isolated environment using Kind.
+	@command -v kind >/dev/null 2>&1 || { \
+		echo "Kind is not installed. Please install Kind manually."; \
+		exit 1; \
+	}
+	@echo "Setting up Kind cluster for E2E tests..."
+	@./test/e2e/setup.sh
+	@echo "Running E2E tests..."
+	@KUBECONFIG=/tmp/kubeconfig-e2e go test $$(go list ./... | grep /test/e2e) -v -timeout=10m
+	@echo "E2E tests completed"
+
+.PHONY: test-e2e-cleanup
+test-e2e-cleanup: ## Clean up the Kind cluster used for E2E tests.
+	@./test/e2e/cleanup.sh
+
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter
 	$(GOLANGCI_LINT) run
@@ -83,16 +100,26 @@ lint: golangci-lint ## Run golangci-lint linter
 lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 	$(GOLANGCI_LINT) run --fix
 
+.PHONY: fmt
+fmt: ## Run go fmt against code.
+	go fmt ./...
+
+.PHONY: vet
+vet: ## Run go vet against code.
+	go vet ./...
+
 ##@ Build
 
 .PHONY: build
 build: generate fmt vet
 	go build -o bin/kthena-router cmd/kthena-router/main.go
 	go build -o bin/kthena-controller-manager cmd/kthena-controller-manager/main.go
-	go build -o bin/minfer cli/minfer/main.go
+	go build -o bin/kthena cli/kthena/main.go
 
 IMG_CONTROLLER ?= ${HUB}/kthena-controller-manager:${TAG}
 IMG_ROUTER ?= ${HUB}/kthena-router:${TAG}
+IMG_DOWNLOADER ?= ${HUB}/downloader:${TAG}
+IMG_RUNTIME ?= ${HUB}/runtime:${TAG}
 
 .PHONY: docker-build-router
 docker-build-router: generate
@@ -101,6 +128,18 @@ docker-build-router: generate
 .PHONY: docker-build-controller
 docker-build-controller: generate
 	$(CONTAINER_TOOL) build -t ${IMG_CONTROLLER} -f docker/Dockerfile.kthena-controller-manager .
+
+.PHONY: docker-build-downloader
+docker-build-downloader: generate
+	$(CONTAINER_TOOL) build -t ${IMG_DOWNLOADER} --target downloader -f python/Dockerfile python
+
+.PHONY: docker-build-runtime
+docker-build-runtime: generate
+	$(CONTAINER_TOOL) build -t ${IMG_RUNTIME} --target runtime -f python/Dockerfile python
+
+.PHONY: docker-build-all
+docker-build-all: docker-build-router docker-build-controller docker-build-downloader docker-build-runtime## Build all images.
+	@echo "All images built."
 
 .PHONY: docker-push
 docker-push: docker-build-router docker-build-controller ## Push all images to the registry.

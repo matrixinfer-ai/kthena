@@ -1,4 +1,6 @@
 import LightboxImage from '@site/src/components/LightboxImage';
+import kthenaRouterArch from '../assets/diagrams/kthena-router-arch.svg';
+import kthenaRouterComponents from '../assets/diagrams/kthena-router-components.svg';
 
 # Kthena Router
 
@@ -8,9 +10,9 @@ Our goal is to deliver a lightweight, user-friendly, and extensible LLM inferenc
 
 ## Overview
 
-<LightboxImage src="/img/kthena-router-arch.svg" alt="arch"></LightboxImage>
+<LightboxImage src={kthenaRouterArch} alt="arch"></LightboxImage>
 
-Kthena Router is deployed as a standalone binary that can seamlessly integrate with existing router infrastructure or serve as a direct traffic entry point for handling AI workloads independently.
+Kthena Router is deployed as a standalone binary that can seamlessly integrate with existing gateway infrastructure or serve as a direct traffic entry point for handling AI workloads independently.
 
 For backend model access, the router supports both external public AI service providers (such as OpenAI, Google Gemini) and privately deployed models within the cluster.
 
@@ -18,7 +20,7 @@ For privately deployed models in particular, the router supports mainstream infe
 
 ## Core Components
 
-<LightboxImage src="/img/kthena-router-components.svg" alt="arch"></LightboxImage>
+<LightboxImage src={kthenaRouterComponents} alt="arch"></LightboxImage>
 
 **Router**: The core execution framework responsible for request reception, processing, and forwarding.
 
@@ -51,7 +53,7 @@ Initial scheduling plugins include:
 
 **Standalone Binary**: Deployed as an independent binary (not as a plugin for existing proxies like Envoy), ensuring lightweight operation, minimal dependencies, user-friendly experience, and simple deployment.
 
-**Seamless Integration**: Seamlessly compatible with existing API Router infrastructure, whether based on Nginx, Envoy, or other proxies, maximizing reuse of existing API router capabilities such as authentication and authorization.
+**Seamless Integration**: Seamlessly compatible with existing API Gateway infrastructure, whether based on Nginx, Envoy, or other proxies, maximizing reuse of existing API Gateway capabilities such as authentication and authorization.
 
 **Model-Aware Routing**: Leverages metrics obtained from inference engines to enable better AI traffic scheduling and improved inference performance.
 

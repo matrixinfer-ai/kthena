@@ -78,7 +78,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `type` _[KVConnectorType](#kvconnectortype)_ | Type specifies the connector type.<br />If you donot know which type to use, please use "http" as default. | http | Enum: [http lmcache nixl mooncake] <br /> |
+| `type` _[KVConnectorType](#kvconnectortype)_ | Type specifies the connector type.<br />If you do not know which type to use, please use "http" as default. | http | Enum: [http lmcache nixl mooncake] <br /> |
 
 
 #### KVConnectorType
@@ -136,9 +136,6 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `networking.serving.volcano.sh/v1alpha1` | | |
 | `kind` _string_ | `ModelRoute` | | |
-| `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  |  |
-| `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  |  |
-| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `spec` _[ModelRouteSpec](#modelroutespec)_ |  |  |  |
 | `status` _[ModelRouteStatus](#modelroutestatus)_ |  |  |  |
 
@@ -157,9 +154,6 @@ ModelRouteList contains a list of ModelRoute.
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `networking.serving.volcano.sh/v1alpha1` | | |
 | `kind` _string_ | `ModelRouteList` | | |
-| `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  |  |
-| `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  |  |
-| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `items` _[ModelRoute](#modelroute) array_ |  |  |  |
 
 
@@ -210,9 +204,6 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `networking.serving.volcano.sh/v1alpha1` | | |
 | `kind` _string_ | `ModelServer` | | |
-| `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  |  |
-| `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  |  |
-| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `spec` _[ModelServerSpec](#modelserverspec)_ |  |  |  |
 | `status` _[ModelServerStatus](#modelserverstatus)_ |  |  |  |
 
@@ -231,9 +222,6 @@ ModelServerList contains a list of ModelServer.
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `networking.serving.volcano.sh/v1alpha1` | | |
 | `kind` _string_ | `ModelServerList` | | |
-| `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  |  |
-| `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  |  |
-| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `items` _[ModelServer](#modelserver) array_ |  |  |  |
 
 
@@ -360,7 +348,6 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `attempts` _integer_ | The maximum number of times an individual inference request to a model server should be retried.<br />If the maximum number of retries has been done without a successgful response, the request will be considered failed. |  |  |
-| `retryInterval` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#duration-v1-meta)_ | RetryInterval is the interval between retries. | 100ms |  |
 
 
 #### Rule
@@ -430,7 +417,6 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `timeout` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#duration-v1-meta)_ | The request timeout for the inference request.<br />By default, there is no timeout. |  |  |
 | `retry` _[Retry](#retry)_ | The retry policy for the inference request. |  |  |
 
 

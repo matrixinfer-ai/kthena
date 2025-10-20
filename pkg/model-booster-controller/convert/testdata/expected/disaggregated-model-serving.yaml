@@ -6,7 +6,7 @@ metadata:
     workload.serving.volcano.sh/managed-by: workload.serving.volcano.sh
     workload.serving.volcano.sh/model-name: ds-r1-qwen-7b-pd
     workload.serving.volcano.sh/model-uid: randomUID
-    workload.serving.volcano.sh/revision: 67cc57ffd4
+    workload.serving.volcano.sh/revision: 666d87766
   name: ds-r1-qwen-7b-pd-ds-r1-qwen-7b-pd
   namespace: demo
   ownerReferences:
@@ -16,9 +16,13 @@ metadata:
       uid: randomUID
 spec:
   replicas: 1
-  schedulerName: volcano
+  schedulerName: "volcano"
   template:
     restartGracePeriodSeconds: 60
+    gangPolicy:
+      minRoleReplicas:
+        prefill: 1
+        decode: 1
     roles:
       - entryTemplate:
           spec:

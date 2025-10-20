@@ -632,6 +632,10 @@ spec:
                       format: int32
                       minimum: 0
                       type: integer
+                    schedulerName:
+                      description: SchedulerName defines the name of the scheduler
+                        used by ModelServing for this backend.
+                      type: string
                     type:
                       description: Type is the type of the backend.
                       enum:

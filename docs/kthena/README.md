@@ -205,3 +205,13 @@ GIT_USER=<Your GitHub username> npm run deploy
 ```
 
 If you are using GitHub pages for hosting, this command is a convenient way to build the website and push to the `gh-pages` branch.
+
+## Manage Docs Versions
+
+Release a version 1.0 of your project:
+
+```shell
+npm run docusaurus docs:version 1.0
+```
+
+Please refer to [this guide](https://tutorial.docusaurus.io/docs/tutorial-extras/manage-docs-versions/) for more information.

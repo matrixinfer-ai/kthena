@@ -41,6 +41,7 @@ type ModelBackendApplyConfiguration struct {
 	Workers                []ModelWorkerApplyConfiguration          `json:"workers,omitempty"`
 	LoraAdapters           []LoraAdapterApplyConfiguration          `json:"loraAdapters,omitempty"`
 	AutoscalingPolicy      *AutoscalingPolicySpecApplyConfiguration `json:"autoscalingPolicy,omitempty"`
+	SchedulerName          *string                                  `json:"schedulerName,omitempty"`
 }
 
 // ModelBackendApplyConfiguration constructs a declarative configuration of the ModelBackend type for use with
@@ -172,5 +173,13 @@ func (b *ModelBackendApplyConfiguration) WithLoraAdapters(values ...*LoraAdapter
 // If called multiple times, the AutoscalingPolicy field is set to the value of the last call.
 func (b *ModelBackendApplyConfiguration) WithAutoscalingPolicy(value *AutoscalingPolicySpecApplyConfiguration) *ModelBackendApplyConfiguration {
 	b.AutoscalingPolicy = value
+	return b
+}
+
+// WithSchedulerName sets the SchedulerName field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the SchedulerName field is set to the value of the last call.
+func (b *ModelBackendApplyConfiguration) WithSchedulerName(value string) *ModelBackendApplyConfiguration {
+	b.SchedulerName = &value
 	return b
 }
