@@ -42,7 +42,9 @@ jobs:
           grep -r "tag: $VERSION" charts/kthena/charts/*/values.yaml || true
       - name: Helm package
         run: |
+          VERSION="${{ steps.version.outputs.version }}"
           helm package ./charts/kthena
+          mv kthena-${VERSION}.tgz kthena-helm-${VERSION}.tgz
       - name: Check if prerelease
         id: is_prerelease
         run: |
