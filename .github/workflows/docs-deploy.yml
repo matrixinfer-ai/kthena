@@ -1,12 +1,12 @@
 name: Deploy Documentation to GitHub Pages
 
 on:
-  workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - 'docs/kthena/**'
+#  push:
+#    branches:
+#      - main
+#    paths:
+#      - 'docs/kthena/**'
+  workflow_dispatch: # TODO: switch back to `push` once kthena becomes public
 
 jobs:
   build:
