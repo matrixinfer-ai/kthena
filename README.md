@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-| <a href="#">Documentation</a> | <a href="#">Blog</a> | <a href="#">White Paper</a> | <a href="#">Slack</a> |
+| <a href="https://volcano-sh.github.io/kthena/">Documentation</a> | <a href="https://volcano-sh.github.io/kthena/blog">Blog</a> | <a href="#">White Paper</a> | <a href="#">Slack</a> |
 
 </p>
 
