@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000" viewBox="0 0 800 1000">
+  <defs>
+    <style>
+      .box { fill: #e1f5fe; stroke: #01579b; stroke-width: 2; }
+      .decision { fill: #fff9c4; stroke: #f57f17; stroke-width: 2; }
+      .process { fill: #c8e6c9; stroke: #1b5e20; stroke-width: 2; }
+      .endpoint { fill: #f8bbd0; stroke: #880e4f; stroke-width: 2; }
+      .text { font-family: Arial, sans-serif; font-size: 14px; text-anchor: middle; fill: #000; }
+      .title { font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; text-anchor: middle; fill: #000; }
+      .arrow { stroke: #333; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+      .label { font-family: Arial, sans-serif; font-size: 12px; fill: #666; }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#333"/>
+    </marker>
+  </defs>
+  
+  <!-- Title -->
+  <text x="400" y="30" class="title" style="font-size: 20px;">Kthena Router Request Flow</text>
+  
+  <!-- 1. Client Request -->
+  <ellipse cx="400" cy="80" rx="80" ry="30" class="endpoint"/>
+  <text x="400" y="85" class="text">Client Request</text>
+  
+  <!-- Arrow -->
+  <path d="M 400 110 L 400 140" class="arrow"/>
+  
+  <!-- 2. Listener -->
+  <rect x="320" y="140" width="160" height="50" rx="5" class="box"/>
+  <text x="400" y="160" class="title">Listener</text>
+  <text x="400" y="178" class="text" style="font-size: 12px;">Receive HTTP/HTTPS</text>
+  
+  <!-- Arrow -->
+  <path d="M 400 190 L 400 220" class="arrow"/>
+  
+  <!-- 3. Auth Filter -->
+  <rect x="320" y="220" width="160" height="50" rx="5" class="box"/>
+  <text x="400" y="240" class="title">Auth Filter</text>
+  <text x="400" y="258" class="text" style="font-size: 12px;">Validate Credentials</text>
+  
+  <!-- Arrow -->
+  <path d="M 400 270 L 400 300" class="arrow"/>
+  
+  <!-- 4. Auth Decision -->
+  <polygon points="400,300 480,330 400,360 320,330" class="decision"/>
+  <text x="400" y="335" class="text">Authorized?</text>
+  
+  <!-- Reject Arrow -->
+  <path d="M 480 330 L 600 330" class="arrow"/>
+  <text x="530" y="320" class="label">No</text>
+  <ellipse cx="650" cy="330" rx="50" ry="25" class="endpoint"/>
+  <text x="650" y="335" class="text" style="font-size: 12px;">401 Error</text>
+  
+  <!-- Continue Arrow -->
+  <path d="M 400 360 L 400 390" class="arrow"/>
+  <text x="360" y="380" class="label">Yes</text>
+  
+  <!-- 5. RateLimit Filter -->
+  <rect x="320" y="390" width="160" height="50" rx="5" class="box"/>
+  <text x="400" y="410" class="title">RateLimit Filter</text>
+  <text x="400" y="428" class="text" style="font-size: 12px;">Check Token Budget</text>
+  
+  <!-- Arrow -->
+  <path d="M 400 440 L 400 470" class="arrow"/>
+  
+  <!-- 6. RateLimit Decision -->
+  <polygon points="400,470 480,500 400,530 320,500" class="decision"/>
+  <text x="400" y="500" class="text" style="font-size: 12px;">Within Limit?</text>
+  
+  <!-- Reject Arrow -->
+  <path d="M 480 500 L 600 500" class="arrow"/>
+  <text x="530" y="490" class="label">No</text>
+  <ellipse cx="650" cy="500" rx="50" ry="25" class="endpoint"/>
+  <text x="650" y="505" class="text" style="font-size: 12px;">429 Error</text>
+  
+  <!-- Continue Arrow -->
+  <path d="M 400 530 L 400 560" class="arrow"/>
+  <text x="360" y="550" class="label">Yes</text>
+  
+  <!-- 7. Router - Parse Request -->
+  <rect x="320" y="560" width="160" height="50" rx="5" class="process"/>
+  <text x="400" y="580" class="title">Router</text>
+  <text x="400" y="598" class="text" style="font-size: 12px;">Parse Model & Params</text>
+  
+  <!-- Arrow -->
+  <path d="M 400 610 L 400 640" class="arrow"/>
+  
+  <!-- 8. Match ModelRoute -->
+  <rect x="320" y="640" width="160" height="50" rx="5" class="process"/>
+  <text x="400" y="665" class="text">Match ModelRoute</text>
+  
+  <!-- Arrow -->
+  <path d="M 400 690 L 400 720" class="arrow"/>
+  
+  <!-- 9. Scheduler -->
+  <rect x="280" y="720" width="240" height="60" rx="5" class="process" style="fill: #bbdefb;"/>
+  <text x="400" y="740" class="title">Scheduler Framework</text>
+  <text x="400" y="758" class="text" style="font-size: 12px;">Filter → Score → Select</text>
+  <text x="400" y="773" class="text" style="font-size: 11px;">(Plugins: Prefix Cache, LoRA, etc.)</text>
+  
+  <!-- Arrow -->
+  <path d="M 400 780 L 400 810" class="arrow"/>
+  
+  <!-- 10. Backend Selection -->
+  <rect x="320" y="810" width="160" height="50" rx="5" class="process"/>
+  <text x="400" y="830" class="title">Backend Selected</text>
+  <text x="400" y="848" class="text" style="font-size: 12px;">Optimal Pod</text>
+  
+  <!-- Arrow -->
+  <path d="M 400 860 L 400 890" class="arrow"/>
+  
+  <!-- 11. Forward Request -->
+  <rect x="320" y="890" width="160" height="50" rx="5" class="box"/>
+  <text x="400" y="915" class="text">Proxy to Backend</text>
+  
+  <!-- Arrow -->
+  <path d="M 400 940 L 400 970" class="arrow"/>
+  
+  <!-- 12. Response -->
+  <ellipse cx="400" cy="985" rx="80" ry="30" class="endpoint"/>
+  <text x="400" y="990" class="text">Stream Response</text>
+  
+  <!-- Side annotations -->
+  <text x="50" y="165" class="label" style="font-size: 11px;">Step 1</text>
+  <text x="50" y="245" class="label" style="font-size: 11px;">Step 2</text>
+  <text x="50" y="330" class="label" style="font-size: 11px;">Step 3</text>
+  <text x="50" y="415" class="label" style="font-size: 11px;">Step 4</text>
+  <text x="50" y="500" class="label" style="font-size: 11px;">Step 5</text>
+  <text x="50" y="585" class="label" style="font-size: 11px;">Step 6</text>
+  <text x="50" y="665" class="label" style="font-size: 11px;">Step 7</text>
+  <text x="50" y="750" class="label" style="font-size: 11px;">Step 8</text>
+  <text x="50" y="835" class="label" style="font-size: 11px;">Step 9</text>
+  <text x="50" y="915" class="label" style="font-size: 11px;">Step 10</text>
+</svg>
+
