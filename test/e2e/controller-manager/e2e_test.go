@@ -67,7 +67,7 @@ func TestModelCR(t *testing.T) {
 		}
 		return true == meta.IsStatusConditionPresentAndEqual(model.Status.Conditions,
 			string(workload.ModelStatusConditionTypeActive), metav1.ConditionTrue)
-	}, 15*time.Minute, 30*time.Second, "Model did not become Active")
+	}, 5*time.Minute, 5*time.Second, "Model did not become Active")
 	// Test chat in cluster
 	executeChatInCluster(t, kubeClient, ctx, config)
 	// todo: test update modelBooster, delete modelBooster
