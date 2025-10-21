@@ -104,7 +104,17 @@ func TestReconcile(t *testing.T) {
 		if err != nil {
 			return false
 		}
-		return weight == *modelRoutes.Items[0].Spec.Rules[0].TargetModels[0].Weight
+		route := modelRoutes.Items[0]
+		if len(route.Spec.Rules) == 0 {
+			return false
+		}
+
+		rule := route.Spec.Rules[0]
+		if len(rule.TargetModels) == 0 || rule.TargetModels[0].Weight == nil {
+			return false
+		}
+
+		return weight == *rule.TargetModels[0].Weight
 	}))
 
 	// Case3: delete model. Because we are not running in a real K8s cluster, model server, model route, model serving,
