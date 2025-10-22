@@ -7,7 +7,7 @@ tags: []
 
 # A Deep Dive of the Kthena's Router
 
-## Introduction
+## 1. Introduction
 
 As Large Language Models (LLMs) become increasingly central to modern applications, the infrastructure supporting them must evolve to meet demanding performance, scalability, and cost requirements. Deploying LLMs in production presents unique challenges: models are resource-intensive, inference workloads vary significantly, and users expect low latency with high throughput. Traditional load balancers and API gateways, while excellent for conventional web services, lack the awareness needed to intelligently route AI inference traffic.
 
@@ -22,13 +22,13 @@ The router seamlessly integrates with existing API gateway infrastructure while 
 
 Kthena Router is deployed as a standalone binary with minimal dependencies, ensuring lightweight operation and straightforward deployment. It continuously monitors inference engine metrics to obtain real-time information about model status, including currently loaded LoRA adapters, KV cache utilization, request queue lengths, and latency metrics (TTFT/TPOT). This real-time awareness enables the router to make optimal routing decisions that traditional load balancers simply cannot achieve.
 
-## Architecture
+## 2. Architecture
 
 Kthena Router implements a clean, modular architecture designed for performance and extensibility. The system consists of several core components working together to provide intelligent request routing.
 
 <img src="/kthena/docs/assets/diagrams/kthena-router-arch.svg" alt="Kthena Router Architecture" width="900"/>
 
-### Core Components Overview
+### 2.1 Core Components Overview
 
 **Router**: The core execution framework responsible for receiving, processing, and forwarding requests. It orchestrates the interaction between all other components and maintains the request lifecycle from initial reception to final response.
 
@@ -54,11 +54,11 @@ Kthena Router implements a clean, modular architecture designed for performance 
 
 <img src="/kthena/docs/assets/diagrams/kthena-router-components.svg" alt="Kthena Router Components" width="900"/>
 
-## Router API
+## 3. Router API
 
 Kthena Router's routing behavior is controlled by two key Custom Resource Definitions (CRDs): **ModelServer** and **ModelRoute**. These declarative APIs allow you to define sophisticated routing strategies using familiar Kubernetes patterns.
 
-### ModelRoute
+### 3.1 ModelRoute
 
 **ModelRoute** defines traffic routing rules based on request characteristics. It determines which ModelServer(s) should handle requests based on model names, LoRA adapters, HTTP headers, and other criteria.
 
@@ -73,7 +73,7 @@ Key fields include:
 More details about `ModelRoute` can be found in the [definition](https://github.com/volcano-sh/kthena/blob/main/charts/kthena/charts/networking/crds/networking.serving.volcano.sh_modelroutes.yaml).
 
 
-### ModelServer
+### 3.2 ModelServer
 
 **ModelServer** defines an inference service instance and its access policies. It identifies the pods running your models, specifies the inference framework being used, and defines how traffic should be handled.
 
@@ -87,7 +87,7 @@ Key fields include:
 
 More details about `ModelServer` can be found in the [definition](https://github.com/volcano-sh/kthena/blob/main/charts/kthena/charts/networking/crds/networking.serving.volcano.sh_modelservers.yaml).
 
-### Example: Header-Based Multi-Model Routing
+### 3.3 Example: Header-Based Multi-Model Routing
 
 For tiered service offerings, route users to different model sizes based on headers:
 
@@ -160,13 +160,13 @@ curl http://$ROUTER_IP/v1/completions \
 
 This example demonstrates how `ModelRoute` and `ModelServer` CRDs provide flexible, declarative control over sophisticated routing strategies, all managed through standard Kubernetes APIs.
 
-## Core Features
+## 4. Core Features
 
-### Intelligent Scheduling Plugins
+### 4.1 Intelligent Scheduling Plugins
 
 What truly differentiates Kthena Router from traditional load balancers is its suite of model-aware scheduling plugins. These plugins leverage real-time inference engine metrics to make intelligent routing decisions that dramatically improve performance.
 
-#### Prefix Cache Aware Scheduling
+#### 4.1.1 Prefix Cache Aware Scheduling
 
 Modern inference engines like vLLM and SGLang implement prefix caching, where commonly used prompt prefixes are cached to avoid redundant computation. The Prefix Cache Aware plugin maximizes cache hit rates by routing requests with similar prefixes to the same pods.
 
@@ -176,7 +176,7 @@ Modern inference engines like vLLM and SGLang implement prefix caching, where co
 - Routes new requests with matching prefixes to pods likely to have cached KV states
 - Significantly reduces Time To First Token (TTFT) for repeated or similar prompts
 
-#### KV Cache Aware Scheduling
+#### 4.1.2 KV Cache Aware Scheduling
 
 The KV Cache Aware plugin monitors the KV cache utilization of each pod and routes requests to pods with available cache capacity. This prevents cache thrashing and improves overall throughput.
 
@@ -186,7 +186,7 @@ The KV Cache Aware plugin monitors the KV cache utilization of each pod and rout
 - Scores pods based on available cache capacity
 - Routes new requests to pods with sufficient free cache space
 
-#### LoRA Affinity Scheduling
+#### 4.1.3 Least Request Scheduling
 
 LoRA (Low-Rank Adaptation) adapters enable fine-tuned model behavior without redeploying base models. However, loading and unloading adapters introduces latency. The LoRA Affinity plugin minimizes this overhead.
 
@@ -197,7 +197,7 @@ LoRA (Low-Rank Adaptation) adapters enable fine-tuned model behavior without red
 - Reduces adapter swap latency from hundreds of milliseconds to near-zero
 
 
-#### Least Latency Scheduling
+#### 4.1.4 Least Latency Scheduling
 
 The Least Latency plugin routes requests to the fastest available pods based on real-time latency metrics.
 
@@ -205,7 +205,7 @@ The Least Latency plugin routes requests to the fastest available pods based on 
 - **TTFT (Time To First Token)**: Important for streaming responses and user-perceived latency
 - **TPOT (Time Per Output Token)**: Critical for overall generation speed
 
-#### Least Request
+#### 4.1.5 Least Request
 
 The Least Request plugin considers the number of requests waiting to be processed and the number of requests running to route to the least busy pods.
 
@@ -215,7 +215,7 @@ The Least Request plugin considers the number of requests waiting to be processe
 - Routes new requests to the least busy pod
 - Prevents hot-spotting and ensures even load distribution
 
-#### Plugin Configurations
+#### 4.1.6 Plugin Configurations
 
 These plugins work together through the scheduler framework. You can configure which plugins are enabled and their relative weights through the router configuration.
 
@@ -226,7 +226,7 @@ The scheduler framework runs enabled plugins in sequence:
 
 This composable architecture allows you to tailor routing behavior to your specific workload requirements.
 
-### Fairness Scheduling
+### 4.2 Fairness Scheduling
 
 The Fairness Scheduling ensures equitable resource allocation across users based on token consumption history.
 
@@ -241,7 +241,7 @@ The Fairness Scheduling ensures equitable resource allocation across users based
 - Research clusters with fair-share policies
 - SLA-driven systems requiring usage-based throttling
 
-### Prefill-Decode Disaggregation Support
+### 4.3 Prefill-Decode Disaggregation Support
 
 For advanced deployment patterns, Kthena Router natively supports prefill-decode disaggregation (xPyD), where the compute-intensive prefill phase is separated from the token generation decode phase.
 
@@ -257,7 +257,7 @@ For advanced deployment patterns, Kthena Router natively supports prefill-decode
 - Reduces latency by using specialized hardware for each phase
 - Improves cost-efficiency through better resource allocation
 
-### Token-Based Rate Limiting
+### 4.4 Token-Based Rate Limiting
 
 Kthena Router provides comprehensive rate limiting capabilities to protect your inference infrastructure from overload and ensure fair resource allocation across users.
 
@@ -266,7 +266,7 @@ Kthena Router provides comprehensive rate limiting capabilities to protect your 
 - **Local Rate Limits**: Enforces a limit on a per-router-instance basis.
 - **Global Rate Limits**: Enforces a shared limit across all router instances, using a central store like Redis.
 
-### Observability
+### 4.5 Observability
 
 Kthena Router provides comprehensive observability capabilities designed for production LLM serving:
 
@@ -278,8 +278,43 @@ Kthena Router provides comprehensive observability capabilities designed for pro
 
 ## 5. Performance
 
-To demonstrate the impact of intelligent scheduling, we conducted comprehensive benchmarking comparing various scheduling plugin combinations against random load balancing. The results clearly show that model-aware routing delivers significant performance improvements.
+The **ScorePlugin** module in **Kthena Router** leverages a configurable, pluggable architecture to enable multi-dimensional scoring and intelligent routing of inference requests.To demonstrate the impact of intelligent scheduling, we construct a standardized benchmarking environment based on the **DeepSeek-R1-Distill-Qwen-7B** model to evaluate the performance of different scheduling strategies under both long and short system prompt scenarios.
 
+Experimental results demonstrate that in **long system prompt scenarios**, the **KVCacheAware Plugin + Least Request Plugin** combination achieves **2.73× higher throughput** and reduces **TTFT latency by 73.5%**, significantly optimizing overall inference service performance and validating the core value of cache-aware scheduling for large-scale model inference.
+
+### 5.1 Experimental Setup
+
+A standardized benchmarking environment was built using the **DeepSeek-R1-Distill-Qwen-7B** model to evaluate the performance of different scheduling strategies.
+
+**Table 1: Experimental Environment Configuration**
+
+| Parameter              | Value                                   |
+| :--------------------- | :-------------------------------------- |
+| Model                  | deepseek-ai/DeepSeek-R1-Distill-Qwen-7B |
+| Block size             | 128                                     |
+| Max model length       | 32,768                                  |
+| Max batch token count  | 65,536                                  |
+| Replicas               | 3                                       |
+| GPU memory utilization | 0.9                                     |
+| Max sequence count     | 256                                     |
+| Dataset                | generated-shared-prefix                 |
+| Request groups         | 256                                     |
+| Requests per group     | 32                                      |
+| Request rate           | 800 req/s                               |
+| Max concurrency        | 300                                     |
+
+### 5.2 Long System Prompt Scenario (4096 tokens)
+
+**Table 2: Performance Metrics – Long Prompt**
+
+| Plugin Configuration         | Runs  | Success Rate (%) | Throughput (req/s) | Latency (s) | TTFT (s) |
+| :--------------------------- | :---: | :--------------: | :----------------: | :---------: | :------: |
+| Least Request + KVCacheAware |   3   |      100.0       |     **32.22**      |  **9.22**   | **0.57** |
+| Least Request + Prefix Cache |   3   |      100.0       |       23.87        |    12.47    |   0.83   |
+| Random                       |   3   |      100.0       |       11.81        |    25.23    |   2.15   |
+| Least Request                |   3   |      100.0       |        9.86        |    30.13    |  12.46   |
+| GPU Usage                    |   3   |      100.0       |        9.56        |    30.92    |  13.14   |
+| Least Latency                |   3   |      100.0       |        9.47        |    31.44    |  11.07   |
 
 ## 6. Conclusion
 
@@ -288,5 +323,3 @@ Kthena Router represents a significant leap forward in LLM serving infrastructur
 It is open source and available today. The [documentation](https://volcano-sh.github.io/kthena/) provides comprehensive guides for installation, configuration, and deployment. The [examples directory](https://github.com/volcano-sh/kthena/tree/main/examples/kthena-router) contains ready-to-use configurations for common scenarios.
 
 Whether you're running a single model or managing a complex multi-tenant LLM platform, Kthena Router provides the intelligent routing capabilities needed to maximize performance, minimize costs, and deliver excellent user experiences.
-
-
