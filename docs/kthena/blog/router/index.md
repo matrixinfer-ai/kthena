@@ -1,11 +1,11 @@
 ---
 slug: router-blog-post
-title: A Deep Dive of the Kthena's Router
+title: A Deep Dive into the Kthena Router
 authors: [YaoZengzeng]
 tags: []
 ---
 
-# A Deep Dive of the Kthena's Router
+# A Deep Dive into the Kthena Router
 
 ## 1. Introduction
 
@@ -17,7 +17,7 @@ The router seamlessly integrates with existing API gateway infrastructure while 
 
 - **Model-Aware Routing**: Leverages real-time metrics from inference engines (vLLM, SGLang, TGI) to make intelligent routing decisions
 - **LoRA-Aware Load Balancing**: Intelligently handles dynamic LoRA adapter loading and unloading
-- **Advanced Scheduling Algorithms**: Includes Prefix Cache Aware, KV Cache Aware, Session Affinity and Fairness Scheduling
+- **Advanced Scheduling Algorithms**: Includes Prefix Cache Aware, KV Cache Aware and Fairness Scheduling, etc.
 - **Prefill-Decode Disaggregation**: Native support for xPyD (x-prefill/y-decode) deployment patterns
 
 Kthena Router is deployed as a standalone binary with minimal dependencies, ensuring lightweight operation and straightforward deployment. It continuously monitors inference engine metrics to obtain real-time information about model status, including currently loaded LoRA adapters, KV cache utilization, request queue lengths, and latency metrics (TTFT/TPOT). This real-time awareness enables the router to make optimal routing decisions that traditional load balancers simply cannot achieve.
@@ -186,7 +186,7 @@ The KV Cache Aware plugin monitors the KV cache utilization of each pod and rout
 - Scores pods based on available cache capacity
 - Routes new requests to pods with sufficient free cache space
 
-#### 4.1.3 Least Request Scheduling
+#### 4.1.3 LoRA Affinity Scheduling
 
 LoRA (Low-Rank Adaptation) adapters enable fine-tuned model behavior without redeploying base models. However, loading and unloading adapters introduces latency. The LoRA Affinity plugin minimizes this overhead.
 
@@ -205,7 +205,7 @@ The Least Latency plugin routes requests to the fastest available pods based on 
 - **TTFT (Time To First Token)**: Important for streaming responses and user-perceived latency
 - **TPOT (Time Per Output Token)**: Critical for overall generation speed
 
-#### 4.1.5 Least Request
+#### 4.1.5 Least Request Scheduling
 
 The Least Request plugin considers the number of requests waiting to be processed and the number of requests running to route to the least busy pods.
 
