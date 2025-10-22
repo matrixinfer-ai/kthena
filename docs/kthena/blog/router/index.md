@@ -37,8 +37,8 @@ Kthena Router implements a clean, modular architecture designed for performance 
 **Controller**: A Kubernetes-native component that synchronizes and processes Pods and Custom Resources (CRs) such as `ModelRoute` and `ModelServer`. The controller watches for changes in the cluster and updates the router's internal state accordingly, ensuring routing decisions are always based on current cluster topology.
 
 **Filters**: Contains two critical sub-modules that process requests before they reach the backend:
-- **Auth**: Handles traffic authentication and authorization, supporting API Key, JWT, and OAuth methods
-- **RateLimit**: Manages comprehensive rate limiting strategies including input tokens, output tokens, and user tier-based limiting
+- **Auth**: Handles traffic authentication and authorization, supporting API Key, JWT
+- **RateLimit**: Manages comprehensive rate limiting strategies including input tokens and output tokens limiting
 
 **Backend**: Provides an abstraction layer for accessing various inference engines. It masks differences in metrics interface access methods and metric naming conventions across frameworks like vLLM, SGLang, and TGI, presenting a unified interface to the scheduler.
 
@@ -83,7 +83,7 @@ Key fields include:
 - **InferenceFramework**: Indicates the inference engine (vLLM, SGLang, TGI, etc.)
 - **WorkloadPort**: Defines the port on which the inference service listens
 - **TrafficPolicy**: Configures timeout, retry policies, and other traffic handling behaviors
-- **KVConnector**: Specifies the KV connector type for PD disaggregated deployments (HTTP, Redis, etc.)
+- **KVConnector**: Specifies the KV connector type for PD disaggregated deployments (HTTP, Nixl, LMCache, Mooncake)
 
 More details about `ModelServer` can be found in the [definition](https://github.com/volcano-sh/kthena/blob/main/charts/kthena/charts/networking/crds/networking.serving.volcano.sh_modelservers.yaml).
 
