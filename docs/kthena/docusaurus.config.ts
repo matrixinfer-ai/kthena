@@ -17,10 +17,10 @@ const config: Config = {
   },
 
   // Set the production url of your site here
-  url: 'https://volcano-sh.github.io',
+  url: 'https://kthena.volcano.sh',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
-  baseUrl: '/kthena',
+  baseUrl: '/',
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
@@ -112,7 +112,7 @@ const config: Config = {
         },
         { to: '/blog', label: 'Blog', position: 'left' },
         {
-          type: 'docsVersionDropdown'
+          type: 'docsVersionDropdown',
         },
         {
           href: 'https://github.com/volcano-sh/kthena',
