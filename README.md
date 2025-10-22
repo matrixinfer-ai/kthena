@@ -13,6 +13,13 @@
 
 </p>
 
+<div align="center">
+
+[![Go Check](https://github.com/volcano-sh/kthena/actions/workflows/go-check.yml/badge.svg)](https://github.com/volcano-sh/kthena/actions/workflows/go-check.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/volcano-sh/kthena)](https://goreportcard.com/report/github.com/volcano-sh/kthena)
+
+</div>
+
 ## Overview
 
 **Kthena** is a Kubernetes-native LLM inference platform that transforms how organizations deploy and manage Large Language Models in production. Built with declarative model lifecycle management and intelligent request routing, it provides high performance and enterprise-grade scalability for LLM inference workloads.
