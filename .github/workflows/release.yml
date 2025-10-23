@@ -40,11 +40,21 @@ jobs:
           cat charts/kthena/Chart.yaml
           echo "=== Updated subchart versions ==="
           grep -r "tag: $VERSION" charts/kthena/charts/*/values.yaml || true
+      - name: Build helm dependencies
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          echo "Building dependencies for version: $VERSION"
+          helm dependency build ./charts/kthena
       - name: Helm package
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           helm package ./charts/kthena
           mv kthena-${VERSION}.tgz kthena-helm-${VERSION}.tgz
+      - name: Helm template manifest
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          # Render a single, installable manifest with a sensible default release and namespace
+          helm template kthena ./charts/kthena --namespace kthena > kthena-install-${VERSION}.yaml
       - name: Check if prerelease
         id: is_prerelease
         run: |
@@ -60,5 +70,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
-          files: ${{ github.workspace }}/*.tgz
+          files: |
+            ${{ github.workspace }}/*.tgz
+            ${{ github.workspace }}/*.yaml
           prerelease: ${{ steps.is_prerelease.outputs.prerelease }}
