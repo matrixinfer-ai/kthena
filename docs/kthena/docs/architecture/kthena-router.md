@@ -57,7 +57,7 @@ Initial scheduling plugins include:
 
 **Model-Aware Routing**: Leverages metrics obtained from inference engines to enable better AI traffic scheduling and improved inference performance.
 
-**LoRA-Aware Load Balancing**: Intelligently handles the dynamic loading and unloading of LoRA models.
+**LoRA-Aware Load Balancing**: Intelligently route to pods that have already loaded the desired LoRA adapter to reduce adapter swap latency from hundreds of milliseconds to near-zero.
 
 **Rich Load Balancing Algorithms**: Supports Session Affinity, Prefix Cache Aware, KV Cache Aware, and Heterogeneous GPU Hardware Aware algorithms to enhance inference service SLO and reduce inference costs.
 
