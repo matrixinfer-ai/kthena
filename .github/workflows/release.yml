@@ -8,6 +8,7 @@ jobs:
   release:
     permissions:
       contents: write
+      packages: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -23,6 +24,9 @@ jobs:
         shell: bash
         run: |
           curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      - name: Login to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
       - name: Update chart and image versions
         run: |
           VERSION="${{ steps.version.outputs.version }}"
@@ -45,6 +49,12 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           helm package ./charts/kthena
           mv kthena-${VERSION}.tgz kthena-helm-${VERSION}.tgz
+      - name: Push to GHCR
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          # Extract repository owner and convert to lowercase for GHCR
+          REPO_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          helm push kthena-helm-${VERSION}.tgz oci://ghcr.io/${REPO_OWNER}/charts
       - name: Check if prerelease
         id: is_prerelease
         run: |
