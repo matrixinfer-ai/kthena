@@ -13,6 +13,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
       - name: Extract version from tag
         id: version
         run: |
@@ -20,13 +21,27 @@ jobs:
           VERSION=${GITHUB_REF#refs/tags/v}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Extracted version: $VERSION"
-      - name: install helm
-        shell: bash
+
+      - name: Check if prerelease
+        id: is_prerelease
         run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if [[ "$VERSION" == *-* ]]; then
+            echo "prerelease=true" >> $GITHUB_OUTPUT
+            echo "This is a prerelease version: $VERSION"
+          else
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+            echo "This is a stable release version: $VERSION"
+          fi
+
+      - name: Setup Helm and Login to GHCR
+        run: |
+          # Install Helm
           curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-      - name: Login to GHCR
-        run: |
+          
+          # Login to GHCR
           echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
+
       - name: Update chart and image versions
         run: |
           VERSION="${{ steps.version.outputs.version }}"
@@ -44,38 +59,32 @@ jobs:
           cat charts/kthena/Chart.yaml
           echo "=== Updated subchart versions ==="
           grep -r "tag: $VERSION" charts/kthena/charts/*/values.yaml || true
-      - name: Build helm dependencies
+
+      - name: Build and Package Helm Chart
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          echo "Building dependencies for version: $VERSION"
+          echo "Building and packaging version: $VERSION"
+          
+          # Build dependencies
           helm dependency build ./charts/kthena
-      - name: Helm package
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
+          
+          # Package chart
           helm package ./charts/kthena
           mv kthena-${VERSION}.tgz kthena-helm-${VERSION}.tgz
+
       - name: Push to GHCR
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           # Extract repository owner and convert to lowercase for GHCR
           REPO_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           helm push kthena-helm-${VERSION}.tgz oci://ghcr.io/${REPO_OWNER}/charts
+
       - name: Helm template manifest
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           # Render a single, installable manifest with a sensible default release and namespace
           helm template kthena ./charts/kthena --namespace kthena > kthena-install-${VERSION}.yaml
-      - name: Check if prerelease
-        id: is_prerelease
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          if [[ "$VERSION" == *-* ]]; then
-            echo "prerelease=true" >> $GITHUB_OUTPUT
-            echo "This is a prerelease version: $VERSION"
-          else
-            echo "prerelease=false" >> $GITHUB_OUTPUT
-            echo "This is a stable release version: $VERSION"
-          fi
+
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
