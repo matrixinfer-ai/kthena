@@ -83,7 +83,7 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           # Render a single, installable manifest with a sensible default release and namespace
-          helm template kthena ./charts/kthena --namespace kthena > kthena-install-${VERSION}.yaml
+          helm template kthena ./charts/kthena --namespace kthena-system > kthena-install-${VERSION}.yaml
 
       - name: Release
         uses: softprops/action-gh-release@v2
