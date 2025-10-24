@@ -70,7 +70,12 @@ jobs:
           
           # Package chart
           helm package ./charts/kthena
+          
+          # Create versioned helm chart
           mv kthena-${VERSION}.tgz kthena-helm-${VERSION}.tgz
+          
+          # Create generic helm chart (for latest link)
+          cp kthena-helm-${VERSION}.tgz kthena-helm.tgz
 
       - name: Push to GHCR
         run: |
@@ -84,6 +89,9 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           # Render a single, installable manifest with a sensible default release and namespace
           helm template kthena ./charts/kthena --namespace kthena-system > kthena-install-${VERSION}.yaml
+          
+          # Create generic manifest (for latest link)
+          cp kthena-install-${VERSION}.yaml kthena-install.yaml
 
       - name: Release
         uses: softprops/action-gh-release@v2
@@ -91,5 +99,7 @@ jobs:
           generate_release_notes: true
           files: |
             ./kthena-helm-${{ steps.version.outputs.version }}.tgz
+            ./kthena-helm.tgz
             ./kthena-install-${{ steps.version.outputs.version }}.yaml
+            ./kthena-install.yaml
           prerelease: ${{ steps.is_prerelease.outputs.prerelease }}
