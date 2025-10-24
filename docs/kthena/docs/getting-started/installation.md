@@ -50,18 +50,22 @@ Kthena provides all necessary components in a single manifest file for easy inst
 
 You can also download the Helm chart package from [GitHub releases](https://github.com/volcano-sh/kthena/releases) and install it locally.
 
-1.  **Download and install the Helm chart package:**
+1.  **Download the Helm chart package:**
 
+    For the latest version:
     ```bash
-    helm install kthena https://github.com/volcano-sh/kthena/releases/latest/download/kthena-helm.tgz \
-      --namespace kthena-system \
-      --create-namespace
+    curl -L -o kthena-helm.tgz https://github.com/volcano-sh/kthena/releases/latest/download/kthena-helm.tgz
     ```
 
-    To install a specific version, replace `latest` with the desired release tag (e.g., `v1.2.3`):
+    For a specific version (replace `vX.Y.Z` with the desired release tag):
+    ```bash
+    curl -L -o kthena-helm.tgz https://github.com/volcano-sh/kthena/releases/download/vX.Y.Z/kthena-helm.tgz
+    ```
+
+2.  **Install from the downloaded package:**
 
     ```bash
-    helm install kthena https://github.com/volcano-sh/kthena/releases/download/vX.Y.Z/kthena-helm.tgz \
+    helm install kthena kthena-helm.tgz \
       --namespace kthena-system \
       --create-namespace
     ```
