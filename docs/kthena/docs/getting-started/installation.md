@@ -37,13 +37,13 @@ Kthena provides all necessary components in a single manifest file for easy inst
 1.  **Apply the Kthena manifest:**
 
     ```bash
-    kubectl apply -f https://github.com/volcano-sh/kthena/releases/latest/download/kthena.yaml
+    kubectl apply -f https://github.com/volcano-sh/kthena/releases/latest/download/kthena-install.yaml
     ```
 
     To install a specific version, replace `latest` with the desired release tag (e.g., `v1.2.3`):
 
     ```bash
-    kubectl apply -f https://github.com/volcano-sh/kthena/releases/download/vX.Y.Z/kthena.yaml
+    kubectl apply -f https://github.com/volcano-sh/kthena/releases/download/vX.Y.Z/kthena-install.yaml
     ```
 
 ## Configuration Options
