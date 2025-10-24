@@ -46,6 +46,26 @@ Kthena provides all necessary components in a single manifest file for easy inst
     kubectl apply -f https://github.com/volcano-sh/kthena/releases/download/vX.Y.Z/kthena-install.yaml
     ```
 
+### Method 3: Helm Installation from GitHub Release Package
+
+You can also download the Helm chart package from [GitHub releases](https://github.com/volcano-sh/kthena/releases) and install it locally.
+
+1.  **Download and install the Helm chart package:**
+
+    ```bash
+    helm install kthena https://github.com/volcano-sh/kthena/releases/latest/download/kthena-helm.tgz \
+      --namespace kthena-system \
+      --create-namespace
+    ```
+
+    To install a specific version, replace `latest` with the desired release tag (e.g., `v1.2.3`):
+
+    ```bash
+    helm install kthena https://github.com/volcano-sh/kthena/releases/download/vX.Y.Z/kthena-helm.tgz \
+      --namespace kthena-system \
+      --create-namespace
+    ```
+
 ## Configuration Options
 
 ### Helm Values
