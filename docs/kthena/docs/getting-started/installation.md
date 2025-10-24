@@ -27,15 +27,7 @@ Kthena Helm charts are published to the GitHub Container Registry (GHCR).
     helm install kthena oci://ghcr.io/volcano-sh/charts/kthena \
       --namespace kthena-system \
       --create-namespace
-    ```
-
-    You might optionally specify a chart version:
-
-    ```bash
-    helm install kthena oci://ghcr.io/volcano-sh/charts/kthena \
-      --version <YOUR_CHART_VERSION> \
-      --namespace kthena-system \
-      --create-namespace
+      [--version <YOUR_CHART_VERSION>]
     ```
 
 ### Method 2: Manual Installation with GitHub Release Manifests
@@ -45,13 +37,37 @@ Kthena provides all necessary components in a single manifest file for easy inst
 1.  **Apply the Kthena manifest:**
 
     ```bash
-    kubectl apply -f https://github.com/volcano-sh/kthena/releases/latest/download/kthena.yaml
+    kubectl apply -f https://github.com/volcano-sh/kthena/releases/latest/download/kthena-install.yaml
     ```
 
     To install a specific version, replace `latest` with the desired release tag (e.g., `v1.2.3`):
 
     ```bash
-    kubectl apply -f https://github.com/volcano-sh/kthena/releases/download/vX.Y.Z/kthena.yaml
+    kubectl apply -f https://github.com/volcano-sh/kthena/releases/download/vX.Y.Z/kthena-install.yaml
+    ```
+
+### Method 3: Helm Installation from GitHub Release Package
+
+You can also download the Helm chart package from [GitHub releases](https://github.com/volcano-sh/kthena/releases) and install it locally.
+
+1.  **Download the Helm chart package:**
+
+    For the latest version:
+    ```bash
+    curl -L -o kthena-helm.tgz https://github.com/volcano-sh/kthena/releases/latest/download/kthena-helm.tgz
+    ```
+
+    For a specific version (replace `vX.Y.Z` with the desired release tag):
+    ```bash
+    curl -L -o kthena-helm.tgz https://github.com/volcano-sh/kthena/releases/download/vX.Y.Z/kthena-helm.tgz
+    ```
+
+2.  **Install from the downloaded package:**
+
+    ```bash
+    helm install kthena kthena-helm.tgz \
+      --namespace kthena-system \
+      --create-namespace
     ```
 
 ## Configuration Options
