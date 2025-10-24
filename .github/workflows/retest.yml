@@ -1,0 +1,21 @@
+name: Retest Failed CI
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  retest:
+    # Only run on pull request comments
+    if: github.event.issue.pull_request
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write # Required to re-run workflows
+      contents: read
+      pull-requests: read
+
+    steps:
+      - name: Retest Failed CI
+        uses: huntersman/retest-failed-CI@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
