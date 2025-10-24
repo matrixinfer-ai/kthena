@@ -96,7 +96,6 @@ jobs:
           generate_release_notes: true
           files: |
             ./kthena-helm-${{ steps.version.outputs.version }}.tgz
-            ./kthena-helm.tgz
             ./kthena-install-${{ steps.version.outputs.version }}.yaml
             ./kthena-install.yaml
           prerelease: ${{ steps.is_prerelease.outputs.prerelease }}
