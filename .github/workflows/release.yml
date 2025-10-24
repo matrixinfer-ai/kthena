@@ -73,9 +73,6 @@ jobs:
           
           # Create versioned helm chart
           mv kthena-${VERSION}.tgz kthena-helm-${VERSION}.tgz
-          
-          # Create generic helm chart (for latest link)
-          cp kthena-helm-${VERSION}.tgz kthena-helm.tgz
 
       - name: Push to GHCR
         run: |
