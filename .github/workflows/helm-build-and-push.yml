@@ -1,6 +1,8 @@
 name: Build and Push Helm Chart OCI Artifact
 on:
   push:
+    branches:
+      - main
     tags:
       - "v*.*.*"
       - "v*.*.*-*" # support pre-release tag. For example, v1.2.3-alpha, v1.2.3-beta, v1.2.3-rc1
@@ -14,13 +16,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Extract version from tag
+      - name: Determine chart version and tag
         id: version
         run: |
-          # Extract version from tag, removing 'v' prefix
-          VERSION=${GITHUB_REF#refs/tags/v}
+          # Check if triggered by a tag or main branch
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            # Extract version from tag, removing 'v' prefix
+            VERSION=${GITHUB_REF#refs/tags/v}
+            echo "is_tag=true" >> $GITHUB_OUTPUT
+            echo "Building from tag: $VERSION"
+          else
+            # Main branch push - use latest as the version
+            VERSION="latest"
+            echo "is_tag=false" >> $GITHUB_OUTPUT
+            echo "Building from main branch with version: latest"
+          fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Extracted version: $VERSION"
+          echo "Chart version: $VERSION"
 
       - name: Check if prerelease
         id: is_prerelease
@@ -82,6 +94,7 @@ jobs:
           helm push kthena-helm-${VERSION}.tgz oci://ghcr.io/${REPO_OWNER}/charts
 
       - name: Helm template manifest
+        if: steps.version.outputs.is_tag == 'true'
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           # Render a single, installable manifest with a sensible default release and namespace
@@ -90,7 +103,8 @@ jobs:
           # Create generic manifest (for latest link)
           cp kthena-install-${VERSION}.yaml kthena-install.yaml
 
-      - name: Release
+      - name: Github Release
+        if: steps.version.outputs.is_tag == 'true'
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
