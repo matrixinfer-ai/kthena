@@ -16,7 +16,7 @@ As Large Language Models (LLMs) become increasingly central to modern applicatio
 The router seamlessly integrates with existing API gateway infrastructure while providing advanced capabilities specifically designed for AI workloads:
 
 - **Model-Aware Routing**: Leverages real-time metrics from inference engines (vLLM, SGLang, TGI) to make intelligent routing decisions
-- **LoRA-Aware Load Balancing**: Intelligently handles dynamic LoRA adapter loading and unloading
+- **LoRA-Aware Load Balancing**: Intelligently route to pods that have already loaded the desired LoRA adapter to reduce adapter swap latency from hundreds of milliseconds to near-zero
 - **Advanced Scheduling Algorithms**: Includes Prefix Cache Aware, KV Cache Aware and Fairness Scheduling, etc.
 - **Prefill-Decode Disaggregation**: Native support for xPyD (x-prefill/y-decode) deployment patterns
 
@@ -26,7 +26,7 @@ Kthena Router is deployed as a standalone binary with minimal dependencies, ensu
 
 Kthena Router implements a clean, modular architecture designed for performance and extensibility. The system consists of several core components working together to provide intelligent request routing.
 
-<img src="/kthena/docs/assets/diagrams/kthena-router-arch.svg" alt="Kthena Router Architecture" width="900"/>
+![Kthena Router Architecture](../../docs/assets/diagrams/kthena-router-arch.svg)
 
 ### 2.1 Core Components Overview
 
@@ -52,7 +52,7 @@ Kthena Router implements a clean, modular architecture designed for performance 
 
 **Scheduler**: The brain of the router, implementing sophisticated traffic scheduling algorithms. It consists of a scheduling framework and various pluggable scheduling algorithm plugins. The framework integrates and runs different scheduling plugins to filter and score pod collections corresponding to `ModelServers`, selecting the globally optimal pod as the final access target.
 
-<img src="/kthena/docs/assets/diagrams/kthena-router-components.svg" alt="Kthena Router Components" width="900"/>
+![Kthena Router Components](../../docs/assets/diagrams/kthena-router-components.svg)
 
 ## 3. Router API
 
