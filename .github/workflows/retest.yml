@@ -1,0 +1,19 @@
+# Re-run failed GitHub Workflow runs on PRs by commenting /retest
+name: Retest Action on PR Comment
+on:
+  issue_comment:
+    types: [created]
+jobs:
+  retest:
+    name: Retest
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      actions: write
+    if: ${{ github.event.issue.pull_request }}
+    steps:
+      - uses: yuluo-yx/gh-retest@v1.0.0-RC1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          comment-id: ${{ github.event.comment.id }}
+          pr-url: ${{ github.event.issue.pull_request.url }}
