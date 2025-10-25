@@ -5,11 +5,19 @@ on:
   pull_request:
     branches:
       - main
-    paths-ignore:
-      - "docs/**"
-      - "LICENSE"
-      - "OWNERS"
-      - "*.md"
+    paths:
+      - "**.go"
+      - "pkg/**"
+      - "cmd/**"
+      - "test/**"
+      - "config/**"
+      - "charts/**"
+      - "docker/**"
+      - "hack/**"
+      - "go.mod"
+      - "go.sum"
+      - "Makefile"
+      - ".github/workflows/e2e-tests.yml"
 
 jobs:
   e2e-tests:
