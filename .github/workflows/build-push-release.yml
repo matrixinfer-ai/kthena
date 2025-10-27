@@ -8,13 +8,14 @@ on:
       - "v*.*.*"
       - "v*.*.*-*" # Support for pre-release tags like v1.2.3-alpha
     paths:
-      - "charts/kthena/**"
+      - 'charts/kthena/**'
       - 'python/**'
+      - 'docker/**'
       - '**.go'
-      - "pkg/**"
-      - "cmd/**"
-      - "go.mod"
-      - "go.sum"
+      - 'pkg/**'
+      - 'cmd/**'
+      - 'go.mod'
+      - 'go.sum'
   pull_request:
     branches:
       - main
@@ -123,7 +124,7 @@ jobs:
           annotations: ${{ steps.meta.outputs.annotations }}
 
   push_helm_chart:
-    needs: [setup, build_and_push_images]
+    needs: [ setup, build_and_push_images ]
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -136,6 +137,7 @@ jobs:
       - uses: mikefarah/yq@v4.44.1
 
       - name: Login to GHCR
+        if: github.event_name != 'pull_request'
         run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Update Chart and Package
@@ -155,6 +157,7 @@ jobs:
           helm package $CHART_PATH --version $VERSION --app-version $VERSION
 
       - name: Push to GHCR
+        if: github.event_name != 'pull_request'
         env:
           VERSION: ${{ needs.setup.outputs.version }}
           REPO_OWNER: ${{ github.repository_owner }}
@@ -181,7 +184,7 @@ jobs:
             ./kthena-install.yaml
 
   create_github_release:
-    needs: [setup, push_helm_chart]
+    needs: [ setup, push_helm_chart ]
     if: needs.setup.outputs.is_tag == 'true'
     permissions:
       contents: write
