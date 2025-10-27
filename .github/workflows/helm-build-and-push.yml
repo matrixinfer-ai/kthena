@@ -77,14 +77,8 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           echo "Building and packaging version: $VERSION"
           
-          # Build dependencies
           helm dependency build ./charts/kthena
-          
-          # Package chart
-          helm package ./charts/kthena
-          
-          # Create versioned helm chart
-          mv kthena-${VERSION}.tgz kthena-helm-${VERSION}.tgz
+          helm package ./charts/kthena --version $VERSION --app-version $VERSION
 
       - name: Push to GHCR
         run: |
