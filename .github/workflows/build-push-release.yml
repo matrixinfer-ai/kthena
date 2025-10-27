@@ -200,7 +200,15 @@ jobs:
         run: |
           LOWER_REPO_OWNER=$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')
           OCI_URI="oci://ghcr.io/${LOWER_REPO_OWNER}/charts/kthena"
-          # ... create release_notes.md ...
+          # Use a HEREDOC to create a multi-line markdown string
+          cat <<EOF > release_notes.md
+          ### Installation
+          To install this version of the chart, you can use the following command:
+          \`\`\`bash
+          helm install my-release ${OCI_URI} --version ${VERSION}
+          \`\`\`
+          For more detailed instructions, including prerequisites and advanced configuration, please see our [installation guide](https://kthena.volcano.sh/docs/getting-started/installation).
+          EOF
 
       - name: Create Github Release
         uses: softprops/action-gh-release@v2
