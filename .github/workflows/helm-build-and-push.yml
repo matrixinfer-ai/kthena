@@ -15,11 +15,15 @@ on:
       - "v*.*.*"
       - "v*.*.*-*" # support pre-release tag. For example, v1.2.3-alpha, v1.2.3-beta, v1.2.3-rc1
 jobs:
-  release:
+  build:
     permissions:
       contents: write
       packages: write
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      is_tag: ${{ steps.version.outputs.is_tag }}
+      prerelease: ${{ steps.is_prerelease.outputs.prerelease }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -126,14 +130,34 @@ jobs:
           helm template kthena ./charts/kthena --namespace kthena-system > kthena-install-${VERSION}.yaml
           cp kthena-install-${VERSION}.yaml kthena-install.yaml
 
-      - name: Prepare Release Body
+      - name: Upload release artifacts
         if: steps.version.outputs.is_tag == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: |
+            ./kthena-${{ steps.version.outputs.version }}.tgz
+            ./kthena-install-${{ steps.version.outputs.version }}.yaml
+            ./kthena-install.yaml
+  release:
+    needs: build
+    if: needs.build.outputs.is_tag == 'true'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+
+      - name: Prepare Release Body
         id: release_body
         run: |
           # Construct the OCI URI from the same variables used in the push step
           REPO_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           OCI_URI="oci://ghcr.io/${REPO_OWNER}/charts/kthena"
-          VERSION="${{ steps.version.outputs.version }}"
+          VERSION="${{ needs.build.outputs.version }}"
           
           # Use a HEREDOC to create a multi-line markdown string
           cat <<EOF > release_notes.md
@@ -146,13 +170,13 @@ jobs:
           EOF
 
       - name: Github Release
-        if: steps.version.outputs.is_tag == 'true'
         uses: softprops/action-gh-release@v2
         with:
           body_path: release_notes.md
           generate_release_notes: true
           files: |
-            ./kthena-${{ steps.version.outputs.version }}.tgz
-            ./kthena-install-${{ steps.version.outputs.version }}.yaml
+            ./kthena-${{ needs.build.outputs.version }}.tgz
+            ./kthena-install-${{ needs.build.outputs.version }}.yaml
             ./kthena-install.yaml
-          prerelease: ${{ steps.is_prerelease.outputs.prerelease || 'false' }}
+          prerelease: ${{ needs.build.outputs.prerelease || 'false' }}
+    
