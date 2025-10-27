@@ -114,7 +114,6 @@ jobs:
         with:
           generate_release_notes: true
           files: |
-            ./kthena-helm-${{ steps.version.outputs.version }}.tgz
             ./kthena-${{ steps.version.outputs.version }}.tgz
             ./kthena-install-${{ steps.version.outputs.version }}.yaml
             ./kthena-install.yaml
