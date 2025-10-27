@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # <-- CHANGE: Necessary to get the git commit hash for versioning
 
       - name: Determine chart version and tag
         id: version
@@ -27,14 +29,15 @@ jobs:
             echo "Building from tag: $VERSION"
           else
             # Main branch push - use latest as the version
-            VERSION="latest"
+            VERSION="0.0.0-main-$(date -u +'%Y%m%d%H%M%S')-$(git rev-parse --short HEAD)"
             echo "is_tag=false" >> $GITHUB_OUTPUT
-            echo "Building from main branch with version: latest"
+            echo "Building from main branch with dev version: $VERSION"
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Chart version: $VERSION"
 
       - name: Check if prerelease
+        if: steps.version.outputs.is_tag == 'true'
         id: is_prerelease
         run: |
           VERSION="${{ steps.version.outputs.version }}"
@@ -46,10 +49,13 @@ jobs:
             echo "This is a stable release version: $VERSION"
           fi
 
-      - name: Setup Helm and Login to GHCR
+      - name: Setup Helm, Crane and Login to GHCR
         run: |
           # Install Helm
           curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+          # Install Crane CLI for applying the 'latest' tag
+          go install github.com/google/go-containerregistry/cmd/crane@latest
           
           # Login to GHCR
           echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
@@ -64,13 +70,12 @@ jobs:
           sed -i "s/^appVersion: .*/appVersion: \"$VERSION\"/" charts/kthena/Chart.yaml
           
           # Update image tags in all subchart values.yaml files
-          find charts/kthena/charts -name "values.yaml" -exec sed -i "s/tag: latest/tag: $VERSION/g" {} \;
+          if [[ "${{ steps.version.outputs.is_tag }}" == "true" ]]; then
+            find charts/kthena/charts -name "values.yaml" -exec sed -i "s/tag: latest/tag: $VERSION/g" {} \;
+          fi
           
-          # Verify changes
           echo "=== Updated Chart.yaml ==="
           cat charts/kthena/Chart.yaml
-          echo "=== Updated subchart versions ==="
-          grep -r "tag: $VERSION" charts/kthena/charts/*/values.yaml || true
 
       - name: Build and Package Helm Chart
         run: |
@@ -83,18 +88,24 @@ jobs:
       - name: Push to GHCR
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          # Extract repository owner and convert to lowercase for GHCR
           REPO_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          helm push kthena-helm-${VERSION}.tgz oci://ghcr.io/${REPO_OWNER}/charts
+          helm push kthena-${VERSION}.tgz oci://ghcr.io/${REPO_OWNER}/charts
+
+      - name: Apply 'latest' tag for main branch builds
+        if: steps.version.outputs.is_tag == 'false'
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          REPO_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          SOURCE_CHART="ghcr.io/${REPO_OWNER}/charts/kthena:${VERSION}"
+          
+          echo "Tagging ${SOURCE_CHART} as 'latest'"
+          crane tag "${SOURCE_CHART}" latest
 
       - name: Helm template manifest
         if: steps.version.outputs.is_tag == 'true'
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          # Render a single, installable manifest with a sensible default release and namespace
           helm template kthena ./charts/kthena --namespace kthena-system > kthena-install-${VERSION}.yaml
-          
-          # Create generic manifest (for latest link)
           cp kthena-install-${VERSION}.yaml kthena-install.yaml
 
       - name: Github Release
@@ -104,6 +115,8 @@ jobs:
           generate_release_notes: true
           files: |
             ./kthena-helm-${{ steps.version.outputs.version }}.tgz
+            ./kthena-${{ steps.version.outputs.version }}.tgz
             ./kthena-install-${{ steps.version.outputs.version }}.yaml
             ./kthena-install.yaml
-          prerelease: ${{ steps.is_prerelease.outputs.prerelease }}
+          prerelease: ${{ steps.is_prerelease.outputs.prerelease || 'false' }}
+
