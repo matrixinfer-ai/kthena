@@ -3,6 +3,8 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "charts/kthena"
     tags:
       - "v*.*.*"
       - "v*.*.*-*" # support pre-release tag. For example, v1.2.3-alpha, v1.2.3-beta, v1.2.3-rc1
