@@ -14,11 +14,9 @@ on:
     tags:
       - "v*.*.*"
       - "v*.*.*-*" # support pre-release tag. For example, v1.2.3-alpha, v1.2.3-beta, v1.2.3-rc1
+
 jobs:
-  build:
-    permissions:
-      contents: write
-      packages: write
+  setup:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -33,14 +31,11 @@ jobs:
       - name: Determine chart version and tag
         id: version
         run: |
-          # Check if triggered by a tag or main branch
           if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            # Extract version from tag, removing 'v' prefix
             VERSION=${GITHUB_REF#refs/tags/v}
             echo "is_tag=true" >> $GITHUB_OUTPUT
             echo "Building from tag: $VERSION"
           else
-            # Main branch push - use latest as the version
             VERSION="0.0.0-main-$(date -u +'%Y%m%d%H%M%S')-$(git rev-parse --short HEAD)"
             echo "is_tag=false" >> $GITHUB_OUTPUT
             echo "Building from main branch with dev version: $VERSION"
@@ -61,89 +56,85 @@ jobs:
             echo "This is a stable release version: $VERSION"
           fi
 
-      - name: Setup Helm
+  build:
+    needs: setup # This job now depends on the 'setup' job
+    permissions:
+      packages: write # Only needs permission to write to GHCR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Helm, yq, Crane
         uses: azure/setup-helm@v4
-        with:
-          version: v3.18.4 # Use a specific, stable version of Helm
-
-      - name: Setup yq
-        uses: mikefarah/yq@v4.44.1
-
-      - name: Setup Crane
-        uses: imjasonh/setup-crane@v0.4
+        with: { version: v3.18.4 }
+      - uses: mikefarah/yq@v4.44.1
+      - uses: imjasonh/setup-crane@v0.4
 
       - name: Login to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
 
-      - name: Update chart and image versions
+      - name: Update chart, package, and push OCI artifact
+        env:
+          VERSION: ${{ needs.setup.outputs.version }}
+          REPO_OWNER: ${{ github.repository_owner }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
+          # Convert repo owner to lowercase for OCI repository URL
+          LOWER_REPO_OWNER=$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')
           CHART_PATH="charts/kthena"
-          echo "Updating versions to: $VERSION"
-          
-          # Update main Chart.yaml using yq for reliability
+
+          echo "Updating chart files to version: $VERSION"
           yq e -i '.version = "'$VERSION'"' $CHART_PATH/Chart.yaml
           yq e -i '.appVersion = "'$VERSION'"' $CHART_PATH/Chart.yaml
-          
-          echo "Updating image tags in parent values.yaml"
           yq e -i '
             .workload.controllerManager.image.tag = "'$VERSION'" |
             .workload.controllerManager.downloaderImage.tag = "'$VERSION'" |
             .workload.controllerManager.runtimeImage.tag = "'$VERSION'" |
             .networking.kthenaRouter.image.tag = "'$VERSION'"
           ' $CHART_PATH/values.yaml
-          
-          echo "=== Updated Chart.yaml ==="
-          cat $CHART_PATH/Chart.yaml
-          
-          echo "=== Updated values.yaml ==="
-          cat $CHART_PATH/values.yaml
 
-      - name: Build and Package Helm Chart
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          echo "Building and packaging version: $VERSION"
-          
+          echo "Building and packaging Helm chart..."
           helm dependency build ./charts/kthena
           helm package ./charts/kthena --version $VERSION --app-version $VERSION
 
-      - name: Push to GHCR
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          REPO_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          helm push kthena-${VERSION}.tgz oci://ghcr.io/${REPO_OWNER}/charts
+          echo "Pushing chart to GHCR..."
+          helm push kthena-${VERSION}.tgz oci://ghcr.io/${LOWER_REPO_OWNER}/charts
 
       - name: Apply 'latest' tag for main branch builds
-        if: steps.version.outputs.is_tag == 'false'
+        if: needs.setup.outputs.is_tag == 'false'
+        env:
+          VERSION: ${{ needs.setup.outputs.version }}
+          REPO_OWNER: ${{ github.repository_owner }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          REPO_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          SOURCE_CHART="ghcr.io/${REPO_OWNER}/charts/kthena:${VERSION}"
-          
+          LOWER_REPO_OWNER=$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')
+          SOURCE_CHART="ghcr.io/${LOWER_REPO_OWNER}/charts/kthena:${VERSION}"
           echo "Tagging ${SOURCE_CHART} as 'latest'"
           crane tag "${SOURCE_CHART}" latest
 
-      - name: Helm template manifest
-        if: steps.version.outputs.is_tag == 'true'
+      - name: Prepare release artifacts
+        if: needs.setup.outputs.is_tag == 'true'
+        env:
+          VERSION: ${{ needs.setup.outputs.version }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
+          echo "Generating Kubernetes manifest for installation..."
           helm template kthena ./charts/kthena --namespace kthena-system > kthena-install-${VERSION}.yaml
           cp kthena-install-${VERSION}.yaml kthena-install.yaml
 
       - name: Upload release artifacts
-        if: steps.version.outputs.is_tag == 'true'
+        if: needs.setup.outputs.is_tag == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: release-artifacts
           path: |
-            ./kthena-${{ steps.version.outputs.version }}.tgz
-            ./kthena-install-${{ steps.version.outputs.version }}.yaml
+            ./kthena-${{ needs.setup.outputs.version }}.tgz
+            ./kthena-install-${{ needs.setup.outputs.version }}.yaml
             ./kthena-install.yaml
+
   release:
-    needs: build
-    if: needs.build.outputs.is_tag == 'true'
+    needs: [setup, build] # Depends on setup for metadata and build for artifacts
+    if: needs.setup.outputs.is_tag == 'true'
     permissions:
-      contents: write
+      contents: write # Needs permission to create a GitHub release
     runs-on: ubuntu-latest
     steps:
       - name: Download release artifacts
@@ -153,30 +144,29 @@ jobs:
 
       - name: Prepare Release Body
         id: release_body
+        env:
+          REPO_OWNER: ${{ github.repository_owner }}
+          VERSION: ${{ needs.setup.outputs.version }}
         run: |
-          # Construct the OCI URI from the same variables used in the push step
-          REPO_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          OCI_URI="oci://ghcr.io/${REPO_OWNER}/charts/kthena"
-          VERSION="${{ needs.build.outputs.version }}"
+          LOWER_REPO_OWNER=$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')
+          OCI_URI="oci://ghcr.io/${LOWER_REPO_OWNER}/charts/kthena"
           
-          # Use a HEREDOC to create a multi-line markdown string
           cat <<EOF > release_notes.md
           ### Installation
           To install this version of the chart, you can use the following command:
           \`\`\`bash
           helm install my-release ${OCI_URI} --version ${VERSION}
           \`\`\`
-          For more detailed instructions, including prerequisites and advanced configuration, please see our [installation guide](https://kthena.volcano.sh/docs/getting-started/installation).
+          For more detailed instructions, please see our installation guide [<sup>1</sup>](https://kthena.volcano.sh/docs/getting-started/installation).
           EOF
 
-      - name: Github Release
+      - name: Create Github Release
         uses: softprops/action-gh-release@v2
         with:
           body_path: release_notes.md
           generate_release_notes: true
           files: |
-            ./kthena-${{ needs.build.outputs.version }}.tgz
-            ./kthena-install-${{ needs.build.outputs.version }}.yaml
+            ./kthena-${{ needs.setup.outputs.version }}.tgz
+            ./kthena-install-${{ needs.setup.outputs.version }}.yaml
             ./kthena-install.yaml
-          prerelease: ${{ needs.build.outputs.prerelease || 'false' }}
-    
+          prerelease: ${{ needs.setup.outputs.prerelease || 'false' }}
