@@ -20,6 +20,11 @@ on:
 
 jobs:
   build:
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
     runs-on: ubuntu-latest
     permissions:
       contents: read
