@@ -131,10 +131,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Setup Tools (Helm, yq, Crane)
+      - name: Setup Tools
         uses: azure/setup-helm@v4
       - uses: mikefarah/yq@v4.44.1
-      - uses: imjasonh/setup-crane@v0.4
 
       - name: Login to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
@@ -163,15 +162,6 @@ jobs:
           LOWER_REPO_OWNER=$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')
           helm push kthena-*.tgz oci://ghcr.io/$LOWER_REPO_OWNER/charts
 
-      - name: Apply 'latest' Tag
-        if: needs.setup.outputs.is_tag == 'false'
-        env:
-          VERSION: ${{ needs.setup.outputs.version }}
-          REPO_OWNER: ${{ github.repository_owner }}
-        run: |
-          LOWER_REPO_OWNER=$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')
-          crane tag "ghcr.io/$LOWER_REPO_OWNER/charts/kthena:$VERSION" latest
-
       - name: Prepare Release Artifacts
         if: needs.setup.outputs.is_tag == 'true'
         env:
@@ -187,7 +177,7 @@ jobs:
           name: release-artifacts
           path: |
             ./kthena-${{ needs.setup.outputs.version }}.tgz
-            ./kthena-install-${{ needs.seutp.outputs.version }}.yaml
+            ./kthena-install-${{ needs.setup.outputs.version }}.yaml
             ./kthena-install.yaml
 
   create_github_release:
