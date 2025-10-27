@@ -49,16 +49,16 @@ jobs:
             echo "This is a stable release version: $VERSION"
           fi
 
-      - name: Setup Helm, Crane and Login to GHCR
-        run: |
-          # Install Helm
-          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.18.4 # Use a specific, stable version of Helm
 
-          # Install Crane CLI for applying the 'latest' tag
-          go install github.com/google/go-containerregistry/cmd/crane@latest
-          
-          # Login to GHCR
-          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Setup Crane
+        uses: imjasonh/setup-crane@v0.4
+
+      - name: Login to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Update chart and image versions
         run: |
