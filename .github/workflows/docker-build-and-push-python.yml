@@ -2,12 +2,18 @@ name: Build and Push Docker Image for Python
 
 on:
   push:
+    tags:
+      - "v*.*.*"
     branches:
       - main
     paths:
+      - "charts/kthena/**"
       - 'python/**'
-    tags:
-      - "v*.*.*"
+      - '**.go'
+      - "pkg/**"
+      - "cmd/**"
+      - "go.mod"
+      - "go.sum"
   pull_request:
     paths:
       - 'python/Dockerfile'

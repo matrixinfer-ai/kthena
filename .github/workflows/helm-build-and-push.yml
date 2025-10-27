@@ -5,6 +5,12 @@ on:
       - main
     paths:
       - "charts/kthena/**"
+      - 'python/**'
+      - '**.go'
+      - "pkg/**"
+      - "cmd/**"
+      - "go.mod"
+      - "go.sum"
     tags:
       - "v*.*.*"
       - "v*.*.*-*" # support pre-release tag. For example, v1.2.3-alpha, v1.2.3-beta, v1.2.3-rc1

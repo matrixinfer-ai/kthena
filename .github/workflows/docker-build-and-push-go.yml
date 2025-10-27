@@ -7,11 +7,13 @@ on:
     paths:
       - "docker/**"
   push:
-    branches:
-      - main
     tags:
       - "v*.*.*"
+    branches:
+      - main
     paths:
+      - "charts/kthena/**"
+      - 'python/**'
       - '**.go'
       - "pkg/**"
       - "cmd/**"
