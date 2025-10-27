@@ -4,7 +4,7 @@ on:
     branches:
       - main
     paths:
-      - "charts/kthena"
+      - "charts/kthena/**"
     tags:
       - "v*.*.*"
       - "v*.*.*-*" # support pre-release tag. For example, v1.2.3-alpha, v1.2.3-beta, v1.2.3-rc1
@@ -56,6 +56,9 @@ jobs:
         with:
           version: v3.18.4 # Use a specific, stable version of Helm
 
+      - name: Setup yq
+        uses: mikefarah/yq@v4.44.1
+
       - name: Setup Crane
         uses: imjasonh/setup-crane@v0.4
 
@@ -65,19 +68,29 @@ jobs:
       - name: Update chart and image versions
         run: |
           VERSION="${{ steps.version.outputs.version }}"
+          CHART_PATH="charts/kthena"
           echo "Updating versions to: $VERSION"
           
-          # Update main Chart.yaml
-          sed -i "s/^version: .*/version: $VERSION/" charts/kthena/Chart.yaml
-          sed -i "s/^appVersion: .*/appVersion: \"$VERSION\"/" charts/kthena/Chart.yaml
+          # Update main Chart.yaml using yq for reliability
+          yq e -i '.version = "'$VERSION'"' $CHART_PATH/Chart.yaml
+          yq e -i '.appVersion = "'$VERSION'"' $CHART_PATH/Chart.yaml
           
-          # Update image tags in all subchart values.yaml files
+          # If this is a tag build, update specific image tags in the parent chart's values.yaml
           if [[ "${{ steps.version.outputs.is_tag }}" == "true" ]]; then
-            find charts/kthena/charts -name "values.yaml" -exec sed -i "s/tag: latest/tag: $VERSION/g" {} \;
+            echo "Updating image tags in parent values.yaml"
+            yq e -i '
+              .workload.controllerManager.image.tag = "'$VERSION'" |
+              .workload.controllerManager.downloaderImage.tag = "'$VERSION'" |
+              .workload.controllerManager.runtimeImage.tag = "'$VERSION'" |
+              .networking.kthenaRouter.image.tag = "'$VERSION'"
+            ' $CHART_PATH/values.yaml
           fi
           
           echo "=== Updated Chart.yaml ==="
-          cat charts/kthena/Chart.yaml
+          cat $CHART_PATH/Chart.yaml
+          
+          echo "=== Updated values.yaml ==="
+          cat $CHART_PATH/values.yaml
 
       - name: Build and Package Helm Chart
         run: |
@@ -116,7 +129,7 @@ jobs:
         run: |
           # Construct the OCI URI from the same variables used in the push step
           REPO_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          OCI_URI="oci://${REPO_OWNER}/charts/kthena"
+          OCI_URI="oci://ghcr.io/${REPO_OWNER}/charts/kthena"
           VERSION="${{ steps.version.outputs.version }}"
           
           # Use a HEREDOC to create a multi-line markdown string
