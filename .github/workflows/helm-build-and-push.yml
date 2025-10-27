@@ -18,7 +18,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
-          fetch-depth: 0 # <-- CHANGE: Necessary to get the git commit hash for versioning
+          fetch-depth: 0 # Necessary to get the git commit hash for versioning
 
       - name: Determine chart version and tag
         id: version
