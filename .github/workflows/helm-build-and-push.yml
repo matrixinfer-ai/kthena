@@ -81,16 +81,13 @@ jobs:
           yq e -i '.version = "'$VERSION'"' $CHART_PATH/Chart.yaml
           yq e -i '.appVersion = "'$VERSION'"' $CHART_PATH/Chart.yaml
           
-          # If this is a tag build, update specific image tags in the parent chart's values.yaml
-          if [[ "${{ steps.version.outputs.is_tag }}" == "true" ]]; then
-            echo "Updating image tags in parent values.yaml"
-            yq e -i '
-              .workload.controllerManager.image.tag = "'$VERSION'" |
-              .workload.controllerManager.downloaderImage.tag = "'$VERSION'" |
-              .workload.controllerManager.runtimeImage.tag = "'$VERSION'" |
-              .networking.kthenaRouter.image.tag = "'$VERSION'"
-            ' $CHART_PATH/values.yaml
-          fi
+          echo "Updating image tags in parent values.yaml"
+          yq e -i '
+            .workload.controllerManager.image.tag = "'$VERSION'" |
+            .workload.controllerManager.downloaderImage.tag = "'$VERSION'" |
+            .workload.controllerManager.runtimeImage.tag = "'$VERSION'" |
+            .networking.kthenaRouter.image.tag = "'$VERSION'"
+          ' $CHART_PATH/values.yaml
           
           echo "=== Updated Chart.yaml ==="
           cat $CHART_PATH/Chart.yaml
