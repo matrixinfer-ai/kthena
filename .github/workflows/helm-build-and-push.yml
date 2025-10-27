@@ -126,7 +126,7 @@ jobs:
           \`\`\`bash
           helm install my-release ${OCI_URI} --version ${VERSION}
           \`\`\`
-          For more detailed instructions, including prerequisites and advanced configuration, please see our official installation guide [<sup>1</sup>](https://kthena.volcano.sh/docs/getting-started/installation).
+          For more detailed instructions, including prerequisites and advanced configuration, please see our [installation guide](https://kthena.volcano.sh/docs/getting-started/installation).
           EOF
 
       - name: Github Release
