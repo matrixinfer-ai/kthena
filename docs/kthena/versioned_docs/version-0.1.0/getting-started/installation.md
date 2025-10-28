@@ -45,13 +45,37 @@ Kthena provides all necessary components in a single manifest file for easy inst
 1.  **Apply the Kthena manifest:**
 
     ```bash
-    kubectl apply -f https://github.com/volcano-sh/kthena/releases/latest/download/kthena.yaml
+    kubectl apply -f https://github.com/volcano-sh/kthena/releases/latest/download/kthena-install.yaml
     ```
 
     To install a specific version, replace `latest` with the desired release tag (e.g., `v1.2.3`):
 
     ```bash
-    kubectl apply -f https://github.com/volcano-sh/kthena/releases/download/vX.Y.Z/kthena.yaml
+    kubectl apply -f https://github.com/volcano-sh/kthena/releases/download/vX.Y.Z/kthena-install.yaml
+    ```
+
+### Method 3: Helm Installation from GitHub Release Package
+
+You can also download the Helm chart package from [GitHub releases](https://github.com/volcano-sh/kthena/releases) and install it locally.
+
+1.  **Download the Helm chart package:**
+
+    For the latest version:
+    ```bash
+    curl -L -o kthena-helm.tgz https://github.com/volcano-sh/kthena/releases/latest/download/kthena-helm.tgz
+    ```
+
+    For a specific version (replace `vX.Y.Z` with the desired release tag):
+    ```bash
+    curl -L -o kthena-helm.tgz https://github.com/volcano-sh/kthena/releases/download/vX.Y.Z/kthena-helm.tgz
+    ```
+
+2.  **Install from the downloaded package:**
+
+    ```bash
+    helm install kthena kthena-helm.tgz \
+      --namespace kthena-system \
+      --create-namespace
     ```
 
 ## Configuration Options
@@ -104,5 +128,5 @@ Kthena leverages **Volcano** (a high-performance batch system for Kubernetes) to
 
 If you need gang scheduling capabilities, you can install Volcano by following the official installation guide of [Volcano](https://volcano.sh/en/docs/installation/).
 
-# Minfer CLI
-Kthena provides a CLI tool called `minfer` to manage your Kthena deployments. You can download CLI from the [GitHub release page](https://github.com/volcano-sh/kthena/releases/). Please refer to the [CLI documentation](../reference/cli/minfer.md) for more information.
+# Kthena CLI
+Kthena provides a CLI tool called `kthena` to manage your Kthena deployments. You can download CLI from the [GitHub release page](https://github.com/volcano-sh/kthena/releases/). Please refer to the [CLI documentation](../reference/cli/kthena.md) for more information.

@@ -1,4 +1,4 @@
-## minfer describe template
+## kthena describe template
 
 Show detailed information about a template
 
@@ -10,7 +10,7 @@ This will display the template description, available variables,
 and the full template content.
 
 ```
-minfer describe template [NAME] [flags]
+kthena describe template [NAME] [flags]
 ```
 
 ### Options
@@ -27,5 +27,5 @@ minfer describe template [NAME] [flags]
 
 ### SEE ALSO
 
-* [minfer describe](minfer_describe.md)	 - Show detailed information about a specific resource
+* [kthena describe](kthena_describe.md)	 - Show detailed information about a specific resource
 

@@ -1,21 +1,19 @@
-## minfer get template
+## kthena get autoscaling-policy-bindings
 
-Get a specific template
+List autoscaling policy bindings
 
 ### Synopsis
 
-Get a specific template by name.
-
-Use -o yaml flag to output the template content in YAML format.
+List AutoscalingPolicyBinding resources in the cluster.
 
 ```
-minfer get template [NAME] [flags]
+kthena get autoscaling-policy-bindings [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for template
+  -h, --help   help for autoscaling-policy-bindings
 ```
 
 ### Options inherited from parent commands
@@ -28,5 +26,5 @@ minfer get template [NAME] [flags]
 
 ### SEE ALSO
 
-* [minfer get](minfer_get.md)	 - Display one or many resources
+* [kthena get](kthena_get.md)	 - Display one or many resources
 
