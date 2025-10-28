@@ -198,5 +198,4 @@ jobs:
           generate_release_notes: true
           files: |
             ./kthena-${{ needs.setup.outputs.version }}.tgz
-            ./kthena-install-${{ needs.setup.outputs.version }}.yaml
             ./kthena-install.yaml
