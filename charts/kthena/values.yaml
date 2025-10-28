@@ -2,6 +2,16 @@ workload:
   # enabled is a flag to enable or disable the workload subchart. Default is true.
   enabled: true
   controllerManager:
+    image:
+      repository: ghcr.io/volcano-sh/kthena-controller-manager
+      tag: latest
+      pullPolicy: IfNotPresent
+    downloaderImage:
+      repository: ghcr.io/volcano-sh/downloader
+      tag: latest
+    runtimeImage:
+      repository: ghcr.io/volcano-sh/runtime
+      tag: latest
     webhook:
       enabled: true
 
@@ -11,6 +21,10 @@ networking:
   kthenaRouter:
     enabled: true
     port: 8080
+    image:
+      repository: ghcr.io/volcano-sh/kthena-router
+      tag: latest
+      pullPolicy: IfNotPresent
     tls:
       enabled: false
       # The DNS name to use for the certificate.

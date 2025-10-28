@@ -1,0 +1,224 @@
+name: Build, Push, and Release
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*.*.*"
+      - "v*.*.*-*" # Support for pre-release tags like v1.2.3-alpha
+    paths:
+      - 'charts/kthena/**'
+      - 'python/**'
+      - 'docker/**'
+      - '**.go'
+      - 'pkg/**'
+      - 'cmd/**'
+      - 'go.mod'
+      - 'go.sum'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "docker/**"
+      - 'python/Dockerfile'
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      is_tag: ${{ steps.version.outputs.is_tag }}
+      prerelease: ${{ steps.is_prerelease.outputs.prerelease }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Determine Version
+        id: version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+            echo "is_tag=true" >> $GITHUB_OUTPUT
+          else
+            VERSION="0.0.0-main-$(date -u +'%Y%m%d%H%M%S')-$(git rev-parse --short HEAD)"
+            echo "is_tag=false" >> $GITHUB_OUTPUT
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Check for Prerelease
+        if: steps.version.outputs.is_tag == 'true'
+        id: is_prerelease
+        run: |
+          if [[ "${{ steps.version.outputs.version }}" == *-* ]]; then
+            echo "prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+          fi
+
+  build_and_push_images:
+    needs: setup
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - service: kthena-router
+            context: .
+            dockerfile: ./docker/Dockerfile.kthena-router
+          - service: kthena-controller-manager
+            context: .
+            dockerfile: ./docker/Dockerfile.kthena-controller-manager
+          - service: downloader
+            context: ./python
+            target: downloader
+          - service: runtime
+            context: ./python
+            target: runtime
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set Platforms
+        id: platforms
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "platforms=linux/amd64" >> $GITHUB_OUTPUT
+          else
+            echo "platforms=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Docker Image Metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.service }}
+          tags: |
+            type=raw,value=${{ needs.setup.outputs.version }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Login to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          target: ${{ matrix.target }}
+          platforms: ${{ steps.platforms.outputs.platforms }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+
+  push_helm_chart:
+    needs: [ setup, build_and_push_images ]
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Tools
+        uses: azure/setup-helm@v4
+      - uses: mikefarah/yq@v4.44.1
+
+      - name: Login to GHCR
+        if: github.event_name != 'pull_request'
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Update Chart and Package
+        env:
+          VERSION: ${{ needs.setup.outputs.version }}
+        run: |
+          CHART_PATH="charts/kthena"
+          yq e -i '.version = "'$VERSION'"' $CHART_PATH/Chart.yaml
+          yq e -i '.appVersion = "'$VERSION'"' $CHART_PATH/Chart.yaml
+          yq e -i '
+            .workload.controllerManager.image.tag = "'$VERSION'" |
+            .workload.controllerManager.downloaderImage.tag = "'$VERSION'" |
+            .workload.controllerManager.runtimeImage.tag = "'$VERSION'" |
+            .networking.kthenaRouter.image.tag = "'$VERSION'"
+          ' $CHART_PATH/values.yaml
+          helm dependency build $CHART_PATH
+          helm package $CHART_PATH --version $VERSION --app-version $VERSION
+
+      - name: Push to GHCR
+        if: github.event_name != 'pull_request'
+        env:
+          VERSION: ${{ needs.setup.outputs.version }}
+          REPO_OWNER: ${{ github.repository_owner }}
+        run: |
+          LOWER_REPO_OWNER=$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')
+          helm push kthena-*.tgz oci://ghcr.io/$LOWER_REPO_OWNER/charts
+
+      - name: Prepare Release Artifacts
+        if: needs.setup.outputs.is_tag == 'true'
+        env:
+          VERSION: ${{ needs.setup.outputs.version }}
+        run: |
+          helm template kthena ./charts/kthena --namespace kthena-system > kthena-install-${VERSION}.yaml
+          cp kthena-install-${VERSION}.yaml kthena-install.yaml
+
+      - name: Upload Release Artifacts
+        if: needs.setup.outputs.is_tag == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: |
+            ./kthena-${{ needs.setup.outputs.version }}.tgz
+            ./kthena-install-${{ needs.setup.outputs.version }}.yaml
+            ./kthena-install.yaml
+
+  create_github_release:
+    needs: [ setup, push_helm_chart ]
+    if: needs.setup.outputs.is_tag == 'true'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Release Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+
+      - name: Prepare Release Body
+        id: release_body
+        env:
+          REPO_OWNER: ${{ github.repository_owner }}
+          VERSION: ${{ needs.setup.outputs.version }}
+        run: |
+          LOWER_REPO_OWNER=$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')
+          OCI_URI="oci://ghcr.io/${LOWER_REPO_OWNER}/charts/kthena"
+          # Use a HEREDOC to create a multi-line markdown string
+          cat <<EOF > release_notes.md
+          ### Installation
+          To install this version of the chart, you can use the following command:
+          \`\`\`bash
+          helm install my-release ${OCI_URI} --version ${VERSION}
+          \`\`\`
+          For more detailed instructions, including prerequisites and advanced configuration, please see our [installation guide](https://kthena.volcano.sh/docs/getting-started/installation).
+          EOF
+
+      - name: Create Github Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: release_notes.md
+          files: |
+            ./kthena-${{ needs.setup.outputs.version }}.tgz
+            ./kthena-install-${{ needs.setup.outputs.version }}.yaml
+            ./kthena-install.yaml
+          prerelease: ${{ needs.setup.outputs.prerelease }}
