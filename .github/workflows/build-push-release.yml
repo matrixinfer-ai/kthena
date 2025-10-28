@@ -167,11 +167,8 @@ jobs:
 
       - name: Prepare Release Artifacts
         if: needs.setup.outputs.is_tag == 'true'
-        env:
-          VERSION: ${{ needs.setup.outputs.version }}
         run: |
-          helm template kthena ./charts/kthena --namespace kthena-system > kthena-install-${VERSION}.yaml
-          cp kthena-install-${VERSION}.yaml kthena-install.yaml
+          helm template kthena ./charts/kthena --namespace kthena-system > kthena-install.yaml
 
       - name: Upload Release Artifacts
         if: needs.setup.outputs.is_tag == 'true'
@@ -180,7 +177,6 @@ jobs:
           name: release-artifacts
           path: |
             ./kthena-${{ needs.setup.outputs.version }}.tgz
-            ./kthena-install-${{ needs.setup.outputs.version }}.yaml
             ./kthena-install.yaml
 
   create_github_release:
@@ -194,24 +190,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: release-artifacts
-
-      - name: Prepare Release Body
-        id: release_body
-        env:
-          REPO_OWNER: ${{ github.repository_owner }}
-          VERSION: ${{ needs.setup.outputs.version }}
-        run: |
-          LOWER_REPO_OWNER=$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')
-          OCI_URI="oci://ghcr.io/${LOWER_REPO_OWNER}/charts/kthena"
-          # Use a HEREDOC to create a multi-line markdown string
-          cat <<EOF > release_notes.md
-          ### Installation
-          To install this version of the chart, you can use the following command:
-          \`\`\`bash
-          helm install my-release ${OCI_URI} --version ${VERSION}
-          \`\`\`
-          For more detailed instructions, including prerequisites and advanced configuration, please see our [installation guide](https://kthena.volcano.sh/docs/getting-started/installation).
-          EOF
 
       - name: Create Github Release
         uses: softprops/action-gh-release@v2
