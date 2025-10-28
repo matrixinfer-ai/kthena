@@ -194,9 +194,9 @@ jobs:
       - name: Create Github Release
         uses: softprops/action-gh-release@v2
         with:
-          body_path: release_notes.md
+          prerelease: ${{ needs.setup.outputs.prerelease }}
+          generate_release_notes: true
           files: |
             ./kthena-${{ needs.setup.outputs.version }}.tgz
             ./kthena-install-${{ needs.setup.outputs.version }}.yaml
             ./kthena-install.yaml
-          prerelease: ${{ needs.setup.outputs.prerelease }}
