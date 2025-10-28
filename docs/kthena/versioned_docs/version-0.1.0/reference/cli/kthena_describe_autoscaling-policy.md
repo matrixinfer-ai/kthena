@@ -1,4 +1,4 @@
-## minfer describe autoscaling-policy
+## kthena describe autoscaling-policy
 
 Show detailed information about an autoscaling policy
 
@@ -9,7 +9,7 @@ Show detailed information about a specific AutoscalingPolicy resource in the clu
 This will display the autoscaling policy configuration and rules.
 
 ```
-minfer describe autoscaling-policy [NAME] [flags]
+kthena describe autoscaling-policy [NAME] [flags]
 ```
 
 ### Options
@@ -26,5 +26,5 @@ minfer describe autoscaling-policy [NAME] [flags]
 
 ### SEE ALSO
 
-* [minfer describe](minfer_describe.md)	 - Show detailed information about a specific resource
+* [kthena describe](kthena_describe.md)	 - Show detailed information about a specific resource
 

@@ -29,7 +29,7 @@ To simplify deployment and reduce the requirements for demonstration environment
 
 ### Getting Started
 
-1. Deploy mock LLM inference engine if you don't have a real GPU/NPU environment at the moment. [mock deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B](https://github.com/volcano-sh/kthena/blob/main/examples/kthena-router/LLM-Mock-ds1.5b.yaml) and [mock deepseek-ai/DeepSeek-R1-Distill-Qwen-7B](https://github.com/volcano-sh/kthena/blob/main/examples/kthena-router/LLM-Mock-ds7b.yaml)
+1. Deploy mock LLM inference engine if you do not have a real GPU/NPU environment at the moment. [mock deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B](https://github.com/volcano-sh/kthena/blob/main/examples/kthena-router/LLM-Mock-ds1.5b.yaml) and [mock deepseek-ai/DeepSeek-R1-Distill-Qwen-7B](https://github.com/volcano-sh/kthena/blob/main/examples/kthena-router/LLM-Mock-ds7b.yaml)
 
 2. Deploy all kinds of ModelServer, such as `deepseek-r1-1-5b`, `deepseek-r1-7b`, etc., as backends of different routing strategies.
 

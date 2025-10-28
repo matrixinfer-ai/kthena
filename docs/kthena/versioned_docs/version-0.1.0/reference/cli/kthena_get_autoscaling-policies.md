@@ -1,19 +1,19 @@
-## minfer get modelinfers
+## kthena get autoscaling-policies
 
-List model inference workloads
+List autoscaling policies
 
 ### Synopsis
 
-List ModelInfer resources in the cluster.
+List AutoscalingPolicy resources in the cluster.
 
 ```
-minfer get modelinfers [flags]
+kthena get autoscaling-policies [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for modelinfers
+  -h, --help   help for autoscaling-policies
 ```
 
 ### Options inherited from parent commands
@@ -26,5 +26,5 @@ minfer get modelinfers [flags]
 
 ### SEE ALSO
 
-* [minfer get](minfer_get.md)	 - Display one or many resources
+* [kthena get](kthena_get.md)	 - Display one or many resources
 
