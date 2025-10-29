@@ -8,17 +8,17 @@ changelog:
     # If PR has multiple labels, it will be added to the first matching category
     - title: Breaking Changes 🛠
       labels:
-        - breaking-change
+        - kind/breaking-change
     - title: Exciting New Features 🎉
       labels:
-        - enhancement
-        - feature
+        - kind/enhancement
+        - kind/feature
     - title: Bug fixes 🐛
       labels:
-        - bug
+        - kind/bug
     - title: Documentation Updates 📚
       labels:
-        - documentation
+        - kind/documentation
     - title: Other Changes 🔄
       labels:
         - "*"
