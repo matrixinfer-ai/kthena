@@ -35,7 +35,7 @@ type Autoscaler struct {
 	Meta      *ScalingMeta
 }
 type ScalingMeta struct {
-	Config        *workload.ScalingConfiguration
+	Config        *workload.Homogeneous
 	MetricTargets map[string]float64
 	BindingId     types.UID
 	Namespace     string
@@ -44,9 +44,9 @@ type ScalingMeta struct {
 func NewAutoscaler(behavior *workload.AutoscalingPolicyBehavior, binding *workload.AutoscalingPolicyBinding, metricTargets map[string]float64) *Autoscaler {
 	return &Autoscaler{
 		Status:    NewStatus(behavior),
-		Collector: NewMetricCollector(&binding.Spec.ScalingConfiguration.Target, binding, metricTargets),
+		Collector: NewMetricCollector(&binding.Spec.Homogeneous.Target, binding, metricTargets),
 		Meta: &ScalingMeta{
-			Config:        binding.Spec.ScalingConfiguration,
+			Config:        binding.Spec.Homogeneous,
 			BindingId:     binding.UID,
 			Namespace:     binding.Namespace,
 			MetricTargets: metricTargets,

@@ -18,41 +18,32 @@ limitations under the License.
 
 package v1alpha1
 
-// OptimizerParamApplyConfiguration represents a declarative configuration of the OptimizerParam type for use
+// HomogeneousApplyConfiguration represents a declarative configuration of the Homogeneous type for use
 // with apply.
-type OptimizerParamApplyConfiguration struct {
+type HomogeneousApplyConfiguration struct {
 	Target      *TargetApplyConfiguration `json:"target,omitempty"`
-	Cost        *int32                    `json:"cost,omitempty"`
 	MinReplicas *int32                    `json:"minReplicas,omitempty"`
 	MaxReplicas *int32                    `json:"maxReplicas,omitempty"`
 }
 
-// OptimizerParamApplyConfiguration constructs a declarative configuration of the OptimizerParam type for use with
+// HomogeneousApplyConfiguration constructs a declarative configuration of the Homogeneous type for use with
 // apply.
-func OptimizerParam() *OptimizerParamApplyConfiguration {
-	return &OptimizerParamApplyConfiguration{}
+func Homogeneous() *HomogeneousApplyConfiguration {
+	return &HomogeneousApplyConfiguration{}
 }
 
 // WithTarget sets the Target field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Target field is set to the value of the last call.
-func (b *OptimizerParamApplyConfiguration) WithTarget(value *TargetApplyConfiguration) *OptimizerParamApplyConfiguration {
+func (b *HomogeneousApplyConfiguration) WithTarget(value *TargetApplyConfiguration) *HomogeneousApplyConfiguration {
 	b.Target = value
-	return b
-}
-
-// WithCost sets the Cost field in the declarative configuration to the given value
-// and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the Cost field is set to the value of the last call.
-func (b *OptimizerParamApplyConfiguration) WithCost(value int32) *OptimizerParamApplyConfiguration {
-	b.Cost = &value
 	return b
 }
 
 // WithMinReplicas sets the MinReplicas field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the MinReplicas field is set to the value of the last call.
-func (b *OptimizerParamApplyConfiguration) WithMinReplicas(value int32) *OptimizerParamApplyConfiguration {
+func (b *HomogeneousApplyConfiguration) WithMinReplicas(value int32) *HomogeneousApplyConfiguration {
 	b.MinReplicas = &value
 	return b
 }
@@ -60,7 +51,7 @@ func (b *OptimizerParamApplyConfiguration) WithMinReplicas(value int32) *Optimiz
 // WithMaxReplicas sets the MaxReplicas field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the MaxReplicas field is set to the value of the last call.
-func (b *OptimizerParamApplyConfiguration) WithMaxReplicas(value int32) *OptimizerParamApplyConfiguration {
+func (b *HomogeneousApplyConfiguration) WithMaxReplicas(value int32) *HomogeneousApplyConfiguration {
 	b.MaxReplicas = &value
 	return b
 }

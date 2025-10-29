@@ -25,9 +25,9 @@ import (
 // AutoscalingPolicyBindingSpecApplyConfiguration represents a declarative configuration of the AutoscalingPolicyBindingSpec type for use
 // with apply.
 type AutoscalingPolicyBindingSpecApplyConfiguration struct {
-	PolicyRef              *v1.LocalObjectReference                  `json:"policyRef,omitempty"`
-	OptimizerConfiguration *OptimizerConfigurationApplyConfiguration `json:"optimizerConfiguration,omitempty"`
-	ScalingConfiguration   *ScalingConfigurationApplyConfiguration   `json:"scalingConfiguration,omitempty"`
+	PolicyRef     *v1.LocalObjectReference         `json:"policyRef,omitempty"`
+	Heterogeneous *HeterogeneousApplyConfiguration `json:"heterogeneous,omitempty"`
+	Homogeneous   *HomogeneousApplyConfiguration   `json:"homogeneous,omitempty"`
 }
 
 // AutoscalingPolicyBindingSpecApplyConfiguration constructs a declarative configuration of the AutoscalingPolicyBindingSpec type for use with
@@ -44,18 +44,18 @@ func (b *AutoscalingPolicyBindingSpecApplyConfiguration) WithPolicyRef(value v1.
 	return b
 }
 
-// WithOptimizerConfiguration sets the OptimizerConfiguration field in the declarative configuration to the given value
+// WithHeterogeneous sets the Heterogeneous field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the OptimizerConfiguration field is set to the value of the last call.
-func (b *AutoscalingPolicyBindingSpecApplyConfiguration) WithOptimizerConfiguration(value *OptimizerConfigurationApplyConfiguration) *AutoscalingPolicyBindingSpecApplyConfiguration {
-	b.OptimizerConfiguration = value
+// If called multiple times, the Heterogeneous field is set to the value of the last call.
+func (b *AutoscalingPolicyBindingSpecApplyConfiguration) WithHeterogeneous(value *HeterogeneousApplyConfiguration) *AutoscalingPolicyBindingSpecApplyConfiguration {
+	b.Heterogeneous = value
 	return b
 }
 
-// WithScalingConfiguration sets the ScalingConfiguration field in the declarative configuration to the given value
+// WithHomogeneous sets the Homogeneous field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the ScalingConfiguration field is set to the value of the last call.
-func (b *AutoscalingPolicyBindingSpecApplyConfiguration) WithScalingConfiguration(value *ScalingConfigurationApplyConfiguration) *AutoscalingPolicyBindingSpecApplyConfiguration {
-	b.ScalingConfiguration = value
+// If called multiple times, the Homogeneous field is set to the value of the last call.
+func (b *AutoscalingPolicyBindingSpecApplyConfiguration) WithHomogeneous(value *HomogeneousApplyConfiguration) *AutoscalingPolicyBindingSpecApplyConfiguration {
+	b.Homogeneous = value
 	return b
 }

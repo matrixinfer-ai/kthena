@@ -43,7 +43,7 @@ func TestValidateAutoscalingBinding(t *testing.T) {
 		expected []string
 	}{
 		{
-			name: "optimizer and scaling config both set to nil",
+			name: "heterogeneous and homogeneous config both set to nil",
 			input: &v1alpha1.AutoscalingPolicyBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "dummy-model",
@@ -53,14 +53,14 @@ func TestValidateAutoscalingBinding(t *testing.T) {
 					PolicyRef: corev1.LocalObjectReference{
 						Name: "dummy-policy",
 					},
-					OptimizerConfiguration: nil,
-					ScalingConfiguration:   nil,
+					Heterogeneous: nil,
+					Homogeneous:   nil,
 				},
 			},
-			expected: []string{"  - spec.ScalingConfiguration: Required value: spec.ScalingConfiguration should be set if spec.OptimizerConfiguration does not exist"},
+			expected: []string{"  - spec.homogeneous: Required value: spec.homogeneous should be set if spec.heterogeneous does not exist"},
 		},
 		{
-			name: "optimizer and scaling config both are not nil",
+			name: "heterogeneous and homogeneous config both are not nil",
 			input: &v1alpha1.AutoscalingPolicyBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "dummy-model",
@@ -70,8 +70,8 @@ func TestValidateAutoscalingBinding(t *testing.T) {
 					PolicyRef: corev1.LocalObjectReference{
 						Name: "dummy-policy",
 					},
-					OptimizerConfiguration: &v1alpha1.OptimizerConfiguration{
-						Params: []v1alpha1.OptimizerParam{
+					Heterogeneous: &v1alpha1.Heterogeneous{
+						Params: []v1alpha1.HeterogeneousParam{
 							{
 								Target: v1alpha1.Target{
 									TargetRef: corev1.ObjectReference{
@@ -84,7 +84,7 @@ func TestValidateAutoscalingBinding(t *testing.T) {
 						},
 						CostExpansionRatePercent: 100,
 					},
-					ScalingConfiguration: &v1alpha1.ScalingConfiguration{
+					Homogeneous: &v1alpha1.Homogeneous{
 						Target: v1alpha1.Target{
 							TargetRef: corev1.ObjectReference{
 								Name: "target-name",
@@ -95,7 +95,7 @@ func TestValidateAutoscalingBinding(t *testing.T) {
 					},
 				},
 			},
-			expected: []string{"  - spec.ScalingConfiguration: Forbidden: both spec.OptimizerConfiguration and spec.ScalingConfiguration can not be set at the same time"},
+			expected: []string{"  - spec.homogeneous: Forbidden: both spec.heterogeneous and spec.homogeneous can not be set at the same time"},
 		},
 		{
 			name: "different autoscaling policy name",
@@ -108,8 +108,8 @@ func TestValidateAutoscalingBinding(t *testing.T) {
 					PolicyRef: corev1.LocalObjectReference{
 						Name: "not-exist-policy",
 					},
-					OptimizerConfiguration: nil,
-					ScalingConfiguration: &v1alpha1.ScalingConfiguration{
+					Heterogeneous: nil,
+					Homogeneous: &v1alpha1.Homogeneous{
 						Target: v1alpha1.Target{
 							TargetRef: corev1.ObjectReference{
 								Name: "target-name",

@@ -36,7 +36,7 @@ func TestBuildScalingPolicyBinding(t *testing.T) {
 		{
 			name:     "simple backend",
 			input:    loadYaml[v1alpha1.ModelBooster](t, "testdata/input/model.yaml"),
-			expected: loadYaml[v1alpha1.AutoscalingPolicyBinding](t, "testdata/expected/scaling-asp-binding.yaml"),
+			expected: loadYaml[v1alpha1.AutoscalingPolicyBinding](t, "testdata/expected/homogeneous-asp-binding.yaml"),
 		},
 	}
 	for _, tt := range tests {
@@ -58,7 +58,7 @@ func TestBuildOptimizePolicyBinding(t *testing.T) {
 		{
 			name:     "model with multiple backends",
 			input:    loadYaml[v1alpha1.ModelBooster](t, "testdata/input/multi-backends-model.yaml"),
-			expected: loadYaml[v1alpha1.AutoscalingPolicyBinding](t, "testdata/expected/optimize-asp-binding.yaml"),
+			expected: loadYaml[v1alpha1.AutoscalingPolicyBinding](t, "testdata/expected/heterogeneous-asp-binding.yaml"),
 		},
 	}
 	for _, tt := range tests {
@@ -78,12 +78,12 @@ func TestBuildAutoscalingPolicy(t *testing.T) {
 		{
 			name:     "simple-backend",
 			input:    loadYaml[v1alpha1.ModelBooster](t, "testdata/input/model.yaml"),
-			expected: loadYaml[v1alpha1.AutoscalingPolicy](t, "testdata/expected/scaling-asp.yaml"),
+			expected: loadYaml[v1alpha1.AutoscalingPolicy](t, "testdata/expected/homogeneous-asp.yaml"),
 		},
 		{
 			name:     "multi-backends",
 			input:    loadYaml[v1alpha1.ModelBooster](t, "testdata/input/multi-backends-model.yaml"),
-			expected: loadYaml[v1alpha1.AutoscalingPolicy](t, "testdata/expected/optimize-asp.yaml"),
+			expected: loadYaml[v1alpha1.AutoscalingPolicy](t, "testdata/expected/heterogeneous-asp.yaml"),
 		},
 	}
 	for _, tt := range tests {

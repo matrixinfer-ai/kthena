@@ -26,7 +26,7 @@ Kthena extends Kubernetes with custom resources that provide declarative configu
 - **ModelServer** – Defines service exposure and traffic policy for backend inference pods: specifies the model and inference framework/engine, discovers pods via `workloadSelector` (including role-aware groupings such as Prefill/Decode), and applies traffic policies (retries, timeouts, connection settings) for healthy endpoint publication.
 - **ModelServing** – Manages inference workloads as `ServingGroup`s with role-based replicas (e.g., Prefill/Decode), supporting configurable entry/worker Pod `template`s, `recoveryPolicy`, topology- and gang-aware scheduling, rolling upgrades, and a dedicated `scheduler`.
 - **AutoScalingPolicy** – Specifies autoscaling rules: metric endpoints and triggers (CPU, memory, custom), target thresholds, and scaling behaviors (up/down rates, stabilization and panic windows) for automated replica management.
-- **AutoScalingPolicyBinding** – Attaches policies to target ModelServing workloads, supporting two modes: **scalingConfiguration** for metric-driven scaling of a single target and **optimizerConfiguration** for cost-aware distribution across heterogeneous instance types and engines (e.g., H100/A100).
+- **AutoScalingPolicyBinding** – Attaches policies to target ModelServing workloads, supporting two modes: **homogeneous** for metric-driven scaling of a single target and **heterogeneous** for cost-aware distribution across heterogeneous instance types and engines (e.g., H100/A100).
 
 Platform operators manage these CRDs declaratively, and Control Plane controllers continuously reconcile them into runtime resources.
 

@@ -64,11 +64,11 @@ Kthena Autoscaler is configured through two custom resources: `AutoscalingPolicy
 
 #### AutoscalingPolicyBinding Configuration
 
-- **ScalingConfiguration**: Define scaling configuration
+- **Homogeneous**: Define homogeneous scaling configuration (for single instance type autoscaling)
   - **Target**: Target serving instance
   - **MinReplicas**: Minimum number of instances
   - **MaxReplicas**: Maximum number of instances
-- **OptimizerConfiguration**: Optimizer configuration (for heterogeneous instance autoscaling)
+- **Heterogeneous**: Define heterogeneous scaling configuration (for multiple instance types autoscaling)
   - **CostExpansionRatePercent**: Cost expansion rate
   - **Params**: Parameters for each instance type
     - **Target**: Target serving instance
@@ -107,7 +107,7 @@ kind: AutoscalingPolicyBinding
 metadata:
   name: example-binding
 spec:
-  scalingConfiguration:
+  homogeneous:
     target:
       targetRef:
         name: example-model-serving

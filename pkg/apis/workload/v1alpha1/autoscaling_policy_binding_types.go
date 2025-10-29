@@ -22,7 +22,7 @@ import (
 )
 
 // AutoscalingPolicyBindingSpec defines the desired state of AutoscalingPolicyBinding.
-// +kubebuilder:validation:XValidation:rule="has(self.optimizerConfiguration) != has(self.scalingConfiguration)",message="Either optimizerConfiguration or scalingConfiguration must be set, but not both."
+// +kubebuilder:validation:XValidation:rule="has(self.heterogeneous) != has(self.homogeneous)",message="Either heterogeneous or homogeneous must be set, but not both."
 type AutoscalingPolicyBindingSpec struct {
 	// PolicyRef references the autoscaling policy to be optimized scaling base on multiple targets.
 	PolicyRef corev1.LocalObjectReference `json:"policyRef"`
@@ -33,10 +33,10 @@ type AutoscalingPolicyBindingSpec struct {
 	// Dynamically adjust the deployment ratio of H100/A100 instances based on real-time computing power demands
 	// Use integer programming and similar methods to precisely meet computing requirements
 	// Maximize hardware utilization efficiency
-	OptimizerConfiguration *OptimizerConfiguration `json:"optimizerConfiguration,omitempty"`
+	Heterogeneous *Heterogeneous `json:"heterogeneous,omitempty"`
 
 	// Adjust the number of related instances based on specified monitoring metrics and their target values.
-	ScalingConfiguration *ScalingConfiguration `json:"scalingConfiguration,omitempty"`
+	Homogeneous *Homogeneous `json:"homogeneous,omitempty"`
 }
 
 type AutoscalingTargetType string
@@ -52,7 +52,7 @@ type MetricEndpoint struct {
 	Port int32 `json:"port,omitempty"`
 }
 
-type ScalingConfiguration struct {
+type Homogeneous struct {
 	// Target represents the objects be monitored and scaled.
 	Target Target `json:"target,omitempty"`
 	// MinReplicas is the minimum number of replicas.
@@ -65,10 +65,10 @@ type ScalingConfiguration struct {
 	MaxReplicas int32 `json:"maxReplicas"`
 }
 
-type OptimizerConfiguration struct {
+type Heterogeneous struct {
 	// Parameters of multiple Model Serving Groups to be optimized.
 	// +kubebuilder:validation:MinItems=1
-	Params []OptimizerParam `json:"params,omitempty"`
+	Params []HeterogeneousParam `json:"params,omitempty"`
 	// CostExpansionRatePercent is the percentage rate at which the cost expands.
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:default=200
@@ -87,7 +87,7 @@ type Target struct {
 	MetricEndpoint MetricEndpoint `json:"metricEndpoint,omitempty"`
 }
 
-type OptimizerParam struct {
+type HeterogeneousParam struct {
 	// The scaling instance configuration
 	Target Target `json:"target,omitempty"`
 	// Cost is the cost associated with running this backend.

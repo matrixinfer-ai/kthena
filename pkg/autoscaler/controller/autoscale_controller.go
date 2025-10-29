@@ -140,11 +140,11 @@ func (ac *AutoscaleController) Reconcile(ctx context.Context) {
 		if policyName == "" {
 			continue
 		}
-		if binding.Spec.ScalingConfiguration != nil {
-			target := binding.Spec.ScalingConfiguration.Target
+		if binding.Spec.Homogeneous != nil {
+			target := binding.Spec.Homogeneous.Target
 			instanceKey := formatAutoscalerMapKey(binding.Name, target.TargetRef.Name)
 			scalerSet.Insert(instanceKey)
-		} else if binding.Spec.OptimizerConfiguration != nil {
+		} else if binding.Spec.Heterogeneous != nil {
 			autoscalerMapKey := formatAutoscalerMapKey(binding.ObjectMeta.Name, "")
 			optimizerSet.Insert(autoscalerMapKey)
 		}
@@ -180,32 +180,32 @@ func (ac *AutoscaleController) schedule(ctx context.Context, binding *workload.A
 		return err
 	}
 	metricTargets := getMetricTargets(autoscalePolicy)
-	if binding.Spec.OptimizerConfiguration != nil {
-		optimizerKey := formatAutoscalerMapKey(binding.Name, "")
-		optimizer, ok := ac.optimizerMap[optimizerKey]
-		if !ok {
-			optimizer = autoscaler.NewOptimizer(&autoscalePolicy.Spec.Behavior, binding, metricTargets)
-			ac.optimizerMap[optimizerKey] = optimizer
+	if binding.Spec.Heterogeneous != nil {
+			optimizerKey := formatAutoscalerMapKey(binding.Name, "")
+			optimizer, ok := ac.optimizerMap[optimizerKey]
+			if !ok {
+				optimizer = autoscaler.NewOptimizer(&autoscalePolicy.Spec.Behavior, binding, metricTargets)
+				ac.optimizerMap[optimizerKey] = optimizer
+			}
+			if err := optimizer.Optimize(ctx, ac.client, ac.modelServingLister, ac.podsLister, autoscalePolicy); err != nil {
+				klog.Errorf("failed to do optimize, err: %v", err)
+				return err
+			}
+		} else if binding.Spec.Homogeneous != nil {
+			target := binding.Spec.Homogeneous.Target
+			instanceKey := formatAutoscalerMapKey(binding.Name, target.TargetRef.Name)
+			scalingAutoscaler, ok := ac.scalerMap[instanceKey]
+			if !ok {
+				scalingAutoscaler = autoscaler.NewAutoscaler(&autoscalePolicy.Spec.Behavior, binding, metricTargets)
+				ac.scalerMap[instanceKey] = scalingAutoscaler
+			}
+			if err := scalingAutoscaler.Scale(ctx, ac.client, ac.modelServingLister, ac.podsLister, autoscalePolicy); err != nil {
+				klog.Errorf("failed to do scaling, err: %v", err)
+				return err
+			}
+		} else {
+			klog.Warningf("binding %s has no homogeneous and heterogeneous", binding.Name)
 		}
-		if err := optimizer.Optimize(ctx, ac.client, ac.modelServingLister, ac.podsLister, autoscalePolicy); err != nil {
-			klog.Errorf("failed to do optimize, err: %v", err)
-			return err
-		}
-	} else if binding.Spec.ScalingConfiguration != nil {
-		target := binding.Spec.ScalingConfiguration.Target
-		instanceKey := formatAutoscalerMapKey(binding.Name, target.TargetRef.Name)
-		scalingAutoscaler, ok := ac.scalerMap[instanceKey]
-		if !ok {
-			scalingAutoscaler = autoscaler.NewAutoscaler(&autoscalePolicy.Spec.Behavior, binding, metricTargets)
-			ac.scalerMap[instanceKey] = scalingAutoscaler
-		}
-		if err := scalingAutoscaler.Scale(ctx, ac.client, ac.modelServingLister, ac.podsLister, autoscalePolicy); err != nil {
-			klog.Errorf("failed to do scaling, err: %v", err)
-			return err
-		}
-	} else {
-		klog.Warningf("binding %s has no scalingConfiguration and optimizerConfiguration", binding.Name)
-	}
 
 	klog.InfoS("schedule end")
 	return nil

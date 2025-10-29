@@ -114,11 +114,11 @@ func (v *AutoscalingBindingValidator) validateAutoscalingPolicyExistence(ctx con
 
 func validateOptimizeAndScalingPolicyExistence(asp_binding *workloadv1alpha1.AutoscalingPolicyBinding) field.ErrorList {
 	var allErrs field.ErrorList
-	if asp_binding.Spec.OptimizerConfiguration == nil && asp_binding.Spec.ScalingConfiguration == nil {
-		allErrs = append(allErrs, field.Required(field.NewPath("spec").Child("ScalingConfiguration"), "spec.ScalingConfiguration should be set if spec.OptimizerConfiguration does not exist"))
+	if asp_binding.Spec.Heterogeneous == nil && asp_binding.Spec.Homogeneous == nil {
+		allErrs = append(allErrs, field.Required(field.NewPath("spec").Child("homogeneous"), "spec.homogeneous should be set if spec.heterogeneous does not exist"))
 	}
-	if asp_binding.Spec.OptimizerConfiguration != nil && asp_binding.Spec.ScalingConfiguration != nil {
-		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("ScalingConfiguration"), "both spec.OptimizerConfiguration and spec.ScalingConfiguration can not be set at the same time"))
+	if asp_binding.Spec.Heterogeneous != nil && asp_binding.Spec.Homogeneous != nil {
+		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("homogeneous"), "both spec.heterogeneous and spec.homogeneous can not be set at the same time"))
 	}
 	return allErrs
 }

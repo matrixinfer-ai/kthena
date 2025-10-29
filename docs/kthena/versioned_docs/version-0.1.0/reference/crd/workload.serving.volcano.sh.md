@@ -104,8 +104,8 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `optimizerConfiguration` _[OptimizerConfiguration](#optimizerconfiguration)_ | It dynamically adjusts replicas across different ModelServing objects based on overall computing power requirements - referred to as "optimize" behavior in the code.<br />For example:<br />When dealing with two types of ModelServing objects corresponding to heterogeneous hardware resources with different computing capabilities (e.g., H100/A100), the "optimize" behavior aims to:<br />Dynamically adjust the deployment ratio of H100/A100 instances based on real-time computing power demands<br />Use integer programming and similar methods to precisely meet computing requirements<br />Maximize hardware utilization efficiency |  |  |
-| `scalingConfiguration` _[ScalingConfiguration](#scalingconfiguration)_ | Adjust the number of related instances based on specified monitoring metrics and their target values. |  |  |
+| `heterogeneous` _[Heterogeneous](#heterogeneous)_ | It dynamically adjusts replicas across different ModelServing objects based on overall computing power requirements - referred to as "optimize" behavior in the code.<br />For example:<br />When dealing with two types of ModelServing objects corresponding to heterogeneous hardware resources with different computing capabilities (e.g., H100/A100), the "optimize" behavior aims to:<br />Dynamically adjust the deployment ratio of H100/A100 instances based on real-time computing power demands<br />Use integer programming and similar methods to precisely meet computing requirements<br />Maximize hardware utilization efficiency |  |  |
+| `homogeneous` _[Homogeneous](#homogeneous)_ | Adjust the number of related instances based on specified monitoring metrics and their target values. |  |  |
 
 
 #### AutoscalingPolicyBindingStatus
@@ -571,9 +571,7 @@ _Appears in:_
 | `coordinator` | ModelWorkerTypeCoordinator represents a coordinator worker.<br /> |
 
 
-#### OptimizerConfiguration
-
-
+#### Heterogeneous
 
 
 
@@ -597,7 +595,7 @@ _Appears in:_
 
 
 _Appears in:_
-- [OptimizerConfiguration](#optimizerconfiguration)
+- [Heterogeneous](#heterogeneous)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
@@ -713,9 +711,7 @@ _Appears in:_
 | `ServingGroupRollingUpdate` | ServingGroupRollingUpdate indicates that ServingGroup replicas will be updated one by one.<br /> |
 
 
-#### ScalingConfiguration
-
-
+#### Homogeneous
 
 
 
@@ -778,7 +774,7 @@ _Appears in:_
 
 _Appears in:_
 - [OptimizerParam](#optimizerparam)
-- [ScalingConfiguration](#scalingconfiguration)
+- [Homogeneous](#homogeneous)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
