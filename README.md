@@ -17,6 +17,7 @@
 
 [![Go Check](https://github.com/volcano-sh/kthena/actions/workflows/go-check.yml/badge.svg)](https://github.com/volcano-sh/kthena/actions/workflows/go-check.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/volcano-sh/kthena)](https://goreportcard.com/report/github.com/volcano-sh/kthena)
+![GitHub Release](https://img.shields.io/github/v/release/volcano-sh/kthena?sort=semver)
 
 </div>
 
