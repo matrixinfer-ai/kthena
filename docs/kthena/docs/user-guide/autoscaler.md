@@ -1,44 +1,13 @@
 # Autoscaler Features
 
-This page describes the autoscaling features and capabilities in Kthena.
-
 ## Overview
 
-Facing real-time changing inference requests, the required hardware resources also fluctuate dynamically. Kthena Autoscaler, as an optional component of the Kthena project running in a Kubernetes environment, dynamically adjusts the number of deployed serving instances based on their real-time load. It ensures healthy business metrics (such as SLO indicators) while reducing the consumption of computational resources.
+Kthena Autoscaler dynamically adjusts serving instances based on real-time load through two configuration modes:
 
-Kthena Autoscaler periodically collects runtime metrics from the Pods of managed serving instances. Based on one or more monitoring metrics specified by the user and their corresponding target values, it estimates the required number of serving instances. Finally, it performs scaling operations according to the configured scaling policies.
+- **Homogeneous**: Manages a group of serving instances with identical configurations, ensuring stable performance while optimizing resource utilization.
+- **Heterogeneous**: Optimizes across multiple instance types with different resource requirements and capabilities, achieving cost-efficiency through intelligent scheduling algorithms.
 
-## Scaling Strategies
-
-Kthena Autoscaler provides two granularities of scaling methods: **Homogeneous Instances Autoscale** and **Heterogeneous Instances Autoscale**.
-
-### Homogeneous Instances Autoscale
-
-Homogeneous instances autoscaling is used to manage a group of serving instances with identical configurations. It works through the following steps:
-
-1. **Metric Collection**: Periodically collect monitoring metrics from all ready Pods
-2. **Instance Count Calculation**: Calculate the required number of instances based on collected metrics and target values
-3. **Scaling Execution**: Adjust the number of instances according to the calculation results and configured scaling policies
-
-The core algorithm considers current instance count, minimum/maximum instance limits, tolerance percentage, and the impact of unready instances.
-
-### Heterogeneous Instances Autoscale
-
-For the same model, serving instances can be deployed in multiple different ways: such as heterogeneous resource types (GPU/NPU), types of inference engines (vLLM/Sglang), or even different runtime parameters (e.g., TP/DP configuration parameters). While these differently deployed serving instances can all provide normal inference services and expose consistent business functionality externally, they differ in required hardware resources and provided business capabilities.
-
-The functionality of `Heterogeneous Instances Autoscale` can be divided into two parts: predicting instance count and scheduling instances.
-
-**Predicting instances** follows the same logic as Homogeneous Instances Autoscale: dynamically calculating the total desired number of instances for the group of serving instances in each scheduling cycle based on runtime metrics.
-
-Heterogeneous Instances Autoscale adopts a greedy algorithm with a doubling strategy:
-
-1. Treat the sum of the differences between the maximum instance count `maxReplicas` and the minimum instance count `minReplicas` for each type of instance as the available `capacity`
-2. Based on the idea of multiplication, divide the `capacity` into multiple batches according to the power of `costExpansionRate`
-3. At the batch level, mix and sort batches of various serving instances by cost in ascending order
-4. Expand the sorted batches into corresponding multiple instance combinations
-5. Finally, obtain a sequence `seq` with a length of capacity as the scaling order
-
-This method ensures that in resource-limited situations, instance types with lower costs are prioritized, thereby achieving cost optimization.
+Both modes rely on the same underlying autoscaling mechanisms but differ in how they target and manage resources.
 
 ## Configuration
 
@@ -48,46 +17,115 @@ Kthena Autoscaler is configured through two custom resources: `AutoscalingPolicy
 
 #### AutoscalingPolicy Configuration
 
-- **Metrics**: Define monitoring metrics and target values for scaling
-- **TolerancePercent**: Tolerance percentage to determine whether scaling is needed
-- **Behavior**: Define scaling behavior, including:
-  - **ScaleUp**: Configuration related to scaling up
-    - **PanicPolicy**: Panic mode configuration
-      - **PanicThresholdPercent**: Threshold to trigger panic mode
-      - **PanicModeHold**: Duration for panic mode
-    - **StablePolicy**: Stable mode configuration
-      - **StabilizationWindow**: Stabilization window time
-      - **Period**: Stable mode period
-  - **ScaleDown**: Configuration related to scaling down
-    - **StabilizationWindow**: Scale down stabilization window time
-    - **Period**: Scale down period
+The `AutoscalingPolicy` resource defines the core autoscaling strategy and behavior parameters. It includes the following key components:
+
+##### Metrics
+- **metricName**: The name of the metric to monitor (e.g., `kthena:num_requests_waiting`)
+- **targetValue**: The target value for the specified metric, which serves as the scaling threshold
+  - Example: Setting `targetValue: 10.0` for `kthena:num_requests_waiting` means the autoscaler will aim to maintain no more than 10 waiting requests per instance
+
+##### TolerancePercent
+- **Description**: Defines the tolerance range around the target value before scaling actions are triggered
+- **Purpose**: Prevents frequent scaling (thrashing) due to minor fluctuations in metrics
+- **Usage**: For example, with `tolerancePercent: 10` and a target value of 10.0, scaling will only occur if the actual metric value exceeds 11.0 (target + 10%) or falls below 9.0 (target - 10%)
+
+##### Behavior
+Controls detailed scaling behavior for both scale-up and scale-down operations:
+
+###### ScaleUp
+Defines how the system responds to increased load:
+
+- **PanicPolicy**: Handles sudden, significant increases in load
+  - **PanicThresholdPercent**: The percentage above target that triggers panic mode (e.g., `panicThresholdPercent: 150` triggers when metrics reach 150% of target)
+  - **PanicModeHold**: Duration to remain in panic mode (e.g., `panicModeHold: 5m` keeps panic mode active for 5 minutes)
+  - **Purpose**: Accelerates scaling during sudden traffic spikes to prevent service degradation
+
+- **StablePolicy**: Handles gradual increases in load
+  - **StabilizationWindow**: Time window to observe metrics before making scaling decisions (e.g., `stabilizationWindow: 1m` waits 1 minute of sustained high load before scaling)
+  - **Period**: Interval between scaling evaluations (e.g., `period: 30s` checks conditions every 30 seconds)
+  - **Purpose**: Ensures scaling decisions are based on stable load patterns rather than transient spikes
+
+###### ScaleDown
+Defines how the system responds to decreased load:
+
+- **StabilizationWindow**: Longer time window to observe decreased load before scaling down (e.g., `stabilizationWindow: 5m` requires 5 minutes of sustained low load)
+  - **Rationale**: Typically set longer than scale-up to ensure system stability and avoid premature capacity reduction
+- **Period**: Interval between scale-down evaluations (e.g., `period: 1m` checks conditions every minute)
+
+These configuration parameters work together to create a responsive yet stable autoscaling system that balances resource utilization with performance requirements.
 
 #### AutoscalingPolicyBinding Configuration
 
-- **Homogeneous**: Define homogeneous scaling configuration (for single instance type autoscaling)
-  - **Target**: Target serving instance
-  - **MinReplicas**: Minimum number of instances
-  - **MaxReplicas**: Maximum number of instances
-- **Heterogeneous**: Define heterogeneous scaling configuration (for multiple instance types autoscaling)
-  - **CostExpansionRatePercent**: Cost expansion rate
-  - **Params**: Parameters for each instance type
-    - **Target**: Target serving instance
-    - **MinReplicas**: Minimum number of instances
-    - **MaxReplicas**: Maximum number of instances
-    - **Cost**: Instance cost
+The `AutoscalingPolicyBinding` resource connects autoscaling policies to target resources and specifies scaling boundaries. It supports two distinct scaling modes, each with its own parameter set:
+
+##### Core Configuration Structure
+
+```yaml
+spec:
+  # Select EITHER homogeneous OR heterogeneous mode, not both
+  homogeneous:
+    # Homogeneous mode configuration
+  heterogeneous:
+    # Heterogeneous mode configuration
+```
+
+##### Homogeneous Mode Configuration
+
+Configures autoscaling for a single instance type:
+
+- **target**:
+  - **targetRef**: References the target serving instance by name
+    - **name**: The name of the target resource to scale
+  - **additionalMatchLabels**: Optional set of labels to further refine target resource selection
+- **minReplicas**: Minimum number of instances to maintain, ensuring baseline availability
+  - Must be greater than or equal to 1
+  - Sets a floor on scaling operations to prevent scaling down below this threshold
+- **maxReplicas**: Maximum number of instances allowed, controlling resource consumption
+  - Must be greater than or equal to minReplicas
+  - Sets a ceiling on scaling operations to prevent excessive resource allocation
+- **metricEndpoint**: Optional endpoint configuration for custom metric collection
+  - **uri**: Path to the metrics endpoint on the target pods (default: "/metrics")
+  - **port**: Port number where metrics are exposed on the target pods (default: 8100)
+  - Purpose: Allows customization of where and how metrics are collected from the target instances, useful when using non-standard metrics endpoints or multiple metrics sources
+
+##### Heterogeneous Mode Configuration
+
+Configures autoscaling across multiple instance types with different capabilities and costs:
+
+- **optimizeBehavior**: Controls optimization strategy (e.g., "MinimizeCost" or "BalancePerformance")
+- **costExpansionRatePercent**: Defines the maximum acceptable cost increase percentage
+  - When scaling, the algorithm will consider instance combinations that don't exceed the base cost plus this percentage
+  - Higher values allow more flexibility in instance selection for better performance
+  - Lower values prioritize strict cost control
+- **params**: Array of configuration parameters for each instance type in the heterogeneous group:
+  - **target**:
+    - **targetRef**: References the specific instance type by name
+      - **name**: The name of this instance type resource
+    - **additionalMatchLabels**: Optional set of labels to refine selection for this instance type
+  - **minReplicas**: Minimum number of instances for this specific type
+    - Ensures availability of this instance type regardless of load conditions
+  - **maxReplicas**: Maximum number of instances for this specific type
+    - Caps resource allocation for this particular instance type
+  - **cost**: Relative or actual cost metric for this instance type
+    - Used by the optimization algorithm to balance performance and cost
+    - Higher values represent more expensive instance types
+
+The heterogeneous mode's optimization algorithm automatically determines the optimal combination of instance types to balance performance requirements against cost constraints, always respecting the defined minReplicas and maxReplicas boundaries for each instance type.
 
 ### Configuration Example
 
-Here is a simple configuration example for homogeneous instance autoscaling:
+#### Homogeneous Instances Autoscaling Example
+
+The following configuration demonstrates homogeneous instance autoscaling for a single instance type:
 
 ```yaml
 apiVersion: workload.serving.volcano.sh/v1alpha1
 kind: AutoscalingPolicy
 metadata:
-  name: example-policy
+  name: homogeneous-policy
 spec:
   metrics:
-  - metricName: requests_per_second
+  - metricName: kthena:num_requests_waiting 
     targetValue: 10.0
   tolerancePercent: 10
   behavior:
@@ -105,7 +143,7 @@ spec:
 apiVersion: workload.serving.volcano.sh/v1alpha1
 kind: AutoscalingPolicyBinding
 metadata:
-  name: example-binding
+  name: homogeneous-binding
 spec:
   homogeneous:
     target:
@@ -113,43 +151,137 @@ spec:
         name: example-model-serving
     minReplicas: 2
     maxReplicas: 10
+    # Optional: Customize metric collection endpoint
+    metricEndpoint:
+      uri: "/custom-metrics"  # Custom metric path
+      port: 9090               # Custom metric port
 ```
 
-## Monitoring
+**Behavior Explanation:**
+- When request volume exceeds the threshold, the autoscaler will automatically scale up based on the `kthena:num_requests_waiting` metric, maintaining instance count between 2-10
+- A 10% tolerance range is configured to avoid frequent scaling
+- When load increases sharply beyond 150% of the target value, it will enter panic mode for 5 minutes to accelerate scaling
+- In stable mode, scaling decisions are executed after a 1-minute stabilization window with a 30-second period
+- Scale-down decisions are executed after a 5-minute stabilization window with a 1-minute period to ensure stable load reduction before scaling down
+- Custom metric endpoint is configured to collect metrics from "/custom-metrics" endpoint on port 9090 instead of using the default values ("/metrics" on port 8100)
 
-Kthena Autoscaler provides various monitoring capabilities to ensure the observability and controllability of scaling operations.
+#### Heterogeneous Instances Autoscaling Example
 
-### Metric Collection Mechanism
+The following configuration demonstrates heterogeneous instance autoscaling across multiple instance types:
 
-- **Real-time Metric Collection**: Collect runtime metrics from each Pod, including request count, latency, resource usage, etc.
-- **Sliding Window Storage**: Use sliding window data structures to store historical metric data, supporting statistics for different time windows
-- **Histogram Statistics**: Support for statistical analysis of distributional metrics such as latency using histograms
+```yaml
+apiVersion: workload.serving.volcano.sh/v1alpha1
+kind: AutoscalingPolicy
+metadata:
+  name: heterogeneous-policy
+spec:
+  metrics:
+  - metricName: kthena:num_requests_waiting 
+    targetValue: 10.0
+  tolerancePercent: 10
+  behavior:
+    scaleUp:
+      panicPolicy:
+        panicThresholdPercent: 150
+        panicModeHold: 5m
+      stablePolicy:
+        stabilizationWindow: 1m
+        period: 30s
+    scaleDown:
+      stabilizationWindow: 5m
+      period: 1m
+---
+apiVersion: workload.serving.volcano.sh/v1alpha1
+kind: AutoscalingPolicyBinding
+metadata:
+  name: heterogeneous-binding
+spec:
+  heterogeneous:
+    costExpansionRatePercent: 20
+    params:
+    - target:
+        targetRef:
+          name: gpu-serving-instance
+      minReplicas: 1
+      maxReplicas: 5
+      cost: 100
+    - target:
+        targetRef:
+          name: cpu-serving-instance
+      minReplicas: 2
+      maxReplicas: 8
+      cost: 30
+```
 
-### Key Monitoring Metrics
+**Behavior Explanation:**
+- This configuration manages two different types of service instances: high-performance GPU instances and lower-cost CPU instances
+- A 20% cost expansion rate is set, and the autoscaler will calculate the optimal instance combination based on this
+- GPU instances (cost: 100) have minimum/maximum instance counts of 1/5 respectively
+- CPU instances (cost: 30) have minimum/maximum instance counts of 2/8 respectively
+- The autoscaler will prioritize scaling lower-cost CPU instances, only scaling GPU instances when load continues to grow or when reaching CPU instance limits
+- During scale-down, higher-cost GPU instances are reduced first to ensure cost-effectiveness in resource usage
 
-Kthena Autoscaler supports scaling decisions based on multiple metrics:
+## Monitoring and Verification
 
-- **Request-related Metrics**: Such as requests per second (RPS), request latency, etc.
-- **Resource Usage Metrics**: Such as CPU usage, memory usage, GPU/NPU utilization, etc.
-- **Custom Metrics**: Support for user-defined specific business metrics
+This section describes how to verify that your autoscaling configurations are working correctly.
 
-### State Management
+### Verifying Configuration Success
 
-Autoscaler maintains detailed state information, including:
+#### 1. Check Custom Resources
 
-- **Recommended Instance Count History**: Records the history of recommended instance counts
-- **Corrected Instance Count History**: Records the history of instance counts after policy correction
-- **Panic Mode State**: Tracks whether in panic mode and its end time
+After applying your configuration, verify that the custom resources are created successfully:
 
-This state information is used to implement stable scaling decisions, avoid frequent scaling operations, and quickly respond to sudden load increases.
+```bash
+# Check AutoscalingPolicy
+kubectl get autoscalingpolicies workload.serving.volcano.sh
 
-### Logs and Events
+# Check AutoscalingPolicyBinding
+kubectl get autoscalingpolicybindings workload.serving.volcano.sh
+```
 
-Autoscaler provides detailed logging, including:
+#### 2. Observe Scaling Events
 
-- Scaling decision process
-- Metric collection and processing
-- Policy application and correction
-- Error and warning information
+Monitor the events generated by the autoscaler controller:
 
-By reviewing these logs, users can understand the reasons and processes behind scaling operations, facilitating debugging and configuration optimization.
+```bash
+kubectl describe autoscalingpolicybindings workload.serving.volcano.sh <binding-name>
+```
+
+Look for events that indicate scaling decisions and actions.
+
+#### 3. Verify Target Instance Count Changes
+
+For homogeneous scaling, check if the target instance's replica count is being adjusted according to the policy:
+
+```bash
+kubectl get modelservers.networking.serving.volcano.sh <target-name> -o jsonpath='{.spec.replicas}'
+```
+
+#### 4. Check Metrics Collection
+
+Verify that metrics are being collected correctly by checking the autoscaler logs:
+
+```bash
+kubectl logs -n <namespace> -l app=kthena-autoscaler -c autoscaler
+```
+
+### Key Metrics to Monitor
+
+Monitor these critical metrics to assess the effectiveness of your autoscaling configuration:
+
+- **Current vs. Target Metric Values**: Ensure the actual metrics are approaching the target values you configured
+- **Instance Count History**: Verify that instance counts are adjusting appropriately to load changes
+- **Scaling Frequency**: Check if scaling events are happening too frequently (thrashing) or not frequently enough
+- **Panic Mode Activations**: Monitor how often panic mode is triggered
+
+### Debugging Common Issues
+
+If your autoscaling configuration doesn't behave as expected:
+
+1. **Check Metric Availability**: Ensure the metrics you're using are properly collected and available
+2. **Verify Policy Binding**: Confirm that the AutoscalingPolicyBinding correctly references the target resource
+3. **Inspect Controller Logs**: Look for error messages or warnings in the autoscaler controller logs
+4. **Review Resource Limits**: Ensure that minReplicas and maxReplicas values are appropriately set
+5. **Test with Different Loads**: Gradually increase or decrease the load to observe scaling behavior
+
+By following these verification steps, you can ensure that your homogeneous and heterogeneous autoscaling configurations are working correctly and optimizing your workload's resource usage efficiently.
