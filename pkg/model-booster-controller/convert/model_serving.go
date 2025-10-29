@@ -393,10 +393,10 @@ func loadModelServingTemplate(templatePath string, data *map[string]interface{})
 	}
 
 	var jsonObj interface{}
-	if err := yaml.Unmarshal(templateBytes, &jsonObj); err != nil {
+	if err = yaml.Unmarshal(templateBytes, &jsonObj); err != nil {
 		return nil, fmt.Errorf("YAML template parse failed: %w", err)
 	}
-	if err := utils.ReplacePlaceholders(&jsonObj, data); err != nil {
+	if err = utils.ReplacePlaceholders(&jsonObj, data); err != nil {
 		return nil, fmt.Errorf("replace placeholders failed: %v", err)
 	}
 
