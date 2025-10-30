@@ -164,7 +164,7 @@ jobs:
           REPO_OWNER: ${{ github.repository_owner }}
         run: |
           LOWER_REPO_OWNER=$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')
-          helm push kthena-*.tgz oci://ghcr.io/$LOWER_REPO_OWNER/charts
+          helm push kthena.tgz oci://ghcr.io/$LOWER_REPO_OWNER/charts
 
       - name: Prepare Release Artifacts
         if: needs.setup.outputs.is_tag == 'true'
