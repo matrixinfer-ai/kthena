@@ -24,7 +24,7 @@ Kthena Helm charts are published to the GitHub Container Registry (GHCR).
 1.  **Install Kthena directly from GHCR:**
 
     ```bash
-    helm install kthena oci://ghcr.io/volcano-sh/charts/kthena --version <YOUR_CHART_VERSION> --namespace kthena-system --create-namespace
+    helm install kthena oci://ghcr.io/volcano-sh/charts/kthena --version v0.1.0 --namespace kthena-system --create-namespace
     ```
 
 ### Method 2: Manual Installation with GitHub Release Manifests

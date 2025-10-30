@@ -19,6 +19,7 @@ We have two optional ways to quickly start using kthena to deploy LLM.
 - Kthena installed on your Kubernetes cluster (see [Installation](./installation.md))
 - Access to a Kubernetes cluster with `kubectl` configured
 - Pod in Kubernetes can access the internet
+- [volcano](https://volcano.sh/en/docs/installation/) is installed.
 
 ## ModelBooster
 
@@ -43,7 +44,7 @@ Content of the Model:
 Wait model condition `Active` to become `true`. You can check the status using:
 
 ```bash
-kubectl get modelBooster demo -o jsonpath='{.status.conditions}'
+kubectl get modelBooster demo -o jsonpath='{.status.conditions}' -n <your-namespace>
 ```
 
 And the status section should look like this when the model is ready:
@@ -144,7 +145,7 @@ kubectl get modelserving sample -o jsonpath='{.status.conditions}' | jq '.'
 
 **Step 3: Perform Inference**
 
-Before you can perform inference, you need to create `ModelRoute` and `ModelServer`. You can refer to [modelRouter Configuration](../user-guide/prefill-decode-disaggregation/vllm-ascend(mooncake).md#modelrouter-configuration) and [modelServer Configuration](../user-guide/prefill-decode-disaggregation/vllm-ascend(mooncake).md#modelserver-configuration).
+Before you can perform inference, you need to create `ModelRoute` and `ModelServer`. You can refer to [modelRouter Configuration](../user-guide/prefill-decode-disaggregation/vllm-ascend-mooncake.md#modelrouter-configuration) and [modelServer Configuration](../user-guide/prefill-decode-disaggregation/vllm-ascend-mooncake.md#modelserver-configuration).
 
 Then you can use the following command to send a request:
 
