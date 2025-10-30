@@ -19,7 +19,7 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'Getting Started',
-      items: ['getting-started/quick-start', 'getting-started/installation'],
+      items: ['getting-started/installation', 'getting-started/quick-start'],
     },
     {
       type: 'category',
@@ -56,7 +56,7 @@ const sidebars: SidebarsConfig = {
           label: 'Prefill Decode Disaggregation',
           link: {
             type: 'doc',
-            id: 'user-guide/prefill-decode-disaggregation/prefill-decode-disaggregation'
+            id: 'user-guide/prefill-decode-disaggregation/prefill-decode-disaggregation',
           },
           items: [
             'user-guide/prefill-decode-disaggregation/vllm-ascend-mooncake',
