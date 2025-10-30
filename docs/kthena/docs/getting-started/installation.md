@@ -24,18 +24,7 @@ Kthena Helm charts are published to the GitHub Container Registry (GHCR).
 1.  **Install Kthena directly from GHCR:**
 
     ```bash
-    helm install kthena oci://ghcr.io/volcano-sh/charts/kthena \
-      --namespace kthena-system \
-      --create-namespace
-    ```
-
-    You might optionally specify a chart version:
-
-    ```bash
-    helm install kthena oci://ghcr.io/volcano-sh/charts/kthena \
-      --version <YOUR_CHART_VERSION> \
-      --namespace kthena-system \
-      --create-namespace
+    helm install kthena oci://ghcr.io/volcano-sh/charts/kthena --version <YOUR_CHART_VERSION> --namespace kthena-system --create-namespace
     ```
 
 ### Method 2: Manual Installation with GitHub Release Manifests
@@ -62,12 +51,12 @@ You can also download the Helm chart package from [GitHub releases](https://gith
 
     For the latest version:
     ```bash
-    curl -L -o kthena-helm.tgz https://github.com/volcano-sh/kthena/releases/latest/download/kthena-helm.tgz
+    curl -L -o kthena-helm.tgz https://github.com/volcano-sh/kthena/releases/latest/download/kthena.tgz
     ```
 
     For a specific version (replace `vX.Y.Z` with the desired release tag):
     ```bash
-    curl -L -o kthena-helm.tgz https://github.com/volcano-sh/kthena/releases/download/vX.Y.Z/kthena-helm.tgz
+    curl -L -o kthena-helm.tgz https://github.com/volcano-sh/kthena/releases/download/vX.Y.Z/kthena.tgz
     ```
 
 2.  **Install from the downloaded package:**

@@ -40,7 +40,7 @@ jobs:
         id: version
         run: |
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            VERSION=${GITHUB_REF#refs/tags/v}
+            VERSION=${GITHUB_REF#refs/tags/}
             echo "is_tag=true" >> $GITHUB_OUTPUT
           else
             VERSION="0.0.0-main-$(date -u +'%Y%m%d%H%M%S')-$(git rev-parse --short HEAD)"
@@ -155,6 +155,7 @@ jobs:
           ' $CHART_PATH/values.yaml
           helm dependency build $CHART_PATH
           helm package $CHART_PATH --version $VERSION --app-version $VERSION
+          mv kthena-${VERSION}.tgz kthena.tgz
 
       - name: Push to GHCR
         if: github.event_name != 'pull_request'
@@ -176,7 +177,7 @@ jobs:
         with:
           name: release-artifacts
           path: |
-            ./kthena-${{ needs.setup.outputs.version }}.tgz
+            ./kthena.tgz
             ./kthena-install.yaml
 
   create_github_release:
@@ -197,5 +198,5 @@ jobs:
           prerelease: ${{ needs.setup.outputs.prerelease }}
           generate_release_notes: true
           files: |
-            ./kthena-${{ needs.setup.outputs.version }}.tgz
+            ./kthena.tgz
             ./kthena-install.yaml
