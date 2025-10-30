@@ -144,7 +144,7 @@ kubectl get modelserving sample -o jsonpath='{.status.conditions}' | jq '.'
 
 **Step 3: Perform Inference**
 
-Before you can perform inference, you need to create `ModelRoute` and `ModelServer`. You can refer to [modelRouter Configuration](../user-guide/prefill-decode-disaggregation/vllm-ascend(mooncake).md#modelrouter-configuration) and [modelServer Configuration](../user-guide/prefill-decode-disaggregation/vllm-ascend(mooncake).md#modelserver-configuration).
+Before you can perform inference, you need to create `ModelRoute` and `ModelServer`. You can refer to [modelRouter Configuration](../user-guide/prefill-decode-disaggregation/vllm-ascend-mooncake.md#modelrouter-configuration) and [modelServer Configuration](../user-guide/prefill-decode-disaggregation/vllm-ascend-mooncake.md#modelserver-configuration).
 
 Then you can use the following command to send a request:
 
