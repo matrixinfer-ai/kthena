@@ -29,7 +29,8 @@ const LightboxImage: React.FC<LightboxImageProps> = ({
   // Prevent layout shift when lightbox opens by compensating for scrollbar
   React.useEffect(() => {
     if (open) {
-      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+      const scrollbarWidth =
+        window.innerWidth - document.documentElement.clientWidth;
       document.body.style.paddingRight = `${scrollbarWidth}px`;
       document.body.style.overflow = 'hidden';
     } else {
@@ -42,33 +43,51 @@ const LightboxImage: React.FC<LightboxImageProps> = ({
     };
   }, [open]);
 
-  // Handle different src types
+  // Handle different src types - FIXED VERSION
   React.useEffect(() => {
-    if (typeof src === 'string') {
-      setImageSrc(src);
-    } else if (typeof src === 'function') {
-      // SVG imported as React component - convert to data URL
-      const svgContainer = document.createElement('div');
-      document.body.appendChild(svgContainer);
-      const root = require('react-dom/client').createRoot(svgContainer);
-      root.render(React.createElement(src, {}));
+    const handleSrcConversion = async () => {
+      if (typeof src === 'string') {
+        setImageSrc(src);
+      } else if (typeof src === 'function') {
+        // For SVG components, use a simpler approach
+        try {
+          // Create a temporary container
+          const tempDiv = document.createElement('div');
+          const RootComponent = src;
 
-      setTimeout(() => {
-        const svgElement = svgContainer.querySelector('svg');
-        if (svgElement) {
-          const svgString = new XMLSerializer().serializeToString(svgElement);
-          const base64 = btoa(
-            String.fromCharCode(...new TextEncoder().encode(svgString)),
-          );
-          const dataUrl = `data:image/svg+xml;base64,${base64}`;
-          setImageSrc(dataUrl);
+          // Use ReactDOM to render the component temporarily
+          const { createRoot } = await import('react-dom/client');
+          const root = createRoot(tempDiv);
+
+          root.render(React.createElement(RootComponent));
+
+          // Wait for next tick to ensure rendering is complete
+          setTimeout(() => {
+            const svgElement = tempDiv.querySelector('svg');
+            if (svgElement) {
+              // Clone the SVG to avoid modifying the original
+              const svgClone = svgElement.cloneNode(true) as SVGElement;
+
+              // Ensure proper attributes
+              svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+
+              const svgString = new XMLSerializer().serializeToString(svgClone);
+              const dataUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgString)))}`;
+              setImageSrc(dataUrl);
+            }
+
+            // Cleanup
+            root.unmount();
+          }, 0);
+        } catch (error) {
+          console.error('Error converting SVG component to data URL:', error);
         }
-        root.unmount();
-        document.body.removeChild(svgContainer);
-      }, 100);
-    } else if (src && typeof src === 'object' && 'default' in src) {
-      setImageSrc(src.default);
-    }
+      } else if (src && typeof src === 'object' && 'default' in src) {
+        setImageSrc(src.default);
+      }
+    };
+
+    handleSrcConversion();
   }, [src]);
 
   const commonStyle = { cursor: 'pointer', maxWidth: '100%', height: 'auto' };
@@ -95,6 +114,9 @@ const LightboxImage: React.FC<LightboxImageProps> = ({
           className={className}
           onClick={() => setOpen(true)}
           style={commonStyle}
+          onError={(e) => {
+            console.error('Error loading image:', imageSrc);
+          }}
         />
       )}
       <Lightbox
