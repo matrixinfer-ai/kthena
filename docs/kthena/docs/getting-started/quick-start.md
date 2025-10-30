@@ -19,6 +19,7 @@ We have two optional ways to quickly start using kthena to deploy LLM.
 - Kthena installed on your Kubernetes cluster (see [Installation](./installation.md))
 - Access to a Kubernetes cluster with `kubectl` configured
 - Pod in Kubernetes can access the internet
+- [volcano](https://volcano.sh/en/docs/installation/) is installed.
 
 ## ModelBooster
 
