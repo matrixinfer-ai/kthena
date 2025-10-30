@@ -44,7 +44,7 @@ Content of the Model:
 Wait model condition `Active` to become `true`. You can check the status using:
 
 ```bash
-kubectl get modelBooster demo -o jsonpath='{.status.conditions}'
+kubectl get modelBooster demo -o jsonpath='{.status.conditions}' -n <your-namespace>
 ```
 
 And the status section should look like this when the model is ready:
