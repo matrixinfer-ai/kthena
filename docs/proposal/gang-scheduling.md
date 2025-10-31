@@ -89,7 +89,7 @@ InferGroups are the top-level scheduling units in ModelInfer. Each InferGroup re
 
 ###### Scenario 1: Fix ratio prefill decode disaggregation
 
-In this scenario, we want to ensure that all pods of a infergroup are scheduled together.
+In this scenario, we want to ensure that all pods of an infergroup are scheduled together.
 For example, a ModelInfer instance has 2 roles: `prefiller` and `decoder`.
 The `prefiller` role has 1 pod, and the `decoder` role has 3 pods.
 
