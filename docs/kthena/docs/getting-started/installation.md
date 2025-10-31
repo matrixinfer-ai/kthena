@@ -13,7 +13,7 @@ Before installing Kthena, ensure you have the following:
 -   **Kubernetes cluster** (version 1.20 or later)
 -   **kubectl** configured to access your cluster
 -   **Helm** (version 3.0 or later)
--   **[Volcano](https://volcano.sh/en/docs/installation/)** - Required for batch scheduling and gang scheduling capabilities
+-   **[Volcano](https://volcano.sh/en/docs/installation/)** - Required for gang scheduling capabilities
 -   **[cert-manager](https://cert-manager.io/docs/installation/)** - Required for automatic TLS certificate management
 -   Cluster admin permissions
 
