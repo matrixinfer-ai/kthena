@@ -106,9 +106,33 @@ kubectl get svc -n kthena-system
 
 ## Certificate Management
 
-Kthena components such as webhooks and the router require certificates for secure communication. You might need to install a certificate manager to handle certificate provisioning and management automatically.
+Kthena components such as webhooks and the router require certificates for secure communication.
 
-If you need certificate management capabilities, you can install cert-manager by following the official installation guide of [Cert Manager](https://cert-manager.io/docs/installation/).
+### Default Configuration (Requires cert-manager)
+
+When installing Kthena using the default configuration, **cert-manager is required** to automatically handle certificate provisioning and management for webhooks and other secure components.
+
+To install cert-manager, follow the official installation guide: [Cert Manager Installation](https://cert-manager.io/docs/installation/)
+
+### Manual Certificate Management (Fallback Option)
+
+If you cannot use cert-manager in your environment, you can configure Kthena to use manual certificate management:
+
+1. **Disable automatic certificate management** by setting the appropriate Helm values:
+
+   ```bash
+   helm install kthena oci://ghcr.io/volcano-sh/charts/kthena \
+     --namespace kthena-system \
+     --create-namespace \
+     # highlight-next-line
+     --set certManager.enabled=false
+   ```
+
+2. **Provide your own certificates** by mounting them as secrets and configuring the components to use them.
+
+3. **Ensure certificates are properly configured** for all webhook endpoints and secure communication channels.
+
+> **Note**: Manual certificate management requires additional configuration and maintenance. We recommend using cert-manager for production environments.
 
 ## Gang Scheduling
 
