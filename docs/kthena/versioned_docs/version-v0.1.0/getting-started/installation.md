@@ -13,7 +13,7 @@ Before installing Kthena, ensure you have the following:
 -   **Kubernetes cluster** (version 1.20 or later)
 -   **kubectl** configured to access your cluster
 -   **Helm** (version 3.0 or later)
--   **[cert-manager](https://cert-manager.io/docs/installation/)** - Required for automatic TLS certificate management
+-   **[cert-manager](https://cert-manager.io/docs/installation/)** (see the [Certificate Management](#certificate-management) section for more details.)
 -   Cluster admin permissions
 
 ## Installation Methods
