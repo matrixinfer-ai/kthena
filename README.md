@@ -59,7 +59,7 @@ Kthena implements a Kubernetes-native architecture with separate control plane a
 - **Kthena-router**:
   The data plane entry point for inference traffic. It classifies each request by model name, custom headers, or URI patterns, then applies load-balancing policies and traffic controls to dispatch request to the right inference instance. Native support for prefill–decode disaggregation routing while keeps high throughput and low latency.
 
-For more details, please refer to [Kthena Architecture](docs/kthena/docs/architecture/architecture.mdx)
+For more details, please refer to [Kthena Architecture](https://kthena.volcano.sh/docs/architecture)
 
 > [!Note]
 > The router component is a reference implementation, because Gateway Inference Extension does not natively support prefill-decode distribution. kthena router is still under active iteration, and it can be deployed behind a standard api gateway.
