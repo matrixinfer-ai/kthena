@@ -116,21 +116,17 @@ To install cert-manager, follow the official installation guide: [Cert Manager I
 
 ### Manual Certificate Management (Fallback Option)
 
-If you cannot use cert-manager in your environment, you can configure Kthena to use manual certificate management:
-
-1. **Disable automatic certificate management** by setting the appropriate Helm values:
+If you cannot use cert-manager in your environment, you can disable it and manually configure certificate management using your own CA bundle.
 
    ```bash
    helm install kthena oci://ghcr.io/volcano-sh/charts/kthena \
      --namespace kthena-system \
      --create-namespace \
-     # highlight-next-line
-     --set certManager.enabled=false
+     --set global.certManager.enabled=false
+     --set global.webhook.caBundle="LS0tLS1CRUdJTi..."
    ```
 
-2. **Provide your own certificates** by mounting them as secrets and configuring the components to use them.
-
-3. **Ensure certificates are properly configured** for all webhook endpoints and secure communication channels.
+For more details, please refer to the  [Manual Certificate Management](../general/cert-manager.md#manual-certificate-management) documentation.
 
 > **Note**: Manual certificate management requires additional configuration and maintenance. We recommend using cert-manager for production environments.
 
