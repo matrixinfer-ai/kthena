@@ -22,10 +22,10 @@ webhooks:
         namespace: {{ .Release.Namespace }}
         path: "/validate-modelroute"
         port: {{ .Values.kthenaRouter.webhook.servicePort }}
-      {{- if not .Values.global.certManager.enabled }}
-      caBundle: {{ required "kthenaRouter.webhook.caBundle is required when cert-manager is disabled" .Values.kthenaRouter.webhook.caBundle }}
-      {{- else }}
+      {{- if .Values.global.certManager.enabled }}
       caBundle: ""
+      {{- else }}
+      caBundle: {{ required "A caBundle is required for the kthena-router validating webhook when cert-manager is disabled (global.webhook.caBundle)" .Values.global.webhook.caBundle | quote }}
       {{- end }}
     rules:
       - apiGroups: [ "networking.volcano.sh" ]
@@ -44,10 +44,10 @@ webhooks:
         namespace: {{ .Release.Namespace }}
         path: "/validate-modelserver"
         port: {{ .Values.kthenaRouter.webhook.servicePort }}
-      {{- if not .Values.global.certManager.enabled }}
-      caBundle: {{ required "kthenaRouter.webhook.caBundle is required when cert-manager is disabled" .Values.kthenaRouter.webhook.caBundle }}
-      {{- else }}
+      {{- if .Values.global.certManager.enabled }}
       caBundle: ""
+      {{- else }}
+      caBundle: {{ required "A caBundle is required for the kthena-router validating webhook when cert-manager is disabled (global.webhook.caBundle)" .Values.global.webhook.caBundle | quote }}
       {{- end }}
     rules:
       - apiGroups: [ "networking.volcano.sh" ]

@@ -25,7 +25,7 @@ webhooks:
       {{- if .Values.global.certManager.enabled }}
       caBundle: ""
       {{- else }}
-      caBundle: {{ required "A caBundle is required for the registry validating webhook when cert-manager is disabled (global.webhook.caBundle)" .Values.global.webhook.caBundle | quote }}
+      caBundle: {{ required "A caBundle is required for the kthena-controller-manager validating webhook when cert-manager is disabled (global.webhook.caBundle)" .Values.global.webhook.caBundle | quote }}
       {{- end }}
     rules:
       - apiGroups: [ "registry.kthena.ai" ]
@@ -47,7 +47,7 @@ webhooks:
       {{- if .Values.global.certManager.enabled }}
       caBundle: ""
       {{- else }}
-      caBundle: {{ required "A caBundle is required for the registry validating webhook when cert-manager is disabled (global.webhook.caBundle)" .Values.global.webhook.caBundle | quote }}
+      caBundle: {{ required "A caBundle is required for the kthena-controller-manager validating webhook when cert-manager is disabled (global.webhook.caBundle)" .Values.global.webhook.caBundle | quote }}
       {{- end }}
     rules:
       - apiGroups: [ "registry.volcano.sh" ]
@@ -69,7 +69,7 @@ webhooks:
       {{- if .Values.global.certManager.enabled }}
       caBundle: ""
       {{- else }}
-      caBundle: {{ required "A caBundle is required for the registry validating webhook when cert-manager is disabled (global.webhook.caBundle)" .Values.global.webhook.caBundle | quote }}
+      caBundle: {{ required "A caBundle is required for the kthena-controller-manager validating webhook when cert-manager is disabled (global.webhook.caBundle)" .Values.global.webhook.caBundle | quote }}
       {{- end }}
     rules:
       - apiGroups: [ "registry.kthena.ai" ]

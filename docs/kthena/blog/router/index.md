@@ -22,6 +22,8 @@ The router seamlessly integrates with existing API gateway infrastructure while 
 
 Kthena Router is deployed as a standalone binary with minimal dependencies, ensuring lightweight operation and straightforward deployment. It continuously monitors inference engine metrics to obtain real-time information about model status, including currently loaded LoRA adapters, KV cache utilization, request queue lengths, and latency metrics (TTFT/TPOT). This real-time awareness enables the router to make optimal routing decisions that traditional load balancers simply cannot achieve.
 
+<!-- truncate -->
+
 ## 2. Architecture
 
 Kthena Router implements a clean, modular architecture designed for performance and extensibility. The system consists of several core components working together to provide intelligent request routing.
