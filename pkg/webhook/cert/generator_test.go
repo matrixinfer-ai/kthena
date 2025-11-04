@@ -109,3 +109,12 @@ func TestGenerateSelfSignedCertificate_MultipleDNSNames(t *testing.T) {
 	assert.Equal(t, dnsNames, serverCert.DNSNames)
 	assert.Equal(t, dnsNames[0], serverCert.Subject.CommonName)
 }
+
+func TestGenerateSelfSignedCertificate_EmptyDNSNames(t *testing.T) {
+	dnsNames := []string{}
+
+	bundle, err := GenerateSelfSignedCertificate(dnsNames)
+	require.Error(t, err)
+	require.Nil(t, bundle)
+	assert.Contains(t, err.Error(), "dnsNames cannot be empty")
+}

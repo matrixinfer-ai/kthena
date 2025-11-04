@@ -49,6 +49,10 @@ type CertBundle struct {
 
 // GenerateSelfSignedCertificate generates a self-signed certificate for webhook server
 func GenerateSelfSignedCertificate(dnsNames []string) (*CertBundle, error) {
+	if len(dnsNames) == 0 {
+		return nil, fmt.Errorf("dnsNames cannot be empty")
+	}
+
 	klog.Infof("Generating self-signed certificate for DNS names: %v", dnsNames)
 
 	// Generate CA certificate and key

@@ -42,6 +42,10 @@ const (
 // If the secret already exists, it returns without error (reusing existing certificate).
 // It also writes the certificate files to the specified paths for the webhook server to use.
 func EnsureCertificate(ctx context.Context, kubeClient kubernetes.Interface, namespace, secretName string, dnsNames []string, certPath, keyPath string) error {
+	if len(dnsNames) == 0 {
+		return fmt.Errorf("dnsNames cannot be empty")
+	}
+
 	klog.Infof("Ensuring certificate exists in secret %s/%s", namespace, secretName)
 
 	// Try to get the existing secret
