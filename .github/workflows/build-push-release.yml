@@ -58,36 +58,71 @@ jobs:
             echo "prerelease=false" >> $GITHUB_OUTPUT
           fi
 
-  build_and_push_images:
+  build_images:
     needs: setup
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         include:
+          # kthena-router
           - service: kthena-router
             context: .
             dockerfile: ./docker/Dockerfile.kthena-router
+            os: ubuntu-latest
+            platform: linux/amd64
+          - service: kthena-router
+            context: .
+            dockerfile: ./docker/Dockerfile.kthena-router
+            os: ubuntu-24.04-arm
+            platform: linux/arm64
+          # kthena-controller-manager
           - service: kthena-controller-manager
             context: .
             dockerfile: ./docker/Dockerfile.kthena-controller-manager
+            os: ubuntu-latest
+            platform: linux/amd64
+          - service: kthena-controller-manager
+            context: .
+            dockerfile: ./docker/Dockerfile.kthena-controller-manager
+            os: ubuntu-24.04-arm
+            platform: linux/arm64
+          # downloader
           - service: downloader
             context: ./python
+            dockerfile: ./python/Dockerfile
             target: downloader
+            os: ubuntu-latest
+            platform: linux/amd64
+          - service: downloader
+            context: ./python
+            dockerfile: ./python/Dockerfile
+            target: downloader
+            os: ubuntu-24.04-arm
+            platform: linux/arm64
+          # runtime
           - service: runtime
             context: ./python
+            dockerfile: ./python/Dockerfile
             target: runtime
+            os: ubuntu-latest
+            platform: linux/amd64
+          - service: runtime
+            context: ./python
+            dockerfile: ./python/Dockerfile
+            target: runtime
+            os: ubuntu-24.04-arm
+            platform: linux/arm64
     steps:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Set Platforms
-        id: platforms
-        run: |
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            echo "platforms=linux/amd64" >> $GITHUB_OUTPUT
-          else
-            echo "platforms=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
-          fi
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        if: ${{ github.event_name != 'pull_request' }}
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Docker Image Metadata
         id: meta
@@ -98,33 +133,89 @@ jobs:
             type=raw,value=${{ needs.setup.outputs.version }}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Push Docker Images
+        uses: docker/build-push-action@v6
+        id: build
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          target: ${{ matrix.target }}
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/${{ matrix.service }},push-by-digest=${{ github.event_name != 'pull_request' }},name-canonical=true,push=${{ github.event_name != 'pull_request' }}
+
+      - name: Export digest
+        if: ${{ github.event_name != 'pull_request' }}
+        run: |
+          mkdir -p ${{ runner.temp }}/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "${{ runner.temp }}/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.service }}-${{ matrix.platform == 'linux/amd64' && 'amd64' || 'arm64' }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # merge images
+  merge_images:
+    needs: [ setup, build_images ]
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'pull_request' }}
+    strategy:
+      matrix:
+        include:
+          - service: kthena-router
+          - service: kthena-controller-manager
+          - service: downloader
+          - service: runtime
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-${{ matrix.service }}-*
+          merge-multiple: true
+
       - name: Login to GitHub Container Registry
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and Push Docker Image
-        uses: docker/build-push-action@v6
+      - name: Docker Image Metadata
+        id: meta
+        uses: docker/metadata-action@v5
         with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
-          target: ${{ matrix.target }}
-          platforms: ${{ steps.platforms.outputs.platforms }}
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          annotations: ${{ steps.meta.outputs.annotations }}
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.service }}
+          tags: |
+            type=raw,value=${{ needs.setup.outputs.version }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Create manifest list and push
+        working-directory: ${{ runner.temp }}/digests
+        env:
+          DOCKER_METADATA_OUTPUT_JSON: ${{ steps.meta.outputs.json }}
+        run: |
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+          $(printf 'ghcr.io/${{ github.repository_owner }}/${{ matrix.service }}@sha256:%s ' *)
+
+      - name: Inspect image
+        run: |
+          docker buildx imagetools inspect ghcr.io/${{ github.repository_owner }}/${{ matrix.service }}:${{ needs.setup.outputs.version }}
 
   push_helm_chart:
-    needs: [ setup, build_and_push_images ]
+    needs: [ setup, merge_images ]
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -132,9 +223,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Setup Tools
+      - name: Setup Helm
         uses: azure/setup-helm@v4
-      - uses: mikefarah/yq@v4.44.1
+
+      - name: Setup yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.44.1/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
 
       - name: Login to GHCR
         if: github.event_name != 'pull_request'
