@@ -33,15 +33,22 @@ import (
 	"github.com/volcano-sh/kthena/pkg/controller"
 	"github.com/volcano-sh/kthena/pkg/model-booster-webhook/handlers"
 	"github.com/volcano-sh/kthena/pkg/model-serving-controller/webhook"
+	webhookcert "github.com/volcano-sh/kthena/pkg/webhook/cert"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 )
 
 type webhookConfig struct {
-	tlsCertFile    string
-	tlsPrivateKey  string
-	port           int
-	webhookTimeout int
+	tlsCertFile      string
+	tlsPrivateKey    string
+	port             int
+	webhookTimeout   int
+	autoGenerateCert bool
+	certSecretName   string
+	certSecretNS     string
+	serviceName      string
+	serviceNamespace string
 }
 
 func main() {
@@ -58,6 +65,11 @@ func main() {
 	pflag.StringVar(&wc.tlsPrivateKey, "tls-private-key-file", "/etc/webhook/certs/tls.key", "File containing the x509 private key to --tls-cert-file. This can be used as a fallback when cert-manager is not available.")
 	pflag.IntVar(&wc.port, "port", 8443, "Secure port that the webhook listens on")
 	pflag.IntVar(&wc.webhookTimeout, "webhook-timeout", 30, "Timeout for webhook operations in seconds")
+	pflag.BoolVar(&wc.autoGenerateCert, "auto-generate-cert", false, "If true, automatically generate self-signed certificate if not exists")
+	pflag.StringVar(&wc.certSecretName, "cert-secret-name", "kthena-webhook-certs", "Name of the secret to store auto-generated certificates")
+	pflag.StringVar(&wc.certSecretNS, "cert-secret-namespace", "", "Namespace of the secret to store auto-generated certificates (defaults to POD_NAMESPACE env var or 'default')")
+	pflag.StringVar(&wc.serviceName, "service-name", "kthena-webhook", "Service name for the webhook server")
+	pflag.StringVar(&wc.serviceNamespace, "service-namespace", "", "Service namespace for the webhook server (defaults to POD_NAMESPACE env var or 'default')")
 	pflag.BoolVar(&cc.EnableLeaderElection, "leader-elect", false, "Enable leader election for controller. "+
 		"Enabling this will ensure there is only one active controller. Default is false.")
 	pflag.IntVar(&cc.Workers, "workers", 5, "number of workers to run. Default is 5")
@@ -90,10 +102,47 @@ func setupWebhook(ctx context.Context, wc webhookConfig) error {
 		klog.Fatalf("build client config: %v", err)
 		return err
 	}
+
+	kubeClient, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		klog.Fatalf("failed to create kubeClient: %v", err)
+		return err
+	}
+
 	kthenaClient, err := clientset.NewForConfig(cfg)
 	if err != nil {
 		klog.Fatalf("failed to create kthenaClient: %v", err)
 		return err
+	}
+
+	// Auto-generate certificate if enabled
+	if wc.autoGenerateCert {
+		namespace := wc.certSecretNS
+		if namespace == "" {
+			namespace = os.Getenv("POD_NAMESPACE")
+			if namespace == "" {
+				namespace = "default"
+			}
+		}
+
+		serviceNS := wc.serviceNamespace
+		if serviceNS == "" {
+			serviceNS = os.Getenv("POD_NAMESPACE")
+			if serviceNS == "" {
+				serviceNS = "default"
+			}
+		}
+
+		dnsNames := []string{
+			fmt.Sprintf("%s.%s.svc", wc.serviceName, serviceNS),
+			fmt.Sprintf("%s.%s.svc.cluster.local", wc.serviceName, serviceNS),
+		}
+
+		klog.Infof("Auto-generating certificate for webhook server")
+		if err := webhookcert.EnsureCertificate(ctx, kubeClient, namespace, wc.certSecretName, dnsNames, wc.tlsCertFile, wc.tlsPrivateKey); err != nil {
+			klog.Fatalf("failed to ensure certificate: %v", err)
+			return err
+		}
 	}
 
 	mux := http.NewServeMux()

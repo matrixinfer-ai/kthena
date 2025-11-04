@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -31,17 +32,23 @@ import (
 	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
 	"github.com/volcano-sh/kthena/cmd/kthena-router/app"
 	routerwebhook "github.com/volcano-sh/kthena/pkg/kthena-router/webhook"
+	webhookcert "github.com/volcano-sh/kthena/pkg/webhook/cert"
 )
 
 func main() {
 	var (
-		routerPort    string
-		tlsCert       string
-		tlsKey        string
-		enableWebhook bool
-		webhookPort   int
-		webhookCert   string
-		webhookKey    string
+		routerPort         string
+		tlsCert            string
+		tlsKey             string
+		enableWebhook      bool
+		webhookPort        int
+		webhookCert        string
+		webhookKey         string
+		autoGenerateCert   bool
+		certSecretName     string
+		certSecretNS       string
+		webhookServiceName string
+		webhookServiceNS   string
 	)
 
 	// Initialize klog flags
@@ -54,6 +61,11 @@ func main() {
 	pflag.IntVar(&webhookPort, "webhook-port", 8443, "The port for the webhook server")
 	pflag.StringVar(&webhookCert, "webhook-tls-cert-file", "/etc/webhook/certs/tls.crt", "Path to the webhook TLS certificate file")
 	pflag.StringVar(&webhookKey, "webhook-tls-private-key-file", "/etc/webhook/certs/tls.key", "Path to the webhook TLS private key file")
+	pflag.BoolVar(&autoGenerateCert, "auto-generate-cert", false, "If true, automatically generate self-signed certificate for webhook if not exists")
+	pflag.StringVar(&certSecretName, "cert-secret-name", "kthena-router-webhook-certs", "Name of the secret to store auto-generated webhook certificates")
+	pflag.StringVar(&certSecretNS, "cert-secret-namespace", "", "Namespace of the secret to store auto-generated certificates (defaults to POD_NAMESPACE env var or 'default')")
+	pflag.StringVar(&webhookServiceName, "webhook-service-name", "kthena-router-webhook", "Service name for the webhook server")
+	pflag.StringVar(&webhookServiceNS, "webhook-service-namespace", "", "Service namespace for the webhook server (defaults to POD_NAMESPACE env var or 'default')")
 	defer klog.Flush()
 	pflag.Parse()
 
@@ -62,8 +74,8 @@ func main() {
 	}
 
 	if enableWebhook {
-		if webhookCert == "" || webhookKey == "" {
-			klog.Fatal("webhook TLS cert and key must be specified when webhook is enabled")
+		if !autoGenerateCert && (webhookCert == "" || webhookKey == "") {
+			klog.Fatal("webhook TLS cert and key must be specified when webhook is enabled and auto-generate-cert is disabled")
 		}
 	}
 
@@ -88,7 +100,7 @@ func main() {
 	}()
 
 	if enableWebhook {
-		go runWebhook(ctx, webhookPort, webhookCert, webhookKey)
+		go runWebhook(ctx, webhookPort, webhookCert, webhookKey, autoGenerateCert, certSecretName, certSecretNS, webhookServiceName, webhookServiceNS)
 	} else {
 		klog.Info("Webhook server is disabled")
 	}
@@ -96,7 +108,7 @@ func main() {
 	app.NewServer(routerPort, tlsCert != "" && tlsKey != "", tlsCert, tlsKey).Run(ctx)
 }
 
-func runWebhook(ctx context.Context, port int, certFile, keyFile string) {
+func runWebhook(ctx context.Context, port int, certFile, keyFile string, autoGenerate bool, secretName, secretNS, serviceName, serviceNS string) {
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		klog.Fatalf("Failed to get kube config: %v", err)
@@ -110,6 +122,35 @@ func runWebhook(ctx context.Context, port int, certFile, keyFile string) {
 	kthenaClient, err := clientset.NewForConfig(config)
 	if err != nil {
 		klog.Fatalf("Failed to get kthena client: %v", err)
+	}
+
+	// Auto-generate certificate if enabled
+	if autoGenerate {
+		namespace := secretNS
+		if namespace == "" {
+			namespace = os.Getenv("POD_NAMESPACE")
+			if namespace == "" {
+				namespace = "default"
+			}
+		}
+
+		svcNS := serviceNS
+		if svcNS == "" {
+			svcNS = os.Getenv("POD_NAMESPACE")
+			if svcNS == "" {
+				svcNS = "default"
+			}
+		}
+
+		dnsNames := []string{
+			fmt.Sprintf("%s.%s.svc", serviceName, svcNS),
+			fmt.Sprintf("%s.%s.svc.cluster.local", serviceName, svcNS),
+		}
+
+		klog.Infof("Auto-generating certificate for webhook server")
+		if err := webhookcert.EnsureCertificate(ctx, kubeClient, namespace, secretName, dnsNames, certFile, keyFile); err != nil {
+			klog.Fatalf("Failed to ensure certificate: %v", err)
+		}
 	}
 
 	validator := routerwebhook.NewKthenaRouterValidator(kubeClient, kthenaClient, port)
