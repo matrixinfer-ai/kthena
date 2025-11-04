@@ -17,6 +17,12 @@ kthenaRouter:
       certFile: /etc/webhook/certs/tls.crt
       keyFile: /etc/webhook/certs/tls.key
       secretName: kthena-router-webhook-certs
+      # autoGenerateCert enables automatic self-signed certificate generation
+      # If enabled, the webhook will generate certificates on startup if they don't exist
+      autoGenerateCert: false
+      # serviceName is the service name used for certificate DNS names
+      serviceName: kthena-router-webhook
+      # Deprecated: use autoGenerateCert instead
       autoCreateSecret: false
     caBundle: ""
   image:

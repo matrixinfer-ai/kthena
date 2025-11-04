@@ -29,6 +29,11 @@ spec:
             - --webhook-port={{ .Values.kthenaRouter.webhook.port }}
             - --webhook-tls-cert-file={{ .Values.kthenaRouter.webhook.tls.certFile }}
             - --webhook-tls-private-key-file={{ .Values.kthenaRouter.webhook.tls.keyFile }}
+            {{- if .Values.kthenaRouter.webhook.tls.autoGenerateCert }}
+            - --auto-generate-cert=true
+            - --cert-secret-name={{ .Values.kthenaRouter.webhook.tls.secretName }}
+            - --webhook-service-name={{ .Values.kthenaRouter.webhook.tls.serviceName }}
+            {{- end }}
           {{- end }}
           {{- if and .Values.global.certManager.enabled .Values.kthenaRouter.tls.enabled }}
             - --tls-cert=/etc/tls/tls.crt
@@ -42,6 +47,10 @@ spec:
               name: webhook
           {{- end }}
           env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
             - name: REDIS_HOST
               valueFrom:
                 configMapKeyRef:
@@ -109,7 +118,9 @@ spec:
           {{- if .Values.kthenaRouter.webhook.enabled }}
           - name: webhook-certs
             mountPath: /etc/webhook/certs
+            {{- if not .Values.kthenaRouter.webhook.tls.autoGenerateCert }}
             readOnly: true
+            {{- end }}
           {{- end }}
       volumes:
         - name: scheduler-config
@@ -122,7 +133,11 @@ spec:
         {{- end }}
         {{- if .Values.kthenaRouter.webhook.enabled }}
         - name: webhook-certs
+          {{- if .Values.kthenaRouter.webhook.tls.autoGenerateCert }}
+          emptyDir: {}
+          {{- else }}
           secret:
             secretName: {{ .Values.kthenaRouter.webhook.tls.secretName }}
+          {{- end }}
         {{- end }}
       serviceAccountName:  {{ include "kthena.name" . }}-kthena-router
