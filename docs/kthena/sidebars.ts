@@ -51,6 +51,7 @@ const sidebars: SidebarsConfig = {
         'user-guide/autoscaler',
         'user-guide/rate-limit',
         'user-guide/runtime',
+        'user-guide/gateway-inference-extension-support',
         {
           type: 'category',
           label: 'Prefill Decode Disaggregation',
