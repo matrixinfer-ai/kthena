@@ -36,8 +36,8 @@ spec:
             {{- end }}
           {{- end }}
           {{- if and .Values.global.certManager.enabled .Values.kthenaRouter.tls.enabled }}
-            - --tls-cert=/etc/tls/tls.crt
-            - --tls-key=/etc/tls/tls.key
+            - --tls-cert=/etc/router-tls/tls.crt
+            - --tls-key=/etc/router-tls/tls.key
           {{- end }}
           ports:
             - containerPort: {{ .Values.kthenaRouter.port }}
@@ -111,33 +111,27 @@ spec:
             mountPath: /etc/config/routerConfiguration.yaml
             subPath: routerConfiguration
           {{- if and .Values.global.certManager.enabled .Values.kthenaRouter.tls.enabled }}
-          - name: tls-certs
-            mountPath: "/etc/tls"
+          - name: router-tls-certs
+            mountPath: "/etc/router-tls"
             readOnly: true
           {{- end }}
           {{- if .Values.kthenaRouter.webhook.enabled }}
           - name: webhook-certs
-            mountPath: /etc/webhook/certs
-            {{- if not .Values.kthenaRouter.webhook.tls.autoGenerateCert }}
+            mountPath: /etc/tls
             readOnly: true
-            {{- end }}
           {{- end }}
       volumes:
         - name: scheduler-config
           configMap:
             name: {{ include "kthena.name" . }}-kthena-router-config
         {{- if and .Values.global.certManager.enabled .Values.kthenaRouter.tls.enabled }}
-        - name: tls-certs
+        - name: router-tls-certs
           secret:
             secretName: {{ .Values.kthenaRouter.tls.secretName }}
         {{- end }}
         {{- if .Values.kthenaRouter.webhook.enabled }}
         - name: webhook-certs
-          {{- if .Values.kthenaRouter.webhook.tls.autoGenerateCert }}
-          emptyDir: {}
-          {{- else }}
           secret:
             secretName: {{ .Values.kthenaRouter.webhook.tls.secretName }}
-          {{- end }}
         {{- end }}
       serviceAccountName:  {{ include "kthena.name" . }}-kthena-router

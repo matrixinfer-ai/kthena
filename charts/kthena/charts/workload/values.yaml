@@ -4,7 +4,7 @@ controllerManager:
     tls:
       # autoGenerateCert enables automatic self-signed certificate generation
       # If enabled, the webhook will generate certificates on startup if they don't exist
-      autoGenerateCert: false
+      autoGenerateCert: true
       # certSecretName is the name of the secret to store auto-generated certificates
       certSecretName: kthena-webhook-certs
       # serviceName is the service name used for certificate DNS names

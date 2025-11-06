@@ -19,7 +19,6 @@ package cert
 import (
 	"context"
 	"fmt"
-	"os"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -40,8 +39,7 @@ const (
 // EnsureCertificate ensures that a certificate exists for the webhook server.
 // If the secret doesn't exist, it generates a new certificate and creates the secret.
 // If the secret already exists, it returns without error (reusing existing certificate).
-// It also writes the certificate files to the specified paths for the webhook server to use.
-func EnsureCertificate(ctx context.Context, kubeClient kubernetes.Interface, namespace, secretName string, dnsNames []string, certPath, keyPath string) error {
+func EnsureCertificate(ctx context.Context, kubeClient kubernetes.Interface, namespace, secretName string, dnsNames []string) error {
 	if len(dnsNames) == 0 {
 		return fmt.Errorf("dnsNames cannot be empty")
 	}
@@ -49,11 +47,11 @@ func EnsureCertificate(ctx context.Context, kubeClient kubernetes.Interface, nam
 	klog.Infof("Ensuring certificate exists in secret %s/%s", namespace, secretName)
 
 	// Try to get the existing secret
-	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
+	_, err := kubeClient.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
 	if err == nil {
 		// Secret exists, use it
 		klog.Infof("Found existing secret %s/%s, using existing certificate", namespace, secretName)
-		return writeCertificateFiles(secret, certPath, keyPath)
+		return nil
 	}
 
 	if !apierrors.IsNotFound(err) {
@@ -68,7 +66,7 @@ func EnsureCertificate(ctx context.Context, kubeClient kubernetes.Interface, nam
 	}
 
 	// Create the secret
-	secret = &corev1.Secret{
+	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretName,
 			Namespace: namespace,
@@ -84,46 +82,13 @@ func EnsureCertificate(ctx context.Context, kubeClient kubernetes.Interface, nam
 	_, err = kubeClient.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
-			// Another pod created the secret concurrently, fetch it and use it
-			klog.Infof("Secret %s/%s was created by another pod, fetching it", namespace, secretName)
-			secret, err = kubeClient.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
-			if err != nil {
-				return fmt.Errorf("failed to get secret after concurrent creation: %w", err)
-			}
-			return writeCertificateFiles(secret, certPath, keyPath)
+			// Another pod created the secret concurrently, use it
+			klog.Infof("Secret %s/%s was created by another pod, using existing certificate", namespace, secretName)
+			return nil
 		}
 		return fmt.Errorf("failed to create secret %s/%s: %w", namespace, secretName, err)
 	}
 
 	klog.Infof("Successfully created secret %s/%s with generated certificate", namespace, secretName)
-
-	// Write certificate files for the webhook server
-	return writeCertificateFiles(secret, certPath, keyPath)
-}
-
-// writeCertificateFiles writes the certificate and key from the secret to the specified file paths
-func writeCertificateFiles(secret *corev1.Secret, certPath, keyPath string) error {
-	cert, ok := secret.Data[TLSCertKey]
-	if !ok {
-		return fmt.Errorf("secret %s/%s does not contain %s", secret.Namespace, secret.Name, TLSCertKey)
-	}
-
-	key, ok := secret.Data[TLSKeyKey]
-	if !ok {
-		return fmt.Errorf("secret %s/%s does not contain %s", secret.Namespace, secret.Name, TLSKeyKey)
-	}
-
-	// Write certificate file
-	if err := os.WriteFile(certPath, cert, 0600); err != nil {
-		return fmt.Errorf("failed to write certificate to %s: %w", certPath, err)
-	}
-	klog.Infof("Wrote certificate to %s", certPath)
-
-	// Write key file
-	if err := os.WriteFile(keyPath, key, 0600); err != nil {
-		return fmt.Errorf("failed to write key to %s: %w", keyPath, err)
-	}
-	klog.Infof("Wrote key to %s", keyPath)
-
 	return nil
 }

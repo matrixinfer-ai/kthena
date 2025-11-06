@@ -40,10 +40,8 @@ spec:
                   fieldPath: metadata.namespace
           volumeMounts:
             - name: webhook-certs
-              mountPath: /etc/webhook/certs
-              {{- if not .Values.controllerManager.webhook.tls.autoGenerateCert }}
+              mountPath: /etc/tls
               readOnly: true
-              {{- end }}
           livenessProbe:
             httpGet:
               path: /healthz
@@ -60,10 +58,6 @@ spec:
             periodSeconds: 10
       volumes:
         - name: webhook-certs
-          {{- if .Values.controllerManager.webhook.tls.autoGenerateCert }}
-          emptyDir: {}
-          {{- else }}
           secret:
             secretName: {{ include "kthena.name" . }}-webhook-certs
-          {{- end }}
       serviceAccountName: {{ include "kthena.name" . }}-kthena-controller-manager
