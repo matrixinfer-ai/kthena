@@ -40,34 +40,39 @@ const (
 // EnsureCertificate ensures that a certificate exists for the webhook server.
 // If the secret doesn't exist, it generates a new certificate and creates the secret.
 // If the secret already exists, it returns without error (reusing existing certificate).
-func EnsureCertificate(ctx context.Context, kubeClient kubernetes.Interface, namespace, secretName string, dnsNames []string) error {
+// Returns the CA bundle bytes that can be used to update webhook configurations.
+func EnsureCertificate(ctx context.Context, kubeClient kubernetes.Interface, namespace, secretName string, dnsNames []string) ([]byte, error) {
 	if len(dnsNames) == 0 {
-		return fmt.Errorf("dnsNames cannot be empty")
+		return nil, fmt.Errorf("dnsNames cannot be empty")
 	}
 
 	klog.Infof("Ensuring certificate exists in secret %s/%s", namespace, secretName)
 
 	// Try to get the existing secret
-	_, err := kubeClient.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
+	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
 	if err == nil {
-		// Secret exists, use it
+		// Secret exists, use it and return the CA bundle
 		klog.Infof("Found existing secret %s/%s, using existing certificate", namespace, secretName)
-		return nil
+		caBundle, ok := secret.Data[CAKey]
+		if !ok {
+			return nil, fmt.Errorf("secret %s/%s does not contain %s", namespace, secretName, CAKey)
+		}
+		return caBundle, nil
 	}
 
 	if !apierrors.IsNotFound(err) {
-		return fmt.Errorf("failed to get secret %s/%s: %w", namespace, secretName, err)
+		return nil, fmt.Errorf("failed to get secret %s/%s: %w", namespace, secretName, err)
 	}
 
 	// Secret doesn't exist, generate new certificate
 	klog.Infof("Secret %s/%s not found, generating new certificate", namespace, secretName)
 	certBundle, err := GenerateSelfSignedCertificate(dnsNames)
 	if err != nil {
-		return fmt.Errorf("failed to generate certificate: %w", err)
+		return nil, fmt.Errorf("failed to generate certificate: %w", err)
 	}
 
 	// Create the secret
-	secret := &corev1.Secret{
+	secret = &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretName,
 			Namespace: namespace,
@@ -83,30 +88,27 @@ func EnsureCertificate(ctx context.Context, kubeClient kubernetes.Interface, nam
 	_, err = kubeClient.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
-			// Another pod created the secret concurrently, use it
-			klog.Infof("Secret %s/%s was created by another pod, using existing certificate", namespace, secretName)
-			return nil
+			// Another pod created the secret concurrently, fetch it to get the CA bundle
+			klog.Infof("Secret %s/%s was created by another pod, fetching CA bundle", namespace, secretName)
+			secret, err = kubeClient.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
+			if err != nil {
+				return nil, fmt.Errorf("failed to get secret after concurrent creation: %w", err)
+			}
+			caBundle, ok := secret.Data[CAKey]
+			if !ok {
+				return nil, fmt.Errorf("secret %s/%s does not contain %s", namespace, secretName, CAKey)
+			}
+			return caBundle, nil
 		}
-		return fmt.Errorf("failed to create secret %s/%s: %w", namespace, secretName, err)
+		return nil, fmt.Errorf("failed to create secret %s/%s: %w", namespace, secretName, err)
 	}
 
 	klog.Infof("Successfully created secret %s/%s with generated certificate", namespace, secretName)
-	return nil
+	return certBundle.CAPEM, nil
 }
 
-// UpdateValidatingWebhookCABundle updates the ValidatingWebhookConfiguration with the CA bundle from the secret
-func UpdateValidatingWebhookCABundle(ctx context.Context, kubeClient kubernetes.Interface, webhookName, namespace, secretName string) error {
-	// Get the secret to extract CA bundle
-	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to get secret %s/%s: %w", namespace, secretName, err)
-	}
-
-	caBundle, ok := secret.Data[CAKey]
-	if !ok {
-		return fmt.Errorf("secret %s/%s does not contain %s", namespace, secretName, CAKey)
-	}
-
+// UpdateValidatingWebhookCABundle updates the ValidatingWebhookConfiguration with the provided CA bundle
+func UpdateValidatingWebhookCABundle(ctx context.Context, kubeClient kubernetes.Interface, webhookName string, caBundle []byte) error {
 	// Get the ValidatingWebhookConfiguration
 	webhook, err := kubeClient.AdmissionregistrationV1().ValidatingWebhookConfigurations().Get(ctx, webhookName, metav1.GetOptions{})
 	if err != nil {
@@ -142,19 +144,8 @@ func UpdateValidatingWebhookCABundle(ctx context.Context, kubeClient kubernetes.
 	return nil
 }
 
-// UpdateMutatingWebhookCABundle updates the MutatingWebhookConfiguration with the CA bundle from the secret
-func UpdateMutatingWebhookCABundle(ctx context.Context, kubeClient kubernetes.Interface, webhookName, namespace, secretName string) error {
-	// Get the secret to extract CA bundle
-	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to get secret %s/%s: %w", namespace, secretName, err)
-	}
-
-	caBundle, ok := secret.Data[CAKey]
-	if !ok {
-		return fmt.Errorf("secret %s/%s does not contain %s", namespace, secretName, CAKey)
-	}
-
+// UpdateMutatingWebhookCABundle updates the MutatingWebhookConfiguration with the provided CA bundle
+func UpdateMutatingWebhookCABundle(ctx context.Context, kubeClient kubernetes.Interface, webhookName string, caBundle []byte) error {
 	// Get the MutatingWebhookConfiguration
 	webhook, err := kubeClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(ctx, webhookName, metav1.GetOptions{})
 	if err != nil {

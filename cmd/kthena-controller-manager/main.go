@@ -113,17 +113,18 @@ func ensureWebhookCertificate(ctx context.Context, kubeClient kubernetes.Interfa
 	}
 
 	klog.Infof("Auto-generating certificate for webhook server")
-	if err := webhookcert.EnsureCertificate(ctx, kubeClient, namespace, wc.certSecretName, dnsNames); err != nil {
+	caBundle, err := webhookcert.EnsureCertificate(ctx, kubeClient, namespace, wc.certSecretName, dnsNames)
+	if err != nil {
 		return err
 	}
 
 	// Update ValidatingWebhookConfiguration with CA bundle
-	if err := webhookcert.UpdateValidatingWebhookCABundle(ctx, kubeClient, "kthena-validating-webhook", namespace, wc.certSecretName); err != nil {
+	if err := webhookcert.UpdateValidatingWebhookCABundle(ctx, kubeClient, "kthena-validating-webhook", caBundle); err != nil {
 		klog.Warningf("Failed to update ValidatingWebhookConfiguration CA bundle: %v", err)
 	}
 
 	// Update MutatingWebhookConfiguration with CA bundle
-	if err := webhookcert.UpdateMutatingWebhookCABundle(ctx, kubeClient, "kthena-mutating-webhook", namespace, wc.certSecretName); err != nil {
+	if err := webhookcert.UpdateMutatingWebhookCABundle(ctx, kubeClient, "kthena-mutating-webhook", caBundle); err != nil {
 		klog.Warningf("Failed to update MutatingWebhookConfiguration CA bundle: %v", err)
 	}
 
