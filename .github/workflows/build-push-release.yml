@@ -264,7 +264,7 @@ jobs:
       - name: Prepare Release Artifacts
         if: needs.setup.outputs.is_tag == 'true'
         run: |
-          helm template kthena ./charts/kthena --namespace kthena-system > kthena-install.yaml
+          helm template kthena ./charts/kthena --namespace kthena-system --include-crds > kthena-install.yaml
 
       - name: Upload Release Artifacts
         if: needs.setup.outputs.is_tag == 'true'
