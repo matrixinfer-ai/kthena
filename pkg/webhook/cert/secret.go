@@ -18,6 +18,7 @@ package cert
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
@@ -91,4 +92,115 @@ func EnsureCertificate(ctx context.Context, kubeClient kubernetes.Interface, nam
 
 	klog.Infof("Successfully created secret %s/%s with generated certificate", namespace, secretName)
 	return nil
+}
+
+// UpdateValidatingWebhookCABundle updates the ValidatingWebhookConfiguration with the CA bundle from the secret
+func UpdateValidatingWebhookCABundle(ctx context.Context, kubeClient kubernetes.Interface, webhookName, namespace, secretName string) error {
+	// Get the secret to extract CA bundle
+	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get secret %s/%s: %w", namespace, secretName, err)
+	}
+
+	caBundle, ok := secret.Data[CAKey]
+	if !ok {
+		return fmt.Errorf("secret %s/%s does not contain %s", namespace, secretName, CAKey)
+	}
+
+	// Get the ValidatingWebhookConfiguration
+	webhook, err := kubeClient.AdmissionregistrationV1().ValidatingWebhookConfigurations().Get(ctx, webhookName, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			klog.Infof("ValidatingWebhookConfiguration %s not found, skipping CA bundle update", webhookName)
+			return nil
+		}
+		return fmt.Errorf("failed to get ValidatingWebhookConfiguration %s: %w", webhookName, err)
+	}
+
+	// Update all webhooks with the CA bundle
+	updated := false
+	for i := range webhook.Webhooks {
+		// Only update if caBundle is empty (meaning it's using auto-generated certs)
+		if len(webhook.Webhooks[i].ClientConfig.CABundle) == 0 {
+			webhook.Webhooks[i].ClientConfig.CABundle = caBundle
+			updated = true
+		}
+	}
+
+	if !updated {
+		klog.Infof("ValidatingWebhookConfiguration %s already has CA bundle, skipping update", webhookName)
+		return nil
+	}
+
+	// Update the ValidatingWebhookConfiguration
+	_, err = kubeClient.AdmissionregistrationV1().ValidatingWebhookConfigurations().Update(ctx, webhook, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to update ValidatingWebhookConfiguration %s: %w", webhookName, err)
+	}
+
+	klog.Infof("Successfully updated ValidatingWebhookConfiguration %s with CA bundle", webhookName)
+	return nil
+}
+
+// UpdateMutatingWebhookCABundle updates the MutatingWebhookConfiguration with the CA bundle from the secret
+func UpdateMutatingWebhookCABundle(ctx context.Context, kubeClient kubernetes.Interface, webhookName, namespace, secretName string) error {
+	// Get the secret to extract CA bundle
+	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get secret %s/%s: %w", namespace, secretName, err)
+	}
+
+	caBundle, ok := secret.Data[CAKey]
+	if !ok {
+		return fmt.Errorf("secret %s/%s does not contain %s", namespace, secretName, CAKey)
+	}
+
+	// Get the MutatingWebhookConfiguration
+	webhook, err := kubeClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(ctx, webhookName, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			klog.Infof("MutatingWebhookConfiguration %s not found, skipping CA bundle update", webhookName)
+			return nil
+		}
+		return fmt.Errorf("failed to get MutatingWebhookConfiguration %s: %w", webhookName, err)
+	}
+
+	// Update all webhooks with the CA bundle
+	updated := false
+	for i := range webhook.Webhooks {
+		// Only update if caBundle is empty (meaning it's using auto-generated certs)
+		if len(webhook.Webhooks[i].ClientConfig.CABundle) == 0 {
+			webhook.Webhooks[i].ClientConfig.CABundle = caBundle
+			updated = true
+		}
+	}
+
+	if !updated {
+		klog.Infof("MutatingWebhookConfiguration %s already has CA bundle, skipping update", webhookName)
+		return nil
+	}
+
+	// Update the MutatingWebhookConfiguration
+	_, err = kubeClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Update(ctx, webhook, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to update MutatingWebhookConfiguration %s: %w", webhookName, err)
+	}
+
+	klog.Infof("Successfully updated MutatingWebhookConfiguration %s with CA bundle", webhookName)
+	return nil
+}
+
+// GetCABundleBase64 returns the base64-encoded CA bundle from the secret
+func GetCABundleBase64(ctx context.Context, kubeClient kubernetes.Interface, namespace, secretName string) (string, error) {
+	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to get secret %s/%s: %w", namespace, secretName, err)
+	}
+
+	caBundle, ok := secret.Data[CAKey]
+	if !ok {
+		return "", fmt.Errorf("secret %s/%s does not contain %s", namespace, secretName, CAKey)
+	}
+
+	return base64.StdEncoding.EncodeToString(caBundle), nil
 }

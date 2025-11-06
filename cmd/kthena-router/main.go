@@ -117,7 +117,16 @@ func ensureWebhookCertificate(ctx context.Context, kubeClient kubernetes.Interfa
 	}
 
 	klog.Infof("Auto-generating certificate for webhook server")
-	return webhookcert.EnsureCertificate(ctx, kubeClient, namespace, secretName, dnsNames)
+	if err := webhookcert.EnsureCertificate(ctx, kubeClient, namespace, secretName, dnsNames); err != nil {
+		return err
+	}
+
+	// Update ValidatingWebhookConfiguration with CA bundle
+	if err := webhookcert.UpdateValidatingWebhookCABundle(ctx, kubeClient, "kthena-kthena-router-validating-webhook", namespace, secretName); err != nil {
+		klog.Warningf("Failed to update ValidatingWebhookConfiguration CA bundle: %v", err)
+	}
+
+	return nil
 }
 
 func runWebhook(ctx context.Context, port int, certFile, keyFile string, autoGenerate bool, secretName, serviceName string) {

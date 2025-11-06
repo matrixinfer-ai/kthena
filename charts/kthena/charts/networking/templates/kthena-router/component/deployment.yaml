@@ -112,7 +112,7 @@ spec:
             subPath: routerConfiguration
           {{- if and .Values.global.certManager.enabled .Values.kthenaRouter.tls.enabled }}
           - name: router-tls-certs
-            mountPath: "/etc/router-tls"
+            mountPath: /etc/tls
             readOnly: true
           {{- end }}
           {{- if .Values.kthenaRouter.webhook.enabled }}
