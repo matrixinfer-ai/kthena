@@ -571,13 +571,14 @@ func (c *ModelServingController) manageServingGroupReplicas(ctx context.Context,
 	}
 	for idx := 0; idx < expectedCount; idx++ {
 		if replicas[idx] == nil {
-			// Insert new ServingGroup to global storage
-			c.store.AddServingGroup(utils.GetNamespaceName(mi), idx, newRevision)
 			// Create pods for ServingGroup
 			err = c.CreatePodsForServingGroup(ctx, mi, idx, newRevision)
 			if err != nil {
 				// I think that after create a pod failed, a period of time should pass before joining the coordination queue.
 				return fmt.Errorf("create Serving group failed: %v", err)
+			} else {
+				// Insert new ServingGroup to global storage
+				c.store.AddServingGroup(utils.GetNamespaceName(mi), idx, newRevision)
 			}
 		}
 	}
@@ -770,12 +771,13 @@ func (c *ModelServingController) manageRoleReplicas(ctx context.Context, mi *wor
 					return
 				}
 			}
-			// Insert new Role to global storage
-			c.store.AddRole(utils.GetNamespaceName(mi), groupName, targetRole.Name, utils.GenerateRoleID(targetRole.Name, idx), newRevision)
 			// Create pods for role
 			err = c.CreatePodByRole(ctx, *targetRole.DeepCopy(), mi, idx, servingGroupOrdinal, newRevision)
 			if err != nil {
 				klog.Errorf("create role %s for ServingGroup %s failed: %v", utils.GenerateRoleID(targetRole.Name, idx), groupName, err)
+			} else {
+				// Insert new Role to global storage
+				c.store.AddRole(utils.GetNamespaceName(mi), groupName, targetRole.Name, utils.GenerateRoleID(targetRole.Name, idx), newRevision)
 			}
 		}
 	}
