@@ -8,7 +8,7 @@ metadata:
     {{- include "kthena.labels" . | nindent 4 }}
   {{- if or .Values.global.certManager.enabled .Values.controllerManager.webhook.tls.autoGenerateCert }}
   annotations:
-    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "kthena.name" . }}-webhook-cert
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/kthena-webhook-cert
   {{- end }}
 webhooks:
   - name: mutate-registry-kthena-ai-v1alpha1-model.kthena.ai
@@ -18,7 +18,7 @@ webhooks:
     timeoutSeconds: 30
     clientConfig:
       service:
-        name: {{ include "kthena.name" . }}-webhook
+        name: kthena-webhook
         namespace: {{ .Release.Namespace }}
         path: "/mutate-registry-kthena-ai-v1alpha1-model"
         port: 443
@@ -42,7 +42,7 @@ webhooks:
     timeoutSeconds: 30
     clientConfig:
       service:
-        name: {{ include "kthena.name" . }}-webhook
+        name: kthena-webhook
         namespace: {{ .Release.Namespace }}
         path: "/mutate-registry-volcano-sh-v1alpha1-autoscalingpolicy"
         port: 443

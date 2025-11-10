@@ -23,7 +23,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned/fake"
 	networkingv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
 )
 
@@ -260,8 +259,7 @@ func TestValidateModelRoute(t *testing.T) {
 
 	// Create a validator instance
 	kubeClient := fake.NewSimpleClientset()
-	modelInferClient := clientset.NewSimpleClientset()
-	validator := NewKthenaRouterValidator(kubeClient, modelInferClient, 8080)
+	validator := NewKthenaRouterValidator(kubeClient, 8080)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

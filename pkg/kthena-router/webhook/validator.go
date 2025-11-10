@@ -30,7 +30,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
-	clientset "github.com/volcano-sh/kthena/client-go/clientset/versioned"
 	networkingv1alpha1 "github.com/volcano-sh/kthena/pkg/apis/networking/v1alpha1"
 )
 
@@ -38,13 +37,12 @@ const timeout = 30 * time.Second
 
 // KthenaRouterValidator handles validation of ModelRoute and ModelServer resources.
 type KthenaRouterValidator struct {
-	httpServer       *http.Server
-	kubeClient       kubernetes.Interface
-	modelInferClient clientset.Interface
+	httpServer *http.Server
+	kubeClient kubernetes.Interface
 }
 
 // NewKthenaRouterValidator creates a new KthenaRouterValidator.
-func NewKthenaRouterValidator(kubeClient kubernetes.Interface, modelInferClient clientset.Interface, port int) *KthenaRouterValidator {
+func NewKthenaRouterValidator(kubeClient kubernetes.Interface, port int) *KthenaRouterValidator {
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", port),
 		ReadTimeout:  timeout,
@@ -55,9 +53,8 @@ func NewKthenaRouterValidator(kubeClient kubernetes.Interface, modelInferClient 
 	}
 
 	return &KthenaRouterValidator{
-		httpServer:       server,
-		kubeClient:       kubeClient,
-		modelInferClient: modelInferClient,
+		httpServer: server,
+		kubeClient: kubeClient,
 	}
 }
 

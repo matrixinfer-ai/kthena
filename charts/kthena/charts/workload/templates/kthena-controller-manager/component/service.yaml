@@ -2,8 +2,8 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "kthena.name" . }}-webhook
   namespace: {{ .Release.Namespace }}
+  name: kthena-webhook
   labels:
     app.kubernetes.io/component: webhook
     {{- include "kthena.labels" . | nindent 4 }}
