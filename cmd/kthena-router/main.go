@@ -123,7 +123,7 @@ func ensureWebhookCertificate(ctx context.Context, kubeClient kubernetes.Interfa
 	}
 
 	// Update ValidatingWebhookConfiguration with CA bundle
-	if err := webhookcert.UpdateValidatingWebhookCABundle(ctx, kubeClient, "kthena-kthena-router-validating-webhook", caBundle); err != nil {
+	if err := webhookcert.UpdateValidatingWebhookCABundle(ctx, kubeClient, "kthena-router-validating-webhook", caBundle); err != nil {
 		klog.Warningf("Failed to update ValidatingWebhookConfiguration CA bundle: %v", err)
 	}
 

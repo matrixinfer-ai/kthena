@@ -42,3 +42,11 @@ rules:
       - get
       - list
       - watch
+  - apiGroups:
+      - admissionregistration.k8s.io
+    resources:
+      - validatingwebhookconfigurations
+    verbs:
+      - get
+      - update
+      - patch

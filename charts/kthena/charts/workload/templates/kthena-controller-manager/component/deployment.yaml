@@ -59,5 +59,6 @@ spec:
       volumes:
         - name: webhook-certs
           secret:
-            secretName: {{ include "kthena.name" . }}-webhook-certs
+            secretName: {{ .Values.controllerManager.webhook.tls.certSecretName }}
+            optional: true
       serviceAccountName: {{ include "kthena.name" . }}-kthena-controller-manager

@@ -133,5 +133,6 @@ spec:
         - name: webhook-certs
           secret:
             secretName: {{ .Values.kthenaRouter.webhook.tls.secretName }}
+            optional: true
         {{- end }}
       serviceAccountName:  {{ include "kthena.name" . }}-kthena-router

@@ -77,7 +77,7 @@ func (v *KthenaRouterValidator) Run(ctx context.Context, tlsCertFile, tlsPrivate
 	klog.Infof("Starting webhook server on %s", v.httpServer.Addr)
 	go func() {
 		if err := v.httpServer.ListenAndServeTLS(tlsCertFile, tlsPrivateKey); err != nil && err != http.ErrServerClosed {
-			klog.Fatalf("failed to listen and serve validator: %v", err)
+			klog.Fatalf("failed to listen and serve validating webhook: %v", err)
 		}
 	}()
 

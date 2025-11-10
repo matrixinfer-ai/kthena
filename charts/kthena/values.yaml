@@ -36,8 +36,8 @@ networking:
       port: 8443
       servicePort: 443
       tls:
-        certFile: /etc/webhook/certs/tls.crt
-        keyFile: /etc/webhook/certs/tls.key
+        certFile: /etc/tls/tls.crt
+        keyFile: /etc/tls/tls.key
         secretName: kthena-router-webhook-certs
       autoCreateSecret: false
       caBundle: ""
