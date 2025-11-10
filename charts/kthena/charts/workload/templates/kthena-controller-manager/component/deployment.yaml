@@ -23,14 +23,24 @@ spec:
           image: "{{ .Values.controllerManager.image.repository }}:{{ .Values.controllerManager.image.tag }}"
           args:
             {{- toYaml .Values.controllerManager.image.args | nindent 12 }}
+            {{- if .Values.controllerManager.webhook.tls.autoGenerateCert }}
+            - --auto-generate-cert=true
+            - --cert-secret-name={{ .Values.controllerManager.webhook.tls.certSecretName }}
+            - --service-name={{ .Values.controllerManager.webhook.tls.serviceName }}
+            {{- end }}
           imagePullPolicy: {{ .Values.controllerManager.image.pullPolicy }}
           resources:
             {{- toYaml .Values.controllerManager.resource | nindent 12 }}
           ports:
             - containerPort: 8443
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
           volumeMounts:
             - name: webhook-certs
-              mountPath: /etc/webhook/certs
+              mountPath: /etc/tls
               readOnly: true
           livenessProbe:
             httpGet:
@@ -49,5 +59,6 @@ spec:
       volumes:
         - name: webhook-certs
           secret:
-            secretName: {{ include "kthena.name" . }}-webhook-certs
+            secretName: {{ .Values.controllerManager.webhook.tls.certSecretName }}
+            optional: true
       serviceAccountName: {{ include "kthena.name" . }}-kthena-controller-manager

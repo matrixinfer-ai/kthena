@@ -111,6 +111,15 @@ rules:
       - list
       - watch
   - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - create
+      - get
+      - list
+      - watch
+  - apiGroups:
       - scheduling.volcano.sh
     resources:
       - podgroups
@@ -119,3 +128,12 @@ rules:
       - get
       - list
       - watch
+  - apiGroups:
+      - admissionregistration.k8s.io
+    resources:
+      - mutatingwebhookconfigurations
+      - validatingwebhookconfigurations
+    verbs:
+      - get
+      - update
+      - patch

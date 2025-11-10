@@ -29,10 +29,15 @@ spec:
             - --webhook-port={{ .Values.kthenaRouter.webhook.port }}
             - --webhook-tls-cert-file={{ .Values.kthenaRouter.webhook.tls.certFile }}
             - --webhook-tls-private-key-file={{ .Values.kthenaRouter.webhook.tls.keyFile }}
+            {{- if .Values.kthenaRouter.webhook.tls.autoGenerateCert }}
+            - --auto-generate-cert=true
+            - --cert-secret-name={{ .Values.kthenaRouter.webhook.tls.secretName }}
+            - --webhook-service-name={{ .Values.kthenaRouter.webhook.tls.serviceName }}
+            {{- end }}
           {{- end }}
           {{- if and .Values.global.certManager.enabled .Values.kthenaRouter.tls.enabled }}
-            - --tls-cert=/etc/tls/tls.crt
-            - --tls-key=/etc/tls/tls.key
+            - --tls-cert=/etc/router-tls/tls.crt
+            - --tls-key=/etc/router-tls/tls.key
           {{- end }}
           ports:
             - containerPort: {{ .Values.kthenaRouter.port }}
@@ -42,6 +47,10 @@ spec:
               name: webhook
           {{- end }}
           env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
             - name: REDIS_HOST
               valueFrom:
                 configMapKeyRef:
@@ -102,13 +111,13 @@ spec:
             mountPath: /etc/config/routerConfiguration.yaml
             subPath: routerConfiguration
           {{- if and .Values.global.certManager.enabled .Values.kthenaRouter.tls.enabled }}
-          - name: tls-certs
-            mountPath: "/etc/tls"
+          - name: router-tls-certs
+            mountPath: /etc/tls
             readOnly: true
           {{- end }}
           {{- if .Values.kthenaRouter.webhook.enabled }}
           - name: webhook-certs
-            mountPath: /etc/webhook/certs
+            mountPath: /etc/tls
             readOnly: true
           {{- end }}
       volumes:
@@ -116,7 +125,7 @@ spec:
           configMap:
             name: {{ include "kthena.name" . }}-kthena-router-config
         {{- if and .Values.global.certManager.enabled .Values.kthenaRouter.tls.enabled }}
-        - name: tls-certs
+        - name: router-tls-certs
           secret:
             secretName: {{ .Values.kthenaRouter.tls.secretName }}
         {{- end }}
@@ -124,5 +133,6 @@ spec:
         - name: webhook-certs
           secret:
             secretName: {{ .Values.kthenaRouter.webhook.tls.secretName }}
+            optional: true
         {{- end }}
       serviceAccountName:  {{ include "kthena.name" . }}-kthena-router

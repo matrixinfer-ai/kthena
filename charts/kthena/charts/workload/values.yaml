@@ -1,6 +1,14 @@
 controllerManager:
   webhook:
     enabled: true
+    tls:
+      # autoGenerateCert enables automatic self-signed certificate generation
+      # If enabled, the webhook will generate certificates on startup if they don't exist
+      autoGenerateCert: true
+      # certSecretName is the name of the secret to store auto-generated certificates
+      certSecretName: kthena-webhook-certs
+      # serviceName is the service name used for certificate DNS names
+      serviceName: kthena-webhook
   # replicas is the number of instances to run.
   replicas: 1
   image:
