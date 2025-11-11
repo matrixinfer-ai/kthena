@@ -1,5 +1,5 @@
 ---
-title: Your short, descriptive title
+title: Binpack Scale Down
 authors:
 - "@LiZhencheng9527" # Authors' GitHub accounts here.
 reviewers:
@@ -13,7 +13,7 @@ creation-date: 2025-11-06
 
 ---
 
-## Your short, descriptive title
+## Binpack Scale Down
 
 <!--
 This is the title of your proposal. Keep it short, simple, and descriptive. A good
@@ -108,7 +108,7 @@ required) or even code snippets. If there's any ambiguity about HOW your
 proposal will be implemented, this is the place to discuss them.
 -->
 
-Within modelServing, there are two granularity levels for scaling operations: ServingGroup and Role. But in fact, both involve evicting a group of pods. However, both methods ultimately evict a group of pods. Therefore, this proposal outlines how to calculate the Pod Eviction Cost for a group of pods.
+Within modelServing, there are two granularity levels for scaling operations: ServingGroup and Role. Both methods ultimately evict a group of pods. Therefore, this proposal outlines how to calculate the Pod Eviction Cost for a group of pods.
 
 In Kubernetes, the `PodDeletionCost` annotation specifies the cost associated with deleting a pod. We utilize Volcano's binpack plugin to update this annotation.
 
@@ -120,7 +120,9 @@ Similar to scaling down at the `Role`, when scaling down a `ServingGroup`, the `
 
 ```math
 roleScore = \sum_{i=1}^{n} PodDeletionCost_{i}
+```
 
+```math
 servingGroupScore = \sum_{i=1}^{m} roleScore_{i}
 ```
 
