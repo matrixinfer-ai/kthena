@@ -94,35 +94,15 @@ func main() {
 const validatingWebhookName = "kthena-validating-webhook"
 const mutatingWebhookName = "kthena-mutating-webhook"
 
-// ensureWebhookCertificate ensures that a certificate exists for the webhook server
-func ensureWebhookCertificate(ctx context.Context, kubeClient kubernetes.Interface, wc webhookConfig) error {
-	namespace := os.Getenv("POD_NAMESPACE")
-	if namespace == "" {
-		namespace = "default"
-	}
-
+// ensureWebhookCertificate generates a certificate into the secret and returns the CA bundle.
+func ensureWebhookCertificate(ctx context.Context, kubeClient kubernetes.Interface, wc webhookConfig) ([]byte, error) {
+	namespace := getNamespace()
 	dnsNames := []string{
 		fmt.Sprintf("%s.%s.svc", wc.serviceName, namespace),
 		fmt.Sprintf("%s.%s.svc.cluster.local", wc.serviceName, namespace),
 	}
-
-	klog.Infof("Auto-generating certificate for webhook server")
-	caBundle, err := webhookcert.EnsureCertificate(ctx, kubeClient, namespace, wc.certSecretName, dnsNames)
-	if err != nil {
-		return err
-	}
-
-	// Update ValidatingWebhookConfiguration with CA bundle
-	if err := webhookcert.UpdateValidatingWebhookCABundle(ctx, kubeClient, validatingWebhookName, caBundle); err != nil {
-		klog.Warningf("Failed to update ValidatingWebhookConfiguration CA bundle: %v", err)
-	}
-
-	// Update MutatingWebhookConfiguration with CA bundle
-	if err := webhookcert.UpdateMutatingWebhookCABundle(ctx, kubeClient, mutatingWebhookName, caBundle); err != nil {
-		klog.Warningf("Failed to update MutatingWebhookConfiguration CA bundle: %v", err)
-	}
-
-	return nil
+	klog.Infof("Auto-generating certificate for webhook server (secret=%s service=%s)", wc.certSecretName, wc.serviceName)
+	return webhookcert.EnsureCertificate(ctx, kubeClient, namespace, wc.certSecretName, dnsNames)
 }
 
 func setupWebhook(ctx context.Context, wc webhookConfig) error {
@@ -144,16 +124,36 @@ func setupWebhook(ctx context.Context, wc webhookConfig) error {
 		return err
 	}
 
-	// Auto-generate certificate only if cert/key files are missing
-	if _, err := os.Stat(wc.tlsCertFile); err != nil || wc.tlsCertFile == "" {
-		if err := ensureWebhookCertificate(ctx, kubeClient, wc); err != nil {
-			klog.Fatalf("failed to auto-generate certificate: %v", err)
-			return err
+	// Secret -> File -> Generate precedence for CA bundle selection
+	namespace := getNamespace()
+	var caBundle []byte
+
+	// 1. Try secret first.
+	if bundle, err := webhookcert.LoadCertBundleFromSecret(ctx, kubeClient, namespace, wc.certSecretName); err != nil {
+		klog.Warningf("Error reading CA bundle from secret %s: %v", wc.certSecretName, err)
+	} else if bundle != nil {
+		klog.Infof("Loaded CA bundle from secret %s", wc.certSecretName)
+		caBundle = bundle.CAPEM
+	}
+
+	// 2. If not from secret, try existing cert file.
+	if caBundle == nil {
+		if !fileExists(wc.tlsPrivateKey) || !fileExists(wc.tlsCertFile) {
+			b, err := ensureWebhookCertificate(ctx, kubeClient, wc)
+			if err != nil {
+				klog.Fatalf("Failed to auto-generate webhook certificates: %v", err)
+			}
+			caBundle = b
 		}
-	} else if _, err := os.Stat(wc.tlsPrivateKey); err != nil || wc.tlsPrivateKey == "" {
-		if err := ensureWebhookCertificate(ctx, kubeClient, wc); err != nil {
-			klog.Fatalf("failed to auto-generate certificate: %v", err)
-			return err
+	}
+
+	if caBundle != nil {
+		// Always update both webhook configurations with the chosen CA bundle
+		if err := webhookcert.UpdateValidatingWebhookCABundle(ctx, kubeClient, validatingWebhookName, caBundle); err != nil {
+			klog.Warningf("Failed to update ValidatingWebhookConfiguration CA bundle: %v", err)
+		}
+		if err := webhookcert.UpdateMutatingWebhookCABundle(ctx, kubeClient, mutatingWebhookName, caBundle); err != nil {
+			klog.Warningf("Failed to update MutatingWebhookConfiguration CA bundle: %v", err)
 		}
 	}
 
@@ -190,6 +190,12 @@ func setupWebhook(ctx context.Context, wc webhookConfig) error {
 		},
 	}
 
+	// Wait for both cert and key files to exist (in case they are mounted by Kubernetes)
+	ok := waitForCertsReady(wc.tlsPrivateKey, wc.tlsCertFile)
+	if !ok {
+		return fmt.Errorf("TLS cert/key files not found, webhook server cannot start")
+	}
+
 	go func() {
 		klog.Infof("Starting webhook server on %s", server.Addr)
 		if err := server.ListenAndServeTLS(wc.tlsCertFile, wc.tlsPrivateKey); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -201,4 +207,34 @@ func setupWebhook(ctx context.Context, wc webhookConfig) error {
 	defer cancel()
 	_ = server.Shutdown(ctxTimeout)
 	return nil
+}
+
+// getNamespace returns the current pod namespace or "default".
+func getNamespace() string {
+	return os.Getenv("POD_NAMESPACE")
+}
+
+// fileExists returns true if the file exists.
+func fileExists(path string) bool {
+	if path == "" {
+		return false
+	}
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+func waitForCertsReady(keyFile, CertFile string) bool {
+	waitTimeout := 30 * time.Second
+	waitInterval := 500 * time.Millisecond
+	start := time.Now()
+	for {
+		if fileExists(CertFile) && fileExists(keyFile) {
+			return true
+		}
+		if time.Since(start) > waitTimeout {
+			klog.Warningf("timeout waiting for TLS cert/key files to appear at %s and %s", keyFile, CertFile)
+			return false
+		}
+		time.Sleep(waitInterval)
+	}
 }
