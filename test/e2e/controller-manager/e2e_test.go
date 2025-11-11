@@ -19,6 +19,7 @@ package controller_manager
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -39,7 +40,9 @@ import (
 )
 
 const (
+	// TODO: separate kthena cp and e2e test namespace
 	testNamespace = "dev"
+	routerSvc     = "kthena-router"
 )
 
 // TestModelCR creates a ModelBooster CR, waits for it to become active, and tests chat functionality.
@@ -89,7 +92,7 @@ func executeChatInCluster(t *testing.T, kubeClient *kubernetes.Clientset, ctx co
 		"-X", "POST",
 		"-H", "Content-Type: application/json",
 		"-d", `{"model": "test-model", "messages": [{"role": "user", "content": "Where is the capital of China?"}], "stream": false}`,
-		"http://networking-kthena-router/v1/chat/completions",
+		fmt.Sprintf("http://%s/v1/chat/completions", routerSvc),
 	}
 	option := &corev1.PodExecOptions{
 		Command: command,
