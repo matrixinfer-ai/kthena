@@ -18,7 +18,7 @@ webhooks:
     timeoutSeconds: 30
     clientConfig:
       service:
-        name: {{ include "kthena.name" . }}-webhook
+        name: kthena-controller-manager-webhook
         namespace: {{ .Release.Namespace }}
         path: "/mutate-workload-serving-volcano-sh-v1alpha1-modelbooster"
         port: 443
@@ -42,7 +42,7 @@ webhooks:
     timeoutSeconds: 30
     clientConfig:
       service:
-        name: {{ include "kthena.name" . }}-webhook
+        name: kthena-controller-manager-webhook
         namespace: {{ .Release.Namespace }}
         path: "/mutate-workload-serving-volcano-sh-v1alpha1-autoscalingpolicy"
         port: 443
