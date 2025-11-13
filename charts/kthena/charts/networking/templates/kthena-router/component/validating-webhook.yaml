@@ -11,7 +11,7 @@ metadata:
     cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/kthena-router-webhook-cert
   {{- end }}
 webhooks:
-  - name: validate-networking-volcano-sh-v1alpha1-modelroute.volcano.sh
+  - name: validate-modelroute.volcano.sh
     admissionReviewVersions: [ "v1" ]
     sideEffects: None
     failurePolicy: Fail
@@ -20,7 +20,7 @@ webhooks:
       service:
         name: kthena-router-webhook
         namespace: {{ .Release.Namespace }}
-        path: "/validate-modelroute"
+        path: "/validate/modelroute"
         port: {{ .Values.kthenaRouter.webhook.servicePort }}
       {{- if or .Values.global.certManager.enabled .Values.kthenaRouter.webhook.tls.autoGenerateCert }}
       caBundle: ""
@@ -33,7 +33,7 @@ webhooks:
         resources: [ "modelroutes" ]
         operations: [ "CREATE", "UPDATE" ]
         scope: "Namespaced"
-  - name: validate-networking-volcano-sh-v1alpha1-modelserver.volcano.sh
+  - name: validate-modelserver.volcano.sh
     admissionReviewVersions: [ "v1" ]
     sideEffects: None
     failurePolicy: Fail
@@ -42,7 +42,7 @@ webhooks:
       service:
         name: kthena-router-webhook
         namespace: {{ .Release.Namespace }}
-        path: "/validate-modelserver"
+        path: "/validate/modelserver"
         port: {{ .Values.kthenaRouter.webhook.servicePort }}
       {{- if or .Values.global.certManager.enabled .Values.kthenaRouter.webhook.tls.autoGenerateCert }}
       caBundle: ""

@@ -2,7 +2,7 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: kthena-mutating-webhook
+  name: kthena-controller-manager-mutating-webhook
   labels:
     app.kubernetes.io/component: webhook
     {{- include "kthena.labels" . | nindent 4 }}
@@ -11,16 +11,16 @@ metadata:
     cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/kthena-webhook-cert
   {{- end }}
 webhooks:
-  - name: mutate-registry-kthena-ai-v1alpha1-model.kthena.ai
+  - name: mutate-modelbooster.volcano.sh
     admissionReviewVersions: [ "v1" ]
     sideEffects: None
     failurePolicy: Fail
     timeoutSeconds: 30
     clientConfig:
       service:
-        name: kthena-webhook
+        name: kthena-controller-manager-webhook
         namespace: {{ .Release.Namespace }}
-        path: "/mutate-registry-kthena-ai-v1alpha1-model"
+        path: "/mutate/modelbooster"
         port: 443
       {{- if or .Values.global.certManager.enabled .Values.controllerManager.webhook.tls.autoGenerateCert }}
       caBundle: ""
@@ -28,23 +28,23 @@ webhooks:
       caBundle: {{ required "A caBundle is required for the registry mutating webhook when cert-manager and auto-generate-cert are disabled (global.webhook.caBundle)" .Values.global.webhook.caBundle | quote }}
       {{- end }}
     rules:
-      - apiGroups: [ "registry.kthena.ai" ]
+      - apiGroups: [ "workload.serving.volcano.sh" ]
         apiVersions: [ "v1alpha1" ]
-        resources: [ "models" ]
+        resources: [ "modelboosters" ]
         operations: [ "CREATE", "UPDATE" ]
         scope: "Namespaced"
     # This ensures the webhook is called before validation
     reinvocationPolicy: IfNeeded
-  - name: mutate-registry-kthena-ai-v1alpha1-autoscalingpolicy.kthena.ai
+  - name: mutate-autoscalingpolicy.volcano.sh
     admissionReviewVersions: [ "v1" ]
     sideEffects: None
     failurePolicy: Fail
     timeoutSeconds: 30
     clientConfig:
       service:
-        name: kthena-webhook
+        name: kthena-controller-manager-webhook
         namespace: {{ .Release.Namespace }}
-        path: "/mutate-registry-volcano-sh-v1alpha1-autoscalingpolicy"
+        path: "/mutate/autoscalingpolicy"
         port: 443
       {{- if or .Values.global.certManager.enabled .Values.controllerManager.webhook.tls.autoGenerateCert }}
       caBundle: ""
@@ -52,7 +52,7 @@ webhooks:
       caBundle: {{ required "A caBundle is required for the registry mutating webhook when cert-manager and auto-generate-cert are disabled (global.webhook.caBundle)" .Values.global.webhook.caBundle | quote }}
       {{- end }}
     rules:
-      - apiGroups: [ "registry.volcano.sh" ]
+      - apiGroups: [ "workload.serving.volcano.sh" ]
         apiVersions: [ "v1alpha1" ]
         resources: [ "autoscalingpolicies" ]
         operations: [ "CREATE", "UPDATE" ]

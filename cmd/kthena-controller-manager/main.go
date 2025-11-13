@@ -62,9 +62,8 @@ func main() {
 	pflag.StringVar(&wc.tlsPrivateKey, "tls-private-key-file", "/etc/tls/tls.key", "File containing the x509 private key to --tls-cert-file")
 	pflag.IntVar(&wc.port, "port", 8443, "Secure port that the webhook listens on")
 	pflag.IntVar(&wc.webhookTimeout, "webhook-timeout", 30, "Timeout for webhook operations in seconds")
-	// auto-generate-cert flag removed: behavior is automatic based on cert file presence
-	pflag.StringVar(&wc.certSecretName, "cert-secret-name", "kthena-webhook-certs", "Name of the secret to store auto-generated certificates")
-	pflag.StringVar(&wc.serviceName, "service-name", "kthena-webhook", "Service name for the webhook server")
+	pflag.StringVar(&wc.certSecretName, "cert-secret-name", "kthena-controller-manager-webhook-certs", "Name of the secret to store auto-generated certificates")
+	pflag.StringVar(&wc.serviceName, "service-name", "kthena-controller-manager-webhook", "Service name for the webhook server")
 	pflag.BoolVar(&cc.EnableLeaderElection, "leader-elect", false, "Enable leader election for controller. "+
 		"Enabling this will ensure there is only one active controller. Default is false.")
 	pflag.IntVar(&cc.Workers, "workers", 5, "number of workers to run. Default is 5")
@@ -91,8 +90,8 @@ func main() {
 	controller.SetupController(ctx, cc)
 }
 
-const validatingWebhookName = "kthena-validating-webhook"
-const mutatingWebhookName = "kthena-mutating-webhook"
+const validatingWebhookName = "kthena-controller-manager-validating-webhook"
+const mutatingWebhookName = "kthena-controller-manager-mutating-webhook"
 
 // ensureWebhookCertificate generates a certificate into the secret and returns the CA bundle.
 func ensureWebhookCertificate(ctx context.Context, kubeClient kubernetes.Interface, wc webhookConfig) ([]byte, error) {
@@ -167,11 +166,11 @@ func setupWebhook(ctx context.Context, wc webhookConfig) error {
 	autoscalingPolicyValidator := handlers.NewAutoscalingPolicyValidator()
 	autoscalingPolicyMutator := handlers.NewAutoscalingPolicyMutator()
 	autoscalingBindingValidator := handlers.NewAutoscalingBindingValidator(kthenaClient)
-	mux.HandleFunc("/validate-registry-volcano-sh-v1alpha1-model", modelValidator.Handle)
-	mux.HandleFunc("/mutate-registry-volcano-sh-v1alpha1-model", modelMutator.Handle)
-	mux.HandleFunc("/validate-registry-volcano-sh-v1alpha1-autoscalingpolicy", autoscalingPolicyValidator.Handle)
-	mux.HandleFunc("/mutate-registry-volcano-sh-v1alpha1-autoscalingpolicy", autoscalingPolicyMutator.Handle)
-	mux.HandleFunc("/validate-registry-volcano-sh-v1alpha1-autoscalingpolicybinding", autoscalingBindingValidator.Handle)
+	mux.HandleFunc("/validate/modelbooster", modelValidator.Handle)
+	mux.HandleFunc("/mutate/modelbooster", modelMutator.Handle)
+	mux.HandleFunc("/validate/autoscalingpolicy", autoscalingPolicyValidator.Handle)
+	mux.HandleFunc("/mutate/autoscalingpolicy", autoscalingPolicyMutator.Handle)
+	mux.HandleFunc("/validate/autoscalingpolicybinding", autoscalingBindingValidator.Handle)
 
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
