@@ -13,8 +13,11 @@ Before installing Kthena, ensure you have the following:
 -   **Kubernetes cluster** (version 1.20 or later)
 -   **kubectl** configured to access your cluster
 -   **Helm** (version 3.0 or later)
--   **[cert-manager](https://cert-manager.io/docs/installation/)** (see the [Certificate Management](#certificate-management) section for more details.)
 -   Cluster admin permissions
+
+### Optional Prerequisites
+
+-   **[cert-manager](https://cert-manager.io/docs/installation/)** - Optional for production environments. Kthena uses auto-generated certificates by default. See the [Certificate Management](#certificate-management) section for more details.
 
 ## Installation Methods
 
@@ -108,27 +111,42 @@ kubectl get svc -n kthena-system
 
 Kthena components such as webhooks and the router require certificates for secure communication.
 
-### Default Configuration (Requires cert-manager)
+### Default Configuration (Auto-Generated Certificates)
 
-When installing Kthena using the default configuration, **cert-manager is required** to automatically handle certificate provisioning and management for webhooks and other secure components.
+When installing Kthena using the default configuration, **certificates are automatically generated** by the webhook servers on startup. This is the simplest option and requires no external dependencies.
 
-To install cert-manager, follow the official installation guide: [Cert Manager Installation](https://cert-manager.io/docs/installation/)
+The auto-generated certificates are self-signed and have a 10-year validity period. This option is suitable for development, testing, and production environments where cert-manager is not available.
 
-### Manual Certificate Management (Fallback Option)
+### Production Configuration (Optional: cert-manager)
 
-If you cannot use cert-manager in your environment, you can disable it and manually configure certificate management using your own CA bundle.
+For production environments with cert-manager available, you can optionally enable cert-manager integration for automated certificate lifecycle management, including automatic renewal and rotation.
+
+To use cert-manager, follow the official installation guide: [Cert Manager Installation](https://cert-manager.io/docs/installation/)
+
+Then enable it during installation:
 
    ```bash
    helm install kthena oci://ghcr.io/volcano-sh/charts/kthena \
      --namespace kthena-system \
      --create-namespace \
-     --set global.certManager.enabled=false
+     --set global.certManager.enabled=true
+   ```
+
+### Manual Certificate Management (Advanced Option)
+
+If you prefer to manage certificates manually using your organization's PKI, you can disable auto-generated certificates and provide your own CA bundle:
+
+   ```bash
+   helm install kthena oci://ghcr.io/volcano-sh/charts/kthena \
+     --namespace kthena-system \
+     --create-namespace \
+     --set global.certManager.enabled=false \
      --set global.webhook.caBundle="LS0tLS1CRUdJTi..."
    ```
 
-For more details, please refer to the  [Manual Certificate Management](../general/cert-manager.md#manual-certificate-management) documentation.
+For more details, please refer to the [Certificate Management](../general/cert-manager.md) documentation.
 
-> **Note**: Manual certificate management requires additional configuration and maintenance. We recommend using cert-manager for production environments.
+> **Note**: The default auto-generated certificates are suitable for most use cases. Use cert-manager for automated certificate rotation in production, or manual certificates if required by your organization's policies.
 
 ## Gang Scheduling
 
