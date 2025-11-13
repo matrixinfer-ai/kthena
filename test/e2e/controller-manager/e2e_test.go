@@ -40,7 +40,7 @@ import (
 )
 
 const (
-	// TODO: separate kthena cp and e2e test namespace
+	// TODO: separate kthena system components and e2e test namespace
 	testNamespace = "dev"
 	routerSvc     = "kthena-router"
 )
