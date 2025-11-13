@@ -47,8 +47,8 @@ workload:
       enabled: true
       tls:
         autoGenerateCert: true  # Default: true
-        certSecretName: kthena-webhook-certs
-        serviceName: kthena-webhook
+        certSecretName: kthena-controller-manager-webhook-certs
+        serviceName: kthena-controller-manager-webhook
 
 # For kthena-router webhook (enabled by default)
 networking:
