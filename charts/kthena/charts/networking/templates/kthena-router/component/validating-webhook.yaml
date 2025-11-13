@@ -20,7 +20,7 @@ webhooks:
       service:
         name: kthena-router-webhook
         namespace: {{ .Release.Namespace }}
-        path: "/validate-modelroute"
+        path: "/validate/modelroute"
         port: {{ .Values.kthenaRouter.webhook.servicePort }}
       {{- if or .Values.global.certManager.enabled .Values.kthenaRouter.webhook.tls.autoGenerateCert }}
       caBundle: ""
@@ -42,7 +42,7 @@ webhooks:
       service:
         name: kthena-router-webhook
         namespace: {{ .Release.Namespace }}
-        path: "/validate-modelserver"
+        path: "/validate/modelserver"
         port: {{ .Values.kthenaRouter.webhook.servicePort }}
       {{- if or .Values.global.certManager.enabled .Values.kthenaRouter.webhook.tls.autoGenerateCert }}
       caBundle: ""

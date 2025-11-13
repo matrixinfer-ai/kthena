@@ -63,8 +63,8 @@ func NewKthenaRouterValidator(kubeClient kubernetes.Interface, modelInferClient 
 
 func (v *KthenaRouterValidator) Run(ctx context.Context, tlsCertFile, tlsPrivateKey string) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/validate-modelroute", v.HandleModelRoute)
-	mux.HandleFunc("/validate-modelserver", v.HandleModelServer)
+	mux.HandleFunc("/validate/modelroute", v.HandleModelRoute)
+	mux.HandleFunc("/validate/modelserver", v.HandleModelServer)
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		if _, err := w.Write([]byte("ok")); err != nil {

@@ -166,11 +166,11 @@ func setupWebhook(ctx context.Context, wc webhookConfig) error {
 	autoscalingPolicyValidator := handlers.NewAutoscalingPolicyValidator()
 	autoscalingPolicyMutator := handlers.NewAutoscalingPolicyMutator()
 	autoscalingBindingValidator := handlers.NewAutoscalingBindingValidator(kthenaClient)
-	mux.HandleFunc("/validate-workload-serving-volcano-sh-v1alpha1-modelbooster", modelValidator.Handle)
-	mux.HandleFunc("/mutate-workload-serving-volcano-sh-v1alpha1-modelbooster", modelMutator.Handle)
-	mux.HandleFunc("/validate-workload-serving-volcano-sh-v1alpha1-autoscalingpolicy", autoscalingPolicyValidator.Handle)
-	mux.HandleFunc("/mutate-workload-serving-volcano-sh-v1alpha1-autoscalingpolicy", autoscalingPolicyMutator.Handle)
-	mux.HandleFunc("/validate-workload-serving-volcano-sh-v1alpha1-autoscalingpolicybinding", autoscalingBindingValidator.Handle)
+	mux.HandleFunc("/validate/modelbooster", modelValidator.Handle)
+	mux.HandleFunc("/mutate/modelbooster", modelMutator.Handle)
+	mux.HandleFunc("/validate/autoscalingpolicy", autoscalingPolicyValidator.Handle)
+	mux.HandleFunc("/mutate/autoscalingpolicy", autoscalingPolicyMutator.Handle)
+	mux.HandleFunc("/validate/autoscalingpolicybinding", autoscalingBindingValidator.Handle)
 
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

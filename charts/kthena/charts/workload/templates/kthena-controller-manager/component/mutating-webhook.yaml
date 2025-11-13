@@ -20,7 +20,7 @@ webhooks:
       service:
         name: kthena-controller-manager-webhook
         namespace: {{ .Release.Namespace }}
-        path: "/mutate-workload-serving-volcano-sh-v1alpha1-modelbooster"
+        path: "/mutate/modelbooster"
         port: 443
       {{- if or .Values.global.certManager.enabled .Values.controllerManager.webhook.tls.autoGenerateCert }}
       caBundle: ""
@@ -44,7 +44,7 @@ webhooks:
       service:
         name: kthena-controller-manager-webhook
         namespace: {{ .Release.Namespace }}
-        path: "/mutate-workload-serving-volcano-sh-v1alpha1-autoscalingpolicy"
+        path: "/mutate/autoscalingpolicy"
         port: 443
       {{- if or .Values.global.certManager.enabled .Values.controllerManager.webhook.tls.autoGenerateCert }}
       caBundle: ""
