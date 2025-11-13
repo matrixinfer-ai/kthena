@@ -20,7 +20,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "kthena.name" . }}-kthena-router-webhook
+  name: kthena-router-webhook
   namespace: {{ .Release.Namespace }}
   labels:
     app.kubernetes.io/component: kthena-router

@@ -43,7 +43,6 @@ networking:
         certFile: /etc/tls/tls.crt
         keyFile: /etc/tls/tls.key
         secretName: kthena-router-webhook-certs
-        autoGenerateCert: true
     # fairness configuration for request scheduling
     fairness:
       # enabled controls whether fairness scheduling is active

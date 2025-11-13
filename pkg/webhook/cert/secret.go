@@ -18,7 +18,6 @@ package cert
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
@@ -181,17 +180,28 @@ func UpdateMutatingWebhookCABundle(ctx context.Context, kubeClient kubernetes.In
 	return nil
 }
 
-// GetCABundleBase64 returns the base64-encoded CA bundle from the secret
-func GetCABundleBase64(ctx context.Context, kubeClient kubernetes.Interface, namespace, secretName string) (string, error) {
-	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
+// LoadCertBundleFromSecret tries to read key cert bundle from a Kubernetes Secret.
+func LoadCertBundleFromSecret(ctx context.Context, kubeClient kubernetes.Interface, namespace, secretName string) (*CertBundle, error) {
+	s, err := kubeClient.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
 	if err != nil {
-		return "", fmt.Errorf("failed to get secret %s/%s: %w", namespace, secretName, err)
+		if apierrors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	if s.Data == nil {
+		return nil, nil
 	}
 
-	caBundle, ok := secret.Data[CAKey]
-	if !ok {
-		return "", fmt.Errorf("secret %s/%s does not contain %s", namespace, secretName, CAKey)
+	var bundle CertBundle
+	if b, ok := s.Data[TLSCertKey]; ok && len(b) > 0 {
+		bundle.CertPEM = b
 	}
-
-	return base64.StdEncoding.EncodeToString(caBundle), nil
+	if b, ok := s.Data[TLSKeyKey]; ok && len(b) > 0 {
+		bundle.KeyPEM = b
+	}
+	if b, ok := s.Data[CAKey]; ok && len(b) > 0 {
+		bundle.CAPEM = b
+	}
+	return &bundle, nil
 }

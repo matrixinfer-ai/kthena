@@ -40,14 +40,12 @@ import (
 )
 
 type webhookConfig struct {
-	tlsCertFile      string
-	tlsPrivateKey    string
-	port             int
-	webhookTimeout   int
-	autoGenerateCert bool
-	certSecretName   string
-	namespace        string
-	serviceName      string
+	tlsCertFile    string
+	tlsPrivateKey  string
+	port           int
+	webhookTimeout int
+	certSecretName string
+	serviceName    string
 }
 
 func main() {
@@ -64,7 +62,6 @@ func main() {
 	pflag.StringVar(&wc.tlsPrivateKey, "tls-private-key-file", "/etc/tls/tls.key", "File containing the x509 private key to --tls-cert-file")
 	pflag.IntVar(&wc.port, "port", 8443, "Secure port that the webhook listens on")
 	pflag.IntVar(&wc.webhookTimeout, "webhook-timeout", 30, "Timeout for webhook operations in seconds")
-	pflag.BoolVar(&wc.autoGenerateCert, "auto-generate-cert", true, "If true, automatically generate self-signed certificate if not exists")
 	pflag.StringVar(&wc.certSecretName, "cert-secret-name", "kthena-controller-manager-webhook-certs", "Name of the secret to store auto-generated certificates")
 	pflag.StringVar(&wc.serviceName, "service-name", "kthena-controller-manager-webhook", "Service name for the webhook server")
 	pflag.BoolVar(&cc.EnableLeaderElection, "leader-elect", false, "Enable leader election for controller. "+
@@ -93,42 +90,18 @@ func main() {
 	controller.SetupController(ctx, cc)
 }
 
-// ensureWebhookCertificate ensures that a certificate exists for the webhook server
-func ensureWebhookCertificate(ctx context.Context, kubeClient kubernetes.Interface, wc webhookConfig) error {
-	if !wc.autoGenerateCert {
-		return nil
-	}
+const validatingWebhookName = "kthena-controller-manager-validating-webhook"
+const mutatingWebhookName = "kthena-controller-manager-mutating-webhook"
 
-	namespace := wc.namespace
-	if namespace == "" {
-		namespace = os.Getenv("POD_NAMESPACE")
-		if namespace == "" {
-			namespace = "default"
-		}
-	}
-
+// ensureWebhookCertificate generates a certificate into the secret and returns the CA bundle.
+func ensureWebhookCertificate(ctx context.Context, kubeClient kubernetes.Interface, wc webhookConfig) ([]byte, error) {
+	namespace := getNamespace()
 	dnsNames := []string{
 		fmt.Sprintf("%s.%s.svc", wc.serviceName, namespace),
 		fmt.Sprintf("%s.%s.svc.cluster.local", wc.serviceName, namespace),
 	}
-
-	klog.Infof("Auto-generating certificate for webhook server")
-	caBundle, err := webhookcert.EnsureCertificate(ctx, kubeClient, namespace, wc.certSecretName, dnsNames)
-	if err != nil {
-		return err
-	}
-
-	// Update ValidatingWebhookConfiguration with CA bundle
-	if err := webhookcert.UpdateValidatingWebhookCABundle(ctx, kubeClient, "kthena-controller-manager-validating-webhook", caBundle); err != nil {
-		klog.Warningf("Failed to update ValidatingWebhookConfiguration CA bundle: %v", err)
-	}
-
-	// Update MutatingWebhookConfiguration with CA bundle
-	if err := webhookcert.UpdateMutatingWebhookCABundle(ctx, kubeClient, "kthena-controller-manager-mutating-webhook", caBundle); err != nil {
-		klog.Warningf("Failed to update MutatingWebhookConfiguration CA bundle: %v", err)
-	}
-
-	return nil
+	klog.Infof("Auto-generating certificate for webhook server (secret=%s service=%s)", wc.certSecretName, wc.serviceName)
+	return webhookcert.EnsureCertificate(ctx, kubeClient, namespace, wc.certSecretName, dnsNames)
 }
 
 func setupWebhook(ctx context.Context, wc webhookConfig) error {
@@ -150,10 +123,37 @@ func setupWebhook(ctx context.Context, wc webhookConfig) error {
 		return err
 	}
 
-	// Auto-generate certificate if enabled
-	if err := ensureWebhookCertificate(ctx, kubeClient, wc); err != nil {
-		klog.Fatalf("failed to ensure certificate: %v", err)
-		return err
+	// Secret -> File -> Generate precedence for CA bundle selection
+	namespace := getNamespace()
+	var caBundle []byte
+
+	// 1. Try secret first.
+	if bundle, err := webhookcert.LoadCertBundleFromSecret(ctx, kubeClient, namespace, wc.certSecretName); err != nil {
+		klog.Warningf("Error reading CA bundle from secret %s: %v", wc.certSecretName, err)
+	} else if bundle != nil {
+		klog.Infof("Loaded CA bundle from secret %s", wc.certSecretName)
+		caBundle = bundle.CAPEM
+	}
+
+	// 2. If not from secret, try existing cert file.
+	if caBundle == nil {
+		if !fileExists(wc.tlsPrivateKey) || !fileExists(wc.tlsCertFile) {
+			b, err := ensureWebhookCertificate(ctx, kubeClient, wc)
+			if err != nil {
+				klog.Fatalf("Failed to auto-generate webhook certificates: %v", err)
+			}
+			caBundle = b
+		}
+	}
+
+	if caBundle != nil {
+		// Always update both webhook configurations with the chosen CA bundle
+		if err := webhookcert.UpdateValidatingWebhookCABundle(ctx, kubeClient, validatingWebhookName, caBundle); err != nil {
+			klog.Warningf("Failed to update ValidatingWebhookConfiguration CA bundle: %v", err)
+		}
+		if err := webhookcert.UpdateMutatingWebhookCABundle(ctx, kubeClient, mutatingWebhookName, caBundle); err != nil {
+			klog.Warningf("Failed to update MutatingWebhookConfiguration CA bundle: %v", err)
+		}
 	}
 
 	mux := http.NewServeMux()
@@ -189,6 +189,12 @@ func setupWebhook(ctx context.Context, wc webhookConfig) error {
 		},
 	}
 
+	// Wait for both cert and key files to exist (in case they are mounted by Kubernetes)
+	ok := waitForCertsReady(wc.tlsPrivateKey, wc.tlsCertFile)
+	if !ok {
+		return fmt.Errorf("TLS cert/key files not found, webhook server cannot start")
+	}
+
 	go func() {
 		klog.Infof("Starting webhook server on %s", server.Addr)
 		if err := server.ListenAndServeTLS(wc.tlsCertFile, wc.tlsPrivateKey); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -200,4 +206,34 @@ func setupWebhook(ctx context.Context, wc webhookConfig) error {
 	defer cancel()
 	_ = server.Shutdown(ctxTimeout)
 	return nil
+}
+
+// getNamespace returns the current pod namespace or "default".
+func getNamespace() string {
+	return os.Getenv("POD_NAMESPACE")
+}
+
+// fileExists returns true if the file exists.
+func fileExists(path string) bool {
+	if path == "" {
+		return false
+	}
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+func waitForCertsReady(keyFile, CertFile string) bool {
+	waitTimeout := 30 * time.Second
+	waitInterval := 500 * time.Millisecond
+	start := time.Now()
+	for {
+		if fileExists(CertFile) && fileExists(keyFile) {
+			return true
+		}
+		if time.Since(start) > waitTimeout {
+			klog.Warningf("timeout waiting for TLS cert/key files to appear at %s and %s", keyFile, CertFile)
+			return false
+		}
+		time.Sleep(waitInterval)
+	}
 }

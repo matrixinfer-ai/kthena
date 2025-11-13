@@ -8,7 +8,7 @@ metadata:
     {{- include "kthena.labels" . | nindent 4 }}
   {{- if .Values.global.certManager.enabled }}
   annotations:
-    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "kthena.name" . }}-kthena-router-webhook-cert
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/kthena-router-webhook-cert
   {{- end }}
 webhooks:
   - name: validate-modelroute.volcano.sh

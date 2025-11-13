@@ -8,7 +8,6 @@ kthenaRouter:
     dnsName: ""
     # The name of the secret to store the certificate and key.
     secretName: "kthena-router-tls"
-    autoCreateSecret: true
   webhook:
     enabled: true
     port: 8443
@@ -17,9 +16,6 @@ kthenaRouter:
       certFile: /etc/tls/tls.crt
       keyFile: /etc/tls/tls.key
       secretName: kthena-router-webhook-certs
-      # autoGenerateCert enables automatic self-signed certificate generation
-      # If enabled, the webhook will generate certificates on startup if they don't exist
-      autoGenerateCert: true
       # serviceName is the service name used for certificate DNS names
       serviceName: kthena-router-webhook
   image:
@@ -71,7 +67,7 @@ webhook:
     # pullPolicy is the image pull policy for the router-webhook.
     pullPolicy: IfNotPresent
     # args are the command line arguments for the router-webhook.
-    args: [ "--port=8443" ]
+    args: ["--port=8443"]
   # resource defines the resource limits and requests for the router-webhook.
   resource:
     limits:

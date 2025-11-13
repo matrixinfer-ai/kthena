@@ -2,7 +2,7 @@
 apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
-  name: {{ include "kthena.name" . }}-webhook-issuer
+  name: kthena-webhook-issuer
   namespace: {{ .Release.Namespace }}
 spec:
   selfSigned: {}
@@ -10,14 +10,14 @@ spec:
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: {{ include "kthena.name" . }}-webhook-cert
+  name: kthena-webhook-cert
   namespace: {{ .Release.Namespace }}
 spec:
   dnsNames:
-    - {{ include "kthena.name" . }}-webhook.{{ .Release.Namespace }}.svc
-    - {{ include "kthena.name" . }}-webhook.{{ .Release.Namespace }}.svc.cluster.local
+    - kthena-webhook.{{ .Release.Namespace }}.svc
+    - kthena-webhook.{{ .Release.Namespace }}.svc.cluster.local
   issuerRef:
     kind: Issuer
-    name: {{ include "kthena.name" . }}-webhook-issuer
-  secretName: {{ include "kthena.name" . }}-webhook-certs
+    name: kthena-webhook-issuer
+  secretName: {{ .Values.controllerManager.webhook.tls.certSecretName }}
 {{- end }}

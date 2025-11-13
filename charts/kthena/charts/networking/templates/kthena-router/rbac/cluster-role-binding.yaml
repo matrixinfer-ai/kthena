@@ -11,5 +11,5 @@ roleRef:
   name: kthena-router
 subjects:
   - kind: ServiceAccount
-    name: {{ include "kthena.name" . }}-kthena-router
+    name: kthena-router
     namespace: {{ .Release.Namespace }}
