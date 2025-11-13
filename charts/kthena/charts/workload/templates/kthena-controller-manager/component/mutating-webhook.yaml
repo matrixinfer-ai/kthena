@@ -11,7 +11,7 @@ metadata:
     cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "kthena.name" . }}-webhook-cert
   {{- end }}
 webhooks:
-  - name: mutate-workload-serving-volcano-sh-v1alpha1-modelbooster.volcano.sh
+  - name: mutate-modelbooster.volcano.sh
     admissionReviewVersions: [ "v1" ]
     sideEffects: None
     failurePolicy: Fail
@@ -35,7 +35,7 @@ webhooks:
         scope: "Namespaced"
     # This ensures the webhook is called before validation
     reinvocationPolicy: IfNeeded
-  - name: mutate-workload-serving-volcano-sh-v1alpha1-autoscalingpolicy.volcano.sh
+  - name: mutate-autoscalingpolicy.volcano.sh
     admissionReviewVersions: [ "v1" ]
     sideEffects: None
     failurePolicy: Fail

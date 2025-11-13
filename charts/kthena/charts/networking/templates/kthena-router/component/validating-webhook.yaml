@@ -11,7 +11,7 @@ metadata:
     cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "kthena.name" . }}-kthena-router-webhook-cert
   {{- end }}
 webhooks:
-  - name: validate-networking-volcano-sh-v1alpha1-modelroute.volcano.sh
+  - name: validate-modelroute.volcano.sh
     admissionReviewVersions: [ "v1" ]
     sideEffects: None
     failurePolicy: Fail
@@ -33,7 +33,7 @@ webhooks:
         resources: [ "modelroutes" ]
         operations: [ "CREATE", "UPDATE" ]
         scope: "Namespaced"
-  - name: validate-networking-volcano-sh-v1alpha1-modelserver.volcano.sh
+  - name: validate-modelserver.volcano.sh
     admissionReviewVersions: [ "v1" ]
     sideEffects: None
     failurePolicy: Fail

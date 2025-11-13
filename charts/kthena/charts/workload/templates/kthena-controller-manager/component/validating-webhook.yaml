@@ -11,7 +11,7 @@ metadata:
     cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "kthena.name" . }}-webhook-cert
   {{- end }}
 webhooks:
-  - name: validate-workload-serving-volcano-sh-v1alpha1-modelbooster.volcano.sh
+  - name: validate-modelbooster.volcano.sh
     admissionReviewVersions: [ "v1" ]
     sideEffects: None
     failurePolicy: Fail
@@ -33,7 +33,7 @@ webhooks:
         resources: [ "modelboosters" ]
         operations: [ "CREATE", "UPDATE" ]
         scope: "Namespaced"
-  - name: validate-workload-serving-volcano-sh-v1alpha1-autoscalingpolicy.volcano.sh
+  - name: validate-autoscalingpolicy.volcano.sh
     admissionReviewVersions: [ "v1" ]
     sideEffects: None
     failurePolicy: Fail
@@ -55,7 +55,7 @@ webhooks:
         resources: [ "autoscalingpolicies" ]
         operations: [ "CREATE", "UPDATE" ]
         scope: "Namespaced"
-  - name: validate-workload-serving-volcano-sh-v1alpha1-autoscalingpolicybinding.volcano.sh
+  - name: validate-autoscalingpolicybinding.volcano.sh
     admissionReviewVersions: [ "v1" ]
     sideEffects: None
     failurePolicy: Fail
