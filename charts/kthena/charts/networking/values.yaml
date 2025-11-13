@@ -22,9 +22,6 @@ kthenaRouter:
       autoGenerateCert: true
       # serviceName is the service name used for certificate DNS names
       serviceName: kthena-router-webhook
-      # Deprecated: use autoGenerateCert instead
-      autoCreateSecret: false
-    caBundle: ""
   image:
     # repository is the container image repository for the kthena-router.
     repository: ghcr.io/volcano-sh/kthena-router
