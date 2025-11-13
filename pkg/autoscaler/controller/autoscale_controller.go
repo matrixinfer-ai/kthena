@@ -122,7 +122,7 @@ func (ac *AutoscaleController) Run(ctx context.Context) {
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (ac *AutoscaleController) Reconcile(ctx context.Context) {
-	klog.InfoS("start to reconcile")
+	klog.V(4).Info("start to reconcile")
 	ctx, cancel := context.WithTimeout(ctx, util.AutoscaleCtxTimeoutSeconds*time.Second)
 	defer cancel()
 	bindingList, err := ac.client.WorkloadV1alpha1().AutoscalingPolicyBindings(ac.namespace).List(ctx, metav1.ListOptions{})
@@ -136,7 +136,6 @@ func (ac *AutoscaleController) Reconcile(ctx context.Context) {
 
 	for _, binding := range bindingList.Items {
 		policyName := binding.Spec.PolicyRef.Name
-		klog.InfoS("global", "autoscalingPolicyName", policyName)
 		if policyName == "" {
 			continue
 		}
@@ -162,7 +161,6 @@ func (ac *AutoscaleController) Reconcile(ctx context.Context) {
 		}
 	}
 
-	klog.InfoS("start to process autoscale")
 	for _, binding := range bindingList.Items {
 		err := ac.schedule(ctx, &binding)
 		if err != nil {
@@ -173,7 +171,7 @@ func (ac *AutoscaleController) Reconcile(ctx context.Context) {
 }
 
 func (ac *AutoscaleController) schedule(ctx context.Context, binding *workload.AutoscalingPolicyBinding) error {
-	klog.InfoS("start to process autoscale", "namespace", binding.Namespace, "model name", binding.Name)
+	klog.V(2).Infof("start to process asp binding %s", klog.KObj(binding))
 	autoscalePolicy, err := ac.getAutoscalePolicy(binding.Spec.PolicyRef.Name, binding.Namespace)
 	if err != nil {
 		klog.Errorf("get autoscale policy error: %v", err)
@@ -207,7 +205,6 @@ func (ac *AutoscaleController) schedule(ctx context.Context, binding *workload.A
 		klog.Warningf("binding %s has no scalingConfiguration and optimizerConfiguration", binding.Name)
 	}
 
-	klog.InfoS("schedule end")
 	return nil
 }
 
