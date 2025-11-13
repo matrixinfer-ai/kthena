@@ -66,7 +66,7 @@ func main() {
 	pflag.IntVar(&wc.webhookTimeout, "webhook-timeout", 30, "Timeout for webhook operations in seconds")
 	pflag.BoolVar(&wc.autoGenerateCert, "auto-generate-cert", true, "If true, automatically generate self-signed certificate if not exists")
 	pflag.StringVar(&wc.certSecretName, "cert-secret-name", "kthena-webhook-certs", "Name of the secret to store auto-generated certificates")
-	pflag.StringVar(&wc.serviceName, "service-name", "kthena-webhook", "Service name for the webhook server")
+	pflag.StringVar(&wc.serviceName, "service-name", "kthena-controller-manager-webhook", "Service name for the webhook server")
 	pflag.BoolVar(&cc.EnableLeaderElection, "leader-elect", false, "Enable leader election for controller. "+
 		"Enabling this will ensure there is only one active controller. Default is false.")
 	pflag.IntVar(&cc.Workers, "workers", 5, "number of workers to run. Default is 5")
