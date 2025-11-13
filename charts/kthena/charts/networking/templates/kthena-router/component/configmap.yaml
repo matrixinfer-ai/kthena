@@ -1,8 +1,10 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "kthena.name" . }}-kthena-router-config
+  name: kthena-router-config
   namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/component: kthena-router
 data:
   routerConfiguration: |-
     scheduler:
