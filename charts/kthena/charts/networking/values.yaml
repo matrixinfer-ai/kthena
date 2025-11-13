@@ -18,6 +18,7 @@ kthenaRouter:
       secretName: kthena-router-webhook-certs
       # serviceName is the service name used for certificate DNS names
       serviceName: kthena-router-webhook
+      autoGenerateCert: true
   image:
     # repository is the container image repository for the kthena-router.
     repository: ghcr.io/volcano-sh/kthena-router
